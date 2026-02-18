@@ -81,7 +81,9 @@ sudo apt install -y \
   gnupg2 \
   lsb-release \
   build-essential \
-  cmake
+  cmake \
+  black \
+  isort
 ok "Base dependencies installed."
 
 info "Enabling Ubuntu universe repository..."
@@ -142,6 +144,7 @@ echo
 ok "Dependency installation completed successfully."
 info "This script installs dependencies only (no workspace creation/build)."
 info "For a session-based ROS environment: source /opt/ros/${ROS_DISTRO}/setup.bash"
-info "Recommended local workspace path for this project: ./workspace"
+info "Recommended project ROS source path: ./src"
+info "Recommended build output paths: ./build ./install ./log"
 info "Verify with: ros2 --version"
 info "Optional checks: gz sim, rviz2"

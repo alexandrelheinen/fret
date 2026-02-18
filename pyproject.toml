@@ -1,0 +1,22 @@
+[project]
+name = "fret"
+version = "0.1.0"
+description = "Full-stack Robotic Effector Trajectories Framework"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 79
+target-version = ["py312"]
+extend-exclude = """
+/(build|install|log)/
+"""
+
+[tool.isort]
+profile = "black"
+line_length = 79
+py_version = 39
+skip_glob = ["build/*", "install/*", "log/*"]

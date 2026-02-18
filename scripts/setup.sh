@@ -67,39 +67,32 @@ source "${ROS_SETUP}"
 set -u
 ok "ROS 2 Jazzy sourced for this setup session."
 
-WORKSPACE_DIR="${PROJECT_ROOT}/workspace"
-SRC_DIR="${WORKSPACE_DIR}/src"
+SRC_DIR="${PROJECT_ROOT}/src"
+INSTALL_DIR="${PROJECT_ROOT}/install"
 
-info "Creating local workspace structure at ${WORKSPACE_DIR}..."
+info "Ensuring source directory exists at ${SRC_DIR}..."
 mkdir -p "${SRC_DIR}"
-ok "Workspace folders are ready."
+ok "Source directory is ready."
 
 PACKAGE_COUNT=$(find "${SRC_DIR}" -type f -name package.xml | wc -l | tr -d '[:space:]')
 
 if [[ "${PACKAGE_COUNT}" -gt 0 ]]; then
-	info "Detected ${PACKAGE_COUNT} ROS package(s) in workspace/src."
+	info "Detected ${PACKAGE_COUNT} ROS package(s) in src/."
 
-	info "Installing workspace package dependencies with rosdep..."
+	info "Installing package dependencies with rosdep..."
 	rosdep install --from-paths "${SRC_DIR}" --ignore-src -r -y
 	ok "Workspace dependencies resolved."
-
-	info "Building workspace with colcon..."
-	colcon build \
-		--base-paths "${SRC_DIR}" \
-		--build-base "${WORKSPACE_DIR}/build" \
-		--install-base "${WORKSPACE_DIR}/install" \
-		--log-base "${WORKSPACE_DIR}/log"
-	ok "Workspace build completed."
+	info "Setup stage complete. Use ./scripts/build.sh to build packages."
 else
-	warn "No ROS packages found in workspace/src. Skipping rosdep and colcon build stages."
+	warn "No ROS packages found in src/. Skipping rosdep stage."
 fi
 
 echo
 ok "Setup completed successfully."
-info "Workspace path: ${WORKSPACE_DIR}"
-if [[ -f "${WORKSPACE_DIR}/install/setup.bash" ]]; then
-	info "Activate overlay with: source workspace/install/setup.bash"
+info "Workspace root: ${PROJECT_ROOT}"
+if [[ -f "${INSTALL_DIR}/setup.bash" ]]; then
+	info "Activate overlay with: source install/setup.bash"
 else
-	info "Add ROS packages to workspace/src, then run setup.sh again to build overlay."
+	info "Add ROS packages to src/, run setup.sh, then run ./scripts/build.sh to generate overlay."
 fi
 

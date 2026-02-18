@@ -143,6 +143,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.venv_test/
 
 # Spyder project settings
 .spyderproject
@@ -199,8 +200,10 @@ cython_debug/
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
 
-# Local ROS workspace (build artifacts, logs, generated files)
-workspace/
+# Colcon generated artifacts
+build/
+install/
+log/
 .cursorignore
 .cursorindexingignore
 

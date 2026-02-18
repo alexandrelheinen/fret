@@ -1,0 +1,610 @@
+<?xml version="1.0"?>
+<!-- SCARA robot description (xacro)
+
+      Generated from docs/scara/scara.md specifications.
+      Conventions: who_what naming, counts start at 0, R-R-P-R kinematics.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="SCARA">
+
+     <!-- Unit conversion and math -->
+     <xacro:property name="PI" value="3.141592653589793" />
+
+     <!-- Base / Link 0 (meters) -->
+     <xacro:property name="link_0_plate_length" value="0.195" /> <!-- 195 mm -->
+     <xacro:property name="link_0_plate_width" value="0.169" />  <!-- 169 mm -->
+     <xacro:property name="link_0_plate_thickness" value="0.01" /> <!-- 10 mm -->
+     <xacro:property name="link_0_cylinder_radius" value="0.06" /> <!-- R=60 mm -->
+     <xacro:property name="link_0_cylinder_height" value="0.1665" /> <!-- H_base inclusive of plate (166.5 mm) -->
+
+     <!-- Kinematic lengths (independent parameters) -->
+     <xacro:property name="arm_0_length" value="0.325" />    <!-- L1 kinematic (325 mm) -->
+     <xacro:property name="arm_1_length" value="0.275" />    <!-- L2 kinematic (275 mm) -->
+
+     <!-- Arm cross-section: define radius then derive diameter -->
+     <xacro:property name="arm_radius" value="0.05" />  <!-- 50 mm -->
+     <xacro:property name="arm_diameter" value="${2*arm_radius}" />
+
+     <!-- Visual lengths derived from kinematic lengths and radius -->
+     <xacro:property name="arm_0_visual_length" value="${arm_0_length + 2*arm_radius}" />
+     <xacro:property name="arm_1_visual_length" value="${arm_1_length + 2*arm_radius}" />
+
+     <xacro:property name="link_1_height" value="0.0715" />   <!-- 71.5 mm -->
+     <xacro:property name="link_2_height" value="0.0715" />   <!-- 71.5 mm -->
+
+     <!-- Headpiece geometry (shared between inertial calc and mesh generator) -->
+     <xacro:property name="head_rear_height"  value="0.133" />  <!-- proximal (rear) block H, 133 mm -->
+     <xacro:property name="head_front_height" value="0.070" />  <!-- distal (front) block H, 70 mm -->
+     <xacro:property name="front_box_len"     value="0.159" />  <!-- length of sloped front section, 159 mm -->
+
+     <!-- Quill / Link 3 -->
+     <xacro:property name="link_3_height" value="0.4425" />  <!-- 442.5 mm -->
+
+     <!-- Joint Z offsets (relative definitions)
+          j1_z: height of the base top where J1 is mounted (relative to base frame)
+          j2_z: vertical offset from arm_0_link frame to reach the top face of arm_0 (use link_1_height)
+     -->
+     <xacro:property name="j1_z" value="${link_0_cylinder_height}" />
+     <xacro:property name="j2_z" value="${link_1_height}" />
+
+     <!-- Mass distribution (kg): define total and allocate by percentage -->
+     <xacro:property name="total_mass" value="21.5" />
+     <xacro:property name="link_0_mass" value="${total_mass * 0.4}" />
+     <xacro:property name="link_1_mass" value="${total_mass * 0.3}" />
+     <xacro:property name="link_2_mass" value="${total_mass * 0.2}" />
+     <xacro:property name="link_3_mass" value="${total_mass * 0.1}" />
+     <xacro:property name="payload_mass" value="6.0" />
+
+     <!-- Joint limits & velocities -->
+     <xacro:property name="j1_lower" value="${-132*PI/180}" />
+     <xacro:property name="j1_upper" value="${132*PI/180}" />
+     <xacro:property name="j2_lower" value="${-150*PI/180}" />
+     <xacro:property name="j2_upper" value="${150*PI/180}" />
+     <xacro:property name="j1_velocity" value="${375*PI/180}" /> <!-- rad/s -->
+     <xacro:property name="j2_velocity" value="${600*PI/180}" /> <!-- rad/s -->
+     <xacro:property name="j3_lower" value="0.0" />
+     <xacro:property name="j3_upper" value="0.2" /> <!-- 200 mm -->
+     <xacro:property name="j3_velocity" value="1.111" /> <!-- 1111 mm/s -> m/s -->
+
+     <!-- Materials (visual order: white, blue, red, green) -->
+     <material name="white"><color rgba="1 1 1 1"/></material>
+     <material name="blue"><color rgba="0 0 0.8 1"/></material>
+     <material name="red"><color rgba="0.8 0 0 1"/></material>
+     <material name="green"><color rgba="0 0.8 0 1"/></material>
+     <material name="light_gray"><color rgba="0.6 0.6 0.6 1"/></material>
+     <material name="invisible"><color rgba="0 1 0 0"/></material>
+
+     <!-- Dummy root link with no inertia to satisfy KDL (avoid root inertia warning) -->
+     <link name="base_root"/>
+
+     <!-- Link 0: Base plate + pedestal cylinder -->
+      <link name="base_link">
+          <inertial>
+               <!-- Inertial origin moved: shift plate forward by one cylinder radius toward +x -->
+               <origin xyz="${-link_0_plate_length/2 + link_0_cylinder_radius} 0 ${link_0_plate_thickness/2}" rpy="0 0 0"/>
+               <mass value="${link_0_mass}"/>
+               <!-- Composite inertia: plate + front cylinder + rear box -->
+               <xacro:property name="_pedestal_height" value="${link_0_cylinder_height - link_0_plate_thickness}"/>
+               <xacro:property name="_rear_box_length" value="${link_0_plate_length - link_0_cylinder_radius}"/>
+               <xacro:property name="_rear_box_width" value="${2*link_0_cylinder_radius}"/>
+               <xacro:property name="_rear_box_height" value="${_pedestal_height}"/>
+               <xacro:property name="_vol_plate" value="${link_0_plate_length*link_0_plate_width*link_0_plate_thickness}"/>
+               <xacro:property name="_vol_rear" value="${_rear_box_length*_rear_box_width*_rear_box_height}"/>
+               <xacro:property name="_vol_cyl" value="${PI*link_0_cylinder_radius*link_0_cylinder_radius*_pedestal_height}"/>
+               <xacro:property name="_vol_total_base" value="${_vol_plate + _vol_rear + _vol_cyl}"/>
+               <xacro:property name="_m_plate" value="${link_0_mass * _vol_plate / _vol_total_base}"/>
+               <xacro:property name="_m_rear" value="${link_0_mass * _vol_rear / _vol_total_base}"/>
+               <xacro:property name="_m_cyl" value="${link_0_mass * _vol_cyl / _vol_total_base}"/>
+               <!-- Plate inertias about inertial origin (plate centered at this origin) -->
+               <xacro:property name="_Ixx_plate" value="${(1.0/12.0)*_m_plate*(_rear_box_width*_rear_box_width + link_0_plate_thickness*link_0_plate_thickness)}"/>
+               <xacro:property name="_Iyy_plate" value="${(1.0/12.0)*_m_plate*(link_0_plate_length*link_0_plate_length + link_0_plate_thickness*link_0_plate_thickness)}"/>
+               <xacro:property name="_Izz_plate" value="${(1.0/12.0)*_m_plate*(link_0_plate_length*link_0_plate_length + _rear_box_width*_rear_box_width)}"/>
+               <!-- Cylinder inertia about its center -->
+               <xacro:property name="_Ixx_cyl_c" value="${(1.0/12.0)*_m_cyl*(3*link_0_cylinder_radius*link_0_cylinder_radius + _pedestal_height*_pedestal_height)}"/>
+               <xacro:property name="_Izz_cyl_c" value="${0.5*_m_cyl*link_0_cylinder_radius*link_0_cylinder_radius}"/>
+               <!-- Cylinder center offset from plate inertial origin in x and z -->
+               <xacro:property name="_dx_cyl" value="${link_0_plate_length/2 - link_0_cylinder_radius}"/>
+               <xacro:property name="_dz_cyl" value="${link_0_plate_thickness/2 + _pedestal_height/2}"/>
+               <xacro:property name="_Ixx_cyl" value="${_Ixx_cyl_c + _m_cyl*(_dz_cyl*_dz_cyl)}"/>
+               <xacro:property name="_Iyy_cyl" value="${_Ixx_cyl_c + _m_cyl*(_dx_cyl*_dx_cyl + _dz_cyl*_dz_cyl)}"/>
+               <xacro:property name="_Izz_cyl" value="${_Izz_cyl_c + _m_cyl*(_dx_cyl*_dx_cyl)}"/>
+               <!-- Rear box inertia about its center -->
+               <xacro:property name="_Ixx_rear_c" value="${(1.0/12.0)*_m_rear*(_rear_box_width*_rear_box_width + _rear_box_height*_rear_box_height)}"/>
+               <xacro:property name="_Iyy_rear_c" value="${(1.0/12.0)*_m_rear*(_rear_box_length*_rear_box_length + _rear_box_height*_rear_box_height)}"/>
+               <xacro:property name="_Izz_rear_c" value="${(1.0/12.0)*_m_rear*(_rear_box_length*_rear_box_length + _rear_box_width*_rear_box_width)}"/>
+               <!-- Rear box center offset from plate inertial origin: dx = -link_0_cylinder_radius/2, dz same as cylinder -->
+               <xacro:property name="_dx_rear" value="${-link_0_cylinder_radius/2.0}"/>
+               <xacro:property name="_dz_rear" value="${link_0_plate_thickness/2 + _rear_box_height/2}"/>
+               <xacro:property name="_Ixx_rear" value="${_Ixx_rear_c + _m_rear*(_dz_rear*_dz_rear)}"/>
+               <xacro:property name="_Iyy_rear" value="${_Iyy_rear_c + _m_rear*(_dx_rear*_dx_rear + _dz_rear*_dz_rear)}"/>
+               <xacro:property name="_Izz_rear" value="${_Izz_rear_c + _m_rear*(_dx_rear*_dx_rear)}"/>
+               <!-- Sum composite inertia -->
+               <inertia ixx="${_Ixx_plate + _Ixx_cyl + _Ixx_rear}" ixy="0" ixz="0" iyy="${_Iyy_plate + _Iyy_cyl + _Iyy_rear}" iyz="0" izz="${_Izz_plate + _Izz_cyl + _Izz_rear}"/>
+          </inertial>
+          <visual>
+               <geometry>
+                    <box size="${link_0_plate_length} ${link_0_plate_width} ${link_0_plate_thickness}"/>
+               </geometry>
+               <!-- Plate visual moved: shift forward by one cylinder radius toward +x -->
+               <origin xyz="${-link_0_plate_length/2 + link_0_cylinder_radius} 0 ${link_0_plate_thickness/2}" rpy="0 0 0"/>
+               <material name="light_gray"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <box size="${link_0_plate_length} ${link_0_plate_width} ${link_0_plate_thickness}"/>
+               </geometry>
+               <origin xyz="${-link_0_plate_length/2 + link_0_cylinder_radius} 0 ${link_0_plate_thickness/2}" rpy="0 0 0"/>
+          </collision>
+          <!-- Pedestal: U-shaped housing composed of a front cylinder and a rear box -->
+          <xacro:property name="_pedestal_height" value="${link_0_cylinder_height - link_0_plate_thickness}"/>
+          <xacro:property name="_rear_box_length" value="${link_0_plate_length - link_0_cylinder_radius}"/>
+          <xacro:property name="_rear_box_width" value="${2*link_0_cylinder_radius}"/>
+          <xacro:property name="_rear_box_height" value="${_pedestal_height}"/>
+
+          <!-- Front rounded section (cylinder) centered at x=0, sitting on top of the plate -->
+          <visual>
+               <geometry>
+                    <cylinder length="${_pedestal_height}" radius="${link_0_cylinder_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_0_plate_thickness + _pedestal_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+
+          <!-- Rear rectangular section (box) whose front face is tangent to the cylinder center-line -->
+          <visual>
+               <geometry>
+                    <box size="${_rear_box_length} ${_rear_box_width} ${_rear_box_height}"/>
+               </geometry>
+               <!-- rear box center shifted forward by one cylinder radius toward +x -->
+               <origin xyz="${-link_0_cylinder_radius - _rear_box_length/2 + link_0_cylinder_radius} 0 ${link_0_plate_thickness + _rear_box_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+
+          <!-- Composite collisions: box + cylinder for higher-fidelity collision checking -->
+          <collision>
+               <geometry>
+                    <cylinder length="${_pedestal_height}" radius="${link_0_cylinder_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_0_plate_thickness + _pedestal_height/2}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <box size="${_rear_box_length} ${_rear_box_width} ${_rear_box_height}"/>
+               </geometry>
+               <origin xyz="${-link_0_cylinder_radius - _rear_box_length/2 + link_0_cylinder_radius} 0 ${link_0_plate_thickness + _rear_box_height/2}" rpy="0 0 0"/>
+          </collision>
+     </link>
+
+     <!-- Fixed joint attaching real base to dummy root (keeps base_link inertial but root has none) -->
+     <joint name="base_root_to_base_link" type="fixed">
+          <parent link="base_root"/>
+          <child link="base_link"/>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+     </joint>
+
+     <!-- Joint J1: Revolute about Z at height j1_z -->
+     <link name="arm_0_link">
+          <!-- Composite stadium: central box + two end cylinders (axis along Z) -->
+          <inertial>
+               <!-- center at mid-length (x=arm_0_length/2) and mid-height (z=link_1_height/2) -->
+               <origin xyz="${arm_0_length/2} 0 ${link_1_height/2}" rpy="0 0 0"/>
+               <mass value="${link_1_mass}"/>
+               <!-- approximate inertia: sum(box + 2*cylinders) -->
+               <xacro:property name="_box_a" value="${arm_0_length}"/>
+               <xacro:property name="_box_b" value="${arm_diameter}"/>
+               <xacro:property name="_box_c" value="${link_1_height}"/>
+               <xacro:property name="_cyl_r" value="${arm_radius}"/>
+               <xacro:property name="_cyl_l" value="${link_1_height}"/>
+               <xacro:property name="_vol_box" value="${_box_a*_box_b*_box_c}"/>
+               <xacro:property name="_vol_cyl" value="${PI*_cyl_r*_cyl_r*_cyl_l}"/>
+               <xacro:property name="_vol_total" value="${_vol_box + 2*_vol_cyl}"/>
+               <xacro:property name="_m_box" value="${link_1_mass*_vol_box/_vol_total}"/>
+               <xacro:property name="_m_cyl" value="${link_1_mass*_vol_cyl/_vol_total}"/>
+               <xacro:property name="_Ixx_box" value="${(1.0/12.0)*_m_box*(_box_b*_box_b + _box_c*_box_c)}"/>
+               <xacro:property name="_Iyy_box" value="${(1.0/12.0)*_m_box*(_box_a*_box_a + _box_c*_box_c)}"/>
+               <xacro:property name="_Izz_box" value="${(1.0/12.0)*_m_box*(_box_a*_box_a + _box_b*_box_b)}"/>
+               <xacro:property name="_Ixx_cyl" value="${(1.0/12.0)*_m_cyl*(3*_cyl_r*_cyl_r + _cyl_l*_cyl_l)}"/>
+               <xacro:property name="_Iyy_cyl" value="${_Ixx_cyl}"/>
+               <xacro:property name="_Izz_cyl" value="${0.5*_m_cyl*_cyl_r*_cyl_r}"/>
+               <xacro:property name="_d" value="${arm_0_length/2.0}"/>
+               <xacro:property name="_Ixx_cyl_shift" value="${_Ixx_cyl}"/>
+               <xacro:property name="_Iyy_cyl_shift" value="${_Iyy_cyl + _m_cyl*_d*_d}"/>
+               <xacro:property name="_Izz_cyl_shift" value="${_Izz_cyl + _m_cyl*_d*_d}"/>
+               <inertia ixx="${_Ixx_box + 2*_Ixx_cyl_shift}" ixy="0" ixz="0" iyy="${_Iyy_box + 2*_Iyy_cyl_shift}" iyz="0" izz="${_Izz_box + 2*_Izz_cyl_shift}"/>
+          </inertial>
+          <visual>
+               <!-- central box -->
+               <geometry>
+                    <box size="${arm_0_length} ${arm_diameter} ${link_1_height}"/>
+               </geometry>
+               <origin xyz="${arm_0_length/2} 0 ${link_1_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <visual>
+               <!-- left end cylinder (at joint J1) -->
+               <geometry>
+                    <cylinder length="${link_1_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_1_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <visual>
+               <!-- right end cylinder (at joint J2) -->
+               <geometry>
+                    <cylinder length="${link_1_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="${arm_0_length} 0 ${link_1_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <box size="${arm_0_length} ${arm_diameter} ${link_1_height}"/>
+               </geometry>
+               <origin xyz="${arm_0_length/2} 0 ${link_1_height/2}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <cylinder length="${link_1_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_1_height/2}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <cylinder length="${link_1_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="${arm_0_length} 0 ${link_1_height/2}" rpy="0 0 0"/>
+          </collision>
+     </link>
+
+     <joint name="joint_arm_0" type="revolute">
+          <parent link="base_link"/>
+          <child link="arm_0_link"/>
+          <origin xyz="0 0 ${j1_z}" rpy="0 0 0"/>
+          <axis xyz="0 0 1"/>
+          <limit lower="${j1_lower}" upper="${j1_upper}" effort="200" velocity="${j1_velocity}"/>
+     </joint>
+
+     <!-- Link 2: Outer arm / headpiece -->
+     <link name="arm_1_link">
+          <!-- Composite stadium for outer arm: central box + two end cylinders -->
+          <inertial>
+               <origin xyz="${arm_1_length/2} 0 ${link_2_height/2}" rpy="0 0 0"/>
+               <mass value="${link_2_mass}"/>
+               <!-- Composite inertia: arm base (box + 2 end cylinders) + headpiece (rear cyl+box + front cyl+box) -->
+               <!-- Ensure headpiece dimensions exist when computing inertias -->
+               <xacro:property name="_front_box_len" value="${front_box_len}"/>
+               <xacro:property name="_rear_box_len" value="${arm_1_length - _front_box_len}"/>
+               <xacro:property name="_rear_h" value="${head_rear_height}"/>
+               <xacro:property name="_front_h" value="${head_front_height}"/>
+               <xacro:property name="_head_w" value="${arm_diameter}"/>
+               <xacro:property name="_head_r" value="${arm_radius}"/>
+               <!-- Arm base primitives -->
+               <xacro:property name="_arm_box_a" value="${arm_1_length}"/>
+               <xacro:property name="_arm_box_b" value="${arm_diameter}"/>
+               <xacro:property name="_arm_box_c" value="${link_2_height}"/>
+               <xacro:property name="_arm_cyl_r" value="${arm_radius}"/>
+               <xacro:property name="_arm_cyl_l" value="${link_2_height}"/>
+               <xacro:property name="_vol_arm_box" value="${_arm_box_a*_arm_box_b*_arm_box_c}"/>
+               <xacro:property name="_vol_arm_cyl" value="${PI*_arm_cyl_r*_arm_cyl_r*_arm_cyl_l}"/>
+               <!-- Headpiece primitives (rear/front) -->
+               <xacro:property name="_vol_front_box" value="${_front_box_len*_head_w*_front_h}"/>
+               <xacro:property name="_vol_front_cyl" value="${PI*_head_r*_head_r*_front_h}"/>
+               <xacro:property name="_vol_rear_box_hp" value="${_rear_box_len*_head_w*_rear_h}"/>
+               <xacro:property name="_vol_rear_cyl_hp" value="${PI*_head_r*_head_r*_rear_h}"/>
+               <!-- Total volume and mass partition -->
+               <xacro:property name="_vol_total2" value="${_vol_arm_box + 2*_vol_arm_cyl + _vol_front_box + _vol_front_cyl + _vol_rear_box_hp + _vol_rear_cyl_hp}"/>
+               <xacro:property name="_m_arm_box" value="${link_2_mass * _vol_arm_box / _vol_total2}"/>
+               <xacro:property name="_m_arm_cyl" value="${link_2_mass * _vol_arm_cyl / _vol_total2}"/>
+               <xacro:property name="_m_front_box" value="${link_2_mass * _vol_front_box / _vol_total2}"/>
+               <xacro:property name="_m_front_cyl" value="${link_2_mass * _vol_front_cyl / _vol_total2}"/>
+               <xacro:property name="_m_rear_box_hp" value="${link_2_mass * _vol_rear_box_hp / _vol_total2}"/>
+               <xacro:property name="_m_rear_cyl_hp" value="${link_2_mass * _vol_rear_cyl_hp / _vol_total2}"/>
+               <!-- Inertias about each primitive center -->
+               <xacro:property name="_Ixx_arm_box_c" value="${(1.0/12.0)*_m_arm_box*(_arm_box_b*_arm_box_b + _arm_box_c*_arm_box_c)}"/>
+               <xacro:property name="_Iyy_arm_box_c" value="${(1.0/12.0)*_m_arm_box*(_arm_box_a*_arm_box_a + _arm_box_c*_arm_box_c)}"/>
+               <xacro:property name="_Izz_arm_box_c" value="${(1.0/12.0)*_m_arm_box*(_arm_box_a*_arm_box_a + _arm_box_b*_arm_box_b)}"/>
+               <xacro:property name="_Ixx_arm_cyl_c" value="${(1.0/12.0)*_m_arm_cyl*(3*_arm_cyl_r*_arm_cyl_r + _arm_cyl_l*_arm_cyl_l)}"/>
+               <xacro:property name="_Izz_arm_cyl_c" value="${0.5*_m_arm_cyl*_arm_cyl_r*_arm_cyl_r}"/>
+               <!-- Headpiece primitive inertias (centered) -->
+               <xacro:property name="_Ixx_front_box_c" value="${(1.0/12.0)*_m_front_box*(_head_w*_head_w + _front_h*_front_h)}"/>
+               <xacro:property name="_Iyy_front_box_c" value="${(1.0/12.0)*_m_front_box*(_front_box_len*_front_box_len + _front_h*_front_h)}"/>
+               <xacro:property name="_Izz_front_box_c" value="${(1.0/12.0)*_m_front_box*(_front_box_len*_front_box_len + _head_w*_head_w)}"/>
+               <xacro:property name="_Ixx_front_cyl_c" value="${(1.0/12.0)*_m_front_cyl*(3*_head_r*_head_r + _front_h*_front_h)}"/>
+               <xacro:property name="_Izz_front_cyl_c" value="${0.5*_m_front_cyl*_head_r*_head_r}"/>
+               <xacro:property name="_Ixx_rear_box_c" value="${(1.0/12.0)*_m_rear_box_hp*(_head_w*_head_w + _rear_h*_rear_h)}"/>
+               <xacro:property name="_Iyy_rear_box_c" value="${(1.0/12.0)*_m_rear_box_hp*(_rear_box_len*_rear_box_len + _rear_h*_rear_h)}"/>
+               <xacro:property name="_Izz_rear_box_c" value="${(1.0/12.0)*_m_rear_box_hp*(_rear_box_len*_rear_box_len + _head_w*_head_w)}"/>
+               <xacro:property name="_Ixx_rear_cyl_c" value="${(1.0/12.0)*_m_rear_cyl_hp*(3*_head_r*_head_r + _rear_h*_rear_h)}"/>
+               <xacro:property name="_Izz_rear_cyl_c" value="${0.5*_m_rear_cyl_hp*_head_r*_head_r}"/>
+               <!-- Shift primitives to arm COM at x = arm_1_length/2 -->
+               <xacro:property name="_dx_arm_left" value="${arm_1_length/2.0}"/>
+               <xacro:property name="_dx_arm_right" value="${arm_1_length/2.0}"/>
+               <!-- left cylinder (at x=0) shift distance -->
+               <xacro:property name="_dx_arm_cyl_left" value="${_dx_arm_left}"/>
+               <xacro:property name="_dx_arm_cyl_right" value="${_dx_arm_right}"/>
+               <!-- arm cylinder shifts -->
+               <xacro:property name="_Ixx_arm_cyl_shift" value="${_Ixx_arm_cyl_c + _m_arm_cyl*0}"/>
+               <xacro:property name="_Iyy_arm_cyl_shift" value="${_Ixx_arm_cyl_c + _m_arm_cyl*_dx_arm_cyl_left*_dx_arm_cyl_left}"/>
+               <xacro:property name="_Izz_arm_cyl_shift" value="${_Izz_arm_cyl_c + _m_arm_cyl*_dx_arm_cyl_left*_dx_arm_cyl_left}"/>
+               <!-- rear box center at x = _rear_box_len/2 from x=0, shift to arm COM -->
+               <xacro:property name="_dx_rear_box_to_com" value="${(_rear_box_len/2.0) - arm_1_length/2.0}"/>
+               <xacro:property name="_Ixx_rear_box_shift" value="${_Ixx_rear_box_c + _m_rear_box_hp*(_dx_rear_box_to_com*_dx_rear_box_to_com)}"/>
+               <xacro:property name="_Iyy_rear_box_shift" value="${_Iyy_rear_box_c + _m_rear_box_hp*(_dx_rear_box_to_com*_dx_rear_box_to_com)}"/>
+               <xacro:property name="_Izz_rear_box_shift" value="${_Izz_rear_box_c + _m_rear_box_hp*(_dx_rear_box_to_com*_dx_rear_box_to_com)}"/>
+               <!-- front box center at x = arm_1_length - _front_box_len/2, shift to arm COM -->
+               <xacro:property name="_dx_front_box_to_com" value="${(arm_1_length - _front_box_len/2.0) - arm_1_length/2.0}"/>
+               <xacro:property name="_Ixx_front_box_shift" value="${_Ixx_front_box_c + _m_front_box*(_dx_front_box_to_com*_dx_front_box_to_com)}"/>
+               <xacro:property name="_Iyy_front_box_shift" value="${_Iyy_front_box_c + _m_front_box*(_dx_front_box_to_com*_dx_front_box_to_com)}"/>
+               <xacro:property name="_Izz_front_box_shift" value="${_Izz_front_box_c + _m_front_box*(_dx_front_box_to_com*_dx_front_box_to_com)}"/>
+               <!-- front/rear cylinder shifts to arm COM -->
+               <xacro:property name="_dx_rear_cyl_to_com" value="${0 - arm_1_length/2.0}"/>
+               <xacro:property name="_dx_front_cyl_to_com" value="${arm_1_length - arm_1_length/2.0}"/>
+               <xacro:property name="_Ixx_rear_cyl_shift" value="${_Ixx_rear_cyl_c + _m_rear_cyl_hp*0}"/>
+               <xacro:property name="_Iyy_rear_cyl_shift" value="${_Ixx_rear_cyl_c + _m_rear_cyl_hp*(_dx_rear_cyl_to_com*_dx_rear_cyl_to_com)}"/>
+               <xacro:property name="_Izz_rear_cyl_shift" value="${_Izz_rear_cyl_c + _m_rear_cyl_hp*(_dx_rear_cyl_to_com*_dx_rear_cyl_to_com)}"/>
+               <xacro:property name="_Ixx_front_cyl_shift" value="${_Ixx_front_cyl_c + _m_front_cyl*0}"/>
+               <xacro:property name="_Iyy_front_cyl_shift" value="${_Ixx_front_cyl_c + _m_front_cyl*(_dx_front_cyl_to_com*_dx_front_cyl_to_com)}"/>
+               <xacro:property name="_Izz_front_cyl_shift" value="${_Izz_front_cyl_c + _m_front_cyl*(_dx_front_cyl_to_com*_dx_front_cyl_to_com)}"/>
+               <!-- Sum all shifted inertias (approximate) -->
+               <xacro:property name="_Ixx_total" value="${_Ixx_arm_box_c + _Ixx_arm_cyl_shift + _Ixx_rear_box_shift + _Ixx_rear_cyl_shift + _Ixx_front_box_shift + _Ixx_front_cyl_shift}"/>
+               <xacro:property name="_Iyy_total" value="${_Iyy_arm_box_c + _Iyy_arm_cyl_shift + _Iyy_rear_box_shift + _Iyy_rear_cyl_shift + _Iyy_front_box_shift + _Iyy_front_cyl_shift}"/>
+               <xacro:property name="_Izz_total" value="${_Izz_arm_box_c + _Izz_arm_cyl_shift + _Izz_rear_box_shift + _Izz_rear_cyl_shift + _Izz_front_box_shift + _Izz_front_cyl_shift}"/>
+               <inertia ixx="${_Ixx_total}" ixy="0" ixz="0" iyy="${_Iyy_total}" iyz="0" izz="${_Izz_total}"/>
+          </inertial>
+          <visual>
+               <geometry>
+                    <box size="${arm_1_length} ${arm_diameter} ${link_2_height}"/>
+               </geometry>
+               <origin xyz="${arm_1_length/2} 0 ${link_2_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <visual>
+               <geometry>
+                    <cylinder length="${link_2_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <visual>
+               <geometry>
+                    <cylinder length="${link_2_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${link_2_height/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <box size="${arm_1_length} ${arm_diameter} ${link_2_height}"/>
+               </geometry>
+               <origin xyz="${arm_1_length/2} 0 ${link_2_height/2}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <cylinder length="${link_2_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height/2}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <cylinder length="${link_2_height}" radius="${arm_radius}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${link_2_height/2}" rpy="0 0 0"/>
+          </collision>
+          <!-- Headpiece geometry constants (values from top-level properties) -->
+          <xacro:property name="_rear_h" value="${head_rear_height}"/>  <!-- 133 mm — rear (proximal) block height -->
+          <xacro:property name="_front_h" value="${head_front_height}"/>  <!-- 70 mm  — front (distal) block height  -->
+          <xacro:property name="_head_r" value="${arm_radius}"/>  <!-- 50 mm end-cap radius -->
+          <!-- Quill guard cylinder: R=25 mm, spans from arm-slab bottom (-5 mm) to top of rear block -->
+          <xacro:property name="_quill_guard_r"  value="0.024"/>  <!-- 48 mm diameter, slightly larger than quill disk for clearance -->
+          <xacro:property name="_quill_guard_bot" value="-0.005"/>  <!-- 5 mm below arm-slab bottom -->
+          <xacro:property name="_quill_guard_top" value="${link_2_height + _rear_h}"/>
+          <xacro:property name="_quill_guard_h"   value="${_quill_guard_top - _quill_guard_bot}"/>
+          <xacro:property name="_quill_guard_cz"  value="${(_quill_guard_top + _quill_guard_bot) / 2.0}"/>
+
+          <!-- Rear end-cap cylinder (at J2 axis, x=0) -->
+          <visual>
+               <geometry>
+                    <cylinder length="${_rear_h}" radius="${_head_r}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height + _rear_h/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <cylinder length="${_rear_h}" radius="${_head_r}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height + _rear_h/2}" rpy="0 0 0"/>
+          </collision>
+
+          <!-- Headpiece body: wedge mesh (linear slope from H_rear at x=0 to H_front at x=L2).
+               Mesh origin is at the arm-slab top face (z=0 in mesh frame = z=link_2_height here).
+               See scripts/scara/mesh.py for geometry. -->
+          <visual>
+               <geometry>
+                    <mesh filename="package://fret/meshes/scara/headpiece_wedge.stl"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <mesh filename="package://fret/meshes/scara/headpiece_wedge.stl"/>
+               </geometry>
+               <origin xyz="0 0 ${link_2_height}" rpy="0 0 0"/>
+          </collision>
+
+          <!-- Front end-cap cylinder (at J3 axis, x=arm_1_length) -->
+          <visual>
+               <geometry>
+                    <cylinder length="${_front_h}" radius="${_head_r}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${link_2_height + _front_h/2}" rpy="0 0 0"/>
+               <material name="white"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <cylinder length="${_front_h}" radius="${_head_r}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${link_2_height + _front_h/2}" rpy="0 0 0"/>
+          </collision>
+
+          <!-- Quill guard: hollow-looking cylinder around the quill shaft, fixed to Link 2.
+               Centered on J3 axis (x=arm_1_length), spanning from 5 mm below the arm slab
+               to the top of the rear headpiece block. -->
+          <visual>
+               <geometry>
+                    <cylinder length="${_quill_guard_h}" radius="${_quill_guard_r}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${_quill_guard_cz}" rpy="0 0 0"/>
+               <material name="light_gray"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <cylinder length="${_quill_guard_h}" radius="${_quill_guard_r}"/>
+               </geometry>
+               <origin xyz="${arm_1_length} 0 ${_quill_guard_cz}" rpy="0 0 0"/>
+          </collision>
+     </link>
+
+     <joint name="joint_arm_1" type="revolute">
+          <parent link="arm_0_link"/>
+          <child link="arm_1_link"/>
+          <!-- relative offset: x = arm_0_length, z = j2_z (relative offset from arm_0_link top) -->
+          <origin xyz="${arm_0_length} 0 ${j2_z}" rpy="0 0 0"/>
+          <axis xyz="0 0 1"/>
+          <limit lower="${j2_lower}" upper="${j2_upper}" effort="200" velocity="${j2_velocity}"/>
+     </joint>
+
+     <!-- Prismatic joint J3: quill (vertical) -->
+     <link name="extension_link">
+          <!-- Nail/pin style quill: thin shaft + larger disk cap at top -->
+          <!-- Disk (cap) dimensions -->
+          <xacro:property name="link_3_disk_radius" value="0.021"/> <!-- 42 mm diameter -->
+          <xacro:property name="link_3_disk_thickness" value="0.005"/> <!-- 5 mm -->
+          <!-- Shaft dimensions -->
+          <xacro:property name="link_3_shaft_radius" value="0.01"/> <!-- 20 mm diameter -->
+          <xacro:property name="link_3_shaft_length" value="${link_3_height - link_3_disk_thickness}"/>
+
+          <!-- Volume & mass partition (by volume) -->
+          <xacro:property name="_vol_shaft" value="${PI*link_3_shaft_radius*link_3_shaft_radius*link_3_shaft_length}"/>
+          <xacro:property name="_vol_disk" value="${PI*link_3_disk_radius*link_3_disk_radius*link_3_disk_thickness}"/>
+          <xacro:property name="_vol_total_ext" value="${_vol_shaft + _vol_disk}"/>
+          <xacro:property name="_m_shaft" value="${link_3_mass * _vol_shaft / _vol_total_ext}"/>
+          <xacro:property name="_m_disk" value="${link_3_mass * _vol_disk / _vol_total_ext}"/>
+
+          <!-- Centers (z) measured from extension_link origin at bottom of shaft = 0 -->
+          <xacro:property name="_z_shaft_c" value="${link_3_shaft_length/2.0}"/>
+          <xacro:property name="_z_disk_c" value="${link_3_shaft_length + link_3_disk_thickness/2.0}"/>
+          <xacro:property name="_z_com" value="${(_m_shaft*_z_shaft_c + _m_disk*_z_disk_c)/link_3_mass}"/>
+
+          <!-- Inertias about each primitive's own center -->
+          <xacro:property name="_Ixx_shaft_c" value="${(1.0/12.0)*_m_shaft*(3*link_3_shaft_radius*link_3_shaft_radius + link_3_shaft_length*link_3_shaft_length)}"/>
+          <xacro:property name="_Izz_shaft_c" value="${0.5*_m_shaft*link_3_shaft_radius*link_3_shaft_radius}"/>
+          <xacro:property name="_Ixx_disk_c" value="${(1.0/12.0)*_m_disk*(3*link_3_disk_radius*link_3_disk_radius + link_3_disk_thickness*link_3_disk_thickness)}"/>
+          <xacro:property name="_Izz_disk_c" value="${0.5*_m_disk*link_3_disk_radius*link_3_disk_radius}"/>
+
+          <!-- Parallel-axis shifts to composite COM (only affects Ixx/Iyy) -->
+          <xacro:property name="_d_shaft" value="${_z_shaft_c - _z_com}"/>
+          <xacro:property name="_d_disk" value="${_z_disk_c - _z_com}"/>
+          <xacro:property name="_Ixx_total" value="${_Ixx_shaft_c + _m_shaft*_d_shaft*_d_shaft + _Ixx_disk_c + _m_disk*_d_disk*_d_disk}"/>
+          <xacro:property name="_Izz_total" value="${_Izz_shaft_c + _Izz_disk_c}"/>
+
+          <inertial>
+               <origin xyz="0 0 ${_z_com}" rpy="0 0 0"/>
+               <mass value="${link_3_mass}"/>
+               <inertia ixx="${_Ixx_total}" ixy="0" ixz="0" iyy="${_Ixx_total}" iyz="0" izz="${_Izz_total}"/>
+          </inertial>
+
+          <!-- Visuals: shaft (thin) + cap (disk) -->
+          <visual>
+               <geometry>
+                    <cylinder length="${link_3_shaft_length}" radius="${link_3_shaft_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_3_shaft_length/2.0}" rpy="0 0 0"/>
+               <material name="light_gray"/>
+          </visual>
+          <visual>
+               <geometry>
+                    <cylinder length="${link_3_disk_thickness}" radius="${link_3_disk_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_3_shaft_length + link_3_disk_thickness/2.0}" rpy="0 0 0"/>
+               <material name="light_gray"/>
+          </visual>
+
+          <!-- Collisions: same primitives -->
+          <collision>
+               <geometry>
+                    <cylinder length="${link_3_shaft_length}" radius="${link_3_shaft_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_3_shaft_length/2.0}" rpy="0 0 0"/>
+          </collision>
+          <collision>
+               <geometry>
+                    <cylinder length="${link_3_disk_thickness}" radius="${link_3_disk_radius}"/>
+               </geometry>
+               <origin xyz="0 0 ${link_3_shaft_length + link_3_disk_thickness/2.0}" rpy="0 0 0"/>
+          </collision>
+     </link>
+
+     <joint name="joint_extension" type="prismatic">
+          <parent link="arm_1_link"/>
+          <child link="extension_link"/>
+          <origin xyz="${arm_1_length} 0 0" rpy="0 0 0"/>
+          <axis xyz="0 0 -1"/>
+          <limit lower="${j3_lower}" upper="${j3_upper}" effort="100" velocity="${j3_velocity}"/>
+     </joint>
+
+     <!-- Tool rotation (J4): continuous revolute about the quill axis -->
+     <link name="tool_rotate_link">
+          <inertial>
+               <!-- inertial origin should be at the link frame (not offset by full quill height) -->
+               <origin xyz="0 0 0" rpy="0 0 0"/>
+               <mass value="0.2"/>
+               <!-- small inertia for tool rotation link -->
+               <inertia ixx="0.0005" ixy="0" ixz="0" iyy="0.0005" iyz="0" izz="0.0005"/>
+          </inertial>
+     </link>
+
+     <joint name="joint_tool_rotate" type="continuous">
+          <parent link="extension_link"/>
+          <child link="tool_rotate_link"/>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <axis xyz="0 0 1"/>
+     </joint>
+
+     <!-- End effector (simple plate) -->
+     <link name="end_effector_link">
+          <inertial>
+               <origin xyz="0 0 0.02" rpy="0 0 0"/>
+               <mass value="0.1"/>
+               <!-- Box inertia: I_x = 1/12 m (b^2 + c^2) -->
+               <inertia
+                    ixx="${(1.0/12.0)*0.1*(0.06*0.06 + 0.02*0.02)}"
+                    ixy="0"
+                    ixz="0"
+                    iyy="${(1.0/12.0)*0.1*(0.06*0.06 + 0.02*0.02)}"
+                    iyz="0"
+                    izz="${(1.0/12.0)*0.1*(0.06*0.06 + 0.06*0.06)}"/>
+          </inertial>
+          <visual>
+               <geometry>
+                    <box size="0.06 0.06 0.02"/>
+               </geometry>
+               <origin xyz="0 0 0.01" rpy="0 0 0"/>
+               <material name="invisible"/>
+          </visual>
+          <collision>
+               <geometry>
+                    <box size="0.06 0.06 0.02"/>
+               </geometry>
+               <origin xyz="0 0 0.01" rpy="0 0 0"/>
+          </collision>
+     </link>
+
+     <joint name="joint_ee_fixed" type="fixed">
+          <parent link="tool_rotate_link"/>
+          <child link="end_effector_link"/>
+          <!-- attach end effector directly to the tool rotate frame (no extra quill-height offset) -->
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+     </joint>
+
+</robot>
