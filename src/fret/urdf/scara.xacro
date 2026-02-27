@@ -76,6 +76,16 @@
      <!-- Dummy root link with no inertia to satisfy KDL (avoid root inertia warning) -->
      <link name="base_root"/>
 
+     <!-- World link: anchors the robot to the Gazebo world frame.
+          Without this fixed joint, Gazebo treats the robot as free-floating
+          and the TF tree is disconnected from the world frame. -->
+     <link name="world"/>
+     <joint name="world_to_base_root" type="fixed">
+          <parent link="world"/>
+          <child link="base_root"/>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+     </joint>
+
      <!-- Link 0: Base plate + pedestal cylinder -->
       <link name="base_link">
           <inertial>
