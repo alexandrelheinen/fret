@@ -10,18 +10,27 @@ source "${SCRIPT_DIR}/common.sh"
 
 trap 'on_error $LINENO "Build"' ERR
 
+INSTALL_DEPS=false
+
 usage() {
   cat <<'EOF'
-Usage: ./scripts/build.sh
+Usage: ./scripts/build.sh [--deps]
 
 Builds ROS packages from ./src into ./build and ./install.
+
+Options:
+  --deps   Run rosdep install before building (slow: checks apt on every run).
+           Only needed after adding new package dependencies.
 EOF
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  usage
-  exit 0
-fi
+while [[ $# -gt 0 ]]; do
+  case "${1}" in
+    -h|--help) usage; exit 0 ;;
+    --deps) INSTALL_DEPS=true; shift ;;
+    *) fail "Unknown argument: ${1}"; exit 1 ;;
+  esac
+done
 
 require_not_root
 require_command colcon "colcon is required but not installed. Run ./scripts/install.sh first."
@@ -57,14 +66,33 @@ if [[ "${PACKAGE_COUNT}" -eq 0 ]]; then
   exit 1
 fi
 
-info "Installing package dependencies with rosdep..."
-rosdep install --from-paths "${SRC_DIR}" --ignore-src -r -y
+if [[ "${INSTALL_DEPS}" == true ]]; then
+  info "Installing package dependencies with rosdep..."
+  rosdep install --from-paths "${SRC_DIR}" --ignore-src -r -y
+fi
 
-info "Building packages from src/..."
-colcon --log-base "${LOG_DIR}" build \
+JOBS=$(nproc)
+info "Building packages from src/ (${JOBS} parallel jobs)..."
+
+CCACHE_ARGS=()
+if command -v ccache &>/dev/null; then
+  CCACHE_ARGS=(
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+  )
+else
+  warn "ccache not found — builds will be slower. Run: sudo apt install ccache"
+fi
+
+MAKEFLAGS="-j${JOBS}" colcon --log-base "${LOG_DIR}" build \
   --base-paths "${SRC_DIR}" \
   --build-base "${BUILD_DIR}" \
-  --install-base "${INSTALL_DIR}"
+  --install-base "${INSTALL_DIR}" \
+  --symlink-install \
+  --parallel-workers "${JOBS}" \
+  --cmake-args \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    ${CCACHE_ARGS[@]+"${CCACHE_ARGS[@]}"}
 
 ok "Build completed successfully."
 info "Activate overlay with: source install/setup.bash"

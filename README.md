@@ -57,6 +57,7 @@ It includes:
 * **Simulation stack (Jazzy):** `gz-harmonic`, `ros-jazzy-ros-gz`, `ros-jazzy-ros-gz-sim`, plus RViz/URDF support packages.
 * **Environment bootstrap:** `rosdep` initialization and update.
 * **Python formatting tools:** `black` and `isort`.
+* **C++ formatting tools:** `clang-format`.
 
 > HITL dependencies (serial bridge runtime, firmware upload toolchains, and hardware-specific utilities) are not yet installed by this script and will be added in later stages.
 
@@ -184,8 +185,13 @@ To add a new robot model:
 - **RViz configurations:** `src/fret/rviz/`
 - **Mesh generators:** `src/fret/mesh/` — Python scripts that produce STL files at build time
 - **Generated STL files:** `build/fret/generated_meshes/<model_name>/` (created during build, installed to `share/fret/meshes/<model_name>/`)
+- **C++ public headers:** `src/fret/include/fret/` — only symbols exposed to dependant packages
+- **C++ private headers:** co-located with their `.cpp` under `src/fret/src/`
+- **C++ sources:** `src/fret/src/`
 
-## Python code formatting
+## Python code
+
+### Formatting
 
 The project uses `black` and `isort` to ensure consistent Python formatting.
 
@@ -194,7 +200,7 @@ isort src
 black src
 ```
 
-## Unit Testing
+### Unit Testing
 
 Unit tests are pure Python tests using mocks, keeping them fast and independent of complex ROS dependencies. They use Python's built-in `unittest` framework.
 
@@ -218,6 +224,58 @@ Then run the tests:
 ```bash
 python3 -m unittest discover tests -v
 ```
+
+## C++ code
+
+### Architecture
+
+The C++ codebase follows a **namespace-mirrors-directory** convention: the directory a file lives in reflects the namespace it belongs to.
+
+Public headers (exposed to dependant packages) live exclusively in `src/fret/include/fret/`. Private headers are co-located with their `.cpp` file.
+
+#### Namespaces
+
+| Namespace | Directory | Role |
+|---|---|---|
+| `fret::control` | `src/fret/src/control/` | Kinematics, Jacobian computation, feedback, controller registry |
+| `fret::planning` | `src/fret/src/planning/` | Trajectory generation (lines, circles), path planning |
+| `fret::hardware` | `src/fret/src/hardware/` | Serial / Micro-ROS bridge, driver abstraction |
+| `fret::vision` | `src/fret/src/vision/` | Camera perception, target detection, visual feedback |
+
+Namespaces are for reusable library layers only. Executable entry points (nodes) carry no namespace.
+
+#### Nodes
+
+Nodes are application entry points. They belong to the base `fret` namespace and live directly in `src/fret/src/`.
+
+| Node | Roadmap phase | Subscribes | Publishes |
+|---|---|---|---|
+| `ControllerNode` | 2 (active) | `/joint_states`, TF | velocity commands |
+| `PlannerNode` | 2 + 5 | goal inputs | trajectory reference → `ControllerNode` |
+| `BridgeNode` | 3 | ROS command topics | serial / Micro-ROS to Arduino |
+| `VisionNode` | 7 | camera | detected target poses → `PlannerNode` |
+
+### Formatting
+
+All `.cpp` and `.hpp` files are formatted with `clang-format` using the `.clang-format` file at the repository root.
+
+```bash
+find src -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i
+```
+
+### Conventions
+
+The project follows the [ROS 2 C++ style guide](https://docs.ros.org/en/rolling/The-ROS2-Project/Contributing/Code-Style-Language-Versions.html) (based on the Google C++ Style Guide):
+
+- `CamelCase` for class and type names
+- `snake_case` for function, method, and variable names
+- `trailing_underscore_` for private and protected data members
+- `UPPER_CASE` for constants and macros
+- `snake_case` for file names
+
+Public headers are documented with Doxygen using `/** */` block comments and `@brief`, `@param`, `@return` tags.
+
+> Naming rules are not yet enforced by a linter. A `.clang-tidy` configuration will be added in a later step.
 
 ## Log analysis
 

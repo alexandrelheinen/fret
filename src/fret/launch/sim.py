@@ -52,10 +52,33 @@ def _launch_selected_model(context):
         ],
     )
 
+    controller_node = Node(
+        package="fret",
+        executable="controller",
+        output="screen",
+        parameters=[
+            {
+                "robot_model": model,
+                "joint_states_topic": "/joint_states",
+                "command_topic": "/joint_group_velocity_controller/commands",
+                "base_frame": "base_link",
+                "ee_frame": "end_effector_link",
+                "command_rate_hz": 50.0,
+                "joint_names": [
+                    "joint_arm_0",
+                    "joint_arm_1",
+                    "joint_extension",
+                    "joint_tool_rotate",
+                ],
+            }
+        ],
+    )
+
     return [
         robot_state_publisher,
         gz_sim,
         spawn_robot,
+        controller_node,
     ]
 
 

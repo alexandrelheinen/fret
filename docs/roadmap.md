@@ -28,7 +28,11 @@ The development was done on Ubuntu 24.04 under WSL on Windows 10.
 - [ ] Execute predefined trajectories (straight lines, circles, etc.) in the simulator.
 - [ ] Implement feedback terms to correct position errors and reject model disturbances.
 
-> Status: TODO
+> Status: In progress. `ControllerNode` + `ControllerRegistry` + `ScaraController` scaffold in place. `ControllerBase` uses NVI pattern: `compute_command()` handles EE state estimation (position, velocity), then delegates to `do_compute_command()` in each concrete controller. `set_reference()` accepts a target EE pose from the planner. Current stub returns zero velocity.
+>
+> Known tradeoffs to revisit later:
+> - `ControllerBase` takes raw ROS message types (`JointState`, `TransformStamped`, `PoseStamped`), coupling the control library to ROS. A plain-data boundary struct would allow unit testing without ROS.
+> - `ControllerRegistry` is a singleton with static self-registration. Convenient but harder to mock in tests.
 
 ### 3. HITL (Hardware-In-The-Loop) Setup
 - [ ] Establish the communication link between RPi 5 and Arduino Mega.

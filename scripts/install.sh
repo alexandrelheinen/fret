@@ -82,6 +82,8 @@ sudo apt install -y \
   lsb-release \
   build-essential \
   cmake \
+  ccache \
+  clang-format \
   black \
   isort
 ok "Base dependencies installed."
