@@ -7,7 +7,14 @@ The project adopts a progressive validation strategy: Software-In-The-Loop (SITL
 
 Core objectives include reliable kinematic control, robust trajectory tracking, real-time communication between control layers, and future vision-based closed-loop autonomy.
 
-> The [Project Roadmap](docs/roadmap.md) is available in a dedicated file.
+The project emphasizes clear architecture, testability, and rigorous V-cycle validation.
+
+## Documentation Index
+
+- [Project Roadmap](docs/roadmap.md)
+- [Coding guidelines (authoritative)](docs/guidelines.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [SCARA robot specifications](docs/scara/scara.md)
 
 ## System Specification
 
@@ -320,4 +327,33 @@ PlotJuggler analyzes ROS 2 **time-series data** (topics / bags), while text logs
    ```
 
 Then drag signals from `/joint_states` to plot joint trends over time.
+
+## CI and Merge Policy
+
+GitHub Actions workflows run for pull requests and can be configured as required checks for merge protection on main.
+
+Recommended required checks will include:
+
+- Tests / Run unit tests
+- Format check / Python formatting validation
+- Format check / C++ formatting validation
+
+## Contributing
+
+Before contributing, follow [CONTRIBUTING.md](CONTRIBUTING.md) and the conventions in [docs/guidelines.md](docs/guidelines.md).
+
+All contributions, including AI-assisted changes, must adhere to the V-cycle development process and pass all validation steps.
+
+## References
+
+Core references for robotics and control theory:
+
+- Craig, J. J. (2005). Introduction to Robotics: Mechanics and Control. Pearson Education.
+- Siciliano, B., Sciavicco, L., Villani, L., & Oriolo, G. (2009). Robotics: Modelling, Planning and Control. Springer.
+- Lynch, K. M., & Park, F. C. (2017). Modern Robotics: Mechanics, Planning, and Control. Cambridge University Press.
+- ROS 2 Documentation: https://docs.ros.org/
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
 
