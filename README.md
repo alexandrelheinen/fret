@@ -16,6 +16,25 @@ The project emphasizes clear architecture, testability, and rigorous V-cycle val
 - [Contributing guide](CONTRIBUTING.md)
 - [SCARA robot specifications](docs/scara/scara.md)
 
+## Continuous Integration
+
+GitHub Actions runs the repository validation pipeline on pull request
+creation and updates.
+
+Workflows are split by concern to provide clearer PR feedback:
+
+- `.github/workflows/pr-validation.yml` for build, unit tests, and launch
+   smoke tests.
+- `.github/workflows/pr-formatting.yml` for Python/C++ formatting checks.
+
+Together they enforce the checks described in `docs/guidelines.md`:
+
+- ROS 2 workspace build
+- Python unit tests (`unittest`)
+- Python formatting validation (`black --check`, `isort --check-only`)
+- C++ formatting validation (`clang-format --dry-run --Werror`)
+- ROS launch smoke tests (`view.py` and `sim.py`, headless)
+
 ## System Specification
 
 * **High-Level Controller:** Raspberry Pi 5 running Linux (Ubuntu).
