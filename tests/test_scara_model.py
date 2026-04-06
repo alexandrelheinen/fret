@@ -38,6 +38,7 @@ from fret.robots.scara_model import (
     _L2,
     _LINK_SAMPLES,
     _T_ARM,
+    _lerp,
 )
 
 # ---------------------------------------------------------------------------
