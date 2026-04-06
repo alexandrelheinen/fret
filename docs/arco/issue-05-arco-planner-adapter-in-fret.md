@@ -127,7 +127,7 @@ overridden per-request via `PlanningRequest.planner_config`:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `algorithm` | `rrt_connect` | Planner algorithm identifier |
-| `default_timeout` | `5.0` s | Default planning budget |
+| `default_timeout` | `5.0` s | Fallback timeout when `PlanningRequest.timeout` is omitted |
 | `max_occupancy_age` | `2.0` s | Max age of occupancy snapshot |
 | `rrt_connect.step_size` | `0.05` | Extension step (radians/meters) |
 | `rrt_connect.max_iterations` | `10000` | Iteration budget |

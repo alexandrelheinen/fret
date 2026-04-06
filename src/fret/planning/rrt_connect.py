@@ -388,6 +388,8 @@ class RRTConnect:
             ``True`` if all sampled configurations are valid.
         """
         d = _dist(q1, q2)
+        # Minimum 2 steps ensures both q1 and q2 are validated even when d
+        # is smaller than step_size (i.e. step_count would be 1 or 0).
         step_count = max(2, int(math.ceil(d / self._step_size)))
         for i in range(step_count + 1):
             t = i / step_count
