@@ -293,7 +293,7 @@ def validate_execution_feedback(feedback):
         raise ValueError(f"progress {feedback['progress']} outside [0.0, 1.0]")
     if feedback["tracking_error"] < 0:
         raise ValueError("tracking_error must be non-negative")
-    if feedback["status"] not in ("executing",) and feedback["message"] is None:
+    if feedback["status"] != "executing" and feedback["message"] is None:
         raise ValueError("message is required for terminal status values")
 
 
