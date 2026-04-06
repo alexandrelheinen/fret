@@ -90,3 +90,4 @@ jobs:
           run_smoke_test "view_launch" xvfb-run -a ros2 launch fret view.py model:=scara
           run_smoke_test "sim_launch" xvfb-run -a ros2 launch fret sim.py model:=scara
           run_smoke_test "arco_scenario_launch" xvfb-run -a ros2 launch fret arco_scenario.py
+          run_smoke_test "sitl_launch" xvfb-run -a ros2 launch fret sitl.py
