@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -79,6 +79,7 @@ jobs:
             --output-dir /tmp/trajectory_plots
 
       - name: Upload trajectory plots as artifacts
+        id: upload-plots
         if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
@@ -86,53 +87,29 @@ jobs:
           path: /tmp/trajectory_plots/*.png
           retention-days: 30
 
-      - name: Publish plots to ci-artifacts branch
-        if: >
-          (success() || failure()) &&
-          github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd /tmp/trajectory_plots
-          git init .
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git checkout --orphan ci-artifacts
-          git add *.png
-          git commit -m "ci: trajectory plots PR#${{ github.event.number }} @ ${{ github.sha }}"
-          git remote add origin \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push --force origin ci-artifacts
-
       - name: Post trajectory plots as PR comment
         if: >
           always() &&
           github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ steps.upload-plots.outputs.artifact-url }}
         with:
           script: |
-            const repo  = context.repo;
-            const prNum = context.issue.number;
-            const sha   = context.payload.pull_request.head.sha;
-            const sha7  = sha.slice(0, 7);
-
-            // Images are force-pushed to ci-artifacts; include the commit SHA as a
-            // query parameter so browsers/CDNs don't serve stale cached versions.
-            const rawBase =
-              `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/ci-artifacts`;
-            const v = sha;
+            const repo       = context.repo;
+            const prNum      = context.issue.number;
+            const sha7       = context.payload.pull_request.head.sha.slice(0, 7);
+            const artifactUrl = process.env.ARTIFACT_URL || '';
 
             const body = [
               `## 📊 Trajectory Plots — \`${sha7}\``,
               '',
-              '| Scenario | Plot |',
-              '|----------|------|',
-              `| **easy** | ![easy](${rawBase}/trajectory_easy.png?v=${v}) |`,
-              `| **medium** | ![medium](${rawBase}/trajectory_medium.png?v=${v}) |`,
-              `| **hard** | ![hard](${rawBase}/trajectory_hard.png?v=${v}) |`,
+              'Benchmark trajectory plots (RRT-Connect planner, joint-space proxy q₀ × q₁).',
+              artifactUrl
+                ? `[⬇️ Download all plots (ZIP)](${artifactUrl})`
+                : '_Artifact upload skipped or failed._',
               '',
-              '_2-D joint-space proxy (q₀ × q₁) — red dots: obstacles,_',
-              '_blue line: planned path, green ★: start, orange ★: goal._',
+              '_Red dots: obstacles · Blue line: planned path · Green ★: start · Orange ★: goal_',
             ].join('\n');
 
             // Upsert: update existing bot comment or create a new one.
