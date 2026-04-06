@@ -116,7 +116,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch urdf
+install(DIRECTORY launch urdf perception
   DESTINATION share/${PROJECT_NAME}
 )
 
