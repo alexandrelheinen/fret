@@ -180,5 +180,3 @@ def generate_launch_description():
             OpaqueFunction(function=_launch_selected_model),
         ]
     )
-
-

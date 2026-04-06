@@ -141,9 +141,7 @@ class ScaraModel(RobotModel):
             ValueError: If ``len(q) != 4``.
         """
         if len(q) != 4:
-            raise ValueError(
-                f"ScaraModel expects 4 joints, got {len(q)}"
-            )
+            raise ValueError(f"ScaraModel expects 4 joints, got {len(q)}")
 
         q1, q2, q3, _ = q  # q4 is the continuous tool-rotation angle
 
@@ -176,16 +174,12 @@ class ScaraModel(RobotModel):
 
         # Arm-1 (J2 → J3) — skip J2 duplicate
         points.extend(
-            _lerp([x_j2, y_j2, z_j2], [x_j3, y_j3, z_j3], _LINK_SAMPLES)[
-                1:
-            ]
+            _lerp([x_j2, y_j2, z_j2], [x_j3, y_j3, z_j3], _LINK_SAMPLES)[1:]
         )
 
         # Quill extension (J3 → end-effector) — skip J3 duplicate
         points.extend(
-            _lerp(
-                [x_j3, y_j3, z_j3], [x_ee, y_ee, z_ee], _LINK_SAMPLES
-            )[1:]
+            _lerp([x_j3, y_j3, z_j3], [x_ee, y_ee, z_ee], _LINK_SAMPLES)[1:]
         )
 
         return points
