@@ -116,9 +116,15 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch urdf perception
+install(DIRECTORY launch urdf perception planning
   DESTINATION share/${PROJECT_NAME}
 )
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config)
+  install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}
+  )
+endif()
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rviz)
   install(DIRECTORY rviz
