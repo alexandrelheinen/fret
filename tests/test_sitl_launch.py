@@ -22,7 +22,7 @@ try:
     import yaml
 
     _YAML_AVAILABLE = True
-except ImportError:  # pragma: no cover – yaml always available in test env
+except ImportError:  # pragma: no cover -- yaml always available in test env
     _YAML_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
