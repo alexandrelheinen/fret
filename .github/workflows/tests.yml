@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -86,6 +86,24 @@ jobs:
           path: /tmp/trajectory_plots/*.png
           retention-days: 30
 
+      - name: Publish plots to ci-artifacts branch
+        if: >
+          (success() || failure()) &&
+          github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/trajectory_plots
+          git init .
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git checkout --orphan ci-artifacts
+          git add *.png
+          git commit -m "ci: trajectory plots PR#${{ github.event.number }} @ ${{ github.sha }}"
+          git remote add origin \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git push --force origin ci-artifacts
+
       - name: Post trajectory plots as PR comment
         if: >
           always() &&
@@ -93,33 +111,31 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const runId  = context.runId;
-            const repo   = context.repo;
-            const prNum  = context.issue.number;
-            const sha    = context.payload.pull_request.head.sha.slice(0, 7);
+            const repo  = context.repo;
+            const prNum = context.issue.number;
+            const sha   = context.payload.pull_request.head.sha;
+            const sha7  = sha.slice(0, 7);
 
-            // Link directly to the workflow run page; artifacts are listed
-            // in the "Artifacts" section at the bottom of that page.
-            const runUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}`;
+            // Images are force-pushed to ci-artifacts; include the commit SHA as a
+            // query parameter so browsers/CDNs don't serve stale cached versions.
+            const rawBase =
+              `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/ci-artifacts`;
+            const v = sha;
 
             const body = [
-              `## 📊 Trajectory Plots — \`${sha}\``,
+              `## 📊 Trajectory Plots — \`${sha7}\``,
               '',
-              'Benchmark trajectory plots generated during the validation step.',
-              `[⬇️ Download all plots](${runUrl}) _(scroll to the Artifacts section)_`,
+              '| Scenario | Plot |',
+              '|----------|------|',
+              `| **easy** | ![easy](${rawBase}/trajectory_easy.png?v=${v}) |`,
+              `| **medium** | ![medium](${rawBase}/trajectory_medium.png?v=${v}) |`,
+              `| **hard** | ![hard](${rawBase}/trajectory_hard.png?v=${v}) |`,
               '',
-              '| Scenario | Result |',
-              '|----------|--------|',
-              '| **easy** | open space, no obstacles |',
-              '| **medium** | single obstacle column, detour required |',
-              '| **hard** | narrow passage between two obstacle walls |',
-              '',
-              '_Plots show the 2-D joint-space proxy (q₀ × q₁):_',
-              '_red dots = obstacle points, blue line = planned path,_',
-              '_green ★ = start, orange ★ = goal._',
+              '_2-D joint-space proxy (q₀ × q₁) — red dots: obstacles,_',
+              '_blue line: planned path, green ★: start, orange ★: goal._',
             ].join('\n');
 
-            // Find and update an existing bot comment, or create a new one.
+            // Upsert: update existing bot comment or create a new one.
             const marker = '## 📊 Trajectory Plots';
             const { data: comments } = await github.rest.issues.listComments({
               ...repo,
