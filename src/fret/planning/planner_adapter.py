@@ -200,8 +200,12 @@ class PlannerAdapter:
                 ``docs/arco/spec-integration-contract.md``.  Required
                 fields: ``request_id``, ``start_joint_positions``,
                 ``goal_joint_positions``, ``joint_count``,
-                ``occupancy_stamp``, ``timeout``, ``planner_config``
+                ``occupancy_stamp``, ``planner_config``
                 (must contain ``algorithm``), ``reference_frame``.
+                ``timeout`` is optional; when omitted the adapter uses
+                ``config["default_timeout"]`` (default: 5.0 s).
+                ``occupancy_stamp`` must be a POSIX timestamp
+                (``time.time()`` clock source).
 
         Returns:
             ``PlanningResult`` dict with fields: ``request_id``,
@@ -236,11 +240,19 @@ class PlannerAdapter:
         request_id: str = request["request_id"]
         start: List[float] = request["start_joint_positions"]
         goal: List[float] = request["goal_joint_positions"]
-        timeout: float = float(request["timeout"])
+        # Use request timeout if provided; fall back to config default_timeout.
+        timeout: float = float(
+            request.get(
+                "timeout",
+                self._config.get("default_timeout", 5.0),
+            )
+        )
         planner_cfg: Dict[str, Any] = request["planner_config"]
         algorithm: str = planner_cfg.get("algorithm", "rrt_connect")
 
         # Check occupancy freshness.
+        # occupancy_stamp must be a POSIX timestamp (time.time()) per the
+        # integration contract (spec-integration-contract.md Section 3.1).
         occupancy_stamp: float = request["occupancy_stamp"]
         max_age: float = self._config.get("max_occupancy_age", 2.0)
         occupancy_age = time.time() - occupancy_stamp
@@ -329,7 +341,6 @@ class PlannerAdapter:
             "goal_joint_positions",
             "joint_count",
             "occupancy_stamp",
-            "timeout",
             "planner_config",
             "reference_frame",
         ]
@@ -363,9 +374,11 @@ class PlannerAdapter:
                 f"joint_count {joint_count}"
             )
 
-        timeout = request["timeout"]
-        if not isinstance(timeout, (int, float)) or timeout <= 0:
-            return f"timeout must be a positive number, got {timeout!r}"
+        # timeout is optional; if present it must be a positive number.
+        if "timeout" in request:
+            timeout = request["timeout"]
+            if not isinstance(timeout, (int, float)) or timeout <= 0:
+                return f"timeout must be a positive number, got {timeout!r}"
 
         planner_cfg = request["planner_config"]
         if not isinstance(planner_cfg, dict):

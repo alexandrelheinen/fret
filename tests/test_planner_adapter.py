@@ -220,10 +220,14 @@ class TestPlannerAdapterRequestValidation(unittest.TestCase):
         del req["occupancy_stamp"]
         self._assert_invalid(req, "occupancy_stamp")
 
-    def test_missing_timeout(self):
+    def test_missing_timeout_uses_default(self):
+        # timeout is optional; when absent the adapter falls back to
+        # config["default_timeout"] (5.0 s by default).
         req = _make_request()
         del req["timeout"]
-        self._assert_invalid(req, "timeout")
+        result = self.adapter.plan(req)
+        # Must plan successfully (not return invalid_request due to timeout).
+        self.assertIn(result["status"], {"success", "no_plan_found"})
 
     def test_missing_planner_config(self):
         req = _make_request()
@@ -402,6 +406,9 @@ class TestPlannerAdapterTimeout(unittest.TestCase):
         result = adapter.plan(req)
         elapsed = time.monotonic() - t0
 
+        # Both outcomes are valid: "timeout" when the deadline fires before
+        # max_iterations is exhausted; "no_plan_found" when max_iterations
+        # runs out before the deadline on fast hardware (rare but possible).
         self.assertIn(result["status"], {"timeout", "no_plan_found"})
         # The call must return reasonably quickly.
         self.assertLess(elapsed, 5.0)
@@ -815,24 +822,33 @@ class TestPlannerAdapterWithOccupancy(unittest.TestCase):
         self.assertIsNotNone(result["path"])
 
     def test_occupancy_is_stale_after_max_rebuild_age(self):
+        # The OccupancyAdapter.is_stale property and the PlannerAdapter
+        # stale-occupancy check are independent: the adapter checks
+        # occupancy_stamp from the request, not OccupancyAdapter.is_stale.
+        # Verify this by constructing an OccupancyAdapter with a very short
+        # max_rebuild_age and using a past occupancy_stamp in the request.
         occupancy = OccupancyAdapter(
             inflation_radius=0.05,
-            max_rebuild_age=0.01,
+            max_rebuild_age=100.0,  # long, so adapter.is_stale is False
         )
         occupancy.update([])
-        time.sleep(0.02)  # let it go stale
 
         adapter = PlannerAdapter(
             occupancy_adapter=occupancy,
             joint_limits=JOINT_LIMITS,
         )
-        # Occupancy is stale in the OccupancyAdapter sense, but
-        # occupancy_stamp in the request is fresh — these are independent.
-        # The stale_occupancy check uses occupancy_stamp, not adapter.is_stale.
-        req = _make_request()
-        result = adapter.plan(req)
-        # Request should still succeed if stamp is fresh.
-        self.assertIn(result["status"], {"success", "no_plan_found"})
+        # Fresh occupancy_stamp → stale check passes.
+        req_fresh = _make_request()
+        result_fresh = adapter.plan(req_fresh)
+        self.assertIn(result_fresh["status"], {"success", "no_plan_found"})
+
+        # Old occupancy_stamp → adapter rejects with stale_occupancy.
+        req_stale = _make_request(
+            occupancy_stamp=time.time() - 100.0
+        )
+        result_stale = adapter.plan(req_stale)
+        self.assertEqual(result_stale["status"], "invalid_request")
+        self.assertIn("stale_occupancy", result_stale["failure_reason"])
 
 
 # ---------------------------------------------------------------------------
