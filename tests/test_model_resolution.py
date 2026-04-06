@@ -131,113 +131,6 @@ class TestLocalXacroResolution(unittest.TestCase):
             self.assertEqual(result["robot_description"], "<urdf/>")
 
 
-class TestUrWrapperXacroResolution(unittest.TestCase):
-    """Tests for UR model resolution via FRET's local ur.xacro wrapper."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.mock_fret_share = "/opt/ros/jazzy/share/fret"
-
-    def test_resolve_ur_model_uses_fret_wrapper_xacro(self):
-        """Test that UR models use the local FRET wrapper xacro."""
-        with (
-            patch("os.path.exists") as mock_exists,
-            patch(
-                "fret.launch.model.LaunchConfiguration"
-            ) as mock_launch_config,
-            patch("fret.launch.model.Command") as mock_command,
-            patch("fret.launch.model.FindExecutable"),
-            patch("fret.launch.model.logger"),
-        ):
-
-            # Local URDF and model-specific xacro don't exist
-            mock_exists.return_value = False
-
-            mock_config = MagicMock()
-            mock_launch_config.return_value = mock_config
-
-            mock_command_instance = MagicMock()
-            mock_command.return_value = mock_command_instance
-
-            result = resolve_robot_model("ur3", self.mock_fret_share)
-
-            self.assertEqual(
-                result["robot_description"], mock_command_instance
-            )
-            # Verify FRET wrapper xacro path is used in the Command
-            call_args = mock_command.call_args[0][0]
-            expected_xacro = os.path.join(
-                self.mock_fret_share, "urdf", "ur.xacro"
-            )
-            self.assertIn(expected_xacro, call_args)
-
-    def test_ur_model_detection(self):
-        """Test that various UR model names are correctly detected."""
-        ur_models = [
-            "ur3",
-            "ur3e",
-            "ur5",
-            "ur5e",
-            "ur10",
-            "ur10e",
-            "UR5",
-            "UR3E",
-        ]
-
-        for model in ur_models:
-            with (
-                patch("os.path.exists") as mock_exists,
-                patch("fret.launch.model.LaunchConfiguration"),
-                patch("fret.launch.model.Command") as mock_command,
-                patch("fret.launch.model.FindExecutable"),
-                patch("fret.launch.model.logger"),
-            ):
-
-                mock_exists.return_value = False
-                mock_command.return_value = MagicMock()
-
-                try:
-                    result = resolve_robot_model(model, self.mock_fret_share)
-                    # Should return a robot_description
-                    self.assertIn("robot_description", result)
-                except Exception:
-                    # Expected if dependencies aren't mocked perfectly
-                    pass
-
-    def test_ur_xacro_parameters(self):
-        """Test that UR-specific XACRO parameters are correctly set."""
-        with (
-            patch("os.path.exists") as mock_exists,
-            patch(
-                "fret.launch.model.LaunchConfiguration"
-            ) as mock_launch_config,
-            patch("fret.launch.model.Command") as mock_command,
-            patch("fret.launch.model.FindExecutable"),
-            patch("fret.launch.model.logger"),
-        ):
-
-            mock_exists.return_value = False
-
-            # Each LaunchConfiguration is queried with perform
-            mock_config = MagicMock()
-            mock_config.perform.return_value = "test_value"
-            mock_launch_config.return_value = mock_config
-
-            mock_command.return_value = MagicMock()
-
-            resolve_robot_model("ur5", self.mock_fret_share)
-
-            # Verify LaunchConfiguration was created for the expected parameters
-            expected_params = [
-                "safety_limits",
-                "safety_pos_margin",
-                "safety_k_position",
-                "tf_prefix",
-            ]
-            for param in expected_params:
-                mock_launch_config.assert_any_call(param)
-
-
 class TestErrorHandling(unittest.TestCase):
     """Tests for error handling and edge cases."""
 
@@ -252,7 +145,7 @@ class TestErrorHandling(unittest.TestCase):
             patch("fret.launch.model.logger"),
         ):
 
-            # No local files, not a UR model
+            # No local files found
             mock_exists.return_value = False
 
             with self.assertRaises(ValueError) as context:
@@ -286,26 +179,6 @@ class TestErrorHandling(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 resolve_robot_model("", self.mock_fret_share)
-
-    def test_case_insensitive_ur_detection(self):
-        """Test that UR detection is case-insensitive."""
-        with (
-            patch("os.path.exists") as mock_exists,
-            patch("fret.launch.model.LaunchConfiguration"),
-            patch("fret.launch.model.Command") as mock_command,
-            patch("fret.launch.model.FindExecutable"),
-            patch("fret.launch.model.logger"),
-        ):
-
-            mock_exists.return_value = False
-            mock_command.return_value = MagicMock()
-
-            # Test with uppercase
-            try:
-                result = resolve_robot_model("UR3", self.mock_fret_share)
-                self.assertIn("robot_description", result)
-            except Exception:
-                pass
 
 
 class TestDirectoryStructure(unittest.TestCase):

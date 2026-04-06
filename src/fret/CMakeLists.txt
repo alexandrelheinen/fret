@@ -20,9 +20,6 @@ file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
 # Per-model loop — driven by urdf/*.xacro
 # ---------------------------------------------------------------------------
 file(GLOB XACRO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/urdf/*.xacro)
-# ur.xacro is a runtime launch-time template (accepts ur_type arg); exclude
-# it from build-time static URDF generation to avoid unresolved arg errors.
-list(FILTER XACRO_FILES EXCLUDE REGEX ".*/ur\\.xacro$")
 
 set(GENERATED_URDF_FILES)
 set(MESH_STAMPS)
@@ -90,7 +87,6 @@ add_executable(controller
   src/control/controller_base.cpp
   src/control/controller_registry.cpp
   src/control/scara_controller.cpp
-  src/control/ur_controller.cpp
 )
 ament_target_dependencies(controller
   rclcpp
@@ -120,7 +116,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch urdf perception planning
+install(DIRECTORY launch urdf perception planning robots ros
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -141,6 +137,14 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
     DESTINATION share/${PROJECT_NAME}
   )
 endif()
+
+# ---------------------------------------------------------------------------
+# Python ROS 2 node executables
+# ---------------------------------------------------------------------------
+install(PROGRAMS
+  ros/perception_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # ---------------------------------------------------------------------------
 # Environment hook

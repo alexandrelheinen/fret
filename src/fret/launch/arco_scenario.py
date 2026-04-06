@@ -1,9 +1,9 @@
 """ARCO obstacle scenario launcher.
 
 Launches the full ARCO planning-and-tracking validation scenario:
-- Gazebo world: arco_scenario.sdf (floor + 5 static obstacles + region markers)
-- Robot: UR3 (6-DOF industrial manipulator, reach ≈ 500 mm)
-- Nodes: robot_state_publisher, gz_bridge, controller
+- Gazebo world: arco_scenario.sdf (floor + 3 static box obstacles + region markers)
+- Robot: SCARA (R-R-P-R, 4-DOF tabletop manipulator, reach 600 mm)
+- Nodes: robot_state_publisher, gz_bridge, controller, perception_bridge
 
 Single-command usage::
 
@@ -36,7 +36,7 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(sim_launch),
                 launch_arguments={
-                    "model": "ur3",
+                    "model": "scara",
                     "world": world_file,
                 }.items(),
             ),

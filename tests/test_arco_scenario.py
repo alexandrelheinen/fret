@@ -33,11 +33,9 @@ _SIM_LAUNCH = os.path.join(_SRC_FRET, "launch", "sim.py")
 EXPECTED_WORLD_NAME = "arco_scenario"
 
 EXPECTED_OBSTACLE_NAMES = {
-    "obstacle_pillar_left",
-    "obstacle_pillar_right",
-    "obstacle_crossbar",
-    "obstacle_block_a",
-    "obstacle_block_b",
+    "obstacle_box_a",
+    "obstacle_box_b",
+    "obstacle_box_c",
 }
 
 EXPECTED_REGION_NAMES = {
@@ -45,7 +43,7 @@ EXPECTED_REGION_NAMES = {
     "region_target",
 }
 
-MIN_OBSTACLE_COUNT = 5
+MIN_OBSTACLE_COUNT = 3
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +107,8 @@ class TestArcoScenarioWorldFile(unittest.TestCase):
                     f"Obstacle '{obstacle}' missing from world.",
                 )
 
-    def test_obstacle_count_at_least_five(self):
-        """FR-02 requires at least five obstacle primitives."""
+    def test_obstacle_count_at_least_three(self):
+        """SCARA scenario requires at least three obstacle primitives."""
         _, world = self._parse()
         names = {m.get("name") for m in world.findall("model")}
         found = names & EXPECTED_OBSTACLE_NAMES
@@ -202,13 +200,13 @@ class TestArcoScenarioLaunchFile(unittest.TestCase):
             "arco_scenario.py must reference the arco_scenario world.",
         )
 
-    def test_launch_file_uses_ur3_model(self):
-        """arco_scenario.py must default to the ur3 robot model."""
+    def test_launch_file_uses_scara_model(self):
+        """arco_scenario.py must default to the scara robot model."""
         source = self._read(_SCENARIO_LAUNCH)
         self.assertIn(
-            "ur3",
+            "scara",
             source,
-            "arco_scenario.py must reference the ur3 robot model.",
+            "arco_scenario.py must reference the scara robot model.",
         )
 
     def test_launch_file_includes_sim_launch(self):
@@ -235,18 +233,12 @@ class TestSimLaunchWorldArgument(unittest.TestCase):
         )
 
     def test_world_default_is_arco_scenario(self):
-        """'world' argument default must use arco_scenario.sdf.
-
-        The ARCO scenario world includes the JointStatePublisher plugin
-        required for Gazebo Harmonic to publish joint states via the
-        ros_gz_bridge.  Using 'empty.sdf' (no plugin) would leave TF
-        permanently broken for UR models.
-        """
+        """'world' argument default must use arco_scenario.sdf."""
         source = self._read()
         self.assertIn(
             "arco_scenario.sdf",
             source,
-            "Default world must be arco_scenario.sdf (includes JointStatePublisher).",
+            "Default world must be arco_scenario.sdf.",
         )
 
 
