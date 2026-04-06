@@ -25,8 +25,9 @@ each joint individually respects its velocity and acceleration limits.
 - ``request_id``     – Propagated or freshly generated UUID string.
 - ``status``         – ``"success"`` | ``"infeasible"`` | ``"invalid_input"``.
 - ``waypoints``      – Ordered joint configurations (``List[List[float]]``).
-- ``timestamps``     – Monotonically non-decreasing times in seconds from
-  trajectory start; one entry per waypoint.
+- ``timestamps``     – Monotonically increasing times in seconds from
+  trajectory start; one entry per waypoint.  For a single-waypoint
+  trajectory the only entry is ``0.0``.
 - ``velocities``     – Per-joint velocities at each waypoint (rad/s or m/s).
   Zero for a stop-and-go (rest-to-rest) trajectory.
 - ``accelerations``  – Per-joint accelerations at each waypoint.
@@ -290,8 +291,9 @@ class TrajectoryConverter:
             - ``status`` (``str``): ``"success"``, ``"infeasible"``, or
               ``"invalid_input"``.
             - ``waypoints`` (``List[List[float]]``): Copy of *path*.
-            - ``timestamps`` (``List[float]``): Non-decreasing times in
-              seconds from trajectory start; one value per waypoint.
+            - ``timestamps`` (``List[float]``): Monotonically increasing
+              times in seconds from trajectory start; one value per waypoint.
+              Single-waypoint trajectories yield ``[0.0]``.
             - ``velocities`` (``List[List[float]]``): Per-joint velocities
               at each waypoint.  Zero for stop-and-go trajectories.
             - ``accelerations`` (``List[List[float]]``): Per-joint
