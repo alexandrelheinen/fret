@@ -25,6 +25,9 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 def generate_launch_description():
     """Generate the ARCO obstacle scenario launch description."""
     fret_share = get_package_share_directory("fret")
+    # sim.py is the authoritative generic simulation launcher; arco_scenario.py
+    # is an opinionated composition of it.  If sim.py is ever renamed, update
+    # this path and the IncludeLaunchDescription below accordingly.
     sim_launch = os.path.join(fret_share, "launch", "sim.py")
     world_file = os.path.join(fret_share, "worlds", "arco_scenario.sdf")
 
