@@ -241,6 +241,84 @@ class TestSimLaunchWorldArgument(unittest.TestCase):
             "Default world must be arco_scenario.sdf.",
         )
 
+    def test_sim_does_not_bridge_pose_v_to_tf(self):
+        """sim.py must NOT have a ros_gz_bridge entry for gz.msgs.Pose_V.
+
+        The Pose_V message from Gazebo's SceneBroadcaster includes the world
+        entity with an empty name, which ros_gz_bridge converts to
+        TransformStamped messages with frame_id="" and child_frame_id="".
+        TF2 rejects these with TF_SELF_TRANSFORM / TF_NO_FRAME_ID errors that
+        flood the log.  Obstacle TF is published as static transforms instead.
+        """
+        source = self._read()
+        # The bridge argument string contains the bridged type as "[gz.msgs.Pose_V"
+        # (with a leading square bracket as ros_gz_bridge direction indicator).
+        self.assertNotIn(
+            "[gz.msgs.Pose_V",
+            source,
+            "sim.py must not have a bridge entry for gz.msgs.Pose_V "
+            "(causes empty-frame TF spam).",
+        )
+        # The pose/info topic must not appear in any bridge argument literal.
+        self.assertNotIn(
+            '"pose/info"',
+            source,
+            "sim.py must not bridge .../pose/info to /tf.",
+        )
+
+
+class TestArcoScenarioObstacleTF(unittest.TestCase):
+    """Verify that arco_scenario.py publishes static obstacle TF frames."""
+
+    def _read(self):
+        with open(_SCENARIO_LAUNCH, "r", encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_uses_static_transform_publisher(self):
+        """arco_scenario.py must instantiate static_transform_publisher nodes."""
+        source = self._read()
+        # The executable string must appear as a Node argument, not only in
+        # a comment or docstring.
+        self.assertIn(
+            '"static_transform_publisher"',
+            source,
+            "arco_scenario.py must publish static obstacle TF frames via "
+            "a Node with executable='static_transform_publisher'.",
+        )
+
+    def test_all_obstacle_frame_ids_declared(self):
+        """Each obstacle name must appear as a string literal (child-frame-id)."""
+        source = self._read()
+        for name in EXPECTED_OBSTACLE_NAMES:
+            with self.subTest(obstacle=name):
+                # Names are defined in the _OBSTACLE_FRAMES constant as string
+                # literals and passed as --child-frame-id at runtime.
+                self.assertIn(
+                    f'"{name}"',
+                    source,
+                    f"arco_scenario.py must declare static TF frame '{name}' "
+                    "as a string literal.",
+                )
+
+    def test_obstacle_uses_child_frame_id_argument(self):
+        """The --child-frame-id flag must appear in the static_transform_publisher args."""
+        source = self._read()
+        self.assertIn(
+            '"--child-frame-id"',
+            source,
+            "static_transform_publisher must use --child-frame-id argument.",
+        )
+
+    def test_obstacle_parent_frame_is_world(self):
+        """Obstacle static transforms must be relative to the 'world' frame."""
+        source = self._read()
+        # The world frame is passed as --frame-id argument value.
+        self.assertIn(
+            '"--frame-id", "world"',
+            source,
+            "Obstacle TF parent must be set to 'world' via --frame-id.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

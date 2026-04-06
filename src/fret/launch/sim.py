@@ -102,9 +102,14 @@ def _launch_selected_model(context):
     # /world/<world_name>/model/<model>/joint_state (gz.msgs.Model).
     # The bridge remaps this to /joint_states for robot_state_publisher.
     #
-    # The second bridge entry translates /world/<world_name>/pose/info
-    # (gz.msgs.Pose_V) to tf2_msgs/TFMessage on /tf so that the
-    # PerceptionBridgeNode can look up obstacle poses via TF.
+    # NOTE: We deliberately do NOT bridge /world/<world_name>/pose/info
+    # (gz.msgs.Pose_V) to /tf.  The Pose_V message includes the Gazebo world
+    # entity itself which carries an empty name string; ros_gz_bridge converts
+    # that to a TransformStamped with frame_id="" and child_frame_id="", and
+    # TF2 floods the log with TF_SELF_TRANSFORM / TF_NO_FRAME_ID errors.
+    # The robot TF tree is fully supplied by robot_state_publisher (which
+    # reads the URDF's fixed world_to_base_root joint).  Obstacle poses for
+    # static worlds are published as static transforms in each scenario launch.
     gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
@@ -113,17 +118,11 @@ def _launch_selected_model(context):
             f"/world/{world_name}/model/{model}/joint_state"
             "@sensor_msgs/msg/JointState[gz.msgs.Model",
             "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-            f"/world/{world_name}/pose/info"
-            "@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
         ],
         remappings=[
             (
                 f"/world/{world_name}/model/{model}/joint_state",
                 "/joint_states",
-            ),
-            (
-                f"/world/{world_name}/pose/info",
-                "/tf",
             ),
         ],
     )
