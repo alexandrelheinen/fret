@@ -8,6 +8,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     ExecuteProcess,
     OpaqueFunction,
+    TimerAction,
 )
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -15,6 +16,42 @@ from launch_ros.actions import Node
 from fret.launch.model import resolve_robot_model
 
 logger = logging.get_logger("fret")
+
+
+def _controller_parameters_for_model(model: str) -> dict:
+    """Build controller node parameters that match the selected model."""
+    if model.lower().startswith("ur"):
+        return {
+            "robot_model": model,
+            "joint_states_topic": "/joint_states",
+            "command_topic": "/joint_group_velocity_controller/commands",
+            "base_frame": "base_link",
+            "ee_frame": "tool0",
+            "command_rate_hz": 50.0,
+            "joint_names": [
+                "shoulder_pan_joint",
+                "shoulder_lift_joint",
+                "elbow_joint",
+                "wrist_1_joint",
+                "wrist_2_joint",
+                "wrist_3_joint",
+            ],
+        }
+
+    return {
+        "robot_model": model,
+        "joint_states_topic": "/joint_states",
+        "command_topic": "/joint_group_velocity_controller/commands",
+        "base_frame": "base_link",
+        "ee_frame": "end_effector_link",
+        "command_rate_hz": 50.0,
+        "joint_names": [
+            "joint_arm_0",
+            "joint_arm_1",
+            "joint_extension",
+            "joint_tool_rotate",
+        ],
+    }
 
 
 def _launch_selected_model(context):
@@ -68,10 +105,9 @@ def _launch_selected_model(context):
         ],
     )
 
-    # Bridge Gazebo joint states → ROS 2 /joint_states so that
-    # robot_state_publisher can publish the full TF tree for movable joints.
-    # Without this, revolute/prismatic transforms are never emitted and
-    # base_link → end_effector_link lookups fail with "unconnected trees".
+    # Bridge Gazebo joint states to a dedicated topic. joint_state_publisher
+    # republishes a stable /joint_states stream from that source and also
+    # ensures startup-time joint states exist even before Gazebo data arrives.
     gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
@@ -81,7 +117,19 @@ def _launch_selected_model(context):
             "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
         ],
         remappings=[
-            (f"/model/{model}/joint_state", "/joint_states"),
+            (f"/model/{model}/joint_state", "/sim_joint_states"),
+        ],
+    )
+
+    joint_state_publisher = Node(
+        package="joint_state_publisher",
+        executable="joint_state_publisher",
+        output="screen",
+        parameters=[
+            {
+                "rate": 50.0,
+                "source_list": ["/sim_joint_states"],
+            }
         ],
     )
 
@@ -89,30 +137,18 @@ def _launch_selected_model(context):
         package="fret",
         executable="controller",
         output="screen",
-        parameters=[
-            {
-                "robot_model": model,
-                "joint_states_topic": "/joint_states",
-                "command_topic": "/joint_group_velocity_controller/commands",
-                "base_frame": "base_link",
-                "ee_frame": "end_effector_link",
-                "command_rate_hz": 50.0,
-                "joint_names": [
-                    "joint_arm_0",
-                    "joint_arm_1",
-                    "joint_extension",
-                    "joint_tool_rotate",
-                ],
-            }
-        ],
+        parameters=[_controller_parameters_for_model(model)],
     )
+
+    delayed_controller = TimerAction(period=2.0, actions=[controller_node])
 
     return [
         robot_state_publisher,
         gz_sim,
         spawn_robot,
         gz_bridge,
-        controller_node,
+        joint_state_publisher,
+        delayed_controller,
     ]
 
 

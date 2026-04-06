@@ -87,6 +87,7 @@ add_executable(controller
   src/control/controller_base.cpp
   src/control/controller_registry.cpp
   src/control/scara_controller.cpp
+  src/control/ur_controller.cpp
 )
 ament_target_dependencies(controller
   rclcpp
