@@ -58,6 +58,32 @@ _J4_UPPER: float = math.pi
 _LINK_SAMPLES: int = 5
 
 
+# ---------------------------------------------------------------------------
+# Kinematic helpers
+# ---------------------------------------------------------------------------
+
+
+def _lerp(pa: list[float], pb: list[float], n: int) -> list[list[float]]:
+    """Return n+1 linearly interpolated points from *pa* to *pb*.
+
+    Args:
+        pa: Start point [x, y, z].
+        pb: End point [x, y, z].
+        n: Number of intervals (yields n+1 points including both endpoints).
+
+    Returns:
+        List of n+1 ``[x, y, z]`` triples.
+    """
+    return [
+        [
+            pa[0] + (pb[0] - pa[0]) * i / n,
+            pa[1] + (pb[1] - pa[1]) * i / n,
+            pa[2] + (pb[2] - pa[2]) * i / n,
+        ]
+        for i in range(n + 1)
+    ]
+
+
 class ScaraModel(RobotModel):
     """Kinematic model for the FRET SCARA (R-R-P-R) manipulator.
 
@@ -142,19 +168,6 @@ class ScaraModel(RobotModel):
 
         # ── Sample control points ────────────────────────────────────
         points: list[list[float]] = []
-
-        def _lerp(
-            pa: list[float], pb: list[float], n: int
-        ) -> list[list[float]]:
-            """Return n+1 linearly interpolated points from pa to pb."""
-            return [
-                [
-                    pa[0] + (pb[0] - pa[0]) * i / n,
-                    pa[1] + (pb[1] - pa[1]) * i / n,
-                    pa[2] + (pb[2] - pa[2]) * i / n,
-                ]
-                for i in range(n + 1)
-            ]
 
         # Arm-0 (J1 → J2) — samples at uniform intervals along the link
         points.extend(

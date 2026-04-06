@@ -58,7 +58,8 @@ import rclpy.node  # noqa: E402
 import yaml  # noqa: E402
 from geometry_msgs.msg import TransformStamped  # noqa: E402
 from sensor_msgs.msg import PointCloud2, PointField  # noqa: E402
-from tf2_ros import Buffer, TransformListener  # noqa: E402
+from tf2_ros import Buffer, LookupException, ExtrapolationException  # noqa: E402
+from tf2_ros import ConnectivityException, TransformListener  # noqa: E402
 
 from fret.perception.cloud_filter import CloudFilter  # noqa: E402
 from fret.perception.occupancy_adapter import OccupancyAdapter  # noqa: E402
@@ -208,7 +209,11 @@ class PerceptionBridgeNode(rclpy.node.Node):
                 rclpy.time.Time(),
                 timeout=rclpy.duration.Duration(seconds=_TF_TIMEOUT_SEC),
             )
-        except Exception as exc:  # noqa: BLE001
+        except (
+            LookupException,
+            ConnectivityException,
+            ExtrapolationException,
+        ) as exc:
             self.get_logger().debug(
                 f"TF lookup failed for '{name}': {exc}"
             )
