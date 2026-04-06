@@ -126,6 +126,12 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rviz)
   )
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
+  install(DIRECTORY worlds
+    DESTINATION share/${PROJECT_NAME}
+  )
+endif()
+
 # ---------------------------------------------------------------------------
 # Environment hook
 # ---------------------------------------------------------------------------

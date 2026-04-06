@@ -22,6 +22,8 @@ def _launch_selected_model(context):
     if model is None:
         raise ValueError("Missing 'model' launch argument.")
 
+    world = LaunchConfiguration("world").perform(context)
+
     # Resolve robot model from all fallback sources
     fret_share = get_package_share_directory("fret")
     robot_description = resolve_robot_model(model, fret_share)
@@ -45,7 +47,7 @@ def _launch_selected_model(context):
     )
 
     gz_sim = ExecuteProcess(
-        cmd=["gz", "sim", "-r", "empty.sdf"],
+        cmd=["gz", "sim", "-r", world],
         output="screen",
         additional_env={
             "GZ_SIM_RESOURCE_PATH": gz_env["GZ_SIM_RESOURCE_PATH"]
@@ -118,6 +120,14 @@ def generate_launch_description():
     """Generate the simulation launch description."""
     return LaunchDescription(
         [
+            DeclareLaunchArgument(
+                "world",
+                default_value="empty.sdf",
+                description=(
+                    "Gazebo world file (absolute path or resource name). "
+                    "Defaults to the built-in empty world."
+                ),
+            ),
             DeclareLaunchArgument(
                 "model",
                 default_value="ur3",
