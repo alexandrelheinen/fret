@@ -20,6 +20,9 @@ file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
 # Per-model loop — driven by urdf/*.xacro
 # ---------------------------------------------------------------------------
 file(GLOB XACRO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/urdf/*.xacro)
+# ur.xacro is a runtime launch-time template (accepts ur_type arg); exclude
+# it from build-time static URDF generation to avoid unresolved arg errors.
+list(FILTER XACRO_FILES EXCLUDE REGEX ".*/ur\\.xacro$")
 
 set(GENERATED_URDF_FILES)
 set(MESH_STAMPS)

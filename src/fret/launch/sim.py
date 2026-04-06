@@ -8,10 +8,10 @@ from launch.actions import (
     DeclareLaunchArgument,
     ExecuteProcess,
     OpaqueFunction,
-    TimerAction,
 )
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 from fret.launch.model import resolve_robot_model
 
@@ -65,6 +65,13 @@ def _launch_selected_model(context):
     fret_share = get_package_share_directory("fret")
     robot_description = resolve_robot_model(model, fret_share)
 
+    # Derive the Gazebo world name from the world file path.
+    # The SDF world name must match the file stem (e.g. arco_scenario.sdf →
+    # world name "arco_scenario").  Gazebo Harmonic scopes all model topics
+    # under /world/<world_name>/model/<model>/…, so we need this to bridge
+    # joint states correctly.
+    world_name = os.path.splitext(os.path.basename(world))[0]
+
     # Gazebo resolves model:// URIs by searching GZ_SIM_RESOURCE_PATH for a
     # directory whose name matches the first path component of the URI.
     # Meshes are installed to share/fret/meshes/, so Gazebo must find a
@@ -80,7 +87,7 @@ def _launch_selected_model(context):
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="screen",
-        parameters=[robot_description],
+        parameters=[robot_description, {"use_sim_time": True}],
     )
 
     gz_sim = ExecuteProcess(
@@ -102,34 +109,30 @@ def _launch_selected_model(context):
             "robot_description",
             "-z",
             "0.0",
+            "-Y",
+            "3.14159",
         ],
     )
 
-    # Bridge Gazebo joint states to a dedicated topic. joint_state_publisher
-    # republishes a stable /joint_states stream from that source and also
-    # ensures startup-time joint states exist even before Gazebo data arrives.
+    # Bridge Gazebo joint states directly to /joint_states.
+    # Gazebo Harmonic's JointStatePublisher system plugin (injected via the
+    # <gazebo> block in ur.xacro) publishes to the world-scoped topic
+    # /world/<world_name>/model/<model>/joint_state (gz.msgs.Model).
+    # The bridge remaps this to /joint_states for robot_state_publisher.
     gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
         output="screen",
         arguments=[
-            f"/model/{model}/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model",
+            f"/world/{world_name}/model/{model}/joint_state"
+            "@sensor_msgs/msg/JointState[gz.msgs.Model",
             "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
         ],
         remappings=[
-            (f"/model/{model}/joint_state", "/sim_joint_states"),
-        ],
-    )
-
-    joint_state_publisher = Node(
-        package="joint_state_publisher",
-        executable="joint_state_publisher",
-        output="screen",
-        parameters=[
-            {
-                "rate": 50.0,
-                "source_list": ["/sim_joint_states"],
-            }
+            (
+                f"/world/{world_name}/model/{model}/joint_state",
+                "/joint_states",
+            ),
         ],
     )
 
@@ -137,18 +140,18 @@ def _launch_selected_model(context):
         package="fret",
         executable="controller",
         output="screen",
-        parameters=[_controller_parameters_for_model(model)],
+        parameters=[
+            _controller_parameters_for_model(model),
+            {"use_sim_time": True},
+        ],
     )
-
-    delayed_controller = TimerAction(period=2.0, actions=[controller_node])
 
     return [
         robot_state_publisher,
         gz_sim,
         spawn_robot,
         gz_bridge,
-        joint_state_publisher,
-        delayed_controller,
+        controller_node,
     ]
 
 
@@ -158,10 +161,12 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "world",
-                default_value="empty.sdf",
+                default_value=PathJoinSubstitution(
+                    [FindPackageShare("fret"), "worlds", "arco_scenario.sdf"]
+                ),
                 description=(
                     "Gazebo world file (absolute path or resource name). "
-                    "Defaults to the built-in empty world."
+                    "Defaults to the FRET ARCO scenario world."
                 ),
             ),
             DeclareLaunchArgument(

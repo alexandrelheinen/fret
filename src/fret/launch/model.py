@@ -2,7 +2,6 @@
 
 import os
 
-from ament_index_python.packages import get_package_share_directory
 from launch import logging
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration
 
@@ -47,13 +46,12 @@ def resolve_robot_model(model_name: str, fret_share: str) -> dict:
             [FindExecutable(name="xacro"), " ", xacro_path]
         )
 
-    # Try external ROS package (UR as fallback)
+    # Try FRET wrapper xacro for UR models (adds Gazebo JointStatePublisher)
     elif model_name.lower().startswith("ur"):
         logger.info(
-            f"Found external package: Universal Robots; Model: {model_name}"
+            f"Found UR model; using FRET wrapper xacro (gz plugin included): {model_name}"
         )
-        ur_description_share = get_package_share_directory("ur_description")
-        description_file = f"{ur_description_share}/urdf/ur.urdf.xacro"
+        description_file = os.path.join(fret_share, "urdf", "ur.xacro")
 
         # Get UR-specific configuration from launch context
         safety_limits = LaunchConfiguration("safety_limits")

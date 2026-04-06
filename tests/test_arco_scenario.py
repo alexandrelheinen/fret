@@ -234,13 +234,19 @@ class TestSimLaunchWorldArgument(unittest.TestCase):
             "sim.py must declare a 'world' launch argument.",
         )
 
-    def test_world_default_is_empty_sdf(self):
-        """'world' argument default must be 'empty.sdf' for backward compat."""
+    def test_world_default_is_arco_scenario(self):
+        """'world' argument default must use arco_scenario.sdf.
+
+        The ARCO scenario world includes the JointStatePublisher plugin
+        required for Gazebo Harmonic to publish joint states via the
+        ros_gz_bridge.  Using 'empty.sdf' (no plugin) would leave TF
+        permanently broken for UR models.
+        """
         source = self._read()
         self.assertIn(
-            "empty.sdf",
+            "arco_scenario.sdf",
             source,
-            "Default world must remain 'empty.sdf' for backward compatibility.",
+            "Default world must be arco_scenario.sdf (includes JointStatePublisher).",
         )
 
 

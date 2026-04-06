@@ -47,7 +47,7 @@ from fret.planning.planner_adapter import (
     _deep_merge,
     _free_space_validator,
 )
-from fret.planning.rrt_connect import RRTConnect, _Tree, _dist
+from fret.planning.rrt_connect import RRTConnect, _dist, _Tree
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -83,13 +83,15 @@ def _make_request(
     if joint_count is None:
         joint_count = len(start)
     return {
-        "request_id": request_id if request_id is not None else str(uuid.uuid4()),
+        "request_id": (
+            request_id if request_id is not None else str(uuid.uuid4())
+        ),
         "start_joint_positions": start,
         "goal_joint_positions": goal,
         "joint_count": joint_count,
-        "occupancy_stamp": occupancy_stamp
-        if occupancy_stamp is not None
-        else time.time(),
+        "occupancy_stamp": (
+            occupancy_stamp if occupancy_stamp is not None else time.time()
+        ),
         "timeout": timeout,
         "planner_config": {"algorithm": algorithm},
         "reference_frame": reference_frame,
@@ -149,12 +151,8 @@ class TestPlannerAdapterConstructor(unittest.TestCase):
         self.assertIn("step_size", cfg["rrt_connect"])
 
     def test_config_override_respected(self):
-        adapter = _make_adapter(
-            config={"rrt_connect": {"step_size": 0.1}}
-        )
-        self.assertAlmostEqual(
-            adapter.config["rrt_connect"]["step_size"], 0.1
-        )
+        adapter = _make_adapter(config={"rrt_connect": {"step_size": 0.1}})
+        self.assertAlmostEqual(adapter.config["rrt_connect"]["step_size"], 0.1)
 
     def test_free_space_validator_is_default(self):
         adapter = _make_adapter(state_validator=None)
@@ -279,9 +277,7 @@ class TestPlannerAdapterRequestValidation(unittest.TestCase):
         self.assertIn("unsupported algorithm", result["failure_reason"])
 
     def test_stale_occupancy_rejected(self):
-        req = _make_request(
-            occupancy_stamp=time.time() - 100.0  # very old
-        )
+        req = _make_request(occupancy_stamp=time.time() - 100.0)  # very old
         result = self.adapter.plan(req)
         self.assertEqual(result["status"], "invalid_request")
         self.assertIn("stale_occupancy", result["failure_reason"])
@@ -296,9 +292,7 @@ class TestPlannerAdapterBaseline(unittest.TestCase):
     """Adapter returns valid path in free space (no obstacles)."""
 
     def test_free_space_plan_succeeds(self):
-        adapter = _make_adapter(
-            config={"rrt_connect": {"rng_seed": 42}}
-        )
+        adapter = _make_adapter(config={"rrt_connect": {"rng_seed": 42}})
         req = _make_request()
         result = adapter.plan(req)
 
@@ -308,9 +302,7 @@ class TestPlannerAdapterBaseline(unittest.TestCase):
         self.assertEqual(result["waypoint_count"], len(result["path"]))
 
     def test_result_starts_near_start(self):
-        adapter = _make_adapter(
-            config={"rrt_connect": {"rng_seed": 42}}
-        )
+        adapter = _make_adapter(config={"rrt_connect": {"rng_seed": 42}})
         req = _make_request()
         result = adapter.plan(req)
         self.assertEqual(result["status"], "success")
@@ -319,9 +311,7 @@ class TestPlannerAdapterBaseline(unittest.TestCase):
         self.assertLess(dist, 1e-6)
 
     def test_result_ends_near_goal(self):
-        adapter = _make_adapter(
-            config={"rrt_connect": {"rng_seed": 42}}
-        )
+        adapter = _make_adapter(config={"rrt_connect": {"rng_seed": 42}})
         req = _make_request()
         result = adapter.plan(req)
         self.assertEqual(result["status"], "success")
@@ -445,9 +435,7 @@ class TestPlannerAdapterNoSolution(unittest.TestCase):
             goal=[1.0] * DOF,
         )
         result = adapter.plan(req)
-        self.assertIn(
-            result["status"], {"no_plan_found", "timeout"}
-        )
+        self.assertIn(result["status"], {"no_plan_found", "timeout"})
         self.assertIsNone(result["path"])
         self.assertEqual(result["waypoint_count"], 0)
         self.assertIsNotNone(result["failure_reason"])
@@ -464,9 +452,7 @@ class TestPlannerAdapterNoSolution(unittest.TestCase):
         )
         req = _make_request()
         result = adapter.plan(req)
-        self.assertIn(
-            result["status"], {"no_plan_found", "invalid_request"}
-        )
+        self.assertIn(result["status"], {"no_plan_found", "invalid_request"})
         self.assertIsNone(result["path"])
 
 
@@ -479,9 +465,7 @@ class TestPlannerAdapterDiagnostics(unittest.TestCase):
     """Diagnostics are emitted and have correct types."""
 
     def setUp(self):
-        self.adapter = _make_adapter(
-            config={"rrt_connect": {"rng_seed": 0}}
-        )
+        self.adapter = _make_adapter(config={"rrt_connect": {"rng_seed": 0}})
 
     def _run(self, **kw):
         return self.adapter.plan(_make_request(**kw))
@@ -702,9 +686,7 @@ class TestRRTConnectPlan(unittest.TestCase):
         path, _, _ = planner.plan(START, GOAL, 10.0)
         self.assertIsNotNone(path)
         for waypoint in path:
-            for i, (q, (lo, hi)) in enumerate(
-                zip(waypoint, JOINT_LIMITS)
-            ):
+            for i, (q, (lo, hi)) in enumerate(zip(waypoint, JOINT_LIMITS)):
                 with self.subTest(joint=i, q=q):
                     self.assertGreaterEqual(q, lo - 1e-9)
                     self.assertLessEqual(q, hi + 1e-9)
@@ -843,9 +825,7 @@ class TestPlannerAdapterWithOccupancy(unittest.TestCase):
         self.assertIn(result_fresh["status"], {"success", "no_plan_found"})
 
         # Old occupancy_stamp → adapter rejects with stale_occupancy.
-        req_stale = _make_request(
-            occupancy_stamp=time.time() - 100.0
-        )
+        req_stale = _make_request(occupancy_stamp=time.time() - 100.0)
         result_stale = adapter.plan(req_stale)
         self.assertEqual(result_stale["status"], "invalid_request")
         self.assertIn("stale_occupancy", result_stale["failure_reason"])

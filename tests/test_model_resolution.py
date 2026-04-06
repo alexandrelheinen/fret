@@ -131,21 +131,17 @@ class TestLocalXacroResolution(unittest.TestCase):
             self.assertEqual(result["robot_description"], "<urdf/>")
 
 
-class TestUrVendorFallback(unittest.TestCase):
-    """Tests for Universal Robots vendor package fallback."""
+class TestUrWrapperXacroResolution(unittest.TestCase):
+    """Tests for UR model resolution via FRET's local ur.xacro wrapper."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.mock_fret_share = "/opt/ros/jazzy/share/fret"
-        self.mock_ur_description_share = "/opt/ros/jazzy/share/ur_description"
 
-    def test_resolve_ur_model_fallback(self):
-        """Test that UR models trigger ur_description package fallback."""
+    def test_resolve_ur_model_uses_fret_wrapper_xacro(self):
+        """Test that UR models use the local FRET wrapper xacro."""
         with (
             patch("os.path.exists") as mock_exists,
-            patch(
-                "fret.launch.model.get_package_share_directory"
-            ) as mock_get_share,
             patch(
                 "fret.launch.model.LaunchConfiguration"
             ) as mock_launch_config,
@@ -154,12 +150,9 @@ class TestUrVendorFallback(unittest.TestCase):
             patch("fret.launch.model.logger"),
         ):
 
-            # Local files don't exist
+            # Local URDF and model-specific xacro don't exist
             mock_exists.return_value = False
-            # UR description package exists
-            mock_get_share.return_value = self.mock_ur_description_share
 
-            # Mock LaunchConfiguration
             mock_config = MagicMock()
             mock_launch_config.return_value = mock_config
 
@@ -171,8 +164,12 @@ class TestUrVendorFallback(unittest.TestCase):
             self.assertEqual(
                 result["robot_description"], mock_command_instance
             )
-            # Verify ur_description package was queried
-            mock_get_share.assert_called_once_with("ur_description")
+            # Verify FRET wrapper xacro path is used in the Command
+            call_args = mock_command.call_args[0][0]
+            expected_xacro = os.path.join(
+                self.mock_fret_share, "urdf", "ur.xacro"
+            )
+            self.assertIn(expected_xacro, call_args)
 
     def test_ur_model_detection(self):
         """Test that various UR model names are correctly detected."""
@@ -190,22 +187,19 @@ class TestUrVendorFallback(unittest.TestCase):
         for model in ur_models:
             with (
                 patch("os.path.exists") as mock_exists,
-                patch(
-                    "fret.launch.model.get_package_share_directory"
-                ) as mock_get_share,
                 patch("fret.launch.model.LaunchConfiguration"),
-                patch("fret.launch.model.Command"),
+                patch("fret.launch.model.Command") as mock_command,
                 patch("fret.launch.model.FindExecutable"),
                 patch("fret.launch.model.logger"),
             ):
 
                 mock_exists.return_value = False
-                mock_get_share.return_value = self.mock_ur_description_share
+                mock_command.return_value = MagicMock()
 
                 try:
-                    resolve_robot_model(model, self.mock_fret_share)
-                    # Should attempt to load UR description
-                    mock_get_share.assert_called_with("ur_description")
+                    result = resolve_robot_model(model, self.mock_fret_share)
+                    # Should return a robot_description
+                    self.assertIn("robot_description", result)
                 except Exception:
                     # Expected if dependencies aren't mocked perfectly
                     pass
@@ -215,9 +209,6 @@ class TestUrVendorFallback(unittest.TestCase):
         with (
             patch("os.path.exists") as mock_exists,
             patch(
-                "fret.launch.model.get_package_share_directory"
-            ) as mock_get_share,
-            patch(
                 "fret.launch.model.LaunchConfiguration"
             ) as mock_launch_config,
             patch("fret.launch.model.Command") as mock_command,
@@ -226,7 +217,6 @@ class TestUrVendorFallback(unittest.TestCase):
         ):
 
             mock_exists.return_value = False
-            mock_get_share.return_value = self.mock_ur_description_share
 
             # Each LaunchConfiguration is queried with perform
             mock_config = MagicMock()
@@ -301,22 +291,19 @@ class TestErrorHandling(unittest.TestCase):
         """Test that UR detection is case-insensitive."""
         with (
             patch("os.path.exists") as mock_exists,
-            patch(
-                "fret.launch.model.get_package_share_directory"
-            ) as mock_get_share,
             patch("fret.launch.model.LaunchConfiguration"),
-            patch("fret.launch.model.Command"),
+            patch("fret.launch.model.Command") as mock_command,
             patch("fret.launch.model.FindExecutable"),
             patch("fret.launch.model.logger"),
         ):
 
             mock_exists.return_value = False
-            mock_get_share.return_value = "/opt/ros/jazzy/share/ur_description"
+            mock_command.return_value = MagicMock()
 
             # Test with uppercase
             try:
-                resolve_robot_model("UR3", self.mock_fret_share)
-                mock_get_share.assert_called_with("ur_description")
+                result = resolve_robot_model("UR3", self.mock_fret_share)
+                self.assertIn("robot_description", result)
             except Exception:
                 pass
 
