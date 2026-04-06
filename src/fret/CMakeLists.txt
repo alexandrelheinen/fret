@@ -142,7 +142,7 @@ endif()
 # Python ROS 2 node executables
 # ---------------------------------------------------------------------------
 install(PROGRAMS
-  ros/perception_bridge.py
+  ${CMAKE_CURRENT_SOURCE_DIR}/ros/perception_bridge.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
