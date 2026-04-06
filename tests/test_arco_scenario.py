@@ -311,11 +311,15 @@ class TestArcoScenarioObstacleTF(unittest.TestCase):
 
     def test_obstacle_parent_frame_is_world(self):
         """Obstacle static transforms must be relative to the 'world' frame."""
+        import re
+
         source = self._read()
-        # The world frame is passed as --frame-id argument value.
-        self.assertIn(
-            '"--frame-id", "world"',
+        # Black may split "--frame-id" and "world" across lines; use a regex
+        # that allows optional whitespace and newlines between the two tokens.
+        pattern = r'"--frame-id"[\s,]*"world"'
+        self.assertRegex(
             source,
+            pattern,
             "Obstacle TF parent must be set to 'world' via --frame-id.",
         )
 

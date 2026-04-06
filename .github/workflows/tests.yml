@@ -15,6 +15,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   validate:
@@ -39,7 +40,8 @@ jobs:
           sudo apt-get install -y \
             python3-colcon-common-extensions \
             python3-rosdep \
-            xvfb
+            xvfb \
+            python3-matplotlib
 
       - name: Initialize rosdep
         run: |
@@ -67,6 +69,77 @@ jobs:
           source /opt/ros/${ROS_DISTRO}/setup.bash
           source install/setup.bash
           python3 scripts/validate_quality_gates.py
+
+      - name: Generate trajectory plots
+        if: success() || failure()
+        run: |
+          source /opt/ros/${ROS_DISTRO}/setup.bash
+          source install/setup.bash
+          python3 scripts/plot_trajectories.py \
+            --output-dir /tmp/trajectory_plots
+
+      - name: Upload trajectory plots as artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectory-plots-${{ github.run_id }}
+          path: /tmp/trajectory_plots/*.png
+          retention-days: 30
+
+      - name: Post trajectory plots as PR comment
+        if: >
+          always() &&
+          github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId  = context.runId;
+            const repo   = context.repo;
+            const prNum  = context.issue.number;
+            const sha    = context.payload.pull_request.head.sha.slice(0, 7);
+
+            // Build the artifact download URL (direct link to the run's artifacts page).
+            const artifactUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}/artifacts`;
+
+            const body = [
+              `## 📊 Trajectory Plots — \`${sha}\``,
+              '',
+              'Benchmark trajectory plots generated during the validation step.',
+              `[⬇️ Download all plots (artifact)](${artifactUrl})`,
+              '',
+              '| Scenario | Result |',
+              '|----------|--------|',
+              '| **easy** | open space, no obstacles |',
+              '| **medium** | single obstacle column, detour required |',
+              '| **hard** | narrow passage between two obstacle walls |',
+              '',
+              '_Plots show the 2-D joint-space proxy (q₀ × q₁):_',
+              '_red dots = obstacle points, blue line = planned path,_',
+              '_green ★ = start, orange ★ = goal._',
+            ].join('\n');
+
+            // Find and update an existing bot comment, or create a new one.
+            const marker = '## 📊 Trajectory Plots';
+            const { data: comments } = await github.rest.issues.listComments({
+              ...repo,
+              issue_number: prNum,
+            });
+            const existing = comments.find(
+              c => c.user.type === 'Bot' && c.body.includes(marker)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number: prNum,
+                body,
+              });
+            }
 
       - name: Launch smoke tests
         run: |
