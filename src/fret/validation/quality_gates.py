@@ -158,7 +158,7 @@ def evaluate_gates(
 
 _PASS_LABEL = "PASS"
 _FAIL_LABEL = "FAIL"
-_NA_LABEL = "N/A "
+_NA_LABEL = "N/A"
 
 
 def format_report(
