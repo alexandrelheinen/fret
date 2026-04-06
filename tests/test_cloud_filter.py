@@ -26,7 +26,6 @@ if _SRC_DIR not in sys.path:
 
 from fret.perception.cloud_filter import CloudFilter
 
-
 # ---------------------------------------------------------------------------
 # Test helpers
 # ---------------------------------------------------------------------------
@@ -249,9 +248,7 @@ class TestFilterSelf(unittest.TestCase):
     """Unit tests for CloudFilter.filter_self."""
 
     def _filt_with_zone(self, cx, cy, cz, radius):
-        return CloudFilter(
-            exclusion_zones=[(cx, cy, cz, radius)]
-        )
+        return CloudFilter(exclusion_zones=[(cx, cy, cz, radius)])
 
     def test_point_outside_zone_is_kept(self):
         """A point outside the exclusion sphere must be retained."""

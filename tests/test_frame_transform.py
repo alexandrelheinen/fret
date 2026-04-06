@@ -28,7 +28,6 @@ if _SRC_DIR not in sys.path:
 
 from fret.perception.frame_transform import FrameTransform
 
-
 # ---------------------------------------------------------------------------
 # Test helpers
 # ---------------------------------------------------------------------------
@@ -333,9 +332,7 @@ class TestCompose(unittest.TestCase):
         pts = [_pt(1.0, 0.0, 0.0)]
         result_composed = composed.transform_points(pts)
         # Manual: rotate first (1,0,0) → (0,1,0), then translate → (1,1,0)
-        result_manual = tf_trans.transform_points(
-            tf_rot.transform_points(pts)
-        )
+        result_manual = tf_trans.transform_points(tf_rot.transform_points(pts))
         _assert_points_close(self, result_composed, result_manual)
 
     def test_compose_returns_new_instance(self):

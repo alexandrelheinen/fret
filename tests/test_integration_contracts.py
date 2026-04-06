@@ -13,7 +13,6 @@ import time
 import unittest
 import uuid
 
-
 # ---------------------------------------------------------------------------
 # Contract fixtures
 # ---------------------------------------------------------------------------
@@ -35,8 +34,18 @@ MIN_VOXEL_SIZE = 0.001  # meters
 MAX_VOXEL_SIZE = 1.0  # meters
 MAX_POINT_COUNT = 500_000
 
-VALID_PLANNER_STATUSES = {"success", "no_plan_found", "timeout", "invalid_request"}
-VALID_EXECUTION_STATUSES = {"executing", "succeeded", "tracking_failure", "aborted"}
+VALID_PLANNER_STATUSES = {
+    "success",
+    "no_plan_found",
+    "timeout",
+    "invalid_request",
+}
+VALID_EXECUTION_STATUSES = {
+    "executing",
+    "succeeded",
+    "tracking_failure",
+    "aborted",
+}
 VALID_OCCUPANCY_SOURCES = {"lidar", "depth_camera", "simulated"}
 CANONICAL_FRAME = "world"
 
@@ -56,11 +65,15 @@ def _make_planning_request(
     start = start or [0.0] * ROBOT_DOF
     goal = goal or [0.5] * ROBOT_DOF
     return {
-        "request_id": request_id if request_id is not None else str(uuid.uuid4()),
+        "request_id": (
+            request_id if request_id is not None else str(uuid.uuid4())
+        ),
         "start_joint_positions": start,
         "goal_joint_positions": goal,
         "joint_count": ROBOT_DOF,
-        "occupancy_stamp": occupancy_stamp if occupancy_stamp is not None else now,
+        "occupancy_stamp": (
+            occupancy_stamp if occupancy_stamp is not None else now
+        ),
         "timeout": timeout,
         "planner_config": {"algorithm": algorithm},
         "reference_frame": reference_frame,
@@ -82,7 +95,9 @@ def _make_planning_result(
         path = [[0.0] * ROBOT_DOF, [0.25] * ROBOT_DOF, [0.5] * ROBOT_DOF]
     waypoint_count = len(path) if path is not None else 0
     return {
-        "request_id": request_id if request_id is not None else str(uuid.uuid4()),
+        "request_id": (
+            request_id if request_id is not None else str(uuid.uuid4())
+        ),
         "status": status,
         "path": path,
         "waypoint_count": waypoint_count,
@@ -128,11 +143,14 @@ def _make_execution_feedback(
 ):
     """Build a valid ExecutionFeedback fixture."""
     return {
-        "request_id": request_id if request_id is not None else str(uuid.uuid4()),
+        "request_id": (
+            request_id if request_id is not None else str(uuid.uuid4())
+        ),
         "status": status,
         "stamp": stamp if stamp is not None else time.time(),
         "progress": progress,
-        "current_joint_positions": current_joint_positions or [0.0] * ROBOT_DOF,
+        "current_joint_positions": current_joint_positions
+        or [0.0] * ROBOT_DOF,
         "tracking_error": tracking_error,
         "message": message,
     }
@@ -173,9 +191,13 @@ def validate_planning_request(req):
             f"got '{req['reference_frame']}'"
         )
     if req["joint_count"] != len(req["start_joint_positions"]):
-        raise ValueError("joint_count does not match len(start_joint_positions)")
+        raise ValueError(
+            "joint_count does not match len(start_joint_positions)"
+        )
     if req["joint_count"] != len(req["goal_joint_positions"]):
-        raise ValueError("joint_count does not match len(goal_joint_positions)")
+        raise ValueError(
+            "joint_count does not match len(goal_joint_positions)"
+        )
     if req["timeout"] <= 0:
         raise ValueError("timeout must be positive")
     if "algorithm" not in req["planner_config"]:
@@ -215,7 +237,9 @@ def validate_planning_result(result):
         if result["path"] is not None:
             raise ValueError("path must be null when status is not 'success'")
         if result["waypoint_count"] != 0:
-            raise ValueError("waypoint_count must be 0 when status is not 'success'")
+            raise ValueError(
+                "waypoint_count must be 0 when status is not 'success'"
+            )
     if result["solve_time"] < 0:
         raise ValueError("solve_time must be non-negative")
 
@@ -669,19 +693,25 @@ class TestFailureSemantics(unittest.TestCase):
     def test_tracking_failure_not_triggered_below_threshold(self):
         """Tracking error below MAX_TRACKING_ERROR must not trigger failure."""
         self.assertFalse(
-            check_tracking_failure(MAX_TRACKING_ERROR - 0.01, TRACKING_FAILURE_WINDOW)
+            check_tracking_failure(
+                MAX_TRACKING_ERROR - 0.01, TRACKING_FAILURE_WINDOW
+            )
         )
 
     def test_tracking_failure_not_triggered_below_window(self):
         """Tracking error above threshold but below window must not fail."""
         self.assertFalse(
-            check_tracking_failure(MAX_TRACKING_ERROR + 0.01, TRACKING_FAILURE_WINDOW - 0.1)
+            check_tracking_failure(
+                MAX_TRACKING_ERROR + 0.01, TRACKING_FAILURE_WINDOW - 0.1
+            )
         )
 
     def test_tracking_failure_triggered_above_threshold_and_window(self):
         """Tracking error above threshold for full window must trigger failure."""
         self.assertTrue(
-            check_tracking_failure(MAX_TRACKING_ERROR + 0.01, TRACKING_FAILURE_WINDOW)
+            check_tracking_failure(
+                MAX_TRACKING_ERROR + 0.01, TRACKING_FAILURE_WINDOW
+            )
         )
 
     def test_transform_unavailable_feedback_structure(self):
@@ -716,7 +746,10 @@ class TestFrameAndUnitConventions(unittest.TestCase):
         result = _make_planning_result(request_id=req["request_id"])
         occ = _make_occupancy_update()
 
-        for payload, name in [(req, "PlanningRequest"), (occ, "OccupancyUpdate")]:
+        for payload, name in [
+            (req, "PlanningRequest"),
+            (occ, "OccupancyUpdate"),
+        ]:
             with self.subTest(payload=name):
                 self.assertEqual(payload["reference_frame"], CANONICAL_FRAME)
 

@@ -3,6 +3,8 @@
 Validates:
 - UR models use UR joint names and tool0 as end-effector frame.
 - SCARA uses SCARA joint names and end_effector_link.
+- Gazebo bridge remaps joint states directly to /joint_states.
+- Spawn rotates the robot 180° so the arm faces away from obstacles.
 
 All tests are deterministic and run in-process; no ROS runtime is required.
 """
@@ -66,16 +68,34 @@ class TestSimLaunchControllerParameters(unittest.TestCase):
 
 
 class TestSimLaunchJointStatePipeline(unittest.TestCase):
-    """Validate startup-resilient joint-state pipeline wiring in sim.py."""
+    """Validate joint-state pipeline wiring and spawn pose in sim.py."""
 
-    def test_sim_launch_uses_joint_state_publisher(self):
-        """sim.py must include joint_state_publisher for stable /joint_states."""
+    def _source(self):
         sim_py = os.path.join(_SRC_DIR, "fret", "launch", "sim.py")
         with open(sim_py, "r", encoding="utf-8") as fh:
-            source = fh.read()
+            return fh.read()
 
-        self.assertIn("joint_state_publisher", source)
-        self.assertIn("/sim_joint_states", source)
+    def test_bridge_remaps_directly_to_joint_states(self):
+        """Gazebo bridge must remap joint states straight to /joint_states.
+
+        Gazebo Harmonic's JointStatePublisher system plugin (loaded via the
+        <gazebo> block in ur.xacro) publishes to the world-scoped topic
+        /world/<world_name>/model/<model>/joint_state.  The bridge must use
+        this world-scoped topic and remap it to /joint_states so
+        robot_state_publisher can publish TF.
+        """
+        source = self._source()
+        self.assertIn('"/joint_states"', source)
+        self.assertNotIn('"joint_state_publisher"', source)
+        # Bridge must use world-scoped topic (not bare /model/<model>/…)
+        self.assertIn("world_name", source)
+        self.assertIn("/world/", source)
+
+    def test_spawn_rotated_180_degrees(self):
+        """Robot must spawn with 180° yaw so the arm faces away from obstacles."""
+        source = self._source()
+        self.assertIn('"-Y"', source)
+        self.assertIn('"3.14159"', source)
 
 
 if __name__ == "__main__":
