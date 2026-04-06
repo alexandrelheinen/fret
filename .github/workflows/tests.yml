@@ -98,14 +98,15 @@ jobs:
             const prNum  = context.issue.number;
             const sha    = context.payload.pull_request.head.sha.slice(0, 7);
 
-            // Build the artifact download URL (direct link to the run's artifacts page).
-            const artifactUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}/artifacts`;
+            // Link directly to the workflow run page; artifacts are listed
+            // in the "Artifacts" section at the bottom of that page.
+            const runUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}`;
 
             const body = [
               `## 📊 Trajectory Plots — \`${sha}\``,
               '',
               'Benchmark trajectory plots generated during the validation step.',
-              `[⬇️ Download all plots (artifact)](${artifactUrl})`,
+              `[⬇️ Download all plots](${runUrl}) _(scroll to the Artifacts section)_`,
               '',
               '| Scenario | Result |',
               '|----------|--------|',
