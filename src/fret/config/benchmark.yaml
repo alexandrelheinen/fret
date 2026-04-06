@@ -1,0 +1,246 @@
+# ARCO-FRET Benchmark Configuration
+#
+# Issue 09: Validation Benchmarks and Quality Gates
+#
+# This file defines the versioned benchmark protocol for planning quality
+# gates.  All parameters here are read by scripts/validate_quality_gates.py.
+# Changing a value here changes the reproducible benchmark result.
+#
+# Benchmark protocol:
+#   - Each scenario is repeated ``repeat`` times with the same fixed seed.
+#   - Metrics are averaged across repetitions (latency, path length,
+#     smoothness, clearance).
+#   - Success rate is the fraction of runs that return status=="success".
+#   - Random seed policy: set rng_seed to a fixed integer for full
+#     reproducibility; set to null (~) for non-deterministic production use.
+#
+# See docs/arco/issue-09-validation-benchmarks-and-quality-gates.md for
+# metric formulas, sampling windows, and threshold rationale.
+
+benchmark:
+  # ---------------------------------------------------------------------------
+  # Global settings
+  # ---------------------------------------------------------------------------
+
+  # Number of repeated runs per scenario used to average timing metrics.
+  # Increase for tighter statistical confidence; 3 is sufficient for CI.
+  repeat: 3
+
+  # Joint space DOF and limits for the SCARA-like test robot (R-R-P-R).
+  # Used by the proxy state-validator and clearance function.
+  joint_limits:
+    - [-2.3038, 2.3038]   # joint_arm_0   [rad]  (132 degrees)
+    - [-2.6180, 2.6180]   # joint_arm_1   [rad]  (150 degrees)
+    - [0.0, 0.2]          # joint_extension [m]
+    - [-3.1416, 3.1416]   # joint_tool_rotate [rad] (180 degrees)
+
+  # ---------------------------------------------------------------------------
+  # Scenario definitions
+  # ---------------------------------------------------------------------------
+  # Each scenario specifies the obstacle layout, start/goal configurations,
+  # planning timeout, and RRT-Connect parameters.
+  scenarios:
+    easy:
+      description: >
+        Open space — no obstacles.  Short straight-line path from the zero
+        configuration to a nearby goal.  Expected to succeed on every run
+        with low latency.
+      obstacles: []          # no obstacle points
+      inflation_radius: 0.05
+      start: [0.0, 0.0, 0.0, 0.0]
+      goal:  [0.3, 0.2, 0.1, 0.1]
+      timeout: 10.0
+      planner_config:
+        algorithm: rrt_connect
+        rrt_connect:
+          rng_seed: 42
+          step_size: 0.05
+          max_iterations: 10000
+          goal_bias: 0.10
+
+    medium:
+      description: >
+        Single obstacle column at (0.15, 0.1) in the 2-D joint-space proxy.
+        Forces the planner to find a detour around the column.
+      # Obstacle column: 9 points around (0.15, 0.1) at z=0.
+      obstacles:
+        - [0.15, 0.06, 0.0]
+        - [0.15, 0.07, 0.0]
+        - [0.15, 0.08, 0.0]
+        - [0.15, 0.09, 0.0]
+        - [0.15, 0.10, 0.0]
+        - [0.15, 0.11, 0.0]
+        - [0.15, 0.12, 0.0]
+        - [0.15, 0.13, 0.0]
+        - [0.15, 0.14, 0.0]
+      inflation_radius: 0.05
+      start: [0.0, 0.0, 0.0, 0.0]
+      goal:  [0.3, 0.2, 0.1, 0.0]
+      timeout: 10.0
+      planner_config:
+        algorithm: rrt_connect
+        rrt_connect:
+          rng_seed: 42
+          step_size: 0.05
+          max_iterations: 10000
+          goal_bias: 0.10
+
+    hard:
+      description: >
+        Narrow passage between two obstacle walls at x≈0.15.  Wall A covers
+        y > 0.08 and wall B covers y < -0.08, leaving a gap of 0.16 m.
+        Requires the planner to thread through the gap.  Higher iteration
+        count and smaller step size help navigate the passage.
+      # Wall A: y in [0.08, 0.19] at x=0.15
+      # Wall B: y in [-0.20, -0.09] at x=0.15
+      obstacles:
+        - [0.15,  0.08, 0.0]
+        - [0.15,  0.09, 0.0]
+        - [0.15,  0.10, 0.0]
+        - [0.15,  0.11, 0.0]
+        - [0.15,  0.12, 0.0]
+        - [0.15,  0.13, 0.0]
+        - [0.15,  0.14, 0.0]
+        - [0.15,  0.15, 0.0]
+        - [0.15,  0.16, 0.0]
+        - [0.15,  0.17, 0.0]
+        - [0.15,  0.18, 0.0]
+        - [0.15,  0.19, 0.0]
+        - [0.15, -0.09, 0.0]
+        - [0.15, -0.10, 0.0]
+        - [0.15, -0.11, 0.0]
+        - [0.15, -0.12, 0.0]
+        - [0.15, -0.13, 0.0]
+        - [0.15, -0.14, 0.0]
+        - [0.15, -0.15, 0.0]
+        - [0.15, -0.16, 0.0]
+        - [0.15, -0.17, 0.0]
+        - [0.15, -0.18, 0.0]
+        - [0.15, -0.19, 0.0]
+        - [0.15, -0.20, 0.0]
+      inflation_radius: 0.04
+      start: [0.0, 0.0, 0.0, 0.0]
+      goal:  [0.3, 0.0, 0.1, 0.0]
+      timeout: 30.0
+      planner_config:
+        algorithm: rrt_connect
+        rrt_connect:
+          rng_seed: 42
+          step_size: 0.03
+          max_iterations: 50000
+          goal_bias: 0.15
+
+  # ---------------------------------------------------------------------------
+  # Quality gate thresholds
+  # ---------------------------------------------------------------------------
+  # Each gate has:
+  #   threshold: numeric pass/fail boundary
+  #   operator:  ">=" (value must be >= threshold) or
+  #              "<=" (value must be <= threshold)
+  #   units:     display string (informational only)
+  #   description: human-readable rationale
+  #
+  # Threshold rationale is documented in:
+  #   docs/arco/issue-09-validation-benchmarks-and-quality-gates.md
+  quality_gates:
+    easy:
+      success_rate:
+        threshold: 1.0
+        operator: ">="
+        units: "fraction"
+        description: >
+          Open space must always produce a valid plan (100% success).
+      avg_latency_s:
+        threshold: 0.2
+        operator: "<="
+        units: "s"
+        description: >
+          Easy scenario latency must stay under 200 ms (short path,
+          no obstacles, fast convergence expected).
+      path_length:
+        threshold: 3.0
+        operator: "<="
+        units: "rad_m"
+        description: >
+          Joint-space arc length must not exceed 3.0 rad_m for the short
+          easy path.
+      smoothness:
+        threshold: 5.0
+        operator: "<="
+        units: "rad"
+        description: >
+          Total direction-change angle must stay below 5 rad for a
+          mostly-straight easy path.
+      min_clearance_m:
+        threshold: 0.0
+        operator: ">="
+        units: "m"
+        description: >
+          Every waypoint must be collision-free (clearance >= 0).
+
+    medium:
+      success_rate:
+        threshold: 1.0
+        operator: ">="
+        units: "fraction"
+        description: >
+          Medium scenario (single obstacle detour) must always succeed.
+      avg_latency_s:
+        threshold: 1.0
+        operator: "<="
+        units: "s"
+        description: >
+          Medium scenario latency must stay under 1 second.
+      path_length:
+        threshold: 5.0
+        operator: "<="
+        units: "rad_m"
+        description: >
+          Detour path must not be excessively long (< 5.0 rad_m).
+      smoothness:
+        threshold: 10.0
+        operator: "<="
+        units: "rad"
+        description: >
+          Direction-change budget is relaxed for the detour path.
+      min_clearance_m:
+        threshold: 0.0
+        operator: ">="
+        units: "m"
+        description: >
+          Every waypoint must be collision-free.
+
+    hard:
+      success_rate:
+        threshold: 0.66
+        operator: ">="
+        units: "fraction"
+        description: >
+          Hard narrow-passage scenario; at least 2 out of 3 runs must
+          succeed (66% minimum).
+      avg_latency_s:
+        threshold: 15.0
+        operator: "<="
+        units: "s"
+        description: >
+          Hard scenario latency budget is 15 seconds (50 000 iteration
+          cap with a 30-second timeout per run).
+      path_length:
+        threshold: 8.0
+        operator: "<="
+        units: "rad_m"
+        description: >
+          Narrow-passage path is longer but must stay under 8.0 rad_m.
+      smoothness:
+        threshold: 20.0
+        operator: "<="
+        units: "rad"
+        description: >
+          Direction-change budget is further relaxed for the narrow-passage
+          path.
+      min_clearance_m:
+        threshold: 0.0
+        operator: ">="
+        units: "m"
+        description: >
+          Every waypoint must be collision-free even in the hard scenario.
