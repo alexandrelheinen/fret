@@ -58,10 +58,6 @@ class TestArcoScenarioWorldFile(unittest.TestCase):
 
     def _parse(self):
         """Return (root, world) element pair; fail fast if file is missing."""
-        self.assertTrue(
-            os.path.isfile(_WORLD_FILE),
-            f"World file not found: {_WORLD_FILE}",
-        )
         root = ET.parse(_WORLD_FILE).getroot()
         world = root.find("world")
         self.assertIsNotNone(world, "<world> element missing from SDF root.")
