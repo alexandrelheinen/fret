@@ -163,6 +163,13 @@ class TriggerKind(str, Enum):
     GOAL_UPDATE = "goal_update"
 
 
+# Fraction of the tracking-error window that must be covered by retained
+# samples before the hysteresis check fires.  A value of 1.0 would require
+# exactly window-duration of history, which is impossible with discrete samples
+# and float timestamps; 0.9 tolerates small gaps at the window boundary while
+# still requiring a sustained violation rather than a momentary spike.
+_WINDOW_FILL_RATIO: float = 0.9
+
 # Lookup table: higher number → higher priority.
 _TRIGGER_PRIORITY: Dict[TriggerKind, int] = {
     TriggerKind.NONE: 0,
@@ -200,12 +207,16 @@ def _rms_error(
 
 
 def _free_space_validator(
-    joint_positions: List[float],
-) -> bool:  # noqa: ARG001
+    joint_positions: List[float],  # noqa: ARG001 – intentional no-op
+) -> bool:
     """Default state validator: always returns ``True`` (no obstacles).
 
+    This is a no-op placeholder used when no collision-checking validator is
+    supplied at construction.  It models a completely obstacle-free workspace
+    and is intended for testing and simulation scenarios only.
+
     Args:
-        joint_positions: Joint configuration (unused).
+        joint_positions: Joint configuration (unused in this implementation).
 
     Returns:
         Always ``True``.
@@ -497,7 +508,7 @@ class ReplanningManager:
         # The trigger fires only when the window is "full" and ALL samples
         # exceed the threshold — the hysteresis property.
         oldest_t = self._tracking_errors[0][0]
-        window_full = (timestamp - oldest_t) >= window * 0.9
+        window_full = (timestamp - oldest_t) >= window * _WINDOW_FILL_RATIO
         threshold: float = self._config["tracking_error_threshold"]
 
         if window_full and all(
