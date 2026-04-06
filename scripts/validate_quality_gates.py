@@ -74,16 +74,18 @@ _CONFIG_PATH = os.path.join(
     _REPO_ROOT, "src", "fret", "config", "benchmark.yaml"
 )
 
-# ---------------------------------------------------------------------------
-# Joint limits for the SCARA-like test robot (R-R-P-R).
-# Loaded from benchmark.yaml; this constant is the fallback default.
-# ---------------------------------------------------------------------------
-
+#: Joint-space degrees of freedom for the SCARA-like test robot (R-R-P-R).
+#: Each entry is a ``(lower, upper)`` bound pair:
+#:   - joint_arm_0    [rad]: revolute, ±132°
+#:   - joint_arm_1    [rad]: revolute, ±150°
+#:   - joint_extension [m]:  prismatic, 0–0.2 m
+#:   - joint_tool_rotate [rad]: revolute, ±180°
+#: Loaded from benchmark.yaml; this constant is the fallback default.
 _DEFAULT_JOINT_LIMITS: List[Tuple[float, float]] = [
-    (-math.pi * 132 / 180, math.pi * 132 / 180),
-    (-math.pi * 150 / 180, math.pi * 150 / 180),
-    (0.0, 0.2),
-    (-math.pi, math.pi),
+    (-math.pi * 132 / 180, math.pi * 132 / 180),  # joint_arm_0 [rad]
+    (-math.pi * 150 / 180, math.pi * 150 / 180),  # joint_arm_1 [rad]
+    (0.0, 0.2),  # joint_extension [m]
+    (-math.pi, math.pi),  # joint_tool_rotate [rad]
 ]
 
 

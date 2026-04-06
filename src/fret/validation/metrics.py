@@ -27,6 +27,15 @@ import math
 from typing import Callable, List
 
 # ---------------------------------------------------------------------------
+# Internal constants
+# ---------------------------------------------------------------------------
+
+#: Minimum vector norm below which a segment is treated as zero-length and
+#: its direction contribution is skipped.  This prevents division-by-zero
+#: and NaN propagation for duplicate consecutive waypoints.
+_ZERO_LENGTH_EPSILON: float = 1e-12
+
+# ---------------------------------------------------------------------------
 # Type aliases
 # ---------------------------------------------------------------------------
 
@@ -124,7 +133,7 @@ def path_smoothness(path: Path) -> float:
         norm_ab = math.sqrt(sum(x * x for x in ab))
         norm_bc = math.sqrt(sum(x * x for x in bc))
 
-        if norm_ab < 1e-12 or norm_bc < 1e-12:
+        if norm_ab < _ZERO_LENGTH_EPSILON or norm_bc < _ZERO_LENGTH_EPSILON:
             # Zero-length segment: no direction defined, contribute 0.
             continue
 
