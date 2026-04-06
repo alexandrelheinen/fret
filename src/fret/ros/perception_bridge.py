@@ -58,8 +58,13 @@ import rclpy.node  # noqa: E402
 import yaml  # noqa: E402
 from geometry_msgs.msg import TransformStamped  # noqa: E402
 from sensor_msgs.msg import PointCloud2, PointField  # noqa: E402
-from tf2_ros import Buffer, LookupException, ExtrapolationException  # noqa: E402
-from tf2_ros import ConnectivityException, TransformListener  # noqa: E402
+from tf2_ros import (  # noqa: E402
+    Buffer,
+    ConnectivityException,
+    ExtrapolationException,
+    LookupException,
+    TransformListener,
+)
 
 from fret.perception.cloud_filter import CloudFilter  # noqa: E402
 from fret.perception.occupancy_adapter import OccupancyAdapter  # noqa: E402
@@ -104,7 +109,9 @@ class PerceptionBridgeNode(rclpy.node.Node):
         self.declare_parameter("rng_seed", 42)
 
         config_path: str = (
-            self.get_parameter("config_path").get_parameter_value().string_value
+            self.get_parameter("config_path")
+            .get_parameter_value()
+            .string_value
         )
         inflation_radius: float = (
             self.get_parameter("inflation_radius")
@@ -214,9 +221,7 @@ class PerceptionBridgeNode(rclpy.node.Node):
             ConnectivityException,
             ExtrapolationException,
         ) as exc:
-            self.get_logger().debug(
-                f"TF lookup failed for '{name}': {exc}"
-            )
+            self.get_logger().debug(f"TF lookup failed for '{name}': {exc}")
             return []
 
         ox = tf.transform.translation.x
@@ -279,9 +284,7 @@ class PerceptionBridgeNode(rclpy.node.Node):
             KeyError: If a required key is missing in an obstacle entry.
         """
         if not os.path.exists(path):
-            raise FileNotFoundError(
-                f"Perception config not found: {path}"
-            )
+            raise FileNotFoundError(f"Perception config not found: {path}")
         with open(path, "r", encoding="utf-8") as fh:
             cfg = yaml.safe_load(fh)
 
