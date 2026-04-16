@@ -42,7 +42,7 @@ source install/setup.bash
 
 ```bash
 # Python unit tests
-python3 -m unittest discover tests -v
+pytest tests/ -v
 ```
 
 ### Format Code
@@ -102,7 +102,7 @@ Before opening a PR, verify:
 - [ ] Public APIs are typed and documented
 - [ ] Python formatting passes (`black --check` and `isort --check-only`)
 - [ ] C++ formatting passes (`clang-format --dry-run`)
-- [ ] Unit tests pass (`python3 -m unittest`)
+- [ ] Unit tests pass (`pytest tests/ -v`)
 - [ ] Launch files start without errors
 - [ ] Documentation updated (README, guidelines, or docs/ as appropriate)
 - [ ] Commit messages follow conventional commits format

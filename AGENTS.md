@@ -61,7 +61,7 @@ Before completing any task, run the pre-flight checklist from [docs/guidelines.m
 
 1. Build workspace: `./scripts/build.sh`
 2. Source environment: `source /opt/ros/jazzy/setup.bash && source install/setup.bash`
-3. Run unit tests: `python3 -m unittest discover tests -v`
+3. Run unit tests: `pytest tests/ -v`
 4. Check Python formatting: `black --check src/ && isort --check-only src/`
 5. Check C++ formatting: `find src -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror`
 6. Launch smoke tests: Verify nodes start without errors

@@ -257,12 +257,12 @@ All work must include all the descending and ascending steps of the cycle. For e
 
 ### Python Tests
 
-- Use Python's built-in `unittest` framework for unit tests.
+- Use `pytest` for unit tests.
 - Place tests in `tests/` mirroring the `src/fret/` layout.
 - Tests should use mocks to avoid ROS 2 runtime dependencies.
 - Run with:
   ```bash
-  python3 -m unittest discover tests -v
+  pytest tests/ -v
   ```
 
 ### C++ Tests
@@ -419,7 +419,7 @@ source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
 # 3. Python unit tests — all green
-python3 -m unittest discover tests -v
+pytest tests/ -v
 
 # 4. Python formatting — zero issues
 python -m black --check src/

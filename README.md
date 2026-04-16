@@ -32,7 +32,7 @@ Workflows are split by concern to provide clearer PR feedback:
 Together they enforce the checks described in `docs/guidelines.md`:
 
 - ROS 2 workspace build
-- Python unit tests (`unittest`)
+- Python unit tests (`pytest`)
 - Python formatting validation (`black --check`, `isort --check-only`)
 - C++ formatting validation (`clang-format --dry-run --Werror`)
 - ROS launch smoke tests (`view.py` and `sim.py`, headless)
@@ -243,7 +243,7 @@ black src
 
 ### Unit Testing
 
-Unit tests are pure Python tests using mocks, keeping them fast and independent of complex ROS dependencies. They use Python's built-in `unittest` framework.
+Unit tests are pure Python tests using mocks, keeping them fast and independent of complex ROS dependencies. They use `pytest`.
 
 All tests use mocked dependencies and don't require Gazebo, RViz, or other complex ROS infrastructure to run.
 
@@ -263,7 +263,7 @@ source install/setup.bash
 Then run the tests:
 
 ```bash
-python3 -m unittest discover tests -v
+pytest tests/ -v
 ```
 
 ## C++ code
