@@ -1,4 +1,6 @@
-
+# THIS IS JUST A LEGACY VERSION OF THE BUILD INSTRUCTIONS
+# The goal is to show the build strategy, but the code
+# architecture is free to completly change
 cmake_minimum_required(VERSION 3.8)
 project(fret)
 

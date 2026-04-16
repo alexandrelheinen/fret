@@ -17,22 +17,18 @@ The development was done on Ubuntu 24.04 under WSL on Windows 10.
 ## Technical Roadmap
 
 ### 1. SITL (Software-In-The-Loop) Setup
-- [x] Configure the development environment on Linux.
-- [x] Create an initial robot's physical description (URDF) for a SCARA robot (initial setup).
-- [x] Launch the simulation environment (Gazebo/RViz) to validate the virtual model.
+- [] Configure the development environment on Linux.
+- [] Create an initial robot's physical description (URDF) for a SCARA robot (initial setup).
+- [] Launch the simulation environment (Gazebo/RViz) to validate the virtual model.
 
-> Status: Done. A minimum set of robot models are integrated: Universal Robots (UR) series via `ur_description`, and a custom SCARA model. The `view.py` launcher visualizes any model in RViz with live joint control via `joint_state_publisher_gui`. The `sim.py` launcher spawns the model in Gazebo for geometry validation. Joint actuation in Gazebo requires `ros2_control` and is deferred to step 2. Unit tests cover model resolution logic.
+> Status: To be redone.
 
 ### 2. Intermediate Level Trajectory Implementation
 - [ ] Implement the Kinematics Engine (Jacobian-based control).
 - [ ] Execute predefined trajectories (straight lines, circles, etc.) in the simulator.
 - [ ] Implement feedback terms to correct position errors and reject model disturbances.
 
-> Status: In progress. `ControllerNode` + `ControllerRegistry` + `ScaraController` scaffold in place. `ControllerBase` uses NVI pattern: `compute_command()` handles EE state estimation (position, velocity), then delegates to `do_compute_command()` in each concrete controller. `set_reference()` accepts a target EE pose from the planner. Current stub returns zero velocity.
->
-> Known tradeoffs to revisit later:
-> - `ControllerBase` takes raw ROS message types (`JointState`, `TransformStamped`, `PoseStamped`), coupling the control library to ROS. A plain-data boundary struct would allow unit testing without ROS.
-> - `ControllerRegistry` is a singleton with static self-registration. Convenient but harder to mock in tests.
+> Status: To de redone.
 
 ### 3. HITL (Hardware-In-The-Loop) Setup
 - [ ] Establish the communication link between RPi 5 and Arduino Mega.

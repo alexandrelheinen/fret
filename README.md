@@ -15,6 +15,7 @@ The project emphasizes clear architecture, testability, and rigorous V-cycle val
 - [Coding guidelines (authoritative)](docs/guidelines.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [SCARA robot specifications](docs/scara/scara.md)
+- [ARCO integration](docs/arco.md)
 - [SITL demo runbook](docs/arco/issue-08-end-to-end-sitl-launch-and-demonstration.md)
 
 ## Continuous Integration
@@ -135,7 +136,7 @@ Run simulation from the unified launcher for Gazebo:
 ros2 launch fret sim.py model:=scara
 ```
 
-Run the full end-to-end SITL pipeline (ARCO obstacle scenario):
+Run the full end-to-end SITL pipeline:
 
 ```bash
 ros2 launch fret sitl.py
@@ -148,7 +149,7 @@ ros2 launch fret sitl.py record_bag:=true bag_dir:=log/bags
 ```
 
 See [docs/arco/issue-08-end-to-end-sitl-launch-and-demonstration.md](docs/arco/issue-08-end-to-end-sitl-launch-and-demonstration.md)
-for the full runbook, launch graph, and diagnostic guide.
+for the full SITL runbook, launch graph, and diagnostic guide.
 
 > **How does PYTHONPATH get configured?**
 > The fret environment hook (registered in CMakeLists.txt) automatically adds `share/` to PYTHONPATH when you source `install/setup.bash`. This allows Python to find and import fret modules without manual path configuration.
