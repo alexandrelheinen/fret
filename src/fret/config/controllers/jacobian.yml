@@ -1,0 +1,25 @@
+# Jacobian pseudo-inverse velocity controller configuration.
+#
+# Consumed by: ControllerNode (control/controller_node.py)
+# Used in launch: sitl.py, hardware.py
+#
+# All parameters are declared as ROS 2 parameters inside ControllerNode.__init__
+# and can be overridden at launch time with the standard ROS 2 parameter syntax:
+#   --ros-args -p damping_factor:=0.05
+
+/**:
+  ros__parameters:
+    # Damping factor λ for the damped least-squares Jacobian inverse.
+    # Larger values increase stability near singularities at the cost of
+    # tracking accuracy.
+    damping_factor: 0.01
+
+    # Maximum joint velocity [rad/s for revolute, m/s for prismatic].
+    max_joint_velocity: 1.57
+
+    # Controller update rate [Hz].  Must match the hardware servo rate.
+    update_rate: 50.0
+
+    # EE tracking-error threshold [m] above which a fault is published.
+    # See FR-CTL-04.
+    fault_threshold: 0.020

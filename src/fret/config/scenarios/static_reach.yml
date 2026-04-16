@@ -1,0 +1,32 @@
+# Scenario SC-01: Static Reach
+#
+# A tabletop pick point at a fixed world position with no obstacles.
+# Used as the baseline integration test for the full SITL pipeline.
+#
+# Pass criteria:
+#   - Planner returns SUCCESS within 30 s.
+#   - EE tracking error < 5 mm at the goal configuration.
+#   - No fault published on /controller_fault.
+#
+# See docs/scenarios.md — SC-01 for full acceptance criteria.
+
+/**:
+  ros__parameters:
+    scenario_id: "static_reach"
+
+    # Goal EE position in the world frame [m].
+    goal_position: [0.30, 0.10, 0.05]
+
+    # Corresponding goal joint configuration [rad, rad, m] for the SCARA RRP.
+    # Pre-computed from IK; used as the planner goal when skip_ik: true.
+    goal_configuration: [0.3272, 0.4712, 0.05]
+
+    # Whether to run IK inside the scenario loader or use goal_configuration
+    # directly.
+    skip_ik: false
+
+    # Maximum planning time [s].  Must satisfy FR-PLN-01 (< 30 s).
+    planning_timeout: 10.0
+
+    # Obstacle list (empty for this scenario).
+    obstacles: []

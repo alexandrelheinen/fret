@@ -1,0 +1,26 @@
+# Scenario SC-02: Obstacle Avoidance
+#
+# A tabletop pick point with one static box obstacle placed between the
+# start configuration and the goal.  Exercises the collision-aware path
+# planner with ARCO SST/RRT*.
+#
+# Pass criteria:
+#   - Planner returns SUCCESS within 30 s.
+#   - No waypoint in the returned path is in collision (CSpaceChecker reports
+#     True for every waypoint).
+#   - EE tracking error < 5 mm at the goal configuration.
+#
+# See docs/scenarios.md — SC-02 for full acceptance criteria.
+
+/**:
+  ros__parameters:
+    scenario_id: "obstacle_avoidance"
+
+    goal_position: [0.30, -0.10, 0.05]
+    goal_configuration: [−0.3272, 0.4712, 0.05]
+    skip_ik: false
+    planning_timeout: 30.0
+
+    # Static box obstacle: [x, y, z, size_x, size_y, size_z] in world frame.
+    obstacles:
+      - [0.25, 0.0, 0.05, 0.05, 0.15, 0.10]

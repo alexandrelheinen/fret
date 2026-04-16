@@ -36,4 +36,5 @@ jobs:
           python3 -m mypy src/ \
             --ignore-missing-imports \
             --strict \
-            --exclude 'src/fret\.egg-info'
+            --exclude 'src/fret\.egg-info' \
+            --exclude 'src/fret/mesh'

@@ -1,0 +1,52 @@
+# PlanRequest action definition
+#
+# Used by: PlannerNode (planning/planner_node.py)
+# Mapped types are defined in: docs/interfaces.md
+#
+# Goal: sent by the client to initiate planning.
+# Result: sent by the server when the action terminates.
+# Feedback: sent periodically during active planning.
+
+# --- GOAL ---
+# Joint configuration at which to start planning.
+# Shape: (DOF,), units: rad (revolute) / m (prismatic).
+float64[] start_configuration
+
+# Target joint configuration.
+# Shape: (DOF,), units: rad (revolute) / m (prismatic).
+float64[] goal_configuration
+
+# Maximum allowed planning time in seconds.
+float64 planning_timeout
+
+# Human-readable identifier used in logs and feedback messages.
+string scenario_id
+
+---
+
+# --- RESULT ---
+# High-level outcome: 0=SUCCESS, 1=ABORTED, 2=CANCELLED.
+uint8 status
+
+# Structured error code (see ErrorCode enum in interfaces/enums.py).
+# 0=NONE, 1=TIMEOUT, 2=NO_PATH_FOUND, 3=INVALID_CONFIGURATION,
+# 4=POST_PROCESS_FAILED, 99=INTERNAL_ERROR.
+uint8 error_code
+
+# Actual planning wall-clock time in seconds.
+float64 planning_duration
+
+# Number of planner iterations executed.
+int32 iteration_count
+
+---
+
+# --- FEEDBACK ---
+# Current planner state as a human-readable string (e.g. "PLANNING").
+string state
+
+# Elapsed planning time in seconds.
+float64 elapsed
+
+# Best path cost found so far (−1 if no path yet).
+float64 best_cost

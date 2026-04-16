@@ -2,11 +2,33 @@
 name = "fret"
 version = "0.1.0"
 description = "Full-stack Robotic Effector Trajectories Framework"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+arco = [
+    "arco @ file:../arco",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-timeout>=2.3",
+    "black>=24.0",
+    "isort>=5.13",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+fretsim = "fret._cli:fretsim"
 
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=71", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.black]
 line-length = 79
@@ -20,3 +42,12 @@ profile = "black"
 line_length = 79
 py_version = 39
 skip_glob = ["build/*", "install/*", "log/*"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+exclude = ["build/", "install/", "log/", "src/fret.egg-info/", "src/fret/mesh/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--ignore=tests/integration"

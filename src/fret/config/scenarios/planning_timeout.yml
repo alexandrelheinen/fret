@@ -1,0 +1,28 @@
+# Scenario SC-03: Planning Timeout
+#
+# A goal configuration placed inside a dense, maze-like obstacle field
+# designed to exhaust the planning budget.  Used to verify that the
+# planner correctly returns ABORTED / TIMEOUT and does not hang.
+#
+# Pass criteria:
+#   - Planner returns ABORTED with error_code TIMEOUT.
+#   - Fault published on /controller_fault within 100 ms of the timeout.
+#   - planning_duration ≤ planning_timeout + 0.5 s.
+#
+# See docs/scenarios.md — SC-03 for full acceptance criteria.
+
+/**:
+  ros__parameters:
+    scenario_id: "planning_timeout"
+
+    goal_position: [0.40, 0.0, 0.05]
+    goal_configuration: [0.0, 0.0, 0.05]
+    skip_ik: true
+    planning_timeout: 2.0   # deliberately short to force timeout
+
+    # Dense obstacle grid blocking every direct path.
+    obstacles:
+      - [0.20, -0.05, 0.05, 0.05, 0.10, 0.10]
+      - [0.20,  0.05, 0.05, 0.05, 0.10, 0.10]
+      - [0.30, -0.05, 0.05, 0.05, 0.10, 0.10]
+      - [0.30,  0.05, 0.05, 0.05, 0.10, 0.10]

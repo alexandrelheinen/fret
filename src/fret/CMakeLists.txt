@@ -1,16 +1,8 @@
-# THIS IS JUST A LEGACY VERSION OF THE BUILD INSTRUCTIONS
-# The goal is to show the build strategy, but the code
-# architecture is free to completly change
 cmake_minimum_required(VERSION 3.8)
 project(fret)
 
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_program(XACRO_EXECUTABLE xacro REQUIRED)
 
@@ -82,51 +74,33 @@ add_custom_target(generate_urdfs  ALL DEPENDS ${GENERATED_URDF_FILES})
 add_custom_target(generate_meshes ALL DEPENDS ${MESH_STAMPS})
 
 # ---------------------------------------------------------------------------
-# Nodes
-# ---------------------------------------------------------------------------
-add_executable(controller
-  src/controller_node.cpp
-  src/control/controller_base.cpp
-  src/control/controller_registry.cpp
-  src/control/scara_controller.cpp
-)
-ament_target_dependencies(controller
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  std_msgs
-  tf2
-  tf2_ros
-)
-target_include_directories(controller PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-# ---------------------------------------------------------------------------
-# Install
+# Install generated URDFs
 # ---------------------------------------------------------------------------
 install(FILES ${GENERATED_URDF_FILES}
   DESTINATION share/${PROJECT_NAME}/urdf
 )
 
-install(TARGETS controller
-  DESTINATION lib/${PROJECT_NAME}
+# ---------------------------------------------------------------------------
+# Install Python package (fret) into ament index
+# ---------------------------------------------------------------------------
+ament_python_install_package(${PROJECT_NAME}
+  PACKAGE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-install(DIRECTORY include/
-  DESTINATION include
-)
-
-install(DIRECTORY launch urdf perception planning robots ros
+# ---------------------------------------------------------------------------
+# Install ROS 2 resource directories
+# ---------------------------------------------------------------------------
+install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config)
-  install(DIRECTORY config
-    DESTINATION share/${PROJECT_NAME}
-  )
-endif()
+install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY action
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rviz)
   install(DIRECTORY rviz
@@ -141,15 +115,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
 endif()
 
 # ---------------------------------------------------------------------------
-# Python ROS 2 node executables
-# ---------------------------------------------------------------------------
-install(PROGRAMS
-  ${CMAKE_CURRENT_SOURCE_DIR}/ros/perception_bridge.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-# ---------------------------------------------------------------------------
-# Environment hook
+# Environment hook (adds src/ to PYTHONPATH)
 # ---------------------------------------------------------------------------
 ament_environment_hooks(hooks/fret.sh)
 
