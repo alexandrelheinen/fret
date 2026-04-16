@@ -1,6 +1,6 @@
 # FRET: Full-stack Robotic Effector Trajectories
 
-<img src="docs/images/fret.svg" alt="FRET Logo" width="200" align="left">
+<img src="docs/images/fret.svg" alt="FRET Logo" width="120" align="left">
 
 FRET is a robotics development project focused on end-to-end effector trajectory execution across simulation and physical hardware.
 The project adopts a progressive validation strategy: Software-In-The-Loop (SITL), Hardware-In-The-Loop (HITL), and physical prototype operation.
