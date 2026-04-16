@@ -233,51 +233,130 @@ Use modern C++ type practices:
 - Use smart pointers (`std::shared_ptr`, `std::unique_ptr`) for ownership semantics.
 - Avoid raw pointers except for non-owning references.
 
-## 6. Testing
+## 6. Testing and the V-Cycle
 
-### V-Cycle Mandate
+### V-Cycle Model
 
-Tests must be defined **at the same time** as the structures they cover (V-cycle). They should be created before moving on to the next task.
+FRET uses a **4-level V-cycle** as its software development lifecycle (SDLC). Each level
+has a descending artifact (specification or implementation) and an ascending validation
+method. Both sides of each level must be completed before moving to the next.
 
-An imperative order (do, implement, make, add...) is not only about writing the code. It must include all the V-cycle.
+An imperative order (implement, add, fix...) always implies the full V-cycle — not just
+the code. Writing code without its matching test and documentation is a policy violation.
 
-### Respect the V-cycle
+```
+Level 1 — Functional specification  ◄──────────────►  Functional validation
+  Level 2 — Architecture & pipeline  ◄────────────►  Integration validation
+    Level 3 — Module stubs & public API  ◄────────►  Unit tests (CI/CD)
+      Level 4 — Implementation & private code  ◄──►  Tests pass (≥ 90% coverage)
+```
 
-All work must include all the descending and ascending steps of the cycle. For each row numbered below, the two actions (descend and ascend) must be done **at the same time**:
+### Level 1 — Functional Specifications
 
-1. **Documentation and acceptance criteria**: Document the work/feature in GitHub issues or PR comments. Include goals, objectives, and acceptance criteria that can be verified.
+**Descending artifact:** [docs/requirements.md](requirements.md) — numbered FR-xx
+requirements, operational envelope, performance bounds, and failure mode policies.
 
-2. **Architecture and functional tests**: Implement the architecture (classes, public interface, file organization, dependencies) and functional unit tests **at the same time**. Testing must come first: the performance of the algorithm is independent of its implementation. By reading the acceptance criteria, you must already know which values to expect.
+**Ascending validation:** The scenario library in [docs/scenarios.md](scenarios.md).
+Each named scenario (SC-xx) has quantitative pass criteria derived directly from
+the FR-xx requirements. A scenario passes when all criteria are met simultaneously.
 
-3. **Implementation and fine testing**: Fill the stubs from the architecture definition. Implement algorithms, data structures, and private utilities. Add unit testing for private functions (fine testing/non-functional tests).
+**CI gate:** `integration_tests.yml` runs scenario-based `launch_testing` tests that
+assert the quantitative pass criteria automatically.
 
-4. **Test execution and validation**: Run the tests aiming for 100% coverage (at least 90%). If this step fails, go back to step 2: review architecture and functional tests.
+**Rule:** No Level 2 work begins until [docs/requirements.md](requirements.md) is
+complete and all FR-xx requirements have a scenario or test that validates them.
 
-5. **Integration and documentation**: If all tests pass, implement high-level simulations. Add visual inspection (images or videos). Update documentation for the newly implemented feature or changes. All GitHub workflows must pass (both at push and release). If something is wrong, go back to step 1.
+### Level 2 — Architecture and Pipeline Definition
 
-### Python Tests
+**Descending artifact:** [docs/architecture.md](architecture.md) +
+[docs/interfaces.md](interfaces.md). This includes: layer decomposition, data flow
+diagrams, interface contracts (typed data structures with invariants), QoS assignments
+per topic, node state machines, and error propagation paths.
 
-- Use `pytest` for unit tests.
-- Place tests in `tests/` mirroring the `src/fret/` layout.
-- Tests should use mocks to avoid ROS 2 runtime dependencies.
-- Run with:
+**Ascending validation:** Integration tests using `launch_testing`. These tests launch
+real nodes (or node stubs), inject messages at module boundaries, and assert that the
+contracts defined in [docs/interfaces.md](interfaces.md) are respected: correct message
+types, correct QoS, correct state machine transitions, correct error codes.
+
+**CI gate:** `integration_tests.yml` — see `.github/workflows/integration_tests.yml`.
+
+**Rule:** No Level 3 work begins until [docs/interfaces.md](interfaces.md) defines the
+full typed interface for every module boundary, including FSMs and error propagation.
+
+### Level 3 — Module Stubs and Unit Tests
+
+**Descending artifact:** Module files with complete public APIs: typed signatures,
+docstrings, `raise NotImplementedError` bodies. File layout mirrors `src/fret/`.
+
+**Ascending validation:** Unit tests in `tests/` created **at the same time** as the
+stubs. Each public method has a corresponding test that asserts the expected output for
+known inputs (derived from acceptance criteria) before any implementation exists. Tests
+for not-yet-implemented methods use `@pytest.mark.xfail(strict=True, raises=NotImplementedError)`.
+
+**CI gates:**
+- `tests.yml` — `pytest tests/ --cov=src/fret --cov-fail-under=90`
+- `type_check.yml` — `mypy src/ --strict`
+
+**Rule:** The stub + test file for a module are committed in the same commit. No Level 4
+work begins until the stub compiles cleanly under mypy and the xfail unit tests pass.
+
+### Level 4 — Implementation
+
+**Descending artifact:** Filled implementations replacing `NotImplementedError` stubs.
+Algorithms, data structures, and private utilities. Each private method added at this
+level also gets a fine-grained unit test.
+
+**Ascending validation:** Full test suite passes. The xfail markers are removed as
+implementations are completed. Coverage must remain ≥ 90%.
+
+**CI gates:** All workflows must be green: `formatting.yml`, `type_check.yml`,
+`tests.yml`, `integration_tests.yml`. The `release.yml` workflow runs the full suite
+on every version tag.
+
+**Rule:** A feature is not "done" until all four CI gates are green and the relevant
+scenario in [docs/scenarios.md](scenarios.md) passes end-to-end in SITL.
+
+---
+
+### Python Test Conventions
+
+- Framework: `pytest` (not `unittest`).
+- Location: `tests/` mirroring `src/fret/` (e.g., `tests/control/test_kinematics.py`).
+- Integration tests: `tests/integration/` using `launch_testing`.
+- Mocks: use `unittest.mock` or `pytest-mock` to avoid ROS 2 runtime dependencies in
+  unit tests. Integration tests may launch real nodes.
+- Run unit tests:
   ```bash
-  pytest tests/ -v
+  pytest tests/ --ignore=tests/integration -v
+  ```
+- Run with coverage:
+  ```bash
+  pytest tests/ --ignore=tests/integration --cov=src/fret --cov-fail-under=90
   ```
 
-### C++ Tests
+### C++ Test Conventions
 
-- Use GTest for C++ unit tests (when added).
-- Integration tests should use ROS 2 launch_testing framework.
-- Place C++ tests in `src/fret/test/`.
+- Framework: GTest for unit tests; `launch_testing` for integration tests.
+- Location: `src/fret/test/` for C++ unit tests.
+- Use `GTEST_SKIP()` with a descriptive message for not-yet-implemented tests.
 
-### Stub/Not-Yet-Implemented Methods
+### Stub Marking Convention
 
-For Python tests using pytest:
-- Mark with `@pytest.mark.xfail(strict=True, raises=NotImplementedError)` rather than skipped.
+```python
+# In the stub file (Level 3):
+@pytest.mark.xfail(strict=True, raises=NotImplementedError)
+def test_compute_jacobian_known_configuration():
+    km = Kinematics(model="scara")
+    result = km.compute_jacobian(np.array([0.0, 0.0, 0.1]))
+    assert result.shape == (6, 3)
 
-For C++ tests:
-- Use `GTEST_SKIP()` with a clear message.
+# In the implementation file (Level 4), remove xfail when the method is filled:
+def test_compute_jacobian_known_configuration():
+    km = Kinematics(model="scara")
+    result = km.compute_jacobian(np.array([0.0, 0.0, 0.1]))
+    assert result.shape == (6, 3)
+    assert np.allclose(result[2, :], [0.0, 0.0, 1.0])  # known value
+```
 
 ## 7. Configuration Parameters
 
@@ -418,24 +497,34 @@ locally. This applies to both human contributors and AI agents.
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-# 3. Python unit tests — all green
-pytest tests/ -v
+# 3. Python unit tests with coverage gate — all green, ≥ 90% coverage
+pytest tests/ --ignore=tests/integration -v --cov=src/fret --cov-fail-under=90
 
-# 4. Python formatting — zero issues
-python -m black --check src/
-python -m isort --check-only src/
+# 4. Python type check — zero errors
+python -m mypy src/ --ignore-missing-imports --strict --exclude 'src/fret\.egg-info'
 
-# 5. C++ formatting — zero issues
+# 5. Python formatting — zero issues
+python -m black --check --target-version py312 --line-length 79 src/
+python -m isort --check-only --line-length 79 src/
+
+# 6. C++ formatting — zero issues
 find src -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
 
-# 6. Launch smoke tests — each launcher must start without errors
-# (Terminate after visual confirmation or use timeout)
+# 7. Launch smoke tests — each launcher must start without errors
 timeout 10s ros2 launch fret view.py model:=scara
 timeout 10s ros2 launch fret sim.py model:=scara
 ```
 
 All GitHub workflow checks (push **and** release) must also pass before
-opening or merging a pull request.
+opening or merging a pull request. The workflows are:
+
+| Workflow | Trigger | Gate |
+|---|---|---|
+| `formatting.yml` | PR | Black, isort, clang-format |
+| `type_check.yml` | PR | mypy strict on `src/` |
+| `tests.yml` | PR | pytest ≥ 90% coverage + smoke tests |
+| `integration_tests.yml` | PR | launch_testing inter-node scenarios |
+| `release.yml` | Tag push | Full suite (all of the above) |
 
 ## 13. Git and Version Control
 

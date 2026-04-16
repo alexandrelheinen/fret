@@ -1,5 +1,11 @@
 # FRET Architecture
 
+> **Related specification documents**
+> - Functional requirements and operational envelope: [docs/requirements.md](requirements.md)
+> - Cross-module interface contracts, QoS assignments, node FSMs, error propagation: [docs/interfaces.md](interfaces.md)
+> - Named SITL validation scenarios: [docs/scenarios.md](scenarios.md)
+> - Coding standards and V-cycle: [docs/guidelines.md](guidelines.md)
+
 ## 1. UX / Developer Experience
 
 ### User roles
@@ -14,7 +20,7 @@ FRET is a developer tool. Three distinct roles interact with it at different sta
 
 | Input type | Format | Examples |
 |---|---|---|
-| Robot model | XACRO → URDF (build-time) | `scara`, `ur5` |
+| Robot model | XACRO → URDF (build-time) | `scara` (SITL); delta (Phase 4+) |
 | Scene / world | Gazebo world file (`.sdf`) | obstacles, workpiece, fixtures |
 | Scenario config | YAML | start pose, goal pose, planner params, controller gains |
 | Goal / task | ROS topic or YAML | target end-effector pose in world frame |
@@ -125,21 +131,28 @@ The **scenario YAML** is the primary user-facing configuration file. It specifie
 
 ### Middleware summary
 
-| Arc / data | ROS 2 mechanism | Message type |
-|---|---|---|
-| World geometry (obstacles) | Topic, latched | `sensor_msgs/PointCloud2` |
-| Joint positions | Topic | `sensor_msgs/JointState` |
-| EE pose | TF2 broadcast | `geometry_msgs/TransformStamped` |
-| Planning request (goal) | Action | custom `PlanRequest.action` |
-| Planned joint path | internal Python call | `list[np.ndarray]` |
-| Joint trajectory | Topic | `trajectory_msgs/JointTrajectory` |
-| Joint velocity commands | Topic | `std_msgs/Float64MultiArray` |
-| Replanning trigger | Topic | `std_msgs/Bool` or custom |
-| Scenario config | Parameter / YAML | loaded at launch |
+Full QoS profile specifications are in [docs/interfaces.md](interfaces.md).
+
+| Arc / data | ROS 2 mechanism | Message type | QoS (short) |
+|---|---|---|---|
+| World geometry (obstacles) | Topic | `sensor_msgs/PointCloud2` | Reliable, Transient Local, depth=1 |
+| Joint positions | Topic | `sensor_msgs/JointState` | Best Effort, Volatile, depth=10 |
+| EE pose | TF2 broadcast | `geometry_msgs/TransformStamped` | Best Effort, Volatile, depth=100 |
+| Planning request (goal) | Action | custom `PlanRequest.action` | — (Action transport) |
+| Planned joint path | internal Python call | `list[np.ndarray]` | — (in-process) |
+| Joint trajectory | Topic | `trajectory_msgs/JointTrajectory` | Reliable, Volatile, depth=1 |
+| Joint velocity commands | Topic | `std_msgs/Float64MultiArray` | Best Effort, Volatile, depth=1 |
+| Replanning trigger | Topic | `std_msgs/Bool` | Reliable, Volatile, depth=1 |
+| Fault notification | Topic | `std_msgs/String` | Reliable, Transient Local, depth=10 |
+| Scenario config | Parameter / YAML | loaded at launch | — |
 
 **Why ROS 2 Actions for planning?** Planning can take 1–30 seconds. An Action gives feedback (iteration count, cost progress from ARCO telemetry), allows cancellation, and delivers the result asynchronously — the correct abstraction for a long-running request.
 
 **ARCO telemetry:** ARCO exposes live metrics (iteration count, cost, stop criteria). The `PlannerNode` polls these and forwards them as Action feedback, giving the operator visibility into planner progress.
+
+**Node state machines and error propagation:** Full FSM definitions for `PlannerNode` and `ControllerNode` (states, transition tables, fault paths) are in [docs/interfaces.md](interfaces.md).
+
+**ARCO dependency:** ARCO is installed as an editable local package: `pip install -e ../arco/`. The minimum API surface FRET depends on and the CI validation step are documented in [docs/interfaces.md](interfaces.md).
 
 ## 3. File Organization
 

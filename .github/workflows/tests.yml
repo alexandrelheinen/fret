@@ -40,6 +40,8 @@ jobs:
             python3-colcon-common-extensions \
             python3-rosdep \
             xvfb
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pytest-cov pytest-timeout
 
       - name: Initialize rosdep
         run: |
@@ -56,11 +58,16 @@ jobs:
           source /opt/ros/${ROS_DISTRO}/setup.bash
           ./scripts/build.sh
 
-      - name: Run Python unit tests
+      - name: Run Python unit tests with coverage gate
         run: |
           source /opt/ros/${ROS_DISTRO}/setup.bash
           source install/setup.bash
-          python3 -m unittest discover tests -v
+          pytest tests/ \
+            --ignore=tests/integration \
+            -v \
+            --cov=src/fret \
+            --cov-fail-under=90 \
+            --timeout=60
 
       - name: Quality gate validation
         run: |
