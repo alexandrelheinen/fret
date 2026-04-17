@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# scripts/run_smoke_tests.sh
+#
+# Runs ROS 2 launch smoke tests for all standard launch files.
+# Each launch is allowed up to 20 s; exit code 124 (timeout) is accepted —
+# it means the launch started cleanly and ran until killed.
+#
+# Requires:
+#   - ROS 2 Jazzy installed (/opt/ros/jazzy)
+#   - Workspace built:    ./scripts/build.sh
+#   - xvfb installed:     sudo apt install xvfb
+#
+# Usage:
+#   bash scripts/run_smoke_tests.sh
+#
+# Exit code: 0 = all pass, 1 = any failure.
+
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${REPO_ROOT}"
+
+source "${SCRIPT_DIR}/common.sh"
+
+ROS_SETUP="/opt/ros/jazzy/setup.bash"
+INSTALL_SETUP="${REPO_ROOT}/install/setup.bash"
+
+if [[ ! -f "${ROS_SETUP}" ]]; then
+    fail "ROS environment not found: ${ROS_SETUP}."
+    info "Run ./scripts/install.sh to install ROS 2, then ./scripts/build.sh to build."
+    exit 1
+fi
+
+if [[ ! -f "${INSTALL_SETUP}" ]]; then
+    fail "Workspace overlay not found: ${INSTALL_SETUP}."
+    info "Run ./scripts/build.sh to build the workspace first."
+    exit 1
+fi
+
+set +u
+# shellcheck source=/dev/null
+source "${ROS_SETUP}"
+# shellcheck source=/dev/null
+source "${INSTALL_SETUP}"
+set -u
+
+require_command xvfb-run "xvfb-run is required. Run: sudo apt install xvfb"
+require_command ros2 "ros2 not found. Source /opt/ros/jazzy/setup.bash first."
+
+# ---------------------------------------------------------------------------
+# Helper: run a single launch and accept timeout (124) as success.
+# ---------------------------------------------------------------------------
+run_smoke_test() {
+    local test_name="$1"
+    shift
+    local log_file="/tmp/smoke_${test_name}.log"
+
+    info "Smoke test: ${test_name}"
+    set +e
+    timeout 20s "$@" >"${log_file}" 2>&1
+    local exit_code=$?
+    set -e
+
+    if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 124 ]]; then
+        fail "${test_name}: FAILED (exit ${exit_code})"
+        cat "${log_file}"
+        return 1
+    fi
+
+    ok "${test_name}: PASSED (exit ${exit_code})"
+    tail -n 10 "${log_file}" || true
+    return 0
+}
+
+FAILED=0
+
+echo "=== ROS 2 launch smoke tests ==="
+
+run_smoke_test "view_launch"          xvfb-run -a ros2 launch fret view.py model:=scara \
+    || FAILED=1
+run_smoke_test "sim_launch"           xvfb-run -a ros2 launch fret sim.py model:=scara \
+    || FAILED=1
+run_smoke_test "arco_scenario_launch" xvfb-run -a ros2 launch fret arco_scenario.py \
+    || FAILED=1
+run_smoke_test "sitl_launch"          xvfb-run -a ros2 launch fret sitl.py \
+    || FAILED=1
+
+echo "======================================"
+if [[ "${FAILED}" -eq 0 ]]; then
+    ok "All smoke tests PASSED"
+    exit 0
+else
+    fail "Smoke tests FAILED"
+    exit 1
+fi

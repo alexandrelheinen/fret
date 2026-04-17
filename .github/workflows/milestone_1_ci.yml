@@ -8,17 +8,10 @@ name: Milestone 1 — Straight-Line Simulation
 #   Panel 1: Cartesian (x, y, z) trajectory — reference + executed (≈ straight line).
 #   Panel 2: C-space (q1°, q2°, q3 m)       — reference + executed (nonlinear).
 #   Panel 3: Joint variables over time       — q1(t), q2(t), q3(t).
-#
-# The image shows mismatch between reference and executed trajectories while
-# confirming a near-straight Cartesian path and nonlinear joint-space motion.
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -53,32 +46,8 @@ jobs:
             "matplotlib>=3.8"
           python3 -m pip install -e src/fret --no-deps
 
-      - name: Run straight-line simulation (3 s, 150 waypoints)
-        id: sim
-        run: |
-          mkdir -p /tmp/sim_output
-          python3 scripts/simulate_straight_line.py \
-            --output /tmp/sim_output
-          echo "max_err_mm=$(python3 -c "
-          import sys, numpy as np
-          sys.path.insert(0, 'src')
-          from fret.ros.straight_line_injector import generate_trajectory
-          from fret.control.controller_node import ControllerNode
-          from fret.control.kinematics import Kinematics
-          configs, _ = generate_trajectory(n_waypoints=150, duration=3.0)
-          ctrl = ControllerNode('scara', '')
-          kin = Kinematics('scara')
-          q = configs[0].copy()
-          ctrl.set_trajectory(configs)
-          dt = 0.02; errs = []
-          for c in configs:
-              x_r = kin.forward_kinematics(c)[:3,3]
-              x_e = kin.forward_kinematics(q)[:3,3]
-              errs.append(np.linalg.norm(x_r - x_e))
-              qd = ctrl.compute_jacobian_command(kin, q)
-              q = q + qd * dt
-          print(f'{max(errs)*1000:.2f}')
-          ")" >> "$GITHUB_OUTPUT"
+      - name: Run Milestone 1 simulation
+        run: bash scripts/simulate_milestone1.sh --output /tmp/sim_output
 
       - name: Upload trajectory plots as artifact
         id: upload
@@ -90,68 +59,9 @@ jobs:
 
       - name: Post simulation results as PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
         env:
-          MAX_ERR_MM: ${{ steps.sim.outputs.max_err_mm }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
-        with:
-          script: |
-            const maxErrMm = process.env.MAX_ERR_MM;
-            const artifactUrl = process.env.ARTIFACT_URL;
-            const passed = parseFloat(maxErrMm) <= 5.0;
-            const statusEmoji = passed ? '✅' : '❌';
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+        run: bash scripts/post_milestone1_report.sh /tmp/sim_output
 
-            const body = [
-              `## ${statusEmoji} Milestone 1 — Straight-Line Simulation Results`,
-              '',
-              '| Metric | Value | Limit | Status |',
-              '|--------|-------|-------|--------|',
-              `| Max EE position error | **${maxErrMm} mm** | 5 mm | ${passed ? '✅ PASS' : '❌ FAIL'} |`,
-              `| Simulation duration | 3.0 s | — | ✅ |`,
-              `| Trajectory waypoints | 150 @ 50 Hz | ≥ 45 Hz | ✅ |`,
-              '',
-              '### What the plots show',
-              '',
-              '**Panel 1 — Cartesian space (x, y, z):**',
-              'The EE reference and executed trajectories are both very close to a',
-              'straight line.  The small gap between them is the tracking error.',
-              '',
-              '**Panel 2 — C-space (q1, q2, q3):**',
-              'The same motion is *nonlinear* in joint space: q2 peaks and returns to 0',
-              'because the straight Cartesian line requires the elbow to bend and',
-              'straighten.  This illustrates the kinematic coupling of the SCARA.',
-              '',
-              '**Panel 3 — Joint variables over time:**',
-              'q1(t) and q2(t) are nonlinear; q3(t) stays constant (constant-z motion).',
-              '',
-              `📎 **[Download trajectory plots](${artifactUrl})**`,
-              `🔗 [Full workflow run](${runUrl})`,
-            ].join('\n');
-
-            // Find and update an existing bot comment, or create a new one
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const botComment = comments.data.find(
-              c => c.user.type === 'Bot' && c.body.includes('Milestone 1 — Straight-Line Simulation Results')
-            );
-
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }

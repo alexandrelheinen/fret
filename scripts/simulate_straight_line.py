@@ -253,6 +253,33 @@ def print_summary(data: dict[str, np.ndarray]) -> None:
     print("=" * 60)
 
 
+def save_results(data: dict[str, np.ndarray], results_file: pathlib.Path) -> None:
+    """Write simulation metrics to a KEY=VALUE env file.
+
+    The file is consumed by ``scripts/post_milestone1_report.sh`` to build
+    the PR comment without re-running the simulation.
+
+    Args:
+        data: Simulation output dictionary (from ``simulate``).
+        results_file: Destination file path.
+    """
+    ee = data["ee_error_m"]
+    max_err_mm = float(np.max(ee) * 1000)
+    rms_err_mm = float(np.sqrt(np.mean(ee**2)) * 1000)
+    n_waypoints = len(data["times"])
+    duration = float(data["times"][-1])
+    passed = max_err_mm <= 5.0
+
+    results_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(results_file, "w") as fh:
+        fh.write(f"MAX_ERR_MM={max_err_mm:.2f}\n")
+        fh.write(f"RMS_ERR_MM={rms_err_mm:.2f}\n")
+        fh.write(f"N_WAYPOINTS={n_waypoints}\n")
+        fh.write(f"DURATION={duration:.2f}\n")
+        fh.write(f"PASSED={'true' if passed else 'false'}\n")
+    print(f"Results saved: {results_file}")
+
+
 def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -269,6 +296,11 @@ def main() -> None:
         default=0.05,
         help="Initial q1 offset [rad] to generate visible tracking error (default: 0.05)",
     )
+    parser.add_argument(
+        "--results-file",
+        default=None,
+        help="Path to write KEY=VALUE simulation metrics for CI reporting (optional)",
+    )
     args = parser.parse_args()
 
     output_dir = pathlib.Path(args.output)
@@ -283,6 +315,9 @@ def main() -> None:
     )
     print_summary(data)
     make_plots(data, output_file)
+
+    if args.results_file is not None:
+        save_results(data, pathlib.Path(args.results_file))
 
     max_err_m = float(np.max(data["ee_error_m"]))
     if max_err_m > 0.005:
