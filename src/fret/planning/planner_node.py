@@ -21,6 +21,11 @@ from fret.planning.cspace_checker import CSpaceChecker
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
+try:
+    from arco.planning import SST  # type: ignore[import-untyped]
+except ImportError:
+    SST = None  # type: ignore[assignment, misc]
+
 
 class PlannerNode:
     """ROS 2 Action server wrapping ARCO for C-space manipulator planning.

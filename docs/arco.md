@@ -83,15 +83,33 @@ one `PrismaticJoint`.
 
 ### Middleware and pipeline
 
-ARCO's `arco.middleware` package provides an in-process typed message bus
-(`Bus` / `InMemoryBus`) with arc dataclasses (`MappingFrame`, `PlanFrame`,
-`GuidanceFrame`) and a `PipelineRunner` that wires nodes to a shared bus.
-The pipeline is designed around a file-I/O discipline: each stage reads one
-artifact and writes the next, making stages independently restartable.
+> **Decision**: ARCO's ``arco.middleware`` package (``Bus`` / ``InMemoryBus``,
+> ``PipelineRunner``) is **not used** in FRET.  All inter-node communication
+> uses standard ROS 2 topics, services, and actions.  ARCO is consumed as a
+> pure algorithm library (occupancy model + planners + trajectory post-processing).
+
+~~ARCO's `arco.middleware` package provides an in-process typed message bus~~
+~~(`Bus` / `InMemoryBus`) with arc dataclasses (`MappingFrame`, `PlanFrame`,~~
+~~`GuidanceFrame`) and a `PipelineRunner` that wires nodes to a shared bus.~~
+~~The pipeline is designed around a file-I/O discipline: each stage reads one~~
+~~artifact and writes the next, making stages independently restartable.~~
+
+## Confirmed Architecture Decisions (Milestone 1)
+
+The following decisions are locked for Milestone 1 and are not open for
+re-discussion at this stage.
+
+| Question | Decision |
+|---|---|
+| Planning space | **Configuration-space (Option B)**: ARCO SST samples joint configurations; collision checked by FRET's ``CSpaceChecker`` (FK → ``KDTreeOccupancy``). |
+| Robot model scope | **SCARA only** (RRP, 3-DOF) in Milestone 1.  Delta and other models are out-of-scope until after the first full control-stack milestone. |
+| ARCO import strategy | **Hard import, try/except ImportError** (Option B): modules that depend on ARCO use `try: from arco... except ImportError: Symbol = None`.  ARCO-dependent methods raise ``NotImplementedError`` until ARCO is available. |
+| ARCO middleware | **Not used**.  The ``arco.middleware`` package (Bus / PipelineRunner) is not integrated.  FRET uses ROS 2 topics/actions for all inter-node communication. |
+| Integration test strategy | **launch_testing-based** (Option B): spin real ROS 2 nodes, inject simulated messages, assert outputs. |
 
 ---
 
-## Integration Architecture
+
 
 ### Ownership boundary
 

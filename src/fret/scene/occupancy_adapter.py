@@ -13,6 +13,11 @@ from typing import Any
 
 from fret.interfaces import OccupancyUpdatePayload
 
+try:
+    from arco.mapping import KDTreeOccupancy  # type: ignore[import-untyped]
+except ImportError:
+    KDTreeOccupancy = None  # type: ignore[assignment, misc]
+
 
 class OccupancyAdapter:
     """Wrap an ``OccupancyUpdatePayload`` into an ARCO ``KDTreeOccupancy``.
