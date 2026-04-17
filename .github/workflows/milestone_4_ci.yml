@@ -1,0 +1,65 @@
+name: Milestone 4 — Workspace Occupancy Simulation
+
+# Runs a pure-Python simulation of the Milestone 4 workspace occupancy map
+# pipeline (WorkspaceOccupancyBuilder → is_occupied / clearance validation),
+# generates a 3-D occupancy scatter plot, and posts results as a PR comment.
+# No Gazebo or ROS runtime is required.
+#
+# Plot content:
+#   3-D scatter: occupied voxels (red) vs. free voxels (light-grey) in the
+#   annular SCARA reachable workspace at 20 cm resolution.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: milestone4-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  simulate:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install \
+            "numpy>=1.26" \
+            "matplotlib>=3.8"
+          python3 -m pip install -e . --no-deps
+
+      - name: Run Milestone 4 workspace occupancy simulation
+        run: bash scripts/simulate_milestone4.sh --output /tmp/sim_output_m4
+
+      - name: Upload occupancy map as artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone4-occupancy-map
+          path: /tmp/sim_output_m4/occupancy_map.png
+          retention-days: 30
+
+      - name: Post simulation results as PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: bash scripts/post_milestone4_report.sh /tmp/sim_output_m4

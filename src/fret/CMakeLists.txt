@@ -119,4 +119,12 @@ endif()
 # ---------------------------------------------------------------------------
 ament_environment_hooks(hooks/fret.sh)
 
+# ---------------------------------------------------------------------------
+# Install validation scripts
+# ---------------------------------------------------------------------------
+install(PROGRAMS
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/validate_occupancy.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()
