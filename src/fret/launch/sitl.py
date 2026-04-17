@@ -67,6 +67,7 @@ def generate_launch_description() -> LaunchDescription:
         PythonLaunchDescriptionSource([pkg_share, "/launch/sim.py"]),
         launch_arguments={
             "model": LaunchConfiguration("model"),
+            "world": "arco_scenario.sdf",
         }.items(),
     )
 
@@ -144,6 +145,18 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(is_injector_scenario),
     )
 
+    perception_bridge_node = Node(
+        package="fret",
+        executable="perception_bridge",
+        name="perception_bridge_node",
+        output="screen",
+        parameters=[
+            {"model": LaunchConfiguration("model")},
+            scenario_config,
+        ],
+        condition=UnlessCondition(is_injector_scenario),
+    )
+
     # ------------------------------------------------------------------
     # Controller — used by both paths
     # ------------------------------------------------------------------
@@ -170,6 +183,7 @@ def generate_launch_description() -> LaunchDescription:
             # Standard path
             scene_acquisition_node,
             planner_node,
+            perception_bridge_node,
             # Shared
             controller_node,
         ]

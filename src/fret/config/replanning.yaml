@@ -1,0 +1,14 @@
+# ReplanningManager configuration.
+
+replanning:
+  # EE tracking error [m] that triggers replanning.
+  tracking_error_threshold: 0.020
+
+  # Minimum obstacle displacement [m] to trigger replanning on occupancy change.
+  occupancy_change_threshold: 0.050
+
+  # Minimum time between replan attempts [s].  Prevents oscillation.
+  min_replan_interval: 1.0
+
+  # Maximum consecutive replan attempts before transitioning to HALTED.
+  max_replan_attempts: 3
