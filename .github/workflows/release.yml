@@ -93,10 +93,10 @@ print('ARCO API surface OK')
       - name: Check types
         run: bash scripts/check_types.sh
 
-      - name: Run Milestone 1 simulation
+      - name: Run Milestone 2 planning simulation
         run: |
-          python3 -m pip install -e src/fret --no-deps
-          bash scripts/simulate_milestone1.sh
+          python3 -m pip install -e . --no-deps
+          bash scripts/simulate_milestone2.sh
 
       - name: Run unit tests and quality gates
         run: bash scripts/run_tests.sh

@@ -3,7 +3,12 @@
 Bridges FRET's kinematics engine and ARCO's occupancy model to provide a
 joint-space collision predicate.  For each query configuration ``q``, FK
 maps ``q`` to world-frame link positions which are then tested against the
-``KDTreeOccupancy``.
+occupancy model.
+
+The occupancy object is accepted by duck typing: any object that exposes a
+``clearance(pts)`` method compatible with ``arco.mapping.KDTreeOccupancy``
+can be used, including the ``_SimpleOccupancy`` fallback in
+``scene.OccupancyAdapter``.
 
 Satisfies requirement FR-PLN-02.
 """
@@ -18,24 +23,61 @@ import numpy.typing as npt
 if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
-try:
-    from arco.mapping import KDTreeOccupancy
-except ImportError:
-    KDTreeOccupancy = None
-
 
 class CSpaceChecker:
     """Query collision-free status for a joint configuration via FK + occupancy.
 
+    For each query configuration ``q``, the checker samples ``_N_SAMPLES``
+    positions linearly interpolated from the base joint origin to the
+    end-effector position (obtained via FK).  The minimum clearance over all
+    sampled positions is returned; the configuration is free if that minimum
+    is positive.
+
     Args:
-        kinematics: Kinematics engine for the active robot model.  Used to
-            evaluate ``FK(q)`` for each link when checking clearance.
-        occupancy: An ``arco.mapping.KDTreeOccupancy`` instance provided by
-            ``scene.OccupancyAdapter``.
+        kinematics: Kinematics engine for the active robot model.  Must
+            expose ``dof: int`` and
+            ``forward_kinematics(q) -> NDArray[float64]`` (4×4 matrix).
+        occupancy: An occupancy object that exposes
+            ``clearance(pts: NDArray) -> float``, where ``pts`` has shape
+            ``(N, 3)``.  Both ``arco.mapping.KDTreeOccupancy`` and
+            ``scene.OccupancyAdapter._SimpleOccupancy`` satisfy this.
     """
 
+    _N_SAMPLES: int = 6  # number of arm-position samples per query
+
     def __init__(self, kinematics: Kinematics, occupancy: Any) -> None:
-        raise NotImplementedError
+        self._kin = kinematics
+        self._occ = occupancy
+        self._dof: int = kinematics.dof
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _sample_arm_positions(
+        self, configuration: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Return ``_N_SAMPLES`` 3-D positions sampled along the arm.
+
+        Positions are linearly interpolated from ``(0, 0, 0)`` (world
+        origin) to the FK end-effector position for ``configuration``.  This
+        is a conservative approximation: the actual arm links lie along
+        roughly this line for a straight-reach SCARA.
+
+        Args:
+            configuration: Joint configuration, shape ``(DOF,)``.
+
+        Returns:
+            Array of shape ``(_N_SAMPLES, 3)``.
+        """
+        T_ee = self._kin.forward_kinematics(configuration)
+        ee_pos: npt.NDArray[np.float64] = T_ee[:3, 3]  # shape (3,)
+        alphas = np.linspace(0.0, 1.0, self._N_SAMPLES)
+        return np.outer(alphas, ee_pos)  # shape (N, 3)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def is_collision_free(
         self, configuration: npt.NDArray[np.float64]
@@ -47,8 +89,11 @@ class CSpaceChecker:
 
         Returns:
             ``True`` if the minimum link-to-obstacle clearance is positive.
+
+        Raises:
+            ValueError: If ``configuration.shape != (DOF,)``.
         """
-        raise NotImplementedError
+        return self.clearance(configuration) > 0.0
 
     def clearance(self, configuration: npt.NDArray[np.float64]) -> float:
         """Return the minimum world-frame clearance from any obstacle.
@@ -57,7 +102,16 @@ class CSpaceChecker:
             configuration: Joint configuration, shape ``(DOF,)``.
 
         Returns:
-            Minimum clearance in meters.  Negative values indicate
-            penetration.
+            Minimum clearance in metres.  Positive = free, negative = inside
+            an obstacle.
+
+        Raises:
+            ValueError: If ``configuration.shape != (DOF,)``.
         """
-        raise NotImplementedError
+        if configuration.shape != (self._dof,):
+            raise ValueError(
+                f"CSpaceChecker expects shape ({self._dof},), "
+                f"got {configuration.shape}"
+            )
+        pts = self._sample_arm_positions(configuration)
+        return float(self._occ.clearance(pts))
