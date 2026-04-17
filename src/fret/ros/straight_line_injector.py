@@ -94,7 +94,7 @@ class StraightLineInjectorNode:
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
         from trajectory_msgs.msg import JointTrajectory
 
-        rclpy.node.Node.__init__(self, "straight_line_injector")  # type: ignore[call-arg]
+        rclpy.node.Node.__init__(self, "straight_line_injector")
 
         self.declare_parameter("start_configuration", [0.0, 0.0, 0.10])  # type: ignore[attr-defined]
         self.declare_parameter("end_configuration", [0.785, 0.0, 0.10])  # type: ignore[attr-defined]
@@ -130,10 +130,10 @@ class StraightLineInjectorNode:
         msg.joint_names = list(_JOINT_NAMES)
 
         from builtin_interfaces.msg import (
-            Duration,  # type: ignore[import-untyped]
+            Duration,
         )
         from trajectory_msgs.msg import (
-            JointTrajectoryPoint,  # type: ignore[import-untyped]
+            JointTrajectoryPoint,
         )
 
         for q, t in zip(joint_configs, timestamps):
@@ -171,7 +171,7 @@ def main(args: list[str] | None = None) -> None:
 
     rclpy.init(args=args)
 
-    class _ConcreteInjector(StraightLineInjectorNode, rclpy.node.Node):
+    class _ConcreteInjector(StraightLineInjectorNode, rclpy.node.Node):  # type: ignore[misc]
         def __init__(self) -> None:
             StraightLineInjectorNode.__init__(self)
 
