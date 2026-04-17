@@ -2,11 +2,7 @@ name: Formatting
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -20,25 +16,18 @@ jobs:
   formatting:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install formatting tooling
+      - name: Install formatting tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format python3-pip
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-format
           python3 -m pip install --upgrade pip
           python3 -m pip install black isort
 
-      - name: Validate Python formatting
-        run: |
-          python3 -m black --check --target-version py312 --line-length 79 src/
-          python3 -m isort --check-only --line-length 79 src/
-
-      - name: Validate C++ formatting
-        run: |
-          find src -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-            | xargs -0 clang-format --dry-run --Werror
+      - name: Run formatting checks
+        run: bash scripts/check_formatting.sh

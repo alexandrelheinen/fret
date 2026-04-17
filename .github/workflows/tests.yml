@@ -2,11 +2,7 @@ name: Tests
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -54,53 +50,10 @@ jobs:
           rosdep install --from-paths src --ignore-src -r -y
 
       - name: Build workspace
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          ./scripts/build.sh
+        run: bash scripts/build.sh
 
-      - name: Run Python unit tests with coverage gate
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          source install/setup.bash
-          pytest tests/ \
-            --ignore=tests/integration \
-            -v \
-            --cov=src/fret \
-            --cov-fail-under=90 \
-            --timeout=60
+      - name: Run unit tests and quality gates
+        run: bash scripts/run_tests.sh
 
-      - name: Quality gate validation
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          source install/setup.bash
-          python3 scripts/validate_quality_gates.py
-
-      - name: Launch smoke tests
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          source install/setup.bash
-
-          run_smoke_test() {
-            local test_name="$1"
-            shift
-            local log_file="/tmp/${test_name}.log"
-
-            set +e
-            timeout 20s "$@" >"${log_file}" 2>&1
-            local exit_code=$?
-            set -e
-
-            if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 124 ]]; then
-              echo "${test_name} failed with exit code ${exit_code}."
-              cat "${log_file}"
-              exit "${exit_code}"
-            fi
-
-            echo "${test_name} finished with acceptable exit code ${exit_code}."
-            tail -n 40 "${log_file}" || true
-          }
-
-          run_smoke_test "view_launch" xvfb-run -a ros2 launch fret view.py model:=scara
-          run_smoke_test "sim_launch" xvfb-run -a ros2 launch fret sim.py model:=scara
-          run_smoke_test "arco_scenario_launch" xvfb-run -a ros2 launch fret arco_scenario.py
-          run_smoke_test "sitl_launch" xvfb-run -a ros2 launch fret sitl.py
+      - name: Run launch smoke tests
+        run: bash scripts/run_smoke_tests.sh

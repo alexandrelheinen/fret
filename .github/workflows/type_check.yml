@@ -2,11 +2,7 @@ name: Type Check
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -26,15 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install mypy and type stubs
+      - name: Install type checker
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install mypy numpy
 
-      - name: Run mypy on production code
-        run: |
-          python3 -m mypy src/ \
-            --ignore-missing-imports \
-            --strict \
-            --exclude 'src/fret\.egg-info' \
-            --exclude 'src/fret/mesh'
+      - name: Run type check
+        run: bash scripts/check_types.sh

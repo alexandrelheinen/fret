@@ -6,11 +6,7 @@ name: Integration Tests
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -84,12 +80,8 @@ print('ARCO API surface OK')
           rosdep install --from-paths src --ignore-src -r -y
 
       - name: Build workspace
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          ./scripts/build.sh
+        run: bash scripts/build.sh
 
       - name: Run integration tests
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          source install/setup.bash
-          xvfb-run -a pytest tests/integration/ -v --timeout=120
+        run: bash scripts/run_integration_tests.sh
+
