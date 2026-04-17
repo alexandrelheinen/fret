@@ -162,11 +162,7 @@ class PlannerRosNode:
         if self._planned:
             return
 
-        import numpy as np
-
-        positions = list(
-            getattr(msg, "position", [])
-        )  # type: ignore[arg-type]
+        positions = list(getattr(msg, "position", []))
         if len(positions) < 3:
             return
 
@@ -267,7 +263,7 @@ class PlannerRosNode:
             ros_pt.time_from_start = Duration(sec=sec, nanosec=nanosec)
             msg.points.append(ros_pt)
 
-        self._traj_pub.publish(msg)  # type: ignore[attr-defined]
+        self._traj_pub.publish(msg)
         self.get_logger().info(  # type: ignore[attr-defined]
             f"PlannerNode: published JointTrajectory with "
             f"{len(msg.points)} waypoints on /joint_trajectory."
