@@ -43,6 +43,11 @@ _RATE_HZ = 50.0  # controller rate [Hz]
 _N_STEPS = int(_DURATION_S * _RATE_HZ)  # 1000 steps
 _DT = 1.0 / _RATE_HZ
 _EE_ERROR_LIMIT_M = 0.005  # 5 mm (FR-CTL-02)
+# Tolerance for the monotonicity assertion: the average EE error in the second
+# half of the trajectory may be at most this much larger than in the first half
+# (in metres).  A small positive value accommodates numerical rounding without
+# allowing meaningful regression in tracking quality.
+_MONOTONICITY_TOLERANCE_M = 0.001  # 1 mm
 
 
 # ---------------------------------------------------------------------------
@@ -291,5 +296,5 @@ def test_ee_error_decreases_monotonically_on_average(
     avg_first_half = float(np.mean(errors[1 : mid + 1]))
     avg_second_half = float(np.mean(errors[mid + 1 :]))
     assert (
-        avg_second_half <= avg_first_half + 0.001
+        avg_second_half <= avg_first_half + _MONOTONICITY_TOLERANCE_M
     ), "EE error should not grow significantly in the second half of the trajectory"
