@@ -103,7 +103,9 @@ def test_state_estimator_receives_joint_state(test_node: Node) -> None:
 
     state = estimator.get_current_state()
     assert isinstance(state, RobotState)
-    np.testing.assert_allclose(state.joint_positions, [0.1, 0.2, 0.05], atol=1e-6)
+    np.testing.assert_allclose(
+        state.joint_positions, [0.1, 0.2, 0.05], atol=1e-6
+    )
     assert state.joint_names == _JOINT_NAMES
 
 
@@ -115,11 +117,17 @@ def test_state_estimator_updates_on_new_message(test_node: Node) -> None:
 
     pub = test_node.create_publisher(JointState, "/joint_states", 10)
 
-    _publish_and_spin(test_node, pub, _make_joint_state(test_node, [0.0, 0.0, 0.0]))
-    _publish_and_spin(test_node, pub, _make_joint_state(test_node, [0.5, 0.5, 0.1]))
+    _publish_and_spin(
+        test_node, pub, _make_joint_state(test_node, [0.0, 0.0, 0.0])
+    )
+    _publish_and_spin(
+        test_node, pub, _make_joint_state(test_node, [0.5, 0.5, 0.1])
+    )
 
     state = estimator.get_current_state()
-    np.testing.assert_allclose(state.joint_positions, [0.5, 0.5, 0.1], atol=1e-6)
+    np.testing.assert_allclose(
+        state.joint_positions, [0.5, 0.5, 0.1], atol=1e-6
+    )
 
 
 @pytest.mark.timeout(30)
