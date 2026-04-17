@@ -18,6 +18,11 @@ import numpy.typing as npt
 if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
+try:
+    from arco.mapping import KDTreeOccupancy  # type: ignore[import-untyped]
+except ImportError:
+    KDTreeOccupancy = None  # type: ignore[assignment, misc]
+
 
 class CSpaceChecker:
     """Query collision-free status for a joint configuration via FK + occupancy.

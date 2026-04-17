@@ -34,15 +34,16 @@ def mock_kinematics() -> MagicMock:
     """Return a mock ``Kinematics`` configured for the SCARA RRP (DOF=3)."""
     k = MagicMock()
     k.dof = 3
-    k.joint_names = ["joint_1", "joint_2", "joint_3"]
+    k.joint_names = ["joint_arm_0", "joint_arm_1", "joint_extension"]
     k.joint_limits = np.array(
         [[-np.pi, np.pi], [-np.pi / 2, np.pi / 2], [0.0, 0.20]]
     )
 
     # FK returns a valid 4×4 identity-like transform at zeros.
+    # Home EE position: x = L1 + L2 = 0.325 + 0.275 = 0.600 m
     def _fk(q: np.ndarray) -> np.ndarray:
         T = np.eye(4)
-        T[0, 3] = 0.45  # approximate home EE x
+        T[0, 3] = 0.60  # home EE x (L1 + L2)
         return T
 
     k.forward_kinematics.side_effect = _fk

@@ -23,6 +23,17 @@ import numpy.typing as npt
 if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
+try:
+    from arco.planning import (  # type: ignore[import-untyped]
+        TrajectoryOptimizer,
+        TrajectoryPruner,
+    )
+    from arco.guidance import BSplineInterpolator  # type: ignore[import-untyped]
+except ImportError:
+    TrajectoryOptimizer = None  # type: ignore[assignment, misc]
+    TrajectoryPruner = None  # type: ignore[assignment, misc]
+    BSplineInterpolator = None  # type: ignore[assignment, misc]
+
 
 class TrajectoryGenerator:
     """Run the ARCO post-processing chain on a raw joint-space path.
