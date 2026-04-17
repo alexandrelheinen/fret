@@ -186,7 +186,8 @@ class PlannerNode:
                 collision_free=checker.is_collision_free,
                 timeout=timeout,
             )
-            return sst.plan(start, goal)
+            result: list[npt.NDArray[np.float64]] = sst.plan(start, goal)
+            return result
 
         # Fallback: straight joint-space path (valid in an empty world).
         path = [
