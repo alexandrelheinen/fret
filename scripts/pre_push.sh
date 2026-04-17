@@ -8,8 +8,9 @@
 #   1. check_formatting.sh    — black + isort + clang-format
 #   2. check_types.sh         — mypy strict
 #   3. simulate_milestone2.sh — Milestone 2 pure-Python planning simulation (no ROS)
-#   4. run_tests.sh           — pytest unit tests + quality gates
-#   5. run_smoke_tests.sh     — ROS 2 launch smoke tests
+#   4. simulate_milestone3.sh — Milestone 3 pure-Python end-to-end simulation (no ROS)
+#   5. run_tests.sh           — pytest unit tests + quality gates
+#   6. run_smoke_tests.sh     — ROS 2 launch smoke tests
 #
 # Usage:
 #   bash scripts/pre_push.sh [--skip-ros]
@@ -64,6 +65,7 @@ run_gate() {
 run_gate "Formatting (black + isort + clang-format)" "${SCRIPT_DIR}/check_formatting.sh"
 run_gate "Type check (mypy)"                          "${SCRIPT_DIR}/check_types.sh"
 run_gate "Milestone 2 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone2.sh"
+run_gate "Milestone 3 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone3.sh"
 
 if [[ "${SKIP_ROS}" -eq 0 ]]; then
     run_gate "Unit tests (pytest + coverage)"         "${SCRIPT_DIR}/run_tests.sh"

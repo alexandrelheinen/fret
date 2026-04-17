@@ -28,5 +28,18 @@
     # Maximum planning time [s].  Must satisfy FR-PLN-01 (< 30 s).
     planning_timeout: 10.0
 
+    # Simulation duration [s].  The controller tracks the trajectory for this
+    # duration before the scenario ends.  Milestone 3 uses 20 s.
+    duration: 20.0
+
+    # ROS bag recording.  When enabled, /joint_states, /joint_commands, and
+    # /joint_trajectory are recorded to a bag file for post-run analysis.
+    recording:
+      enabled: true
+      topics:
+        - /joint_states
+        - /joint_commands
+        - /joint_trajectory
+
     # Obstacle list (empty for this scenario).
     obstacles: []
