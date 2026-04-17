@@ -291,8 +291,8 @@ class TestDefaultCollisionCheckDistance:
         resolution = 0.20
         expected_ccd = resolution * math.sqrt(3.0) / 2.0
         builder = WorkspaceOccupancyBuilder(resolution=resolution)
-        assert abs(builder._default_ccd - expected_ccd) < 1e-9, (
-            f"Default CCD {builder._default_ccd:.6f} ≠ "
+        assert abs(builder.collision_check_distance - expected_ccd) < 1e-9, (
+            f"Default CCD {builder.collision_check_distance:.6f} ≠ "
             f"expected {expected_ccd:.6f}"
         )
 
@@ -300,7 +300,7 @@ class TestDefaultCollisionCheckDistance:
         """CCD scales proportionally with resolution."""
         b10 = WorkspaceOccupancyBuilder(resolution=0.10)
         b20 = WorkspaceOccupancyBuilder(resolution=0.20)
-        ratio = b20._default_ccd / b10._default_ccd
+        ratio = b20.collision_check_distance / b10.collision_check_distance
         assert (
             abs(ratio - 2.0) < 1e-9
         ), f"CCD ratio 20cm/10cm = {ratio:.6f}, expected 2.0"

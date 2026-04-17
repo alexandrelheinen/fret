@@ -92,11 +92,8 @@ def _sample_box_surface(
 
     for axis, sign in [(0, -1), (0, 1), (1, -1), (1, 1), (2, -1), (2, 1)]:
         face_pts = rng.uniform(-half, half, (n, 3)) + np.array([cx, cy, cz])
-        face_pts[:, axis] = (
-            cx + sign * half
-            if axis == 0
-            else (cy + sign * half if axis == 1 else cz + sign * half)
-        )
+        face_value = {0: cx, 1: cy, 2: cz}[axis] + sign * half
+        face_pts[:, axis] = face_value
         pts.append(face_pts)
 
     return np.vstack(pts).astype(np.float64)

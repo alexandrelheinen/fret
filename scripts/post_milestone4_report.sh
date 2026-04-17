@@ -95,8 +95,7 @@ BODY="## ${STATUS_EMOJI} Milestone 4 - Workspace Occupancy Simulation Results
 **3-D workspace occupancy scatter:**
 Red voxels are classified as occupied (obstacle present within the voxel circumradius).
 Light-grey voxels are free.  Only voxels in the SCARA reachable annulus
-(${_R_MIN:-0.05} m ≤ r ≤ ${_R_MAX:-0.60} m) are classified; cells outside are
-unconditionally free.
+(0.05 m ≤ r ≤ 0.60 m) are classified; cells outside are unconditionally free.
 
 ### Acceptance criteria (Milestone 4)
 

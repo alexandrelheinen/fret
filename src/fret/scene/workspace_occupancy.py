@@ -91,6 +91,20 @@ class WorkspaceOccupancyBuilder:
         self._occupancy_model: Any = None
 
     # ------------------------------------------------------------------
+    # Public properties
+    # ------------------------------------------------------------------
+
+    @property
+    def collision_check_distance(self) -> float:
+        """Default collision-check distance: voxel circumradius [m].
+
+        Equals ``resolution * sqrt(3) / 2``.  This is the distance at which
+        ``is_occupied()`` treats a query point as colliding when no explicit
+        ``collision_check_distance`` is provided.
+        """
+        return self._default_ccd
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
