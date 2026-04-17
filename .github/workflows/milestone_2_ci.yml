@@ -1,13 +1,14 @@
-name: Milestone 1 — Straight-Line Simulation
+name: Milestone 2 — Planning Pipeline Simulation
 
-# Runs a pure-Python 3-second simulation of the SCARA straight-line tracking
-# scenario, generates trajectory diagnostic plots, and posts them as a PR
+# Runs a pure-Python simulation of the Milestone 2 ARCO planning pipeline
+# (PlannerNode → CSpaceChecker → TrajectoryGenerator) for the static-reach
+# scenario, generates planning diagnostic plots, and posts them as a PR
 # comment.  No Gazebo or ROS runtime is required.
 #
 # Plot content:
-#   Panel 1: Cartesian (x, y, z) trajectory — reference + executed (≈ straight line).
-#   Panel 2: C-space (q1°, q2°, q3 m)       — reference + executed (nonlinear).
-#   Panel 3: Joint variables over time       — q1(t), q2(t), q3(t).
+#   Panel 1: Cartesian (x, y) EE path — start and goal markers.
+#   Panel 2: C-space (q1°, q2°, q3 cm) — waypoint sequence.
+#   Panel 3: EE position (x, y, z) over path index.
 
 on:
   pull_request:
@@ -15,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: milestone1-sim-${{ github.ref }}
+  group: milestone2-sim-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -46,15 +47,15 @@ jobs:
             "matplotlib>=3.8"
           python3 -m pip install -e . --no-deps
 
-      - name: Run Milestone 1 simulation
-        run: bash scripts/simulate_milestone1.sh --output /tmp/sim_output
+      - name: Run Milestone 2 planning simulation
+        run: bash scripts/simulate_milestone2.sh --output /tmp/sim_output_m2
 
-      - name: Upload trajectory plots as artifact
+      - name: Upload planning plots as artifact
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: milestone1-trajectory-plots
-          path: /tmp/sim_output/trajectory_plots.png
+          name: milestone2-planning-plots
+          path: /tmp/sim_output_m2/planning_plots.png
           retention-days: 30
 
       - name: Post simulation results as PR comment
@@ -63,5 +64,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
-        run: bash scripts/post_milestone1_report.sh /tmp/sim_output
-
+        run: bash scripts/post_milestone2_report.sh /tmp/sim_output_m2

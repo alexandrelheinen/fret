@@ -10,18 +10,17 @@ Acceptance criteria (FR-PLN-01 through FR-PLN-07):
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from fret.planning.planner_node import PlannerNode
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_construction(mock_occupancy_adapter: OccupancyAdapter) -> None:
     PlannerNode(model="scara", occupancy_adapter=mock_occupancy_adapter)
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_invalid_config_returns_aborted(
     mock_occupancy_adapter: OccupancyAdapter,
 ) -> None:
@@ -29,8 +28,6 @@ def test_invalid_config_returns_aborted(
     INVALID_CONFIGURATION without calling the ARCO planner.
     """
     from fret.interfaces import ErrorCode, PlanningRequest, PlanningStatus
-
-    import numpy as np
 
     node = PlannerNode(model="scara", occupancy_adapter=mock_occupancy_adapter)
     request = PlanningRequest(
@@ -45,13 +42,10 @@ def test_invalid_config_returns_aborted(
     assert result.path == []
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_valid_request_returns_success(
     mock_occupancy_adapter: OccupancyAdapter,
 ) -> None:
     from fret.interfaces import PlanningRequest, PlanningStatus
-
-    import numpy as np
 
     node = PlannerNode(model="scara", occupancy_adapter=mock_occupancy_adapter)
     request = PlanningRequest(

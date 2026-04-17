@@ -25,12 +25,10 @@ def _make_payload(n: int = 5) -> OccupancyUpdatePayload:
     )
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_construction() -> None:
     OccupancyAdapter()
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_raises_before_update() -> None:
     """get_occupancy() must raise RuntimeError when called before update()."""
     adapter = OccupancyAdapter()
@@ -38,7 +36,6 @@ def test_raises_before_update() -> None:
         adapter.get_occupancy()
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_update_then_get_occupancy() -> None:
     """get_occupancy() returns an object after a successful update()."""
     adapter = OccupancyAdapter()
@@ -47,7 +44,6 @@ def test_update_then_get_occupancy() -> None:
     assert occ is not None
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_sequential_updates_replace_occupancy() -> None:
     """A second update() replaces the previous occupancy model."""
     adapter = OccupancyAdapter()

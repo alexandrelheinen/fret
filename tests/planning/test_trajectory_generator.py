@@ -16,12 +16,10 @@ import pytest
 from fret.planning.trajectory_generator import TrajectoryGenerator
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_construction(mock_kinematics: object) -> None:
     TrajectoryGenerator(kinematics=mock_kinematics)
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_process_returns_trajectory_with_enough_points(
     mock_kinematics: object,
 ) -> None:
@@ -32,14 +30,12 @@ def test_process_returns_trajectory_with_enough_points(
     assert len(traj.points) >= 2  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_single_waypoint_raises(mock_kinematics: object) -> None:
     gen = TrajectoryGenerator(kinematics=mock_kinematics)
     with pytest.raises(ValueError):
         gen.process([np.zeros(3)])
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_empty_path_raises(mock_kinematics: object) -> None:
     gen = TrajectoryGenerator(kinematics=mock_kinematics)
     with pytest.raises(ValueError):
