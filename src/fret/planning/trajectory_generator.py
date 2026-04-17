@@ -146,7 +146,7 @@ class TrajectoryGenerator:
 
     def _process_arco(
         self, path: list[npt.NDArray[np.float64]]
-    ) -> Any:  # pragma: no cover — requires ARCO
+    ) -> Any:  # pragma: no cover - requires ARCO
         """Full ARCO post-processing chain."""
         pruner = TrajectoryPruner()
         pruned = pruner.prune(path)

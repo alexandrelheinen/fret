@@ -11,12 +11,12 @@ Runs the full Milestone 2 planning pipeline without ROS or Gazebo:
      joint limits.
   5. Runs TrajectoryGenerator.process() and checks ``len(traj.points) ≥ 2``.
   6. Generates a three-panel diagnostic plot:
-       Panel 1: Cartesian (x, y, z) trajectory — FK of each waypoint.
-       Panel 2: C-space (q1°, q2°, q3 m) — raw waypoint sequence.
-       Panel 3: Joint variables over path index — q1, q2, q3.
+       Panel 1: Cartesian (x, y, z) trajectory - FK of each waypoint.
+       Panel 2: C-space (q1°, q2°, q3 m) - raw waypoint sequence.
+       Panel 3: Joint variables over path index - q1, q2, q3.
   7. Writes ``results.env`` and exits 0 on success, 1 on failure.
 
-No ARCO or ROS runtime is required — a pure-Python fallback planner and
+No ARCO or ROS runtime is required - a pure-Python fallback planner and
 trajectory generator are used when ARCO is not installed.
 
 Usage::
@@ -24,8 +24,8 @@ Usage::
     python3 scripts/simulate_milestone2_pipeline.py [--output DIR]
 
 Output files (written to DIR, default /tmp/sim_output_m2):
-    planning_plots.png   — 3-panel diagnostic figure.
-    results.env          — KEY=VALUE file with simulation metrics.
+    planning_plots.png   - 3-panel diagnostic figure.
+    results.env          - KEY=VALUE file with simulation metrics.
 """
 
 from __future__ import annotations
@@ -101,10 +101,10 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1 — Kinematics ---------------------------------------------------------
+    # 1 - Kinematics ---------------------------------------------------------
     kin = Kinematics("scara")
 
-    # 2 — Empty-world OccupancyAdapter ---------------------------------------
+    # 2 - Empty-world OccupancyAdapter ---------------------------------------
     empty_payload = OccupancyUpdatePayload(
         obstacle_points=np.zeros((0, 3), dtype=np.float64),
         timestamp=0.0,
@@ -113,7 +113,7 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
     adapter = OccupancyAdapter()
     adapter.update(empty_payload)
 
-    # 3 — Plan ---------------------------------------------------------------
+    # 3 - Plan ---------------------------------------------------------------
     planner = PlannerNode(model="scara", occupancy_adapter=adapter)
     request = PlanningRequest(
         start_configuration=_START_CONFIG.copy(),
@@ -126,7 +126,7 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
     result = planner.plan(request)
     planning_duration = time.monotonic() - t0
 
-    # 4 — Validate PlanningResult --------------------------------------------
+    # 4 - Validate PlanningResult --------------------------------------------
     assert result.status == PlanningStatus.SUCCESS, (
         f"PlannerNode returned {result.status!r} "
         f"(error_code={result.error_code!r})"
@@ -138,14 +138,14 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
         kin, result.path
     ), "One or more waypoints violate joint limits"
 
-    # 5 — Post-process -------------------------------------------------------
+    # 5 - Post-process -------------------------------------------------------
     traj_gen = TrajectoryGenerator(kin)
     traj = traj_gen.process(result.path)
     assert (
         len(traj.points) >= 2
     ), f"TrajectoryGenerator returned {len(traj.points)} points, expected ≥ 2"
 
-    # 6 — Compute metrics ----------------------------------------------------
+    # 6 - Compute metrics ----------------------------------------------------
     waypoints = result.path
     n_wps = len(waypoints)
     ee_positions = np.array([_fk_ee_pos(kin, q) for q in waypoints])
@@ -168,7 +168,7 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
         "PATH_LENGTH_RAD": path_length,
     }
 
-    # 7 — Generate plots -----------------------------------------------------
+    # 7 - Generate plots -----------------------------------------------------
     _plot(
         output_dir / "planning_plots.png",
         waypoints=waypoints,
@@ -178,7 +178,7 @@ def simulate(output_dir: pathlib.Path) -> dict[str, float]:
         start_ee=start_ee,
     )
 
-    # 8 — Write results.env --------------------------------------------------
+    # 8 - Write results.env --------------------------------------------------
     env_lines = [f"{k}={v}" for k, v in metrics.items()]
     (output_dir / "results.env").write_text("\n".join(env_lines) + "\n")
 
@@ -201,12 +201,12 @@ def _plot(
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
-        print("WARNING: matplotlib not available — skipping plot generation.")
+        print("WARNING: matplotlib not available - skipping plot generation.")
         return
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
     fig.suptitle(
-        "Milestone 2 — ARCO Planning Pipeline (Static Reach)", fontsize=13
+        "Milestone 2 - ARCO Planning Pipeline (Static Reach)", fontsize=13
     )
 
     idx = np.arange(len(waypoints))
@@ -310,7 +310,7 @@ def main() -> int:
     duration_s = metrics["PLANNING_DURATION_S"]
 
     print(
-        f"\n✅  Simulation PASSED — "
+        f"\n✅  Simulation PASSED - "
         f"{n_wps} waypoints, {n_pts} trajectory points, "
         f"EE error = {ee_err_mm:.2f} mm, "
         f"planning time = {duration_s:.3f} s"
