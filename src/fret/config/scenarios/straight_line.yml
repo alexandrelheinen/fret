@@ -1,0 +1,42 @@
+# Scenario SC-04: Straight Line Tracking (Milestone 1)
+#
+# The SCARA EE performs a straight horizontal line in Cartesian space.
+#
+# Start joint config [q1=0.0, q2=0.4, q3=0.10]:
+#   FK → EE ≈ (0.578, 0.107, 0.138) m
+# End joint config [q1=0.785, q2=-0.4, q3=0.10]:
+#   FK → EE ≈ (0.485, 0.333, 0.138) m
+# Cartesian straight-line length ≈ 0.244 m.
+#
+# Both configurations have q2 ≠ 0 to avoid the SCARA elbow singularity
+# (q2 = 0 ⇒ arm fully extended ⇒ Jacobian rank loss in the x-direction).
+#
+# The injector computes Cartesian waypoints along this straight line and
+# runs analytical IK to produce joint configurations that are nonlinear in
+# C-space: q2 peaks midway and q1 sweeps nonlinearly.
+#
+# Pass criteria (Milestone 1 acceptance):
+#   - EE tracking error < 5 mm at every timestep (FR-CTL-02).
+#   - /joint_commands published at >= 45 Hz for full duration.
+#   - No fault published on /controller_fault.
+#
+# See MILESTONES.md — Milestone 1 for full acceptance criteria.
+
+/**:
+  ros__parameters:
+    scenario_id: "straight_line"
+
+    # Start joint configuration [q1, q2, q3] = [rad, rad, m]
+    # FK([0.0, 0.40, 0.10]) ≈ (0.578, 0.107, 0.138) m in Cartesian space.
+    start_configuration: [0.0, 0.40, 0.10]
+
+    # End joint configuration [q1, q2, q3] = [rad, rad, m]
+    # FK([0.785, -0.40, 0.10]) ≈ (0.485, 0.333, 0.138) m in Cartesian space.
+    end_configuration: [0.785, -0.40, 0.10]
+
+    # Trajectory duration [s].
+    duration: 3.0
+
+    # Number of waypoints along the Cartesian straight line.
+    # At 50 Hz this corresponds to one waypoint per control cycle.
+    n_waypoints: 150
