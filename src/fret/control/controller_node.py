@@ -123,8 +123,9 @@ class ControllerNode:
                     params.get("update_rate", self._update_rate)
                 )
                 break
-        except Exception:  # noqa: BLE001
-            pass  # Fall back to defaults on any parse error
+        except (yaml.YAMLError, OSError, ValueError, KeyError) as exc:
+            # Silently fall back to defaults; config errors are non-fatal
+            _ = exc
 
     # ------------------------------------------------------------------
     # State machine helpers (unit-testable)

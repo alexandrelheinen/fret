@@ -95,7 +95,7 @@ class SceneAcquisition:
                 timestamp=timestamp,
                 frame_id="world",
             )
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, AttributeError, KeyError, TypeError) as exc:
             self._node.get_logger().warning(  # type: ignore[attr-defined]
                 f"SceneAcquisition: failed to process PointCloud2: {exc}"
             )

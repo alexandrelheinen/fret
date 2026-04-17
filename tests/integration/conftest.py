@@ -8,13 +8,15 @@ and shuts it down afterwards.  Individual tests can create and destroy
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 import pytest
 import rclpy
 from rclpy.node import Node
 
 
 @pytest.fixture(scope="session")
-def ros_context() -> object:  # type: ignore[return]
+def ros_context() -> Generator[None, None, None]:
     """Initialise rclpy once per test-session (matches CI lifecycle)."""
     rclpy.init()
     yield
@@ -22,7 +24,7 @@ def ros_context() -> object:  # type: ignore[return]
 
 
 @pytest.fixture()
-def test_node(ros_context: object) -> object:  # type: ignore[return]
+def test_node(ros_context: None) -> Generator[Node, None, None]:
     """Create a throwaway ROS 2 node for a single test, then destroy it."""
     node = Node("fret_integration_test")
     yield node

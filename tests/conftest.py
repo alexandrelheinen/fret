@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Generic ROS 2 mock node
 # ---------------------------------------------------------------------------
@@ -60,6 +59,7 @@ def mock_kinematics() -> MagicMock:
 def mock_occupancy() -> MagicMock:
     """Return a mock occupancy that reports free space by default."""
     occ = MagicMock()
+
     # clearance: positive (free) for zeros, negative for [0,0,0.1]
     def _clearance(pts: np.ndarray) -> float:
         if np.allclose(pts, 0.0):
