@@ -1,0 +1,47 @@
+# Scenario SC-05: Arc Trajectory
+#
+# The SCARA end-effector traces a circular arc in the horizontal plane (constant
+# z).  The arc is centred at (0.30, 0.00) m with radius 0.15 m, sweeping from
+# -45° to +45° (90° arc, counter-clockwise when viewed from above).
+#
+# Start joint config (approx): FK of the arc start → EE ≈ (0.406, -0.106, 0.138)
+# End   joint config (approx): FK of the arc end   → EE ≈ (0.406,  0.106, 0.138)
+#
+# Both arc endpoints avoid the SCARA elbow singularity (q2 ≠ 0).
+#
+# The arc_injector node reads these parameters, samples n_waypoints Cartesian
+# positions along the arc, runs analytical IK on each, and publishes the
+# resulting JointTrajectory on /joint_trajectory (TRANSIENT_LOCAL).
+#
+# Pass criteria (Milestone 2/3):
+#   - fretsim --scenario arc starts without errors.
+#   - The SCARA EE traces a visible circular arc in Gazebo.
+#   - /joint_commands published at >= 45 Hz for full duration.
+#   - No fault published on /controller_fault.
+#
+# See MILESTONES.md for full acceptance criteria.
+
+/**:
+  ros__parameters:
+    scenario_id: "arc"
+
+    # Arc centre in the horizontal (XY) plane [m].
+    arc_center_x: 0.30
+    arc_center_y: 0.00
+
+    # Arc radius [m].  Must satisfy |L1 - L2| <= radius <= L1 + L2.
+    arc_radius: 0.15
+
+    # Arc angular range [degrees], measured from the positive X axis.
+    arc_start_deg: -45.0
+    arc_end_deg: 45.0
+
+    # Height of the arc above the robot base (constant z) [m].
+    # q3 = z_base - z_ee = 0.238 - z_height
+    z_height: 0.138
+
+    # Trajectory duration [s].
+    duration: 4.0
+
+    # Number of waypoints along the arc (50 Hz × 4 s = 200 control cycles).
+    n_waypoints: 200
