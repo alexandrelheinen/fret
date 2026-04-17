@@ -22,7 +22,7 @@ from fret.scene.occupancy_adapter import _SimpleOccupancy
 try:
     from arco.mapping import KDTreeOccupancy
 except ImportError:
-    KDTreeOccupancy = None  # type: ignore[assignment]
+    KDTreeOccupancy = None
 
 # ---------------------------------------------------------------------------
 # SCARA reachable-workspace constants (source: control/kinematics.py)
