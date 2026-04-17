@@ -19,9 +19,9 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 try:
-    from arco.mapping import KDTreeOccupancy  # type: ignore[import-untyped]
+    from arco.mapping import KDTreeOccupancy
 except ImportError:
-    KDTreeOccupancy = None  # type: ignore[assignment, misc]
+    KDTreeOccupancy = None
 
 
 class CSpaceChecker:

@@ -33,7 +33,7 @@ class StateEstimator:
 
     def __init__(self, node: rclpy.node.Node, kinematics: Kinematics) -> None:
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-        from sensor_msgs.msg import JointState  # type: ignore[import-untyped]
+        from sensor_msgs.msg import JointState
 
         self._node = node
         self._kinematics = kinematics

@@ -34,7 +34,7 @@ class SceneAcquisition:
 
     def __init__(self, node: rclpy.node.Node) -> None:
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-        from sensor_msgs.msg import PointCloud2  # type: ignore[import-untyped]
+        from sensor_msgs.msg import PointCloud2
 
         self._node = node
         self._latest_payload: OccupancyUpdatePayload | None = None
@@ -66,12 +66,12 @@ class SceneAcquisition:
             msg: A ``sensor_msgs/PointCloud2`` message.
         """
         try:
-            from sensor_msgs_py.point_cloud2 import (  # type: ignore[import-untyped]
+            from sensor_msgs_py.point_cloud2 import (
                 read_points_numpy,
             )
 
             pts = read_points_numpy(
-                msg,  # type: ignore[arg-type]
+                msg,
                 field_names=["x", "y", "z"],
                 skip_nans=True,
             )
@@ -96,7 +96,7 @@ class SceneAcquisition:
                 frame_id="world",
             )
         except (ValueError, AttributeError, KeyError, TypeError) as exc:
-            self._node.get_logger().warning(  # type: ignore[attr-defined]
+            self._node.get_logger().warning(
                 f"SceneAcquisition: failed to process PointCloud2: {exc}"
             )
 

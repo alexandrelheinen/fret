@@ -22,9 +22,9 @@ from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
 try:
-    from arco.planning import SST  # type: ignore[import-untyped]
+    from arco.planning import SST
 except ImportError:
-    SST = None  # type: ignore[assignment, misc]
+    SST = None
 
 
 class PlannerNode:
