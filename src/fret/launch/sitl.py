@@ -6,6 +6,7 @@ Usage::
 
     ros2 launch fret sitl.py model:=scara scenario:=static_reach
     ros2 launch fret sitl.py model:=scara scenario:=straight_line
+    ros2 launch fret sitl.py model:=scara scenario:=arc
 
 Arguments:
     model (str, default: scara)
@@ -18,8 +19,12 @@ Scenario behaviour:
     straight_line — Milestone 1.  Launches the ``straight_line_injector``
         node instead of ``planner_node``.  The injector publishes a
         Cartesian straight-line trajectory once; the controller tracks it.
+    arc — Launches the ``arc_injector`` node instead of ``planner_node``.
+        The injector publishes a circular arc trajectory in Cartesian space
+        once; the controller tracks it.  Produces a visible arc in Gazebo.
     static_reach (and others) — standard SITL with ``planner_node`` and
-        ``scene_acquisition_node``.
+        ``scene_acquisition_node``.  The planner auto-triggers at startup
+        and publishes the resulting trajectory; the controller executes it.
 """
 
 from __future__ import annotations
@@ -35,6 +40,8 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     EqualsSubstitution,
     LaunchConfiguration,
+    NotEqualsSubstitution,
+    OrSubstitution,
     PathJoinSubstitution,
 )
 from launch_ros.actions import Node
@@ -78,6 +85,10 @@ def generate_launch_description() -> LaunchDescription:
     is_straight_line = EqualsSubstitution(
         LaunchConfiguration("scenario"), "straight_line"
     )
+    is_arc = EqualsSubstitution(LaunchConfiguration("scenario"), "arc")
+
+    # Injector scenarios share the "no planner" path
+    is_injector_scenario = OrSubstitution(is_straight_line, is_arc)
 
     # ------------------------------------------------------------------
     # Milestone 1 path: straight-line injector (no planner, no scene)
@@ -95,6 +106,21 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # ------------------------------------------------------------------
+    # Arc injector path: arc injector (no planner, no scene)
+    # ------------------------------------------------------------------
+    arc_injector = Node(
+        package="fret",
+        executable="arc_injector",
+        name="arc_injector",
+        output="screen",
+        parameters=[
+            {"model": LaunchConfiguration("model")},
+            scenario_config,
+        ],
+        condition=IfCondition(is_arc),
+    )
+
+    # ------------------------------------------------------------------
     # Standard path: planner + scene acquisition
     # ------------------------------------------------------------------
     planner_node = Node(
@@ -106,7 +132,7 @@ def generate_launch_description() -> LaunchDescription:
             {"model": LaunchConfiguration("model")},
             scenario_config,
         ],
-        condition=UnlessCondition(is_straight_line),
+        condition=UnlessCondition(is_injector_scenario),
     )
 
     scene_acquisition_node = Node(
@@ -115,7 +141,7 @@ def generate_launch_description() -> LaunchDescription:
         name="scene_acquisition_node",
         output="screen",
         parameters=[{"model": LaunchConfiguration("model")}],
-        condition=UnlessCondition(is_straight_line),
+        condition=UnlessCondition(is_injector_scenario),
     )
 
     # ------------------------------------------------------------------
@@ -139,6 +165,8 @@ def generate_launch_description() -> LaunchDescription:
             sim_launch,
             # Milestone 1 path
             straight_line_injector,
+            # Arc path
+            arc_injector,
             # Standard path
             scene_acquisition_node,
             planner_node,

@@ -25,6 +25,7 @@ dev = [
 fretsim = "fret._cli:fretsim"
 controller_node = "fret.control.controller_node:main"
 straight_line_injector = "fret.ros.straight_line_injector:main"
+arc_injector = "fret.ros.arc_injector:main"
 scene_acquisition_node = "fret.scene.acquisition_node:main"
 planner_node = "fret.planning.planner_node_ros:main"
 
