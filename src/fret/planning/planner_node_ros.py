@@ -17,7 +17,7 @@ def main(args: list[str] | None = None) -> None:
     import rclpy
     import rclpy.node
 
-    class _PlannerNodeStub(rclpy.node.Node):
+    class _PlannerNodeStub(rclpy.node.Node):  # type: ignore[misc]
         def __init__(self) -> None:
             super().__init__("planner_node")
             self.get_logger().warn(

@@ -325,12 +325,12 @@ class ControllerRosNode:
         from fret.control.state_estimator import StateEstimator
 
         # Initialise ROS 2 node (must be the first super() call)
-        rclpy.node.Node.__init__(self, "controller_node")  # type: ignore[call-arg]
+        rclpy.node.Node.__init__(self, "controller_node")
 
         self._logic = ControllerNode(model=model, config_path=config_path)
         self._kinematics = Kinematics(model=model)
         self._state_estimator = StateEstimator(
-            node=self,  # type: ignore[arg-type]
+            node=self,
             kinematics=self._kinematics,
         )
 
@@ -384,10 +384,10 @@ class ControllerRosNode:
         """
         import numpy as np
         from trajectory_msgs.msg import (
-            JointTrajectory,  # type: ignore[import-untyped]
+            JointTrajectory,
         )
 
-        traj_msg: JointTrajectory = msg  # type: ignore[assignment]
+        traj_msg: JointTrajectory = msg
         if not traj_msg.points:
             self.get_logger().warning(  # type: ignore[attr-defined]
                 "Received empty JointTrajectory — ignoring."
@@ -452,7 +452,7 @@ def main(args: list[str] | None = None) -> None:
     import rclpy
     import rclpy.node
     from ament_index_python.packages import (
-        get_package_share_directory,  # type: ignore[import-untyped]
+        get_package_share_directory,
     )
 
     rclpy.init(args=args)
@@ -487,7 +487,7 @@ def _make_controller_ros_node(
     """
     import rclpy.node
 
-    class _ConcreteControllerNode(ControllerRosNode, rclpy.node.Node):
+    class _ConcreteControllerNode(ControllerRosNode, rclpy.node.Node):  # type: ignore[misc]
         """Concrete class combining ControllerRosNode with rclpy.node.Node."""
 
         def __init__(self) -> None:

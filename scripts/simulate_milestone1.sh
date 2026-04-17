@@ -7,7 +7,7 @@
 #
 # Requires:
 #   - Python packages: numpy, pyyaml, matplotlib
-#   - fret package installed (pip install -e src/fret --no-deps)
+#   - fret package installed (pip install -e . --no-deps)
 #
 # Usage:
 #   bash scripts/simulate_milestone1.sh [--output <dir>]

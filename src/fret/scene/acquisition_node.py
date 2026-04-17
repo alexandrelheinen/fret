@@ -20,7 +20,7 @@ def main(args: list[str] | None = None) -> None:
 
     from fret.scene.acquisition import SceneAcquisition
 
-    class _SceneAcquisitionNode(rclpy.node.Node):
+    class _SceneAcquisitionNode(rclpy.node.Node):  # type: ignore[misc]
         def __init__(self) -> None:
             super().__init__("scene_acquisition_node")
             self._acquisition = SceneAcquisition(node=self)
