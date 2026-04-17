@@ -41,10 +41,10 @@ class _NodeState(enum.IntEnum):
 # ---------------------------------------------------------------------------
 
 _SCARA_DOF: int = 3
-_DEFAULT_FAULT_THRESHOLD: float = 0.020   # [m]
+_DEFAULT_FAULT_THRESHOLD: float = 0.020  # [m]
 _DEFAULT_DAMPING: float = 0.01
-_DEFAULT_MAX_VEL: float = 1.57            # [rad/s]
-_DEFAULT_RATE: float = 50.0              # [Hz]
+_DEFAULT_MAX_VEL: float = 1.57  # [rad/s]
+_DEFAULT_RATE: float = 50.0  # [Hz]
 
 
 class ControllerNode:

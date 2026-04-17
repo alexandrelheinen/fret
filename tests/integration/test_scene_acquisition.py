@@ -15,12 +15,13 @@ import pytest
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2  # type: ignore[import-untyped]
-from sensor_msgs_py.point_cloud2 import create_cloud_xyz32  # type: ignore[import-untyped]
+from sensor_msgs_py.point_cloud2 import (
+    create_cloud_xyz32,  # type: ignore[import-untyped]
+)
 from std_msgs.msg import Header  # type: ignore[import-untyped]
 
 from fret.interfaces import OccupancyUpdatePayload
 from fret.scene.acquisition import SceneAcquisition
-
 
 # ---------------------------------------------------------------------------
 # Helpers

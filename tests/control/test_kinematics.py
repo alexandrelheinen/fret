@@ -30,7 +30,7 @@ from fret.control.kinematics import Kinematics
 _DOF = 3
 
 # Tolerances
-_POS_TOL_M = 0.005   # 5 mm IK round-trip budget
+_POS_TOL_M = 0.005  # 5 mm IK round-trip budget
 _ANG_TOL_RAD = 1e-9
 
 # Expected XACRO constants
@@ -71,7 +71,10 @@ def test_joint_names_are_xacro_names() -> None:
 def test_joint_limits_shape() -> None:
     k = Kinematics(model="scara")
     limits = k.joint_limits
-    assert limits.shape == (_DOF, 2), f"Expected ({_DOF}, 2), got {limits.shape}"
+    assert limits.shape == (
+        _DOF,
+        2,
+    ), f"Expected ({_DOF}, 2), got {limits.shape}"
     # lower < upper for every joint
     assert np.all(limits[:, 0] < limits[:, 1])
 
@@ -154,7 +157,9 @@ def test_ik_round_trip() -> None:
     q_ik = k.inverse_kinematics(T_target, seed=np.zeros(_DOF))
     T_recovered = k.forward_kinematics(q_ik)
     position_error = np.linalg.norm(T_recovered[:3, 3] - T_target[:3, 3])
-    assert position_error < _POS_TOL_M, f"EE error {position_error:.4f} m exceeds 5 mm"
+    assert (
+        position_error < _POS_TOL_M
+    ), f"EE error {position_error:.4f} m exceeds 5 mm"
 
 
 def test_ik_multiple_configurations() -> None:
