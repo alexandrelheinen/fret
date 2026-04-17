@@ -162,8 +162,11 @@ class PlannerRosNode:
         if self._planned:
             return
 
+        # getattr guards against JointState implementations that may not carry
+        # a ``position`` attribute in mock or stub contexts.
         positions = list(getattr(msg, "position", []))
         if len(positions) < 3:
+            # Silently skip partial messages (e.g. gripper-only states).
             return
 
         self._start_cfg = list(positions[:3])
