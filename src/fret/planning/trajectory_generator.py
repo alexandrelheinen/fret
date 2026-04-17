@@ -24,11 +24,13 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 try:
+    from arco.guidance import (
+        BSplineInterpolator,  # type: ignore[import-untyped]
+    )
     from arco.planning import (  # type: ignore[import-untyped]
         TrajectoryOptimizer,
         TrajectoryPruner,
     )
-    from arco.guidance import BSplineInterpolator  # type: ignore[import-untyped]
 except ImportError:
     TrajectoryOptimizer = None  # type: ignore[assignment, misc]
     TrajectoryPruner = None  # type: ignore[assignment, misc]
