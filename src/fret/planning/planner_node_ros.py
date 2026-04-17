@@ -44,7 +44,7 @@ from __future__ import annotations
 _NS_PER_SEC: int = 1_000_000_000
 
 
-class PlannerRosNode:
+class PlannerRosNode:  # pragma: no cover
     """Level 4 ROS 2 node that auto-triggers ARCO planning at startup.
 
     Subclass ``rclpy.node.Node`` at the call site (see :func:`main`) so that
@@ -273,7 +273,7 @@ class PlannerRosNode:
         )
 
 
-def main(args: list[str] | None = None) -> None:
+def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``planner_node`` executable.
 
     Args:

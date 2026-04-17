@@ -9,7 +9,7 @@ This module provides the ``scene_acquisition_node`` executable entry point.
 from __future__ import annotations
 
 
-def main(args: list[str] | None = None) -> None:
+def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``scene_acquisition_node`` executable.
 
     Args:

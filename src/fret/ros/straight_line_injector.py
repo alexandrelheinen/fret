@@ -77,7 +77,7 @@ def _generate_straight_line_trajectory(
     return joint_configs, timestamps
 
 
-class StraightLineInjectorNode:
+class StraightLineInjectorNode:  # pragma: no cover
     """ROS 2 node that publishes a straight-line joint trajectory once.
 
     Reads scenario parameters from the ROS 2 parameter server (populated by
@@ -160,7 +160,7 @@ class StraightLineInjectorNode:
         )
 
 
-def main(args: list[str] | None = None) -> None:
+def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``straight_line_injector`` executable.
 
     Args:
