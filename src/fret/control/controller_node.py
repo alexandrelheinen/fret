@@ -158,7 +158,9 @@ class ControllerNode:
                 "Trajectory must contain at least 2 waypoints, "
                 f"got {len(trajectory)}"
             )
-        self._trajectory = [np.asarray(q, dtype=np.float64) for q in trajectory]
+        self._trajectory = [
+            np.asarray(q, dtype=np.float64) for q in trajectory
+        ]
         self._trajectory_index = 0
         self._state = _NodeState.TRACKING
 
@@ -229,7 +231,9 @@ class ControllerNode:
         q_dot = j_pinv @ (self._kp * cart_error)  # (3,)
 
         # Clamp to maximum joint velocity (FR-CTL-03)
-        q_dot = np.clip(q_dot, -self._max_joint_velocity, self._max_joint_velocity)
+        q_dot = np.clip(
+            q_dot, -self._max_joint_velocity, self._max_joint_velocity
+        )
 
         self._current_command = q_dot
         self._trajectory_index += 1
@@ -250,9 +254,8 @@ class ControllerNode:
             Euclidean EE position error in metres.  Returns 0.0 when no
             trajectory is active or it is already complete.
         """
-        if (
-            self._trajectory is None
-            or self._trajectory_index >= len(self._trajectory)
+        if self._trajectory is None or self._trajectory_index >= len(
+            self._trajectory
         ):
             return 0.0
         q_ref = self._trajectory[self._trajectory_index]
@@ -380,8 +383,9 @@ class ControllerRosNode:
             msg: A ``trajectory_msgs/JointTrajectory`` message.
         """
         import numpy as np
-
-        from trajectory_msgs.msg import JointTrajectory  # type: ignore[import-untyped]
+        from trajectory_msgs.msg import (
+            JointTrajectory,  # type: ignore[import-untyped]
+        )
 
         traj_msg: JointTrajectory = msg  # type: ignore[assignment]
         if not traj_msg.points:
@@ -447,8 +451,9 @@ def main(args: list[str] | None = None) -> None:
     """
     import rclpy
     import rclpy.node
-
-    from ament_index_python.packages import get_package_share_directory  # type: ignore[import-untyped]
+    from ament_index_python.packages import (
+        get_package_share_directory,  # type: ignore[import-untyped]
+    )
 
     rclpy.init(args=args)
 

@@ -129,8 +129,12 @@ class StraightLineInjectorNode:
         msg = JointTrajectory()
         msg.joint_names = list(_JOINT_NAMES)
 
-        from trajectory_msgs.msg import JointTrajectoryPoint  # type: ignore[import-untyped]
-        from builtin_interfaces.msg import Duration  # type: ignore[import-untyped]
+        from builtin_interfaces.msg import (
+            Duration,  # type: ignore[import-untyped]
+        )
+        from trajectory_msgs.msg import (
+            JointTrajectoryPoint,  # type: ignore[import-untyped]
+        )
 
         for q, t in zip(joint_configs, timestamps):
             pt = JointTrajectoryPoint()
@@ -206,6 +210,16 @@ def generate_trajectory(
     Returns:
         Tuple of (joint_configs, timestamps_sec).
     """
-    _start = np.array([0.0, 0.40, 0.10], dtype=np.float64) if start_q is None else np.asarray(start_q, dtype=np.float64)
-    _end = np.array([0.785, -0.40, 0.10], dtype=np.float64) if end_q is None else np.asarray(end_q, dtype=np.float64)
-    return _generate_straight_line_trajectory(_start, _end, n_waypoints, duration)
+    _start = (
+        np.array([0.0, 0.40, 0.10], dtype=np.float64)
+        if start_q is None
+        else np.asarray(start_q, dtype=np.float64)
+    )
+    _end = (
+        np.array([0.785, -0.40, 0.10], dtype=np.float64)
+        if end_q is None
+        else np.asarray(end_q, dtype=np.float64)
+    )
+    return _generate_straight_line_trajectory(
+        _start, _end, n_waypoints, duration
+    )
