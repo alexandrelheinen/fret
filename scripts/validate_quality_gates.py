@@ -36,8 +36,7 @@ import os
 import sys
 import time
 import uuid
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Make the fret package importable from the repository root.
@@ -58,6 +57,15 @@ from fret.interfaces import (
 )
 from fret.planning.planner_node import PlannerNode
 from fret.scene.occupancy_adapter import OccupancyAdapter
+from fret.validation import (
+    GateResult,
+    QualityGate,
+    ScenarioReport,
+    evaluate_gates,
+    format_report,
+    path_length,
+    path_smoothness,
+)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -66,134 +74,6 @@ from fret.scene.occupancy_adapter import OccupancyAdapter
 _CONFIG_PATH = os.path.join(
     _REPO_ROOT, "src", "fret", "config", "benchmark.yaml"
 )
-
-# ---------------------------------------------------------------------------
-# Inline metric functions (no fret.validation dependency required)
-# ---------------------------------------------------------------------------
-
-
-def _path_length(path: List[Any]) -> float:
-    """Compute joint-space arc length of a path.
-
-    Args:
-        path: List of joint configuration arrays, each shape ``(DOF,)``.
-
-    Returns:
-        Total arc length (sum of L2 norms of consecutive differences).
-    """
-    if len(path) < 2:
-        return 0.0
-    total = 0.0
-    for a, b in zip(path[:-1], path[1:]):
-        total += float(np.linalg.norm(np.asarray(b) - np.asarray(a)))
-    return total
-
-
-def _path_smoothness(path: List[Any]) -> float:
-    """Compute total direction-change angle along a path.
-
-    Args:
-        path: List of joint configuration arrays.
-
-    Returns:
-        Sum of angles between consecutive segment directions (radians).
-        Lower is smoother.
-    """
-    if len(path) < 3:
-        return 0.0
-    total = 0.0
-    for i in range(1, len(path) - 1):
-        d1 = np.asarray(path[i]) - np.asarray(path[i - 1])
-        d2 = np.asarray(path[i + 1]) - np.asarray(path[i])
-        n1, n2 = np.linalg.norm(d1), np.linalg.norm(d2)
-        if n1 < 1e-12 or n2 < 1e-12:
-            continue
-        cos_a = float(np.clip(np.dot(d1, d2) / (n1 * n2), -1.0, 1.0))
-        total += math.acos(cos_a)
-    return total
-
-
-# ---------------------------------------------------------------------------
-# Inline quality-gate data structures
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class QualityGate:
-    """A single pass/fail threshold for a named metric."""
-
-    name: str
-    threshold: float
-    operator: str  # ">=" | "<=" | ">" | "<" | "=="
-    units: str = ""
-    description: str = ""
-
-
-@dataclass
-class GateResult:
-    """Result of evaluating one gate."""
-
-    gate: QualityGate
-    value: float
-    passed: bool
-
-
-@dataclass
-class ScenarioReport:
-    """Aggregated gate results for one scenario."""
-
-    scenario: str
-    results: List[GateResult]
-
-    @property
-    def passed(self) -> bool:
-        return all(r.passed for r in self.results)
-
-
-_OPS: Dict[str, Callable[[float, float], bool]] = {
-    ">=": lambda v, t: v >= t,
-    "<=": lambda v, t: v <= t,
-    ">": lambda v, t: v > t,
-    "<": lambda v, t: v < t,
-    "==": lambda v, t: abs(v - t) < 1e-9,
-}
-
-
-def _evaluate_gates(
-    metrics: Dict[str, float], gates: List[QualityGate]
-) -> List[GateResult]:
-    results = []
-    for gate in gates:
-        val = metrics.get(gate.name, math.nan)
-        op_fn = _OPS.get(gate.operator, lambda v, t: False)
-        passed = not math.isnan(val) and op_fn(val, gate.threshold)
-        results.append(GateResult(gate=gate, value=val, passed=passed))
-    return results
-
-
-def _format_report(reports: List[ScenarioReport]) -> str:
-    lines: List[str] = ["=" * 72, "Quality Gate Report", "=" * 72]
-    all_passed = True
-    for report in reports:
-        status = "PASS" if report.passed else "FAIL"
-        if not report.passed:
-            all_passed = False
-        lines.append(f"\n[{report.scenario}]  {status}")
-        for r in report.results:
-            mark = "✓" if r.passed else "✗"
-            lines.append(
-                f"  {mark} {r.gate.name:<22} "
-                f"{r.value:>10.4f} {r.gate.units:<10} "
-                f"(threshold {r.gate.operator} {r.gate.threshold})"
-            )
-    lines.append("\n" + "=" * 72)
-    lines.append(
-        "Overall: "
-        + ("ALL GATES PASSED" if all_passed else "SOME GATES FAILED")
-    )
-    lines.append("=" * 72)
-    return "\n".join(lines)
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -315,8 +195,8 @@ def _run_scenario(
         if result.status == PlanningStatus.SUCCESS:
             success_count += 1
             path = result.path
-            path_lengths.append(_path_length(path))
-            smoothnesses.append(_path_smoothness(path))
+            path_lengths.append(path_length(path))
+            smoothnesses.append(path_smoothness(path))
 
     success_rate = success_count / repeat
     avg_latency = sum(latencies) / len(latencies)
@@ -372,12 +252,12 @@ def main() -> int:
             repeat=repeat,
         )
         gates = _gates_from_config(gates_cfg.get(scenario_name, {}))
-        results = _evaluate_gates(metrics, gates)
+        results = evaluate_gates(metrics, gates)
         reports.append(ScenarioReport(scenario=scenario_name, results=results))
         for key, val in metrics.items():
             print(f"  {key}: {val:.4f}")
 
-    print("\n" + _format_report(reports))
+    print("\n" + format_report(reports))
 
     all_passed = all(r.passed for r in reports)
     return 0 if all_passed else 1
