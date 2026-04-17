@@ -1,0 +1,140 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="arco_scenario">
+
+    <gravity>0 0 -9.81</gravity>
+
+    <physics name="default_physics" default="true" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Obstacle A: 10×10×10 cm box at (0.25, 0.05, 0.05) -->
+    <model name="obstacle_box_a">
+      <static>true</static>
+      <pose>0.25 0.05 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.4 0.0 1</ambient>
+            <diffuse>0.8 0.4 0.0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Obstacle B: 10×10×10 cm box at (0.25, -0.05, 0.05) -->
+    <model name="obstacle_box_b">
+      <static>true</static>
+      <pose>0.25 -0.05 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.4 0.0 1</ambient>
+            <diffuse>0.8 0.4 0.0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Obstacle C: 10×10×10 cm box at (0.30, 0.00, 0.05) -->
+    <model name="obstacle_box_c">
+      <static>true</static>
+      <pose>0.30 0.00 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.10 0.10 0.10</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.4 0.0 1</ambient>
+            <diffuse>0.8 0.4 0.0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Start region: green visual-only sphere at (0.0, 0.0, 0.05) r=0.03 m -->
+    <model name="region_start">
+      <static>true</static>
+      <pose>0.0 0.0 0.05 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.03</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.0 0.8 0.0 0.6</ambient>
+            <diffuse>0.0 0.8 0.0 0.6</diffuse>
+          </material>
+          <transparency>0.4</transparency>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Target region: red visual-only sphere at (0.30, 0.10, 0.05) r=0.03 m -->
+    <model name="region_target">
+      <static>true</static>
+      <pose>0.30 0.10 0.05 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.03</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.8 0.0 0.0 0.6</ambient>
+            <diffuse>0.8 0.0 0.0 0.6</diffuse>
+          </material>
+          <transparency>0.4</transparency>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
