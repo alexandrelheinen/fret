@@ -26,7 +26,7 @@ RESULTS_DIR="${1:?Usage: $0 <results_dir>}"
 RESULTS_ENV="${RESULTS_DIR}/results.env"
 
 if [[ -z "${PR_NUMBER:-}" ]]; then
-    echo "No PR_NUMBER set — skipping PR comment."
+    echo "No PR_NUMBER set - skipping PR comment."
     exit 0
 fi
 
@@ -59,25 +59,25 @@ if [[ -n "${ARTIFACT_URL:-}" ]]; then
     ARTIFACT_LINE="📎 **[Download planning plots](${ARTIFACT_URL})**"
 fi
 
-BODY="## ${STATUS_EMOJI} Milestone 2 — Planning Pipeline Simulation Results
+BODY="## ${STATUS_EMOJI} Milestone 2 - Planning Pipeline Simulation Results
 
 | Metric | Value | Limit | Status |
 |--------|-------|-------|--------|
 | Waypoints in plan | **${N_WAYPOINTS}** | ≥ 2 | ${GATE_STATUS} |
 | Trajectory points | **${N_TRAJ_POINTS}** | ≥ 2 | ✅ |
-| Final EE error | **${FINAL_EE_ERROR_MM} mm** | — | ✅ |
+| Final EE error | **${FINAL_EE_ERROR_MM} mm** | - | ✅ |
 | Planning duration | **${PLANNING_DURATION_S} s** | ≤ 30 s | ✅ |
 
 ### What the plots show
 
-**Panel 1 — Cartesian EE path (top view):**
+**Panel 1 - Cartesian EE path (top view):**
 The end-effector moves from the start (green) to the goal (red) in the XY plane.
 
-**Panel 2 — C-space (q1°, q2°, q3 cm):**
+**Panel 2 - C-space (q1°, q2°, q3 cm):**
 The joint-space waypoints returned by the planner. Shows the nonlinear coupling
 between joints along the planned path.
 
-**Panel 3 — EE position over path:**
+**Panel 3 - EE position over path:**
 EE x, y, z coordinates for each waypoint, with goal reference lines.
 
 ${ARTIFACT_LINE}
@@ -91,7 +91,7 @@ EXISTING_COMMENT_ID=$(
         -H "Accept: application/vnd.github+json" \
         "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
         --paginate \
-        --jq '.[] | select(.user.type == "Bot") | select(.body | contains("Milestone 2 — Planning Pipeline Simulation Results")) | .id' \
+        --jq '.[] | select(.user.type == "Bot") | select(.body | contains("Milestone 2 - Planning Pipeline Simulation Results")) | .id' \
         | head -n 1 || true
 )
 
