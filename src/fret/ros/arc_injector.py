@@ -126,7 +126,7 @@ def _generate_arc_trajectory(
     return joint_configs, timestamps
 
 
-class ArcInjectorNode:
+class ArcInjectorNode:  # pragma: no cover
     """ROS 2 node that publishes an arc joint trajectory once.
 
     Reads scenario parameters from the ROS 2 parameter server (populated by
@@ -220,7 +220,7 @@ class ArcInjectorNode:
         )
 
 
-def main(args: list[str] | None = None) -> None:
+def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``arc_injector`` executable.
 
     Args:

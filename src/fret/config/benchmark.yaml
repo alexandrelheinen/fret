@@ -1,0 +1,66 @@
+# Benchmark configuration for ARCO-FRET quality gate validation.
+#
+# Each scenario is run ``repeat`` times and the average metrics are compared
+# against the quality gates.  All joint configurations use the SCARA RRP
+# convention: [joint_arm_0 (rad), joint_arm_1 (rad), joint_extension (m)].
+#
+# See scripts/validate_quality_gates.py for the runner and metric definitions.
+
+benchmark:
+  # Number of repeated runs per scenario.  3 is sufficient for deterministic
+  # fallback planner; increase to 10+ when ARCO SST is active.
+  repeat: 3
+
+  # Per-joint (lower, upper) bounds for the SCARA RRP (3-DOF).
+  joint_limits:
+    - [-2.3038, 2.3038]   # joint_arm_0   ±132°
+    - [-2.6180, 2.6180]   # joint_arm_1   ±150°
+    - [0.0, 0.2]          # joint_extension  0–0.2 m
+
+  scenarios:
+    # SC-01: Static reach — no obstacles, short joint-space move.
+    static_reach:
+      start: [0.0, 0.0, 0.10]
+      goal:  [0.3272, 0.4712, 0.05]
+      obstacles: []
+      inflation_radius: 0.05
+      timeout: 10.0
+      planner_config: {}
+
+    # SC-02: Obstacle avoidance — single box obstacle in the workspace.
+    obstacle_avoidance:
+      start: [0.0, 0.0, 0.10]
+      goal:  [0.3272, 0.4712, 0.05]
+      obstacles:
+        - [0.30, 0.05, 0.05]
+        - [0.30, 0.10, 0.05]
+        - [0.35, 0.05, 0.05]
+      inflation_radius: 0.05
+      timeout: 15.0
+      planner_config: {}
+
+  # Quality gates applied to every scenario.
+  quality_gates:
+    static_reach:
+      success_rate:
+        threshold: 0.9
+        operator: ">="
+        units: "fraction"
+        description: "Fraction of runs that return SUCCESS"
+      avg_latency_s:
+        threshold: 9.5
+        operator: "<="
+        units: "s"
+        description: "Mean wall-clock planning time"
+
+    obstacle_avoidance:
+      success_rate:
+        threshold: 0.9
+        operator: ">="
+        units: "fraction"
+        description: "Fraction of runs that return SUCCESS"
+      avg_latency_s:
+        threshold: 14.5
+        operator: "<="
+        units: "s"
+        description: "Mean wall-clock planning time"

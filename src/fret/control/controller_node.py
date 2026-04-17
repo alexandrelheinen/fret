@@ -297,7 +297,7 @@ class ControllerNode:
 # ---------------------------------------------------------------------------
 
 
-class ControllerRosNode:
+class ControllerRosNode:  # pragma: no cover
     """Level 4 ROS 2 node: wires ControllerNode into the ROS graph.
 
     Subclasses ``rclpy.node.Node``.  Subscriptions, publishers, and the
@@ -439,7 +439,7 @@ class ControllerRosNode:
         self._fault_pub.publish(fault_msg)
 
 
-def main(args: list[str] | None = None) -> None:
+def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``controller_node`` executable.
 
     Initialises ``rclpy``, spins ``ControllerRosNode`` until shutdown, then
@@ -469,7 +469,7 @@ def main(args: list[str] | None = None) -> None:
         rclpy.shutdown()
 
 
-def _make_controller_ros_node(
+def _make_controller_ros_node(  # pragma: no cover
     model: str = "scara",
     config_path: str = "",
 ) -> Any:

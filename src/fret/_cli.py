@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 
-def fretsim() -> None:
+def fretsim() -> None:  # pragma: no cover
     """Launch the FRET SITL simulation pipeline.
 
     Thin wrapper around ``ros2 launch fret sitl.py`` that exposes

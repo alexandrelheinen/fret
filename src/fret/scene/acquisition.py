@@ -78,7 +78,8 @@ class SceneAcquisition:
 
             if pts.shape[0] == 0:
                 xyz: np.ndarray = np.empty((0, 3), dtype=np.float64)
-            else:
+            elif pts.dtype.names is not None:
+                # Structured array (older sensor_msgs_py): named field access.
                 xyz = np.column_stack(
                     [
                         pts["x"].astype(np.float64),
@@ -86,6 +87,10 @@ class SceneAcquisition:
                         pts["z"].astype(np.float64),
                     ]
                 )
+            else:
+                # Plain 2-D array (newer sensor_msgs_py with field_names):
+                # shape is (N, 3) in [x, y, z] column order.
+                xyz = pts.astype(np.float64)
 
             stamp = msg.header.stamp  # type: ignore[attr-defined]
             timestamp = float(stamp.sec) + float(stamp.nanosec) * 1e-9

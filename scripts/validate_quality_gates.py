@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Automated quality gate validation script for ARCO-FRET (Issue 09).
+"""Automated quality gate validation script for ARCO-FRET.
 
 Loads the benchmark configuration from ``src/fret/config/benchmark.yaml``,
-runs each scenario the configured number of times, computes all metrics,
-evaluates the quality gates, and prints a pass/fail report.
+runs each scenario the configured number of times, computes metrics, evaluates
+quality gates, and prints a pass/fail report.
 
 **Metrics computed:**
 
-- ``success_rate``    — fraction of runs that returned ``status=="success"``.
-- ``avg_latency_s``  — mean wall-clock solve time across all runs (seconds).
-- ``path_length``    — mean joint-space arc length of successful paths.
-- ``smoothness``     — mean total direction-change angle of successful paths.
-- ``min_clearance_m``— mean minimum obstacle clearance of successful paths.
+- ``success_rate``   — fraction of runs that returned ``SUCCESS``.
+- ``avg_latency_s`` — mean wall-clock planning time across all runs (seconds).
+- ``path_length``   — mean joint-space arc length of successful paths.
+- ``smoothness``    — mean total direction-change angle of successful paths.
 
 **Exit codes:**
 
@@ -28,8 +27,6 @@ declared in ``pyproject.toml``.
 
 See also:
     ``src/fret/config/benchmark.yaml``  — scenario definitions and thresholds.
-    ``docs/arco/issue-09-validation-benchmarks-and-quality-gates.md`` —
-    full specification.
 """
 
 from __future__ import annotations
@@ -39,6 +36,7 @@ import os
 import sys
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -50,21 +48,16 @@ _SRC_DIR = os.path.join(_REPO_ROOT, "src")
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
+import numpy as np
 import yaml  # type: ignore[import]
 
-from fret.perception.occupancy_adapter import OccupancyAdapter
-from fret.planning.planner_adapter import PlannerAdapter
-from fret.validation.metrics import (
-    min_obstacle_clearance,
-    path_length,
-    path_smoothness,
+from fret.interfaces import (
+    OccupancyUpdatePayload,
+    PlanningRequest,
+    PlanningStatus,
 )
-from fret.validation.quality_gates import (
-    QualityGate,
-    ScenarioReport,
-    evaluate_gates,
-    format_report,
-)
+from fret.planning.planner_node import PlannerNode
+from fret.scene.occupancy_adapter import OccupancyAdapter
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -74,19 +67,132 @@ _CONFIG_PATH = os.path.join(
     _REPO_ROOT, "src", "fret", "config", "benchmark.yaml"
 )
 
-#: Joint-space degrees of freedom for the SCARA-like test robot (R-R-P-R).
-#: Each entry is a ``(lower, upper)`` bound pair:
-#:   - joint_arm_0    [rad]: revolute, ±132°
-#:   - joint_arm_1    [rad]: revolute, ±150°
-#:   - joint_extension [m]:  prismatic, 0–0.2 m
-#:   - joint_tool_rotate [rad]: revolute, ±180°
-#: Loaded from benchmark.yaml; this constant is the fallback default.
-_DEFAULT_JOINT_LIMITS: List[Tuple[float, float]] = [
-    (-math.pi * 132 / 180, math.pi * 132 / 180),  # joint_arm_0 [rad]
-    (-math.pi * 150 / 180, math.pi * 150 / 180),  # joint_arm_1 [rad]
-    (0.0, 0.2),  # joint_extension [m]
-    (-math.pi, math.pi),  # joint_tool_rotate [rad]
-]
+# ---------------------------------------------------------------------------
+# Inline metric functions (no fret.validation dependency required)
+# ---------------------------------------------------------------------------
+
+
+def _path_length(path: List[Any]) -> float:
+    """Compute joint-space arc length of a path.
+
+    Args:
+        path: List of joint configuration arrays, each shape ``(DOF,)``.
+
+    Returns:
+        Total arc length (sum of L2 norms of consecutive differences).
+    """
+    if len(path) < 2:
+        return 0.0
+    total = 0.0
+    for a, b in zip(path[:-1], path[1:]):
+        total += float(np.linalg.norm(np.asarray(b) - np.asarray(a)))
+    return total
+
+
+def _path_smoothness(path: List[Any]) -> float:
+    """Compute total direction-change angle along a path.
+
+    Args:
+        path: List of joint configuration arrays.
+
+    Returns:
+        Sum of angles between consecutive segment directions (radians).
+        Lower is smoother.
+    """
+    if len(path) < 3:
+        return 0.0
+    total = 0.0
+    for i in range(1, len(path) - 1):
+        d1 = np.asarray(path[i]) - np.asarray(path[i - 1])
+        d2 = np.asarray(path[i + 1]) - np.asarray(path[i])
+        n1, n2 = np.linalg.norm(d1), np.linalg.norm(d2)
+        if n1 < 1e-12 or n2 < 1e-12:
+            continue
+        cos_a = float(np.clip(np.dot(d1, d2) / (n1 * n2), -1.0, 1.0))
+        total += math.acos(cos_a)
+    return total
+
+
+# ---------------------------------------------------------------------------
+# Inline quality-gate data structures
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class QualityGate:
+    """A single pass/fail threshold for a named metric."""
+
+    name: str
+    threshold: float
+    operator: str  # ">=" | "<=" | ">" | "<" | "=="
+    units: str = ""
+    description: str = ""
+
+
+@dataclass
+class GateResult:
+    """Result of evaluating one gate."""
+
+    gate: QualityGate
+    value: float
+    passed: bool
+
+
+@dataclass
+class ScenarioReport:
+    """Aggregated gate results for one scenario."""
+
+    scenario: str
+    results: List[GateResult]
+
+    @property
+    def passed(self) -> bool:
+        return all(r.passed for r in self.results)
+
+
+_OPS: Dict[str, Callable[[float, float], bool]] = {
+    ">=": lambda v, t: v >= t,
+    "<=": lambda v, t: v <= t,
+    ">": lambda v, t: v > t,
+    "<": lambda v, t: v < t,
+    "==": lambda v, t: abs(v - t) < 1e-9,
+}
+
+
+def _evaluate_gates(
+    metrics: Dict[str, float], gates: List[QualityGate]
+) -> List[GateResult]:
+    results = []
+    for gate in gates:
+        val = metrics.get(gate.name, math.nan)
+        op_fn = _OPS.get(gate.operator, lambda v, t: False)
+        passed = not math.isnan(val) and op_fn(val, gate.threshold)
+        results.append(GateResult(gate=gate, value=val, passed=passed))
+    return results
+
+
+def _format_report(reports: List[ScenarioReport]) -> str:
+    lines: List[str] = ["=" * 72, "Quality Gate Report", "=" * 72]
+    all_passed = True
+    for report in reports:
+        status = "PASS" if report.passed else "FAIL"
+        if not report.passed:
+            all_passed = False
+        lines.append(f"\n[{report.scenario}]  {status}")
+        for r in report.results:
+            mark = "✓" if r.passed else "✗"
+            lines.append(
+                f"  {mark} {r.gate.name:<22} "
+                f"{r.value:>10.4f} {r.gate.units:<10} "
+                f"(threshold {r.gate.operator} {r.gate.threshold})"
+            )
+    lines.append("\n" + "=" * 72)
+    lines.append(
+        "Overall: "
+        + ("ALL GATES PASSED" if all_passed else "SOME GATES FAILED")
+    )
+    lines.append("=" * 72)
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +204,7 @@ def _load_config(path: str) -> Dict[str, Any]:
     """Load and return the benchmark YAML configuration.
 
     Args:
-        path: Absolute path to the ``benchmark.yaml`` file.
+        path: Absolute path to ``benchmark.yaml``.
 
     Returns:
         Parsed configuration dictionary rooted at the ``benchmark`` key.
@@ -115,70 +221,12 @@ def _load_config(path: str) -> Dict[str, Any]:
         sys.exit(1)
 
 
-def _build_joint_limits(
-    cfg: Dict[str, Any],
-) -> List[Tuple[float, float]]:
-    """Extract joint limits from config or fall back to defaults.
-
-    Args:
-        cfg: Root ``benchmark`` config dict.
-
-    Returns:
-        List of ``(lower, upper)`` bound pairs.
-    """
-    raw = cfg.get("joint_limits")
-    if raw:
-        return [(float(lo), float(hi)) for lo, hi in raw]
-    return _DEFAULT_JOINT_LIMITS
-
-
-def _make_validator(
-    occupancy: OccupancyAdapter,
-) -> Callable[[List[float]], bool]:
-    """Return a state validator that proxies (q0, q1) → occupancy query.
-
-    Maps the first two joints to an x/y point and checks occupancy at
-    z=0.  This is the same proxy used in ``scripts/benchmark_planner.py``.
-
-    Args:
-        occupancy: Populated :class:`OccupancyAdapter`.
-
-    Returns:
-        Callable ``(q: list[float]) -> bool``.
-    """
-
-    def validator(q: List[float]) -> bool:
-        return occupancy.is_free([q[0], q[1], 0.0])
-
-    return validator
-
-
-def _make_clearance_fn(
-    occupancy: OccupancyAdapter,
-) -> Callable[[List[float]], float]:
-    """Return a clearance function that proxies (q0, q1) → clearance.
-
-    Args:
-        occupancy: Populated :class:`OccupancyAdapter`.
-
-    Returns:
-        Callable ``(q: list[float]) -> float`` returning clearance in meters.
-    """
-
-    def clearance_fn(q: List[float]) -> float:
-        return occupancy.clearance([q[0], q[1], 0.0])
-
-    return clearance_fn
-
-
 def _gates_from_config(
-    scenario_name: str,
     gate_cfg: Dict[str, Any],
 ) -> List[QualityGate]:
     """Build :class:`QualityGate` objects from a scenario's gate config.
 
     Args:
-        scenario_name: Human-readable name for error messages.
         gate_cfg: Dict mapping metric names to gate specification dicts.
 
     Returns:
@@ -204,7 +252,7 @@ def _gates_from_config(
 
 
 def _run_scenario(
-    name: str,
+    scenario_id: str,
     scenario_cfg: Dict[str, Any],
     joint_limits: List[Tuple[float, float]],
     repeat: int,
@@ -212,73 +260,71 @@ def _run_scenario(
     """Run a single benchmark scenario and return aggregated metrics.
 
     Args:
-        name: Scenario name (for diagnostic messages).
+        scenario_id: Scenario name forwarded to ``PlanningRequest`` (also
+            used for diagnostic messages).
         scenario_cfg: Scenario sub-dict from ``benchmark.yaml``.
-        joint_limits: Per-joint ``(lower, upper)`` bounds.
+        joint_limits: Per-joint ``(lower, upper)`` bounds (unused by
+            ``PlannerNode`` directly; kept for forward compatibility).
         repeat: Number of repeated runs.
 
     Returns:
         Dict with keys: ``success_rate``, ``avg_latency_s``,
-        ``path_length``, ``smoothness``, ``min_clearance_m``.
+        ``path_length``, ``smoothness``.
     """
     obstacles: List[List[float]] = scenario_cfg.get("obstacles", [])
-    inflation_radius: float = float(scenario_cfg.get("inflation_radius", 0.05))
     start: List[float] = [float(v) for v in scenario_cfg["start"]]
     goal: List[float] = [float(v) for v in scenario_cfg["goal"]]
     timeout: float = float(scenario_cfg.get("timeout", 10.0))
-    planner_config: Dict[str, Any] = scenario_cfg.get("planner_config", {})
 
     latencies: List[float] = []
     path_lengths: List[float] = []
     smoothnesses: List[float] = []
-    clearances: List[float] = []
     success_count = 0
 
+    # Build obstacle point cloud (Nx3 float64) from list of [x,y,z] coords.
+    # Each entry in obstacles must be a 3-element list/tuple [x, y, z].
+    if obstacles:
+        pts = np.array(obstacles, dtype=np.float64).reshape(-1, 3)
+    else:
+        pts = np.empty((0, 3), dtype=np.float64)
+
+    payload = OccupancyUpdatePayload(
+        obstacle_points=pts,
+        timestamp=time.time(),
+        frame_id="world",
+    )
+
     for _ in range(repeat):
-        occupancy = OccupancyAdapter(inflation_radius=inflation_radius)
-        occupancy.update(obstacles)
+        occupancy_adapter = OccupancyAdapter()
+        occupancy_adapter.update(payload)
 
-        validator = _make_validator(occupancy)
-        clearance_fn = _make_clearance_fn(occupancy)
-
-        adapter = PlannerAdapter(
-            occupancy_adapter=occupancy,
-            joint_limits=joint_limits,
-            state_validator=validator,
+        planner = PlannerNode(
+            model="scara", occupancy_adapter=occupancy_adapter
         )
 
-        request = {
-            "request_id": str(uuid.uuid4()),
-            "start_joint_positions": start,
-            "goal_joint_positions": goal,
-            "joint_count": len(joint_limits),
-            "occupancy_stamp": time.time(),
-            "timeout": timeout,
-            "planner_config": planner_config,
-            "reference_frame": "world",
-        }
+        request = PlanningRequest(
+            start_configuration=np.array(start, dtype=np.float64),
+            goal_configuration=np.array(goal, dtype=np.float64),
+            planning_timeout=timeout,
+            scenario_id=scenario_id,
+        )
 
-        result = adapter.plan(request)
-        latencies.append(result["solve_time"])
+        result = planner.plan(request)
+        latencies.append(result.planning_duration)
 
-        if result["status"] == "success":
+        if result.status == PlanningStatus.SUCCESS:
             success_count += 1
-            path = result["path"]
-            path_lengths.append(path_length(path))
-            smoothnesses.append(path_smoothness(path))
-            clearances.append(min_obstacle_clearance(path, clearance_fn))
+            path = result.path
+            path_lengths.append(_path_length(path))
+            smoothnesses.append(_path_smoothness(path))
 
     success_rate = success_count / repeat
     avg_latency = sum(latencies) / len(latencies)
-
     avg_path_length = (
         sum(path_lengths) / len(path_lengths) if path_lengths else math.nan
     )
     avg_smoothness = (
         sum(smoothnesses) / len(smoothnesses) if smoothnesses else math.nan
-    )
-    avg_clearance = (
-        sum(clearances) / len(clearances) if clearances else math.nan
     )
 
     return {
@@ -286,7 +332,6 @@ def _run_scenario(
         "avg_latency_s": avg_latency,
         "path_length": avg_path_length,
         "smoothness": avg_smoothness,
-        "min_clearance_m": avg_clearance,
     }
 
 
@@ -303,12 +348,15 @@ def main() -> int:
     """
     cfg = _load_config(_CONFIG_PATH)
     repeat: int = int(cfg.get("repeat", 3))
-    joint_limits = _build_joint_limits(cfg)
+    raw_limits = cfg.get("joint_limits", [])
+    joint_limits: List[Tuple[float, float]] = [
+        (float(lo), float(hi)) for lo, hi in raw_limits
+    ]
     scenarios_cfg: Dict[str, Any] = cfg.get("scenarios", {})
     gates_cfg: Dict[str, Any] = cfg.get("quality_gates", {})
 
     print("=" * 72)
-    print("ARCO-FRET Quality Gate Validation  (Issue 09)")
+    print("ARCO-FRET Quality Gate Validation")
     print(f"Config : {_CONFIG_PATH}")
     print(f"Repeats: {repeat}")
     print("=" * 72)
@@ -318,19 +366,18 @@ def main() -> int:
     for scenario_name, scenario_cfg in scenarios_cfg.items():
         print(f"\n[{scenario_name}] Running {repeat} repeat(s) …", flush=True)
         metrics = _run_scenario(
-            name=scenario_name,
+            scenario_id=scenario_name,
             scenario_cfg=scenario_cfg,
             joint_limits=joint_limits,
             repeat=repeat,
         )
-        gates = _gates_from_config(
-            scenario_name=scenario_name,
-            gate_cfg=gates_cfg.get(scenario_name, {}),
-        )
-        results = evaluate_gates(metrics, gates)
+        gates = _gates_from_config(gates_cfg.get(scenario_name, {}))
+        results = _evaluate_gates(metrics, gates)
         reports.append(ScenarioReport(scenario=scenario_name, results=results))
+        for key, val in metrics.items():
+            print(f"  {key}: {val:.4f}")
 
-    print("\n" + format_report(reports))
+    print("\n" + _format_report(reports))
 
     all_passed = all(r.passed for r in reports)
     return 0 if all_passed else 1

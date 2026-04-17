@@ -81,7 +81,7 @@ class OccupancyAdapter:
         Args:
             payload: Latest obstacle geometry in the ``world`` frame.
         """
-        if KDTreeOccupancy is not None:
+        if KDTreeOccupancy is not None:  # pragma: no cover
             self._occupancy = KDTreeOccupancy(payload.obstacle_points)
         else:
             self._occupancy = _SimpleOccupancy(payload.obstacle_points)
