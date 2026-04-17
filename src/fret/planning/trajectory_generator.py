@@ -25,16 +25,16 @@ if TYPE_CHECKING:
 
 try:
     from arco.guidance import (
-        BSplineInterpolator,  # type: ignore[import-untyped]
+        BSplineInterpolator,
     )
-    from arco.planning import (  # type: ignore[import-untyped]
+    from arco.planning import (
         TrajectoryOptimizer,
         TrajectoryPruner,
     )
 except ImportError:
-    TrajectoryOptimizer = None  # type: ignore[assignment, misc]
-    TrajectoryPruner = None  # type: ignore[assignment, misc]
-    BSplineInterpolator = None  # type: ignore[assignment, misc]
+    TrajectoryOptimizer = None
+    TrajectoryPruner = None
+    BSplineInterpolator = None
 
 
 class TrajectoryGenerator:
