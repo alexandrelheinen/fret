@@ -92,6 +92,7 @@ def _generate_arc_trajectory(
             _cartesian_to_pose(start_x, start_y, z_height)
         )
     except RuntimeError:
+        # IK fallback: SCARA home-like pose (arm aligned, z mid-range).
         q_start = np.array([0.0, 0.0, 0.10], dtype=np.float64)
 
     try:
@@ -99,6 +100,8 @@ def _generate_arc_trajectory(
             _cartesian_to_pose(end_x, end_y, z_height)
         )
     except RuntimeError:
+        # IK fallback: slightly rotated from the start fallback so the
+        # interpolated path visits a non-trivial region of C-space.
         q_end = np.array([0.5, 0.0, 0.10], dtype=np.float64)
 
     joint_configs: list[npt.NDArray[np.float64]] = []

@@ -39,6 +39,10 @@ Satisfies requirements FR-PLN-01 through FR-PLN-07 at the ROS level.
 
 from __future__ import annotations
 
+# Nanoseconds per second — used when splitting a float timestamp into
+# (sec, nanosec) fields required by builtin_interfaces/Duration.
+_NS_PER_SEC: int = 1_000_000_000
+
 
 class PlannerRosNode:
     """Level 4 ROS 2 node that auto-triggers ARCO planning at startup.
@@ -259,7 +263,7 @@ class PlannerRosNode:
             ros_pt.velocities = list(getattr(pt, "velocities", []))
             t = float(getattr(pt, "time_from_start", 0.0))
             sec = int(t)
-            nanosec = int((t - sec) * 1_000_000_000)
+            nanosec = int((t - sec) * _NS_PER_SEC)
             ros_pt.time_from_start = Duration(sec=sec, nanosec=nanosec)
             msg.points.append(ros_pt)
 
