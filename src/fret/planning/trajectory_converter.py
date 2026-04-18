@@ -88,7 +88,7 @@ class TrajectoryConverter:
             Values may also be nested under a ``"trajectory"`` sub-key.
     """
 
-    def __init__(self, config: dict | None = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = self._parse_config(config)
         self._control_hz: float = float(cfg["control_hz"])
         self._v_max: npt.NDArray[np.float64] = np.asarray(
@@ -139,7 +139,7 @@ class TrajectoryConverter:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_config(config: dict | None) -> dict[str, Any]:
+    def _parse_config(config: dict[str, Any] | None) -> dict[str, Any]:
         """Merge user config with defaults.
 
         Args:
@@ -213,7 +213,7 @@ class TrajectoryConverter:
             t_cruise = (distance - d_full) / v_max
             return 2.0 * t_accel + t_cruise
         # Triangular profile: peak velocity is limited.
-        return 2.0 * np.sqrt(distance / a_max)
+        return float(2.0 * np.sqrt(distance / a_max))
 
     def _resample(
         self,

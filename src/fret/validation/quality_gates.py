@@ -91,7 +91,9 @@ def evaluate_gates(
     results: list[GateResult] = []
     for gate in gates:
         val = metrics.get(gate.name, math.nan)
-        op_fn = _OPS.get(gate.operator, lambda v, t: False)
+        op_fn: Callable[[float, float], bool] = _OPS.get(
+            gate.operator, lambda v, t: False
+        )
         passed = not math.isnan(val) and op_fn(val, gate.threshold)
         results.append(GateResult(gate=gate, value=val, passed=passed))
     return results
