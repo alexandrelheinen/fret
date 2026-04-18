@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.ros.straight_line_injector import main
+
+main()

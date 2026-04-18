@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.scene.acquisition_node import main
+
+main()

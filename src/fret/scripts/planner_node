@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.planning.planner_node_ros import main
+
+main()

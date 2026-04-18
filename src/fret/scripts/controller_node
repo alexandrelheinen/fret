@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.control.controller_node import main
+
+main()

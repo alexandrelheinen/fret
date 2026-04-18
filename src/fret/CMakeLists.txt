@@ -129,6 +129,19 @@ endif()
 ament_environment_hooks(hooks/fret.sh)
 
 # ---------------------------------------------------------------------------
+# Install Python node entry-point scripts
+# ---------------------------------------------------------------------------
+install(PROGRAMS
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/controller_node
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/scene_acquisition_node
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/planner_node
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/arc_injector
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/straight_line_injector
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/perception_bridge
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# ---------------------------------------------------------------------------
 # Install validation scripts
 # ---------------------------------------------------------------------------
 install(PROGRAMS
