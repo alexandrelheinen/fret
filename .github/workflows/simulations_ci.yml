@@ -197,7 +197,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install "numpy>=1.26" "matplotlib>=3.8"
+          python3 -m pip install "numpy>=1.26" "pyyaml>=6.0" "matplotlib>=3.8"
           python3 -m pip install -e . --no-deps
 
       - name: Run MS-05 simulation

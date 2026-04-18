@@ -102,13 +102,13 @@ class ControllerNode:
             config_path: Path to the YAML file or a directory.  If a
                 directory is given, ``jacobian.yml`` is tried inside it.
         """
-        import yaml  # type: ignore[import-untyped]
-
         path = pathlib.Path(config_path)
         if path.is_dir():
             path = path / "jacobian.yml"
         if not path.is_file():
             return
+        import yaml  # type: ignore[import-untyped]
+
         try:
             with path.open() as fh:
                 data: Any = yaml.safe_load(fh)
