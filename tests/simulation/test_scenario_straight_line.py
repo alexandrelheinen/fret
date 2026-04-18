@@ -23,7 +23,6 @@ from fret.control.controller_node import ControllerNode, _NodeState
 from fret.control.kinematics import Kinematics
 from fret.ros.straight_line_injector import generate_trajectory
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -103,9 +102,9 @@ def test_generate_trajectory_joint_space_is_nonlinear() -> None:
     q2_values = np.array([q[1] for q in configs])
     # q2 should vary significantly (peak > 0.1 rad) since the Cartesian
     # straight line requires elbow bending
-    assert np.max(np.abs(q2_values)) > 0.1, (
-        "q2 did not vary enough — joint space trajectory may be linear"
-    )
+    assert (
+        np.max(np.abs(q2_values)) > 0.1
+    ), "q2 did not vary enough — joint space trajectory may be linear"
 
 
 # ---------------------------------------------------------------------------
@@ -139,9 +138,9 @@ def test_controller_tracking_error_below_5mm() -> None:
         error = ctrl.get_ee_error_m(kin, q_cur)
         max_error = max(max_error, error)
 
-    assert max_error <= 0.005, (
-        f"Maximum EE tracking error {max_error*1000:.2f} mm exceeds 5 mm limit"
-    )
+    assert (
+        max_error <= 0.005
+    ), f"Maximum EE tracking error {max_error*1000:.2f} mm exceeds 5 mm limit"
 
 
 @pytest.mark.timeout(30)
@@ -163,9 +162,9 @@ def test_controller_no_fault_during_tracking() -> None:
 
     for _ in range(len(configs)):
         ctrl.compute_jacobian_command(kin, q_cur)
-        assert ctrl._state != _NodeState.HALTED, (
-            "Controller triggered a fault during straight-line tracking"
-        )
+        assert (
+            ctrl._state != _NodeState.HALTED
+        ), "Controller triggered a fault during straight-line tracking"
         q_cur = q_cur + ctrl._get_current_command() * dt
 
 
@@ -186,9 +185,9 @@ def test_controller_completes_trajectory() -> None:
         q_dot = ctrl.compute_jacobian_command(kin, q_cur)
         q_cur = q_cur + q_dot * dt
 
-    assert ctrl.is_trajectory_complete(), (
-        "Trajectory was not fully consumed after 150 steps"
-    )
+    assert (
+        ctrl.is_trajectory_complete()
+    ), "Trajectory was not fully consumed after 150 steps"
 
 
 @pytest.mark.timeout(30)

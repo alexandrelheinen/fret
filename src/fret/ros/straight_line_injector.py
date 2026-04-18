@@ -129,12 +129,8 @@ class StraightLineInjectorNode:  # pragma: no cover
         msg = JointTrajectory()
         msg.joint_names = list(_JOINT_NAMES)
 
-        from builtin_interfaces.msg import (
-            Duration,
-        )
-        from trajectory_msgs.msg import (
-            JointTrajectoryPoint,
-        )
+        from builtin_interfaces.msg import Duration
+        from trajectory_msgs.msg import JointTrajectoryPoint
 
         for q, t in zip(joint_configs, timestamps):
             pt = JointTrajectoryPoint()

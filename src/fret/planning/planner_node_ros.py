@@ -57,11 +57,7 @@ class PlannerRosNode:  # pragma: no cover
 
     def __init__(self, model: str = "scara") -> None:
         import rclpy.node
-        from rclpy.qos import (
-            DurabilityPolicy,
-            QoSProfile,
-            ReliabilityPolicy,
-        )
+        from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
         from sensor_msgs.msg import JointState
         from trajectory_msgs.msg import JointTrajectory
 

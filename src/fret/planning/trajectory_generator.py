@@ -31,13 +31,8 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 try:
-    from arco.guidance import (
-        BSplineInterpolator,
-    )
-    from arco.planning import (
-        TrajectoryOptimizer,
-        TrajectoryPruner,
-    )
+    from arco.guidance import BSplineInterpolator
+    from arco.planning import TrajectoryOptimizer, TrajectoryPruner
 except ImportError:
     TrajectoryOptimizer = None
     TrajectoryPruner = None

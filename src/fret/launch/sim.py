@@ -30,7 +30,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description() -> LaunchDescription:
     """Return the launch description for the Gazebo simulation configuration."""
     pkg_share = FindPackageShare("fret")
-    gazebo_ros_share = FindPackageShare("gazebo_ros")
+    ros_gz_sim_share = FindPackageShare("ros_gz_sim")
 
     model_arg = DeclareLaunchArgument(
         "model",
@@ -39,8 +39,8 @@ def generate_launch_description() -> LaunchDescription:
     )
     world_arg = DeclareLaunchArgument(
         "world",
-        default_value="empty.world",
-        description="Gazebo world file name",
+        default_value="arco_scenario.sdf",
+        description="Gazebo world file name (relative to fret/worlds/).",
     )
 
     xacro_file = PathJoinSubstitution(
@@ -67,20 +67,23 @@ def generate_launch_description() -> LaunchDescription:
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [gazebo_ros_share, "/launch/gazebo.launch.py"]
+            [ros_gz_sim_share, "/launch/gz_sim.launch.py"]
         ),
         launch_arguments={
-            "world": LaunchConfiguration("world"),
+            "gz_args": PathJoinSubstitution(
+                [pkg_share, "worlds", LaunchConfiguration("world")]
+            ),
+            "on_exit_shutdown": "true",
         }.items(),
     )
 
     spawn_entity = Node(
-        package="gazebo_ros",
-        executable="spawn_entity.py",
+        package="ros_gz_sim",
+        executable="create",
         name="spawn_entity",
         output="screen",
         arguments=[
-            "-entity",
+            "-name",
             LaunchConfiguration("model"),
             "-topic",
             "robot_description",

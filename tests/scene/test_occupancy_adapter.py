@@ -94,4 +94,3 @@ def test_simple_occupancy_multiple_query_points() -> None:
     clr = occ.clearance(queries)
     # Distance from obstacle to q1 = 0.5, to q2 = 0.5 → same clearance
     assert abs(clr - (0.5 - _SimpleOccupancy._CONTACT_RADIUS)) < 1e-9
-

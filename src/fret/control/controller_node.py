@@ -383,9 +383,7 @@ class ControllerRosNode:  # pragma: no cover
             msg: A ``trajectory_msgs/JointTrajectory`` message.
         """
         import numpy as np
-        from trajectory_msgs.msg import (
-            JointTrajectory,
-        )
+        from trajectory_msgs.msg import JointTrajectory
 
         traj_msg: JointTrajectory = msg
         if not traj_msg.points:
@@ -451,9 +449,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """
     import rclpy
     import rclpy.node
-    from ament_index_python.packages import (
-        get_package_share_directory,
-    )
+    from ament_index_python.packages import get_package_share_directory
 
     rclpy.init(args=args)
 

@@ -82,8 +82,8 @@ echo "=== ROS 2 launch smoke tests ==="
 run_smoke_test "view_launch" xvfb-run -a ros2 launch fret view.py model:=scara \
     || FAILED=1
 
-# Gazebo-dependent launches — skip gracefully when gazebo_ros is not installed.
-if ros2 pkg prefix gazebo_ros >/dev/null 2>&1; then
+# Gazebo-dependent launches — skip gracefully when ros_gz_sim is not installed.
+if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
     run_smoke_test "sim_launch"           xvfb-run -a ros2 launch fret sim.py model:=scara \
         || FAILED=1
     run_smoke_test "arco_scenario_launch" xvfb-run -a ros2 launch fret arco_scenario.py \
@@ -91,7 +91,7 @@ if ros2 pkg prefix gazebo_ros >/dev/null 2>&1; then
     run_smoke_test "sitl_launch"          xvfb-run -a ros2 launch fret sitl.py \
         || FAILED=1
 else
-    info "gazebo_ros not found — skipping Gazebo-dependent smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
+    info "ros_gz_sim not found — skipping Gazebo-dependent smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
 fi
 
 echo "======================================"

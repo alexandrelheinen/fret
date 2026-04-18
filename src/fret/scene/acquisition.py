@@ -66,9 +66,7 @@ class SceneAcquisition:
             msg: A ``sensor_msgs/PointCloud2`` message.
         """
         try:
-            from sensor_msgs_py.point_cloud2 import (
-                read_points_numpy,
-            )
+            from sensor_msgs_py.point_cloud2 import read_points_numpy
 
             pts = read_points_numpy(
                 msg,

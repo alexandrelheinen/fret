@@ -22,7 +22,6 @@ import pytest
 from fret.control.controller_node import ControllerNode, _NodeState
 from fret.control.kinematics import Kinematics
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -308,4 +307,6 @@ def test_jacobian_tracking_reduces_error_over_time(
 
     final_error = ctrl.get_ee_error_m(kin, q_cur)
     # Error must decrease — the controller converges
-    assert final_error < initial_error or math.isclose(final_error, 0.0, abs_tol=1e-6)
+    assert final_error < initial_error or math.isclose(
+        final_error, 0.0, abs_tol=1e-6
+    )

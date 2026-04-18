@@ -35,7 +35,6 @@ from fret.control.controller_node import ControllerNode
 from fret.control.kinematics import Kinematics
 from fret.ros.straight_line_injector import generate_trajectory
 
-
 # ---------------------------------------------------------------------------
 # Simulation parameters
 # ---------------------------------------------------------------------------
@@ -75,7 +74,9 @@ def simulate(
             ``ee_error_m``  — (N,) EE position error in metres
     """
     kin = Kinematics("scara")
-    configs, timestamps = generate_trajectory(n_waypoints=n_waypoints, duration=duration)
+    configs, timestamps = generate_trajectory(
+        n_waypoints=n_waypoints, duration=duration
+    )
     n = len(configs)
 
     ctrl = ControllerNode(model="scara", config_path="")
@@ -86,8 +87,8 @@ def simulate(
     q_cur = configs[0].copy()
 
     times = np.array(timestamps, dtype=np.float64)
-    q_ref_arr = np.array(configs, dtype=np.float64)            # (N, 3)
-    q_exec_arr = np.zeros_like(q_ref_arr)                      # (N, 3)
+    q_ref_arr = np.array(configs, dtype=np.float64)  # (N, 3)
+    q_exec_arr = np.zeros_like(q_ref_arr)  # (N, 3)
     x_ref_arr = np.zeros((n, 3), dtype=np.float64)
     x_exec_arr = np.zeros((n, 3), dtype=np.float64)
     ee_error = np.zeros(n, dtype=np.float64)
@@ -129,6 +130,7 @@ def make_plots(data: dict[str, np.ndarray], output_path: pathlib.Path) -> None:
     """
     try:
         import matplotlib
+
         matplotlib.use("Agg")  # headless rendering
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
@@ -160,15 +162,33 @@ def make_plots(data: dict[str, np.ndarray], output_path: pathlib.Path) -> None:
     # ------------------------------------------------------------------
     ax1 = fig.add_subplot(1, 3, 1, projection="3d")
     ax1.plot(
-        x_ref[:, 0], x_ref[:, 1], x_ref[:, 2],
-        "b-", linewidth=2, label="Reference",
+        x_ref[:, 0],
+        x_ref[:, 1],
+        x_ref[:, 2],
+        "b-",
+        linewidth=2,
+        label="Reference",
     )
     ax1.plot(
-        x_exec[:, 0], x_exec[:, 1], x_exec[:, 2],
-        "r--", linewidth=1.5, label="Executed",
+        x_exec[:, 0],
+        x_exec[:, 1],
+        x_exec[:, 2],
+        "r--",
+        linewidth=1.5,
+        label="Executed",
     )
-    ax1.scatter(x_ref[0, 0], x_ref[0, 1], x_ref[0, 2], color="blue", s=50, zorder=5)
-    ax1.scatter(x_ref[-1, 0], x_ref[-1, 1], x_ref[-1, 2], color="blue", marker="^", s=60, zorder=5)
+    ax1.scatter(
+        x_ref[0, 0], x_ref[0, 1], x_ref[0, 2], color="blue", s=50, zorder=5
+    )
+    ax1.scatter(
+        x_ref[-1, 0],
+        x_ref[-1, 1],
+        x_ref[-1, 2],
+        color="blue",
+        marker="^",
+        s=60,
+        zorder=5,
+    )
     ax1.set_xlabel("x [m]")
     ax1.set_ylabel("y [m]")
     ax1.set_zlabel("z [m]")  # type: ignore[attr-defined]
@@ -183,26 +203,41 @@ def make_plots(data: dict[str, np.ndarray], output_path: pathlib.Path) -> None:
         np.degrees(q_ref[:, 0]),
         np.degrees(q_ref[:, 1]),
         q_ref[:, 2],
-        "b-", linewidth=2, label="Reference",
+        "b-",
+        linewidth=2,
+        label="Reference",
     )
     ax2.plot(
         np.degrees(q_exec[:, 0]),
         np.degrees(q_exec[:, 1]),
         q_exec[:, 2],
-        "r--", linewidth=1.5, label="Executed",
+        "r--",
+        linewidth=1.5,
+        label="Executed",
     )
     ax2.scatter(
-        np.degrees(q_ref[0, 0]), np.degrees(q_ref[0, 1]), q_ref[0, 2],
-        color="blue", s=50, zorder=5,
+        np.degrees(q_ref[0, 0]),
+        np.degrees(q_ref[0, 1]),
+        q_ref[0, 2],
+        color="blue",
+        s=50,
+        zorder=5,
     )
     ax2.scatter(
-        np.degrees(q_ref[-1, 0]), np.degrees(q_ref[-1, 1]), q_ref[-1, 2],
-        color="blue", marker="^", s=60, zorder=5,
+        np.degrees(q_ref[-1, 0]),
+        np.degrees(q_ref[-1, 1]),
+        q_ref[-1, 2],
+        color="blue",
+        marker="^",
+        s=60,
+        zorder=5,
     )
     ax2.set_xlabel("q1 [°]")
     ax2.set_ylabel("q2 [°]")
     ax2.set_zlabel("q3 [m]")  # type: ignore[attr-defined]
-    ax2.set_title("C-space (q1, q2, q3)\nnonlinear ≠ straight line", fontsize=11)
+    ax2.set_title(
+        "C-space (q1, q2, q3)\nnonlinear ≠ straight line", fontsize=11
+    )
     ax2.legend(loc="upper left", fontsize=9)
 
     # ------------------------------------------------------------------
@@ -216,10 +251,21 @@ def make_plots(data: dict[str, np.ndarray], output_path: pathlib.Path) -> None:
     for j in range(3):
         y_ref = np.degrees(q_ref[:, j]) if j < 2 else q_ref[:, j]
         y_exec = np.degrees(q_exec[:, j]) if j < 2 else q_exec[:, j]
-        ax3.plot(times, y_ref, color=colors_ref[j], linewidth=2,
-                 label=f"ref {joint_labels[j]}")
-        ax3.plot(times, y_exec, color=colors_exec[j], linewidth=1.5,
-                 linestyle="--", label=f"exec {joint_labels[j]}")
+        ax3.plot(
+            times,
+            y_ref,
+            color=colors_ref[j],
+            linewidth=2,
+            label=f"ref {joint_labels[j]}",
+        )
+        ax3.plot(
+            times,
+            y_exec,
+            color=colors_exec[j],
+            linewidth=1.5,
+            linestyle="--",
+            label=f"exec {joint_labels[j]}",
+        )
 
     ax3.set_xlabel("Time [s]")
     ax3.set_ylabel("Joint value")
@@ -248,12 +294,16 @@ def print_summary(data: dict[str, np.ndarray]) -> None:
     print(f"  Waypoints:             {len(data['times'])}")
     print(f"  Max EE error:          {np.max(ee)*1000:.2f} mm  (limit: 5 mm)")
     print(f"  RMS EE error:          {np.sqrt(np.mean(ee**2))*1000:.2f} mm")
-    print(f"  q2 peak (nonlinearity) {np.degrees(np.max(np.abs(q_ref[:, 1]))):.1f} °")
+    print(
+        f"  q2 peak (nonlinearity) {np.degrees(np.max(np.abs(q_ref[:, 1]))):.1f} °"
+    )
     print(f"  PASS (EE ≤ 5 mm):      {'YES' if np.max(ee) <= 0.005 else 'NO'}")
     print("=" * 60)
 
 
-def save_results(data: dict[str, np.ndarray], results_file: pathlib.Path) -> None:
+def save_results(
+    data: dict[str, np.ndarray], results_file: pathlib.Path
+) -> None:
     """Write simulation metrics to a KEY=VALUE env file.
 
     The file is consumed by ``scripts/post_milestone1_report.sh`` to build
