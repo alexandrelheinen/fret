@@ -174,7 +174,7 @@ Full QoS profile specifications are in [docs/interfaces.md](interfaces.md).
 | `docs/arco/` (entire folder) | 🗑 Delete | Old milestone specs, superseded by `docs/arco.md` |
 | `src/fret.egg-info/` | 🗑 Ignore | Build artifact, in `.gitignore` |
 
-### Proposed source tree
+### Source tree
 
 ```
 src/fret/
@@ -182,49 +182,64 @@ src/fret/
 ├── package.xml                  ← ROS 2 manifest
 ├── __init__.py                  ← package marker (empty)
 │
-├── urdf/                        ← robot descriptions (unchanged)
+├── urdf/                        ← robot descriptions
 │   └── scara.xacro
 │
-├── mesh/                        ← build-time STL generators (unchanged)
+├── mesh/                        ← build-time STL generators
 │   └── scara.py
-│
-├── rviz/                        ← RViz configurations (unchanged)
-│   ├── default.rviz
-│   └── scara.rviz
-│
-├── hooks/                       ← ROS 2 environment hooks (unchanged)
-│   └── fret.sh
 │
 ├── launch/                      ← all Python launch files
 │   ├── view.py                  ← RViz visualization (model:=)
 │   ├── sim.py                   ← Gazebo simulation (model:=)
 │   ├── sitl.py                  ← full SITL pipeline (scenario:=, model:=)
-│   └── hardware.py              ← HITL / physical stack (future)
+│   └── hardware.py              ← HITL / physical stack (Phase 3)
 │
 ├── config/                      ← YAML parameter files
 │   ├── scenarios/               ← one YAML per runnable scenario
-│   │   └── pick_place.yml
-│   └── controllers/             ← gain files per controller type
-│       └── jacobian.yml
+│   │   ├── static_reach.yml
+│   │   ├── straight_line.yml
+│   │   ├── arc.yml
+│   │   ├── obstacle_avoidance.yml
+│   │   └── planning_timeout.yml
+│   ├── controllers/             ← gain files per controller type
+│   │   └── jacobian.yml
+│   ├── perception.yaml          ← obstacle definitions for PerceptionBridgeNode
+│   ├── benchmark.yaml           ← quality gate thresholds
+│   └── trajectory.yaml          ← trajectory post-processing config
 │
 ├── scene/                       ← Scene Acquisition layer
 │   ├── __init__.py
 │   ├── acquisition.py           ← PointCloud → world-frame obstacle set
-│   └── occupancy_adapter.py     ← FRET adapter: C-space KDTreeOccupancy
+│   ├── acquisition_node.py      ← ROS 2 node wrapper
+│   ├── occupancy_adapter.py     ← FRET adapter: C-space KDTreeOccupancy
+│   └── workspace_occupancy.py  ← 20 cm voxel-grid occupancy builder
 │
 ├── planning/                    ← Planning layer (wraps ARCO)
 │   ├── __init__.py
-│   ├── planner_node.py          ← ROS 2 Action server
+│   ├── planner_node.py          ← pure-Python planning core (Level 3)
+│   ├── planner_node_ros.py      ← ROS 2 Action server (Level 4)
 │   ├── cspace_checker.py        ← FK + KDTreeOccupancy collision check
-│   └── trajectory_generator.py ← pruner + optimizer + B-spline
+│   ├── trajectory_generator.py  ← pruner + optimizer + B-spline
+│   ├── trajectory_converter.py  ← trapezoidal velocity profiles
+│   └── replanning_manager.py   ← replanning FSM
 │
 ├── control/                     ← Control layer
 │   ├── __init__.py
-│   ├── controller_node.py       ← ROS 2 node: trajectory tracking
-│   ├── kinematics.py            ← FK, IK, Jacobian for each robot model
-│   └── state_estimator.py       ← joint states → EE pose + velocity
+│   ├── controller_node.py       ← ControllerNode (L3) + ControllerRosNode (L4)
+│   ├── kinematics.py            ← FK, IK, Jacobian for SCARA RRP
+│   └── state_estimator.py       ← joint states → EE pose + TF2 broadcast
 │
-└── hardware/                    ← Hardware layer (future, phase 3)
+├── ros/                         ← ROS bridge nodes
+│   ├── perception_bridge.py     ← obstacle cloud publisher (from config YAML)
+│   ├── straight_line_injector.py← Milestone 1 trajectory injector
+│   └── arc_injector.py          ← SC-05 arc trajectory injector
+│
+├── validation/                  ← Metrics and quality gates
+│   ├── __init__.py
+│   ├── metrics.py               ← path_length, tracking_rmse, clearance, ...
+│   └── quality_gates.py        ← QualityGate, GateResult, evaluate_gates
+│
+└── hardware/                    ← Hardware layer (Phase 3, stub)
     ├── __init__.py
     └── bridge_node.py           ← serial / Micro-ROS bridge to Arduino
 ```
