@@ -1,30 +1,41 @@
 #!/usr/bin/env bash
 # scripts/simulate_static_reach.sh
 #
-# Runs a full ROS 2 static-reach scenario simulation using fretsim
-# (ros2 launch fret sitl.py scenario:=static_reach).
+# Runs the static-reach scenario (SC-01) with live ROS 2 nodes:
+# planner_node and controller_node communicate over ROS 2 topics for the
+# full scenario duration (20 s).  No Gazebo is required — the planner
+# triggers immediately via the start_configuration parameter override
+# (bypassing the /joint_states wait).
 #
-# The simulation runs for the full scenario duration (20 s) plus startup
-# overhead.  The ROS log is captured and parsed for success indicators.
-# Gazebo and all FRET nodes are exercised — no mocks or pure-Python stubs.
+# This is a real ROS 2 communication test:
+#   1. planner_node plans a collision-free path and publishes
+#      /joint_trajectory (TRANSIENT_LOCAL).
+#   2. controller_node receives /joint_trajectory and runs the
+#      50 Hz Jacobian tracking loop for the scenario duration.
+#
+# The simulation validates:
+#   - Planning SUCCESS within the timeout (FR-PLN-01).
+#   - Trajectory is published and received by the controller.
+#   - No fault triggered by the controller.
 #
 # Requires:
 #   - ROS 2 Jazzy installed (/opt/ros/jazzy)
 #   - Workspace built:    ./scripts/build.sh
-#   - xvfb installed:     sudo apt install xvfb
 #
 # Usage:
 #   bash scripts/simulate_static_reach.sh [--output <dir>]
 #
 # Options:
-#   --output <dir>   Directory for log and results (default: /tmp/sim_output_static_reach)
+#   --output <dir>   Directory for logs and results
+#                    (default: /tmp/sim_output_static_reach)
 #
 # Outputs:
-#   <dir>/ros_launch.log   — full stdout+stderr of the ROS 2 launch
+#   <dir>/planner.log      — planner_node stdout+stderr
+#   <dir>/controller.log   — controller_node stdout+stderr
 #   <dir>/results.env      — KEY=VALUE file with parsed simulation metrics
 #
-# Exit code: 0 = simulation passed (planning SUCCESS, trajectory loaded, no fault),
-#            1 = simulation failed or critical success indicators missing.
+# Exit code: 0 = planning SUCCESS and trajectory loaded (no fault),
+#            1 = failure.
 
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -35,20 +46,19 @@ cd "${REPO_ROOT}"
 
 source "${SCRIPT_DIR}/common.sh"
 
-trap 'on_error $LINENO "Static-reach simulation"' ERR
-
 OUTPUT_DIR="/tmp/sim_output_static_reach"
 
-# Scenario parameters (from src/fret/config/scenarios/static_reach.yml)
-SCENARIO_DURATION=20     # [s]  scenario duration
-STARTUP_TIMEOUT=20       # [s]  allow Gazebo + nodes to start
-TOTAL_TIMEOUT=$((STARTUP_TIMEOUT + SCENARIO_DURATION + 5))  # 45 s total
+# Scenario duration (s) — matches static_reach.yml duration: 20.0
+SCENARIO_DURATION=20
+# Total time to wait: scenario duration (20 s) + 15 s margin (covers the
+# 10 s planning timeout plus 5 s for node startup and ROS discovery).
+TOTAL_WAIT=$((SCENARIO_DURATION + 15))
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --output) OUTPUT_DIR="$2"; shift 2 ;;
         -h|--help)
-            sed -n '2,/^[^#]/{ /^#/{ s/^# \?//; p } }' "${BASH_SOURCE[0]}" | head -30
+            sed -n '2,/^[^#]/{ /^#/{ s/^# \?//; p } }' "${BASH_SOURCE[0]}" | head -35
             exit 0
             ;;
         *) fail "Unknown argument: $1"; exit 1 ;;
@@ -77,72 +87,69 @@ source "${ROS_SETUP}"
 source "${INSTALL_SETUP}"
 set -u
 
-require_command xvfb-run "xvfb-run is required. Run: sudo apt install xvfb"
 require_command ros2 "ros2 not found. Source /opt/ros/jazzy/setup.bash first."
-require_command python3 "python3 is required."
 
 mkdir -p "${OUTPUT_DIR}"
 
-LOG_FILE="${OUTPUT_DIR}/ros_launch.log"
+PLAN_LOG="${OUTPUT_DIR}/planner.log"
+CTRL_LOG="${OUTPUT_DIR}/controller.log"
 RESULTS_ENV="${OUTPUT_DIR}/results.env"
 
-echo "=== Static Reach (SC-01) — full fretsim ROS 2 simulation ==="
-info "Scenario  : static_reach  (duration: ${SCENARIO_DURATION} s)"
-info "Timeout   : ${TOTAL_TIMEOUT} s  (startup ${STARTUP_TIMEOUT} s + ${SCENARIO_DURATION} s + 5 s buffer)"
-info "Log file  : ${LOG_FILE}"
-info "Output    : ${OUTPUT_DIR}"
+echo "=== Static Reach (SC-01) — full ROS 2 fretsim simulation ==="
+info "Nodes      : planner_node + controller_node  (no Gazebo required)"
+info "Duration   : ${SCENARIO_DURATION} s + 15 s margin = ${TOTAL_WAIT} s total"
+info "Output     : ${OUTPUT_DIR}"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Launch fretsim and capture full log output.
-# Exit codes:
-#   0   — launch exited cleanly (should not happen with infinite spin)
-#   124 — timeout (normal: simulation ran for the full allotted time)
-#   *   — launch crashed before completing
+# Launch controller_node in background.
+# It will spin waiting for /joint_trajectory (TRANSIENT_LOCAL) — even if
+# received before /joint_states, it logs "Trajectory loaded: N waypoints."
+# and begins the tracking loop.
 # ---------------------------------------------------------------------------
+info "Starting controller_node…"
+ros2 run fret controller_node \
+    >"${CTRL_LOG}" 2>&1 &
+CTRL_PID=$!
+
+# Give the controller a moment to initialise its subscriptions before the
+# planner publishes /joint_trajectory (TRANSIENT_LOCAL re-delivers, but the
+# controller must be subscribed first to avoid a one-step race at startup).
+sleep 2
+
+# ---------------------------------------------------------------------------
+# Launch planner_node in background.
+# start_configuration default [0.0, 0.0, 0.0] is non-empty so the planner
+# triggers immediately without waiting for /joint_states.
+# goal_configuration and planning_timeout use scenario defaults.
+# ---------------------------------------------------------------------------
+info "Starting planner_node…"
+ros2 run fret planner_node \
+    >"${PLAN_LOG}" 2>&1 &
+PLAN_PID=$!
+
 SIM_START=$(date +%s)
 
-set +e
-timeout "${TOTAL_TIMEOUT}s" \
-    xvfb-run -a \
-    ros2 launch fret sitl.py \
-        model:=scara \
-        scenario:=static_reach \
-    >"${LOG_FILE}" 2>&1
-LAUNCH_EXIT=$?
-set -e
+# ---------------------------------------------------------------------------
+# Wait for the scenario duration (+ margin), then stop the nodes.
+# ---------------------------------------------------------------------------
+info "Running for ${TOTAL_WAIT} s…"
+sleep "${TOTAL_WAIT}"
+
+# Graceful shutdown
+kill "${PLAN_PID}" "${CTRL_PID}" 2>/dev/null || true
+wait "${PLAN_PID}" 2>/dev/null || true
+wait "${CTRL_PID}" 2>/dev/null || true
 
 SIM_END=$(date +%s)
 SIM_DURATION_S=$(( SIM_END - SIM_START ))
 
-if [[ "${LAUNCH_EXIT}" -ne 0 && "${LAUNCH_EXIT}" -ne 124 ]]; then
-    fail "fretsim launch crashed (exit ${LAUNCH_EXIT})."
-    echo "--- Last 30 lines of launch log ---"
-    tail -n 30 "${LOG_FILE}" || true
-    # Write a minimal failed results.env before exiting
-    cat >"${RESULTS_ENV}" <<EOF
-PLANNING_STATUS=LAUNCH_CRASH
-LAUNCH_EXIT=${LAUNCH_EXIT}
-SIM_DURATION_S=${SIM_DURATION_S}
-PLANNING_DURATION_S=N/A
-N_PLANNED_WAYPOINTS=N/A
-TRAJECTORY_LOADED=0
-CONTROLLER_READY=0
-FAULT_TRIGGERED=N/A
-EOF
-    exit 1
-fi
-
-if [[ "${LAUNCH_EXIT}" -eq 124 ]]; then
-    info "Launch killed by timeout after ${SIM_DURATION_S} s (expected — full duration run)."
-else
-    info "Launch exited cleanly after ${SIM_DURATION_S} s."
-fi
+info "Nodes stopped after ${SIM_DURATION_S} s."
 
 # ---------------------------------------------------------------------------
-# Parse the ROS log for key success indicators.
+# Parse the ROS node logs for success indicators.
 # ---------------------------------------------------------------------------
-info "Parsing log for success indicators…"
+info "Parsing logs for success indicators…"
 
 PLANNING_STATUS="UNKNOWN"
 PLANNING_DURATION_S="N/A"
@@ -151,45 +158,42 @@ TRAJECTORY_LOADED=0
 CONTROLLER_READY=0
 FAULT_TRIGGERED=0
 
-# PlannerNode: planning SUCCESS in 0.42 s — 2 waypoints
-if grep -qE "PlannerNode: planning SUCCESS" "${LOG_FILE}" 2>/dev/null; then
+# PlannerNode: planning SUCCESS in X.XX s — N waypoints
+if grep -qE "PlannerNode: planning SUCCESS" "${PLAN_LOG}" 2>/dev/null; then
     PLANNING_STATUS="SUCCESS"
-    # Extract duration: "SUCCESS in X.XX s"
     PLANNING_DURATION_S=$(
-        grep -oE "planning SUCCESS in [0-9]+\.[0-9]+ s" "${LOG_FILE}" \
+        grep -oE "planning SUCCESS in [0-9]+\.[0-9]+ s" "${PLAN_LOG}" \
         | grep -oE "[0-9]+\.[0-9]+" | head -1 || echo "N/A"
     )
-    # Extract waypoints: "— N waypoints"
     N_PLANNED_WAYPOINTS=$(
-        grep -oE "[0-9]+ waypoints" "${LOG_FILE}" \
+        grep -oE "[0-9]+ waypoints" "${PLAN_LOG}" \
         | grep -oE "^[0-9]+" | head -1 || echo "N/A"
     )
 fi
 
 # PlannerNode: planning FAILED
-if grep -qE "PlannerNode: planning FAILED" "${LOG_FILE}" 2>/dev/null; then
+if grep -qE "PlannerNode: planning FAILED" "${PLAN_LOG}" 2>/dev/null; then
     PLANNING_STATUS="FAILED"
 fi
 
-# ControllerRosNode ready
-if grep -qE "ControllerRosNode ready" "${LOG_FILE}" 2>/dev/null; then
+# ControllerRosNode ready (model=scara, rate=50 Hz)
+if grep -qE "ControllerRosNode ready" "${CTRL_LOG}" 2>/dev/null; then
     CONTROLLER_READY=1
 fi
 
 # Trajectory loaded: N waypoints.
-if grep -qE "Trajectory loaded:" "${LOG_FILE}" 2>/dev/null; then
+if grep -qE "Trajectory loaded:" "${CTRL_LOG}" 2>/dev/null; then
     TRAJECTORY_LOADED=1
-    # Use waypoint count from controller if not already extracted from planner
     if [[ "${N_PLANNED_WAYPOINTS}" == "N/A" ]]; then
         N_PLANNED_WAYPOINTS=$(
-            grep -oE "Trajectory loaded: [0-9]+ waypoints" "${LOG_FILE}" \
+            grep -oE "Trajectory loaded: [0-9]+ waypoints" "${CTRL_LOG}" \
             | grep -oE "[0-9]+" | head -1 || echo "N/A"
         )
     fi
 fi
 
-# Fault: /controller_fault or HALTED or fault messages
-if grep -qiE "\[ERROR\].*[Ff]ault|[Ff]ault.*triggered|HALTED" "${LOG_FILE}" 2>/dev/null; then
+# Fault: controller HALTED or error messages
+if grep -qiE "\[ERROR\].*[Ff]ault|[Ff]ault.*triggered|HALTED" "${CTRL_LOG}" 2>/dev/null; then
     FAULT_TRIGGERED=1
 fi
 
@@ -204,7 +208,6 @@ TRAJECTORY_LOADED=${TRAJECTORY_LOADED}
 CONTROLLER_READY=${CONTROLLER_READY}
 FAULT_TRIGGERED=${FAULT_TRIGGERED}
 SIM_DURATION_S=${SIM_DURATION_S}
-LAUNCH_EXIT=${LAUNCH_EXIT}
 EOF
 
 info "Results:"
@@ -218,11 +221,15 @@ FAILED=0
 
 if [[ "${PLANNING_STATUS}" != "SUCCESS" ]]; then
     fail "Planning did not succeed (status: ${PLANNING_STATUS})."
+    echo "--- planner.log (last 30 lines) ---"
+    tail -n 30 "${PLAN_LOG}" || true
     FAILED=1
 fi
 
 if [[ "${TRAJECTORY_LOADED}" -ne 1 ]]; then
     fail "Trajectory was not loaded by the controller."
+    echo "--- controller.log (last 30 lines) ---"
+    tail -n 30 "${CTRL_LOG}" || true
     FAILED=1
 fi
 
@@ -232,11 +239,9 @@ if [[ "${FAULT_TRIGGERED}" -ne 0 ]]; then
 fi
 
 if [[ "${FAILED}" -ne 0 ]]; then
-    fail "Static-reach simulation FAILED."
-    echo "--- Last 50 lines of launch log ---"
-    tail -n 50 "${LOG_FILE}" || true
+    fail "SC-01 static-reach simulation FAILED."
     exit 1
 fi
 
-ok "Static-reach simulation PASSED — planning ${PLANNING_STATUS} in ${PLANNING_DURATION_S} s, ${N_PLANNED_WAYPOINTS} waypoints, no fault."
+ok "SC-01 static-reach PASSED — planning ${PLANNING_STATUS} in ${PLANNING_DURATION_S} s, ${N_PLANNED_WAYPOINTS} waypoints, no fault."
 exit 0

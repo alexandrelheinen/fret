@@ -74,10 +74,19 @@ add_custom_target(generate_urdfs  ALL DEPENDS ${GENERATED_URDF_FILES})
 add_custom_target(generate_meshes ALL DEPENDS ${MESH_STAMPS})
 
 # ---------------------------------------------------------------------------
-# Install generated URDFs
+# Install generated URDFs and XACRO source files.
+# sim.py calls `xacro <pkg_share>/urdf/<model>.xacro` at launch time, so
+# the source .xacro files must be present in the install tree alongside the
+# pre-generated .urdf files.
 # ---------------------------------------------------------------------------
 install(FILES ${GENERATED_URDF_FILES}
   DESTINATION share/${PROJECT_NAME}/urdf
+)
+
+install(
+  DIRECTORY urdf/
+  DESTINATION share/${PROJECT_NAME}/urdf
+  FILES_MATCHING PATTERN "*.xacro"
 )
 
 # ---------------------------------------------------------------------------
