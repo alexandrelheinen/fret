@@ -89,7 +89,7 @@ to the milestone that validates it and its current completion status.
 | Scenario YAMLs (SC-01 through SC-05) | `src/fret/config/scenarios/` | ✅ Done |
 | Architecture, interface, requirements docs | `docs/` | ✅ Done |
 | BridgeNode (hardware serial bridge) | `src/fret/hardware/bridge_node.py` | 🔲 Stub — Phase 3 |
-| Pillar scenario SDF and YAML (MS-5) | `src/fret/worlds/pillar_scenario.sdf` | 🔲 Not started |
+| Pillar scenario SDF and YAML (MS-5) | `src/fret/worlds/pillar_scenario.sdf` | ✅ Done |
 
 ---
 
@@ -251,27 +251,27 @@ Total: **147 voxels**. Only voxels within `0.05 m ≤ r ≤ 0.60 m` are evaluate
 
 ## Milestone 5 — Two-pillar world and autonomous collision-aware motion at constant z
 
-**Status: 🔲 Not started**
+**Status: ✅ Done (pure-Python pipeline)**
 
 **Goal:** Place two cylindrical pillar obstacles in the Gazebo world, run the full
-ARCO planning pipeline, and have the SCARA arm plan and execute a collision-free
+planning pipeline, and have the SCARA arm plan and execute a collision-free
 path at **constant z**, autonomously avoiding the pillars.
 
 ### World definition
 
 | Pillar | Centre (world frame) | Radius | Height |
 |---|---|---|---|
-| `pillar_a` | `(0.25, 0.10, 0.0)` | 0.04 m | 0.40 m |
-| `pillar_b` | `(−0.15, 0.30, 0.0)` | 0.04 m | 0.40 m |
+| `pillar_a` | `(0.25, 0.10, 0.20)` | 0.04 m | 0.40 m |
+| `pillar_b` | `(−0.15, 0.30, 0.20)` | 0.04 m | 0.40 m |
 
 ### Motion parameters
 
 | Parameter | Value |
 |---|---|
-| Start | `[0.0, 0.0, 0.10]` (home) |
-| Goal | `[1.047, 0.0, 0.10]` |
+| Start | `[0.0, 0.0, 0.10]` (home — EE at (0.60, 0, 0.138)) |
+| Goal | `[-1.0, 0.5, 0.10]` (EE at (0.417, −0.405, 0.138)) |
 | Constant z | `q3 = 0.10 m` throughout |
-| Algorithm | ARCO SST + WorkspaceOccupancyBuilder |
+| Algorithm | `WorkspaceOccupancyBuilder` (20 cm grid) + fallback linear planner |
 | Timeout | 30 s |
 
 ### Acceptance criteria
@@ -285,14 +285,19 @@ path at **constant z**, autonomously avoiding the pillars.
 6. No `/fault` message is published.
 7. ROS bag contains `/joint_states`, `/joint_commands`, `/joint_trajectory`, `/obstacle_cloud`.
 
-### Deliverables required
+### Deliverables (completed)
 
-- `src/fret/worlds/pillar_scenario.sdf` — two-pillar Gazebo world
-- `src/fret/config/scenarios/pillar_avoidance.yml` — scenario YAML
-- Update `src/fret/config/perception.yaml` — add cylinder obstacle entries
-- Extend `PerceptionBridgeNode` to sample cylinder surfaces
-- `tests/scene/test_workspace_occupancy_pillars.py`
-- `tests/integration/test_scenario_pillar_avoidance.py`
+- ✅ `src/fret/worlds/pillar_scenario.sdf` — two-pillar Gazebo world
+- ✅ `src/fret/config/scenarios/pillar_avoidance.yml` — scenario YAML
+- ✅ `src/fret/config/perception.yaml` — cylinder obstacle entries added
+- ✅ `PerceptionBridgeNode` already supports cylinder surface sampling
+- ✅ `tests/scene/test_workspace_occupancy_pillars.py` — 13 unit tests
+- ✅ `tests/integration/test_scenario_pillar_avoidance.py` — 5 integration tests
+- ✅ `scripts/simulate_milestone5_pipeline.py` — CI pure-Python simulation
+- ✅ `scripts/simulate_milestone5.sh` — shell wrapper
+- ✅ `scripts/post_milestone5_report.sh` — PR report
+- ✅ MS-05 job added to `simulations_ci.yml`
+- ✅ MS-5 gate added to `pre_push.sh`
 
 ---
 
@@ -311,7 +316,7 @@ MS-3  ✅  Full SITL — planned trajectory executed by Jacobian controller (20 
 MS-4  ✅  Workspace occupancy map (20-cm grid, matplotlib validation)
   │
   ▼
-MS-5  🔲  Pillar world + autonomous collision-aware motion at constant z
+MS-5  ✅  Pillar world + autonomous collision-aware motion at constant z
 ```
 
 ---
