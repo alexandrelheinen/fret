@@ -1,0 +1,118 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="pillar_scenario">
+
+    <gravity>0 0 -9.81</gravity>
+
+    <physics name="default_physics" default="true" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Pillar A: r=0.04 m, h=0.40 m, centred at (0.25, 0.10, 0.20) -->
+    <model name="pillar_a">
+      <static>true</static>
+      <pose>0.25 0.10 0.20 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.40</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.40</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.8 0.4 0.0 1</ambient>
+            <diffuse>0.8 0.4 0.0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Pillar B: r=0.04 m, h=0.40 m, centred at (-0.15, 0.30, 0.20) -->
+    <model name="pillar_b">
+      <static>true</static>
+      <pose>-0.15 0.30 0.20 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.40</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.04</radius>
+              <length>0.40</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.8 0.4 0.0 1</ambient>
+            <diffuse>0.8 0.4 0.0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Start region: green visual-only sphere at arm rest pose EE -->
+    <model name="region_start">
+      <static>true</static>
+      <pose>0.60 0.0 0.138 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.03</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.0 0.8 0.0 0.6</ambient>
+            <diffuse>0.0 0.8 0.0 0.6</diffuse>
+          </material>
+          <transparency>0.4</transparency>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Target region: red visual-only sphere at goal EE position -->
+    <model name="region_target">
+      <static>true</static>
+      <pose>0.417 -0.405 0.138 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.03</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.8 0.0 0.0 0.6</ambient>
+            <diffuse>0.8 0.0 0.0 0.6</diffuse>
+          </material>
+          <transparency>0.4</transparency>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

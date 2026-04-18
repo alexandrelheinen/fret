@@ -10,10 +10,11 @@
 #   3. simulate_milestone2.sh     — Milestone 2 pure-Python planning simulation (no ROS)
 #   4. simulate_milestone3.sh     — Milestone 3 pure-Python end-to-end simulation (no ROS)
 #   5. simulate_milestone4.sh     — Milestone 4 pure-Python workspace occupancy simulation (no ROS)
-#   6. simulate_arc.sh            — Arc scenario (SC-05) pure-Python simulation (no ROS)
-#   7. run_tests.sh               — pytest unit tests + quality gates  [requires ROS]
-#   8. run_smoke_tests.sh         — ROS 2 launch smoke tests            [requires ROS]
-#   9. simulate_static_reach.sh   — SC-01 full fretsim ROS 2 simulation [requires ROS]
+#   6. simulate_milestone5.sh     — Milestone 5 pure-Python pillar-avoidance simulation (no ROS)
+#   7. simulate_arc.sh            — Arc scenario (SC-05) pure-Python simulation (no ROS)
+#   8. run_tests.sh               — pytest unit tests + quality gates  [requires ROS]
+#   9. run_smoke_tests.sh         — ROS 2 launch smoke tests            [requires ROS]
+#  10. simulate_static_reach.sh   — SC-01 full fretsim ROS 2 simulation [requires ROS]
 #
 # Usage:
 #   bash scripts/pre_push.sh [--skip-ros]
@@ -70,6 +71,7 @@ run_gate "Type check (mypy)"                          "${SCRIPT_DIR}/check_types
 run_gate "Milestone 2 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone2.sh"
 run_gate "Milestone 3 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone3.sh"
 run_gate "Milestone 4 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone4.sh"
+run_gate "Milestone 5 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_milestone5.sh"
 run_gate "Arc scenario simulation (no ROS)"           "${SCRIPT_DIR}/simulate_arc.sh"
 
 if [[ "${SKIP_ROS}" -eq 0 ]]; then

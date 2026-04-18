@@ -12,6 +12,7 @@
 #     results-ms2/results.env
 #     results-ms3/results.env
 #     results-ms4/results.env
+#     results-ms5/results.env
 #     results-sc05/results.env
 #     results-sc01/results.env
 #
@@ -20,7 +21,7 @@
 #   PR_NUMBER           Pull request number (unset → skip comment)
 #
 # Optional job outcome variables (set by GitHub Actions needs context):
-#   MS1_RESULT, MS2_RESULT, MS3_RESULT, MS4_RESULT, SC05_RESULT, SC01_RESULT
+#   MS1_RESULT, MS2_RESULT, MS3_RESULT, MS4_RESULT, MS5_RESULT, SC05_RESULT, SC01_RESULT
 #   Values: "success" | "failure" | "cancelled" | "skipped"
 #
 # Automatically set in GitHub Actions:
@@ -127,6 +128,21 @@ MS4_CLEARANCE="${CLEARANCE_INSIDE_M}"
 MS4_EMOJI=$(outcome_emoji "${MS4_RESULT}")
 
 # ===========================================================================
+# MS-05 — Pillar Avoidance
+# ===========================================================================
+MS5_RESULT="${MS5_RESULT:-}"
+N_OCCUPIED_VOXELS="N/A"
+MIN_PILLAR_CLEARANCE_M="N/A"
+MAX_EE_ERROR_MM="N/A"
+FAULT_TRIGGERED="N/A"
+load_env "${RESULTS_ROOT}/results-ms5/results.env" 2>/dev/null || true
+MS5_OCC="${N_OCCUPIED_VOXELS}"
+MS5_MIN_CLEARANCE="${MIN_PILLAR_CLEARANCE_M}"
+MS5_MAX_ERR="${MAX_EE_ERROR_MM}"
+MS5_FAULT="${FAULT_TRIGGERED}"
+MS5_EMOJI=$(outcome_emoji "${MS5_RESULT}")
+
+# ===========================================================================
 # SC-05 — Arc Scenario
 # ===========================================================================
 SC05_RESULT="${SC05_RESULT:-}"
@@ -162,7 +178,7 @@ SC01_EMOJI=$(outcome_emoji "${SC01_RESULT}")
 # ---------------------------------------------------------------------------
 ALL_PASS=true
 for r in "${MS1_RESULT}" "${MS2_RESULT}" "${MS3_RESULT}" "${MS4_RESULT}" \
-          "${SC05_RESULT}" "${SC01_RESULT}"; do
+          "${MS5_RESULT}" "${SC05_RESULT}" "${SC01_RESULT}"; do
     if [[ "${r}" == "failure" || "${r}" == "cancelled" ]]; then
         ALL_PASS=false
         break
@@ -191,6 +207,7 @@ ${OVERALL_EMOJI} **Simulation Suite — ${OVERALL_LABEL}**
 | **MS-02** Planning Pipeline | ${MS2_EMOJI} | plan: **${MS2_PLANNING_S} s**, **${MS2_N_WAYPOINTS}** waypoints, final EE err: **${MS2_FINAL_ERR} mm** |
 | **MS-03** End-to-End Pipeline | ${MS3_EMOJI} | plan: **${MS3_PLANNING_S} s**, max err: **${MS3_MAX_ERR} mm**, RMSE: **${MS3_RMS_ERR} mm**, fault: **${MS3_FAULT}** |
 | **MS-04** Workspace Occupancy | ${MS4_EMOJI} | occupied: **${MS4_OCCUPIED}** voxels, free: **${MS4_FREE}** voxels, clearance: **${MS4_CLEARANCE} m** |
+| **MS-05** Pillar Avoidance | ${MS5_EMOJI} | occupied: **${MS5_OCC}** voxels, min clearance: **${MS5_MIN_CLEARANCE} m**, max err: **${MS5_MAX_ERR} mm**, fault: **${MS5_FAULT}** |
 | **SC-05** Arc Scenario | ${SC05_EMOJI} | max err: **${SC05_MAX_ERR} mm**, RMSE: **${SC05_RMS_ERR} mm**, fault: **${SC05_FAULT}** |
 | **SC-01** Static Reach | ${SC01_EMOJI} | planning: **${SC01_PLAN_STATUS}** in **${SC01_PLAN_S} s**, **${SC01_WAYPOINTS}** wpts, traj loaded: **${SC01_TRAJ_LOADED}**, fault: **${SC01_FAULT}** |
 

@@ -9,6 +9,7 @@ name: Simulations
 #   ms2  — MS-02 Planning Pipeline             (pure-Python, no ROS)
 #   ms3  — MS-03 End-to-End Pipeline           (pure-Python, no ROS)
 #   ms4  — MS-04 Workspace Occupancy           (pure-Python, no ROS)
+#   ms5  — MS-05 Pillar Avoidance              (pure-Python, no ROS)
 #   sc05 — SC-05 Arc Scenario                  (pure-Python, no ROS)
 #   sc01 — SC-01 Static Reach                  (pure-Python, no ROS)
 #   report — download all results.env artifacts, post single PR comment
@@ -176,6 +177,42 @@ jobs:
           retention-days: 7
 
   # =========================================================================
+  # MS-05 — Pillar Avoidance  (pure-Python)
+  # =========================================================================
+  ms5:
+    name: "MS-05 | Pillar Avoidance"
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "numpy>=1.26" "matplotlib>=3.8"
+          python3 -m pip install -e . --no-deps
+
+      - name: Run MS-05 simulation
+        run: bash scripts/simulate_milestone5.sh --output /tmp/sim_ms5
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-ms5
+          path: /tmp/sim_ms5/results.env
+          if-no-files-found: warn
+          retention-days: 7
+
+  # =========================================================================
   # SC-05 — Arc Scenario  (pure-Python)
   # =========================================================================
   sc05:
@@ -253,7 +290,7 @@ jobs:
   report:
     name: "Post Combined Report"
     if: always() && (github.event_name == 'pull_request')
-    needs: [ms1, ms2, ms3, ms4, sc05, sc01]
+    needs: [ms1, ms2, ms3, ms4, ms5, sc05, sc01]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 
@@ -276,6 +313,7 @@ jobs:
           MS2_RESULT:  ${{ needs.ms2.result }}
           MS3_RESULT:  ${{ needs.ms3.result }}
           MS4_RESULT:  ${{ needs.ms4.result }}
+          MS5_RESULT:  ${{ needs.ms5.result }}
           SC05_RESULT: ${{ needs.sc05.result }}
           SC01_RESULT: ${{ needs.sc01.result }}
           GITHUB_REPOSITORY: ${{ github.repository }}
