@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 # ---------------------------------------------------------------------------
 # Pure-Python sampling helpers (no ROS dependency)
@@ -197,7 +197,7 @@ def _load_config(config_path: str) -> dict[str, Any]:
         raw: dict[str, Any] = yaml.safe_load(fh)
     if "perception" not in raw:
         raise KeyError(f"'perception' key missing in {config_path}")
-    return raw["perception"]
+    return dict(raw["perception"])
 
 
 def _resolve_config_path() -> str:

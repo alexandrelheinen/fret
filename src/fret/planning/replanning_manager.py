@@ -120,7 +120,7 @@ class ReplanningManager:
         self,
         planner_node: PlannerNode,
         trajectory_converter: TrajectoryConverter,
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         cfg = self._parse_config(config)
         self._planner = planner_node
@@ -286,7 +286,7 @@ class ReplanningManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_config(config: dict | None) -> dict[str, Any]:
+    def _parse_config(config: dict[str, Any] | None) -> dict[str, Any]:
         """Merge user config with defaults.
 
         Args:
