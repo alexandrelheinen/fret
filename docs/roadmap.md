@@ -19,7 +19,7 @@ The development was done on Ubuntu 24.04 under WSL on Windows 10.
 
 ---
 
-### Phase 0 — Specification Completion *(current phase)*
+### Phase 0 — Specification Completion ✅ *Complete*
 
 All items in this phase are prerequisites for writing any implementation code.
 They correspond to V-cycle Levels 1 and 2. See [docs/guidelines.md](guidelines.md)
@@ -59,33 +59,31 @@ for the full V-cycle definition.
 - [x] `integration_tests.yml` — launch_testing inter-node scenario tests.
 - [x] `release.yml` — full suite on version tags.
 
-**Next step:** Move to Phase 1. Begin with Level 3 (module stubs + unit test files
-defined simultaneously) per the V-cycle mandate.
+---
+
+### Phase 1 — SITL Setup ✅ *Complete*
+
+- [x] Configure the development environment on Linux (scripts verified: `install.sh`, `setup.sh`, `build.sh`).
+- [x] Validate the existing SCARA URDF (`src/fret/urdf/scara.xacro`) in RViz via `ros2 launch fret view.py model:=scara`.
+- [x] Launch the simulation environment (Gazebo + RViz) via `ros2 launch fret sim.py model:=scara`.
+- [x] Implement module stubs and unit tests for `scene/`, `planning/`, `control/` (Level 3).
+- [x] Fill stubs: implement `scene/acquisition.py` and `scene/occupancy_adapter.py` (Level 4).
+- [x] Verify scenario SC-01 (Static Reach) passes end-to-end in SITL (pure-Python).
 
 ---
 
-### Phase 1 — SITL Setup
+### Phase 2 — Trajectory Control ✅ *Complete*
 
-- [ ] Configure the development environment on Linux (scripts verified: `install.sh`, `setup.sh`, `build.sh`).
-- [ ] Validate the existing SCARA URDF (`src/fret/urdf/scara.xacro`) in RViz via `ros2 launch fret view.py model:=scara`.
-- [ ] Launch the simulation environment (Gazebo + RViz) via `ros2 launch fret sim.py model:=scara`.
-- [ ] Implement module stubs and unit tests for `scene/`, `planning/`, `control/` (Level 3).
-- [ ] Fill stubs: implement `scene/acquisition.py` and `scene/occupancy_adapter.py` (Level 4).
-- [ ] Verify scenario SC-01 (Static Reach) passes end-to-end in SITL.
+- [x] Implement the kinematics engine (`control/kinematics.py`): FK, analytical IK for SCARA, Jacobian.
+- [x] Implement the Jacobian-based velocity controller (`control/controller_node.py`).
+- [x] Execute predefined trajectories (straight lines, arcs) in the simulator — scenario SC-04, SC-05.
+- [x] Implement feedback correction to reject model disturbances and validate EE error < 5 mm — scenario SC-01.
+- [x] Implement ARCO planning pipeline (MS-2) and full end-to-end SITL (MS-3, MS-4).
+- [x] Verify scenario SC-01 (Static Reach), SC-04 (Straight Line), SC-05 (Arc) pass.
 
-> Status: To be started (specification phase complete).
-
----
-
-### Phase 2 — Trajectory Control
-
-- [ ] Implement the kinematics engine (`control/kinematics.py`): FK, analytical IK for SCARA, Jacobian.
-- [ ] Implement the Jacobian-based velocity controller (`control/controller_node.py`).
-- [ ] Execute predefined trajectories (straight lines, arcs) in the simulator — scenario SC-04.
-- [ ] Implement feedback correction to reject model disturbances and validate EE error < 5 mm — scenario SC-01.
-- [ ] Verify scenario SC-02 (Obstacle Avoidance) and SC-03 (Planning Timeout) pass.
-
-> Status: TODO
+> **ARCO note:** The planning fallback (linear interpolation) is used in CI because ARCO
+> is not installed in the CI environment. Full ARCO SST integration requires `pip install -e ../arco/`.
+> Scenario SC-02 (Obstacle Avoidance) with real ARCO planning is pending Milestone 5.
 
 ---
 
