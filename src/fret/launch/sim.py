@@ -23,6 +23,7 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -45,7 +46,9 @@ def generate_launch_description() -> LaunchDescription:
     xacro_file = PathJoinSubstitution(
         [pkg_share, "urdf", [LaunchConfiguration("model"), ".xacro"]]
     )
-    robot_description = Command(["xacro ", xacro_file])
+    robot_description = ParameterValue(
+        Command(["xacro ", xacro_file]), value_type=str
+    )
 
     robot_state_publisher = Node(
         package="robot_state_publisher",

@@ -10,7 +10,7 @@ name: Simulations (MS-X / SC-X)
 #   ms3  — MS-03 End-to-End Pipeline           (pure-Python, no ROS)
 #   ms4  — MS-04 Workspace Occupancy           (pure-Python, no ROS)
 #   sc05 — SC-05 Arc Scenario                  (pure-Python, no ROS)
-#   sc01 — SC-01 Static Reach                  (live ROS 2 nodes, no Gazebo)
+#   sc01 — SC-01 Static Reach                  (pure-Python, no ROS)
 #   report — download all results.env artifacts, post single PR comment
 
 on:
@@ -212,53 +212,30 @@ jobs:
           retention-days: 7
 
   # =========================================================================
-  # SC-01 — Static Reach  (live ROS 2 nodes, no Gazebo)
+  # SC-01 — Static Reach  (pure-Python, same pipeline as MS-03)
   # =========================================================================
   sc01:
-    name: "SC-01 | Static Reach (ROS 2)"
+    name: "SC-01 | Static Reach"
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      ROS_DISTRO: jazzy
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup ROS 2 Jazzy
-        uses: ros-tooling/setup-ros@v0.7
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
-          required-ros-distributions: jazzy
+          python-version: "3.12"
 
-      - name: Install workspace dependencies
+      - name: Install Python dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-colcon-common-extensions \
-            python3-rosdep \
-            ros-jazzy-joint-state-publisher \
-            ros-jazzy-robot-state-publisher \
-            ros-jazzy-xacro \
-            ros-jazzy-tf2-ros \
-            ros-jazzy-tf2-geometry-msgs
           python3 -m pip install --upgrade pip
-          python3 -m pip install "numpy>=1.26" "pyyaml>=6.0"
+          python3 -m pip install "numpy>=1.26" "pyyaml>=6.0" "matplotlib>=3.8"
+          python3 -m pip install -e . --no-deps
 
-      - name: Initialize rosdep
-        run: |
-          sudo rosdep init || true
-          rosdep update
-
-      - name: Install ROS package dependencies
-        run: |
-          source /opt/ros/${ROS_DISTRO}/setup.bash
-          rosdep install --from-paths src --ignore-src -r -y
-
-      - name: Build workspace
-        run: bash scripts/build.sh
-
-      - name: Run SC-01 static-reach ROS 2 simulation
+      - name: Run SC-01 static-reach simulation
         run: bash scripts/simulate_static_reach.sh --output /tmp/sim_sc01
 
       - name: Upload results

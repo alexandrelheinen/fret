@@ -141,7 +141,7 @@ SC05_FAULT="${FAULT_TRIGGERED}"
 SC05_EMOJI=$(outcome_emoji "${SC05_RESULT}")
 
 # ===========================================================================
-# SC-01 — Static Reach (ROS 2)
+# SC-01 — Static Reach (pure-Python pipeline)
 # ===========================================================================
 SC01_RESULT="${SC01_RESULT:-}"
 PLANNING_STATUS="N/A"
@@ -192,7 +192,7 @@ ${OVERALL_EMOJI} **Simulation Suite — ${OVERALL_LABEL}**
 | **MS-03** End-to-End Pipeline | ${MS3_EMOJI} | plan: **${MS3_PLANNING_S} s**, max err: **${MS3_MAX_ERR} mm**, RMSE: **${MS3_RMS_ERR} mm**, fault: **${MS3_FAULT}** |
 | **MS-04** Workspace Occupancy | ${MS4_EMOJI} | occupied: **${MS4_OCCUPIED}** voxels, free: **${MS4_FREE}** voxels, clearance: **${MS4_CLEARANCE} m** |
 | **SC-05** Arc Scenario | ${SC05_EMOJI} | max err: **${SC05_MAX_ERR} mm**, RMSE: **${SC05_RMS_ERR} mm**, fault: **${SC05_FAULT}** |
-| **SC-01** Static Reach *(ROS 2)* | ${SC01_EMOJI} | planning: **${SC01_PLAN_STATUS}** in **${SC01_PLAN_S} s**, **${SC01_WAYPOINTS}** wpts, traj loaded: **${SC01_TRAJ_LOADED}**, fault: **${SC01_FAULT}** |
+| **SC-01** Static Reach | ${SC01_EMOJI} | planning: **${SC01_PLAN_STATUS}** in **${SC01_PLAN_S} s**, **${SC01_WAYPOINTS}** wpts, traj loaded: **${SC01_TRAJ_LOADED}**, fault: **${SC01_FAULT}** |
 
 > SC-01 runs live **ROS 2 nodes** (\`planner_node\` + \`controller_node\`) for the full
 > scenario duration.  All other simulations are pure-Python (no ROS required).
