@@ -5,14 +5,15 @@
 # All AI agents and contributors MUST run this before pushing.
 #
 # Gates (all required unless --skip-ros is passed):
-#   1. check_formatting.sh    — black + isort + clang-format
-#   2. check_types.sh         — mypy strict
-#   3. simulate_milestone2.sh — Milestone 2 pure-Python planning simulation (no ROS)
-#   4. simulate_milestone3.sh — Milestone 3 pure-Python end-to-end simulation (no ROS)
-#   5. simulate_milestone4.sh — Milestone 4 pure-Python workspace occupancy simulation (no ROS)
-#   6. simulate_arc.sh        — Arc scenario (SC-05) pure-Python simulation (no ROS)
-#   7. run_tests.sh           — pytest unit tests + quality gates
-#   8. run_smoke_tests.sh     — ROS 2 launch smoke tests
+#   1. check_formatting.sh        — black + isort + clang-format
+#   2. check_types.sh             — mypy strict
+#   3. simulate_milestone2.sh     — Milestone 2 pure-Python planning simulation (no ROS)
+#   4. simulate_milestone3.sh     — Milestone 3 pure-Python end-to-end simulation (no ROS)
+#   5. simulate_milestone4.sh     — Milestone 4 pure-Python workspace occupancy simulation (no ROS)
+#   6. simulate_arc.sh            — Arc scenario (SC-05) pure-Python simulation (no ROS)
+#   7. run_tests.sh               — pytest unit tests + quality gates  [requires ROS]
+#   8. run_smoke_tests.sh         — ROS 2 launch smoke tests            [requires ROS]
+#   9. simulate_static_reach.sh   — SC-01 full fretsim ROS 2 simulation [requires ROS]
 #
 # Usage:
 #   bash scripts/pre_push.sh [--skip-ros]
@@ -72,11 +73,15 @@ run_gate "Milestone 4 simulation (no ROS)"            "${SCRIPT_DIR}/simulate_mi
 run_gate "Arc scenario simulation (no ROS)"           "${SCRIPT_DIR}/simulate_arc.sh"
 
 if [[ "${SKIP_ROS}" -eq 0 ]]; then
-    run_gate "Unit tests (pytest + coverage)"         "${SCRIPT_DIR}/run_tests.sh"
-    run_gate "Smoke tests (ROS 2 launch)"             "${SCRIPT_DIR}/run_smoke_tests.sh"
+    run_gate "Unit tests (pytest + coverage)"              "${SCRIPT_DIR}/run_tests.sh"
+    run_gate "Smoke tests (ROS 2 launch)"                  "${SCRIPT_DIR}/run_smoke_tests.sh"
+    run_gate "Static Reach SC-01 (full fretsim, ROS 2)"    "${SCRIPT_DIR}/simulate_static_reach.sh"
 else
     warn "Skipping ROS-dependent gates (--skip-ros)."
-    warn "Run ./scripts/run_tests.sh and ./scripts/run_smoke_tests.sh manually once ROS 2 is available."
+    warn "Run the following scripts manually once ROS 2 is available:"
+    warn "  ./scripts/run_tests.sh"
+    warn "  ./scripts/run_smoke_tests.sh"
+    warn "  ./scripts/simulate_static_reach.sh"
 fi
 
 echo ""
