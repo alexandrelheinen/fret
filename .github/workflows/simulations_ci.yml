@@ -1,4 +1,4 @@
-name: Simulations (MS-X / SC-X)
+name: Simulations
 
 # Single workflow that runs all milestone (MS-X) and scenario (SC-X)
 # simulations as parallel jobs, then posts ONE combined results table to
