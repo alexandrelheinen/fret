@@ -169,6 +169,11 @@ def generate_launch_description() -> LaunchDescription:
             {"model": LaunchConfiguration("model")},
             controller_config,
         ],
+        # Remap fret's /joint_commands to the ros2_control velocity controller
+        # command topic so Gazebo physics receives the velocity setpoints.
+        remappings=[
+            ("/joint_commands", "/joint_group_velocity_controller/commands")
+        ],
     )
 
     return LaunchDescription(

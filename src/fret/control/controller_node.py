@@ -460,9 +460,12 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     node = _make_controller_ros_node(config_path=config_path)
     try:
         rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 def _make_controller_ros_node(  # pragma: no cover

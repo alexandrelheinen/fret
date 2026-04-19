@@ -58,10 +58,27 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[{"robot_description": robot_description}],
     )
 
-    joint_state_publisher = Node(
-        package="joint_state_publisher",
-        executable="joint_state_publisher",
-        name="joint_state_publisher",
+    # joint_state_broadcaster (ros2_control) replaces joint_state_publisher:
+    # it reads actual joint positions from physics and publishes /joint_states.
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager",
+            "/controller_manager",
+        ],
+        output="screen",
+    )
+
+    velocity_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_group_velocity_controller",
+            "--controller-manager",
+            "/controller_manager",
+        ],
         output="screen",
     )
 
@@ -70,9 +87,12 @@ def generate_launch_description() -> LaunchDescription:
             [ros_gz_sim_share, "/launch/gz_sim.launch.py"]
         ),
         launch_arguments={
-            "gz_args": PathJoinSubstitution(
-                [pkg_share, "worlds", LaunchConfiguration("world")]
-            ),
+            "gz_args": [
+                "-r ",
+                PathJoinSubstitution(
+                    [pkg_share, "worlds", LaunchConfiguration("world")]
+                ),
+            ],
             "on_exit_shutdown": "true",
         }.items(),
     )
@@ -90,13 +110,26 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
+    # Bridge Gazebo's internal clock to the ROS 2 /clock topic so that nodes
+    # with use_sim_time:=true (including gz_ros2_control's controller_manager)
+    # receive proper simulation time and stop emitting "No clock received" warnings.
+    clock_bridge = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        name="clock_bridge",
+        arguments=["/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock"],
+        output="screen",
+    )
+
     return LaunchDescription(
         [
             model_arg,
             world_arg,
             robot_state_publisher,
-            joint_state_publisher,
             gazebo,
+            clock_bridge,
             spawn_entity,
+            joint_state_broadcaster_spawner,
+            velocity_controller_spawner,
         ]
     )

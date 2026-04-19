@@ -21,6 +21,7 @@ Satisfies requirement FR-PLN-06.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -42,7 +43,17 @@ except ImportError:
 # Pure-Python trajectory containers (duck-type compatible with ROS msgs)
 # ---------------------------------------------------------------------------
 
-_N_INTERP: int = 8  # samples per segment for the linear fallback
+# Maximum allowed Cartesian EE step between consecutive waypoints.
+#
+# Must be chosen so that the steady-state tracking lag (step / Jacobian_gain)
+# stays below the controller's fault_threshold (0.020 m).
+#
+# Derivation for SCARA at q=0 (y-dominant direction, worst-case gain):
+#   ΔEE_per_step ≈ 0.330 × error  →  equilibrium error e* = step / 0.330
+#   Require  e* < fault_threshold  →  step < 0.020 × 0.330 ≈ 0.0066 m
+#
+# 4 mm (0.004 m) gives e* ≈ 12 mm, a 2× safety margin below 20 mm.
+_MAX_INTERP_STEP_M: float = 0.004  # 4 mm
 
 
 @dataclass
@@ -111,17 +122,37 @@ class TrajectoryGenerator:
     def _process_linear(
         self, path: list[npt.NDArray[np.float64]]
     ) -> _JointTrajectory:
-        """Linear-interpolation fallback used when ARCO is not installed."""
+        """Linear-interpolation fallback used when ARCO is not installed.
+
+        The number of interpolation steps per segment is computed from the
+        Cartesian end-effector distance between the segment's endpoints so
+        that consecutive waypoints are always separated by at most
+        ``_MAX_INTERP_STEP_M`` metres.  This guarantees the step is below
+        the controller's ``fault_threshold`` (0.020 m) and prevents the
+        Jacobian controller from entering HALTED state simply because it
+        advanced to a reference that is too far from the robot's EE.
+        """
         joint_names = list(self._kin.joint_names)
         points: list[_JointTrajectoryPoint] = []
         n_seg = len(path) - 1
-        dt = 1.0 / _N_INTERP
         t = 0.0
         for i in range(n_seg):
             q_start = np.asarray(path[i], dtype=np.float64)
             q_end = np.asarray(path[i + 1], dtype=np.float64)
-            for j in range(_N_INTERP):
-                alpha = j / _N_INTERP
+
+            # Compute the Cartesian EE distance for this segment.
+            x_start = self._kin.forward_kinematics(q_start)[:3, 3]
+            x_end = self._kin.forward_kinematics(q_end)[:3, 3]
+            cart_dist = float(np.linalg.norm(x_end - x_start))
+
+            # Number of sub-steps: at least 1, enough to keep each step ≤ max.
+            # A 10 % curvature margin compensates for the nonlinear EE arc that
+            # results from linear-in-joint-space interpolation.
+            n_steps = max(math.ceil(cart_dist / _MAX_INTERP_STEP_M * 1.1), 1)
+            dt = 1.0 / n_steps
+
+            for j in range(n_steps):
+                alpha = j / n_steps
                 q = q_start + alpha * (q_end - q_start)
                 points.append(
                     _JointTrajectoryPoint(

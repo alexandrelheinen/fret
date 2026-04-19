@@ -617,4 +617,49 @@
           <origin xyz="0 0 0" rpy="0 0 0"/>
      </joint>
 
+     <!-- ============================================================ -->
+     <!-- ros2_control: velocity interfaces for Gazebo Harmonic SITL   -->
+     <!--   j1_velocity = 375*pi/180 ≈ 6.545 rad/s                    -->
+     <!--   j2_velocity = 600*pi/180 ≈ 10.472 rad/s                   -->
+     <!--   j3_velocity = 1.111 m/s                                    -->
+     <!-- ============================================================ -->
+     <ros2_control name="GazeboSystem" type="system">
+          <hardware>
+               <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+          </hardware>
+          <joint name="joint_arm_0">
+               <command_interface name="velocity">
+                    <param name="min">-6.545</param>
+                    <param name="max">6.545</param>
+               </command_interface>
+               <state_interface name="position"/>
+               <state_interface name="velocity"/>
+          </joint>
+          <joint name="joint_arm_1">
+               <command_interface name="velocity">
+                    <param name="min">-10.472</param>
+                    <param name="max">10.472</param>
+               </command_interface>
+               <state_interface name="position"/>
+               <state_interface name="velocity"/>
+          </joint>
+          <joint name="joint_extension">
+               <command_interface name="velocity">
+                    <param name="min">-1.111</param>
+                    <param name="max">1.111</param>
+               </command_interface>
+               <state_interface name="position"/>
+               <state_interface name="velocity"/>
+          </joint>
+     </ros2_control>
+
+     <!-- Gazebo Harmonic plugin: starts the ros2_control controller manager
+          inside the simulation process and loads the controller YAML. -->
+     <gazebo>
+          <plugin filename="gz_ros2_control-system"
+                  name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+               <parameters>$(find fret)/config/controllers/ros2_control.yaml</parameters>
+          </plugin>
+     </gazebo>
+
 </robot>

@@ -20,8 +20,8 @@ benchmark:
   scenarios:
     # SC-01: Static reach — no obstacles, short joint-space move.
     static_reach:
-      start: [0.0, 0.0, 0.10]
-      goal:  [0.3272, 0.4712, 0.05]
+      start: [1.0, 0.0, 0.10]
+      goal:  [0.0, 1.0, 0.10]
       obstacles: []
       inflation_radius: 0.05
       timeout: 10.0
