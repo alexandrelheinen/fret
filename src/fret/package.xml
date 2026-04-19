@@ -46,5 +46,9 @@
 
   <export>
     <build_type>ament_cmake</build_type>
+    <!-- Expose share/<pkg>/ as a Gazebo Harmonic resource path so that
+         model://fret/meshes/... URIs resolve correctly when spawning via
+         ros_gz_sim.  gz_sim.launch.py reads this export automatically. -->
+    <gazebo_ros gazebo_model_path="${prefix}/.."/>
   </export>
 </package>

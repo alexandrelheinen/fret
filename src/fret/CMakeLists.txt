@@ -96,6 +96,13 @@ ament_python_install_package(${PROJECT_NAME}
   PACKAGE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# ament_python_install_package installs to site-packages only, but stale builds
+# may leave a __init__.py in share/${PROJECT_NAME}/ which causes Python to find
+# an incomplete "fret" package there instead of from site-packages.  Remove it.
+install(CODE
+  "file(REMOVE \"${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/__init__.py\")"
+)
+
 # ---------------------------------------------------------------------------
 # Install ROS 2 resource directories
 # ---------------------------------------------------------------------------

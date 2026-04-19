@@ -329,7 +329,8 @@ class PerceptionBridgeNode:
             self._rclpy.spin(self._node)
         finally:
             self._node.destroy_node()
-            self._rclpy.shutdown()
+            if self._rclpy.ok():
+                self._rclpy.shutdown()
 
 
 # ---------------------------------------------------------------------------
