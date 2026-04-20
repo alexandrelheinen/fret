@@ -15,11 +15,12 @@
     scenario_id: "static_reach"
 
     # Goal EE position in the world frame [m].
-    goal_position: [0.30, 0.10, 0.05]
+    # 160° azimuth, r=0.25 m (≈ −58% reach from full extension), z=0.05 m.
+    goal_position: [-0.2349, 0.0855, 0.05]
 
     # Corresponding goal joint configuration [rad, rad, m] for the SCARA RRP.
     # Pre-computed from IK; used as the planner goal when skip_ik: true.
-    goal_configuration: [0.3272, 0.4712, 0.05]
+    goal_configuration: [1.8273, 2.2974, 0.05]
 
     # Whether to run IK inside the scenario loader or use goal_configuration
     # directly.
