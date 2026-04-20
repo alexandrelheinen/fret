@@ -23,3 +23,8 @@
     # EE tracking-error threshold [m] above which a fault is published.
     # See FR-CTL-04.
     fault_threshold: 0.020
+
+    # Number of 50 Hz timer ticks between waypoint advances.
+    # Gives the robot enough time to converge before the reference moves on.
+    # With 90 waypoints: 90 × 5 × 0.02 s = 9 s total trajectory duration.
+    ticks_per_waypoint: 5

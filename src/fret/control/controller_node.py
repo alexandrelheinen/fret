@@ -49,6 +49,9 @@ class _NodeState(enum.IntEnum):
 
 _SCARA_DOF: int = 3
 _DEFAULT_FAULT_THRESHOLD: float = 0.020  # [m]
+_DEFAULT_TICKS_PER_WAYPOINT: int = (
+    1  # advance every N timer ticks (1 = every tick)
+)
 _DEFAULT_DAMPING: float = 0.01
 _DEFAULT_MAX_VEL: float = 1.57  # [rad/s]
 _DEFAULT_RATE: float = 50.0  # [Hz]
@@ -77,6 +80,7 @@ class ControllerNode:
         self._model = model
         self._state: _NodeState = _NodeState.IDLE
         self._fault_threshold: float = _DEFAULT_FAULT_THRESHOLD
+        self._ticks_per_waypoint: int = _DEFAULT_TICKS_PER_WAYPOINT
         self._damping: float = _DEFAULT_DAMPING
         self._max_joint_velocity: float = _DEFAULT_MAX_VEL
         self._update_rate: float = _DEFAULT_RATE
@@ -87,6 +91,9 @@ class ControllerNode:
         )
         self._trajectory: list[npt.NDArray[np.float64]] | None = None
         self._trajectory_index: int = 0
+        self._tick_count: int = (
+            0  # incremented every compute call; drives waypoint advancement
+        )
         self._load_config(config_path)
 
     # ------------------------------------------------------------------
@@ -121,6 +128,9 @@ class ControllerNode:
                 params: dict[str, Any] = section.get("ros__parameters", {})
                 self._fault_threshold = float(
                     params.get("fault_threshold", self._fault_threshold)
+                )
+                self._ticks_per_waypoint = int(
+                    params.get("ticks_per_waypoint", self._ticks_per_waypoint)
                 )
                 self._damping = float(
                     params.get("damping_factor", self._damping)
@@ -162,6 +172,7 @@ class ControllerNode:
             np.asarray(q, dtype=np.float64) for q in trajectory
         ]
         self._trajectory_index = 0
+        self._tick_count = 0
         self._state = _NodeState.TRACKING
 
     def has_trajectory(self) -> bool:
@@ -236,7 +247,11 @@ class ControllerNode:
         )
 
         self._current_command = q_dot
-        self._trajectory_index += 1
+        # Time-based advancement: advance one waypoint every _ticks_per_waypoint
+        # ticks so the robot has time to converge before the reference moves on.
+        self._tick_count += 1
+        if self._tick_count % self._ticks_per_waypoint == 0:
+            self._trajectory_index += 1
         return q_dot.copy()
 
     def get_ee_error_m(
@@ -420,6 +435,14 @@ class ControllerRosNode:  # pragma: no cover
 
         if not self._logic.has_trajectory():
             return
+
+        # Avoid consuming waypoints before the downstream velocity controller
+        # is ready to receive commands (common during SITL startup).
+        get_sub_count = getattr(self._cmd_pub, "get_subscription_count", None)
+        if callable(get_sub_count):
+            sub_count = get_sub_count()
+            if isinstance(sub_count, int) and sub_count == 0:
+                return
 
         q_dot = self._logic.compute_jacobian_command(
             self._kinematics, q_current

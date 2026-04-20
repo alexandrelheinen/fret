@@ -72,7 +72,7 @@ class PlannerRosNode:  # pragma: no cover
             "goal_configuration", [0.3272, 0.4712, 0.05]
         )
         self.declare_parameter("planning_timeout", 10.0)  # type: ignore[attr-defined]
-        self.declare_parameter("start_configuration", [0.0, 0.0, 0.0])  # type: ignore[attr-defined]
+        self.declare_parameter("start_configuration", [])  # type: ignore[attr-defined]
 
         self._model = str(
             self.get_parameter("model").get_parameter_value().string_value  # type: ignore[attr-defined]

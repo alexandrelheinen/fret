@@ -14,18 +14,8 @@ perception:
   obstacles:
     - id: obstacle_box_a
       type: box
-      size: [0.10, 0.10, 0.10]
-      pose: [0.25, 0.05, 0.05, 0.0, 0.0, 0.0]
-
-    - id: obstacle_box_b
-      type: box
-      size: [0.10, 0.10, 0.10]
-      pose: [0.25, -0.05, 0.05, 0.0, 0.0, 0.0]
-
-    - id: obstacle_box_c
-      type: box
-      size: [0.10, 0.10, 0.10]
-      pose: [0.30, 0.00, 0.05, 0.0, 0.0, 0.0]
+      size: [0.06, 0.06, 0.30]
+      pose: [0.44, 0.30, 0.15, 0.0, 0.0, 0.0]
 
   # Pillar-avoidance scenario (pillar_scenario.sdf / SC-02).
   # The PerceptionBridgeNode samples cylinder surfaces and publishes them

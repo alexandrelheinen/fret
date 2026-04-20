@@ -51,74 +51,22 @@
       </link>
     </model>
 
-    <!-- Obstacle A: 10×10×10 cm box at (0.25, 0.05, 0.05) -->
+    <!-- Obstacle: 6×6×30 cm column at (0.44, 0.30, 0.15) — farthest from origin -->
     <model name="obstacle_box_a">
       <static>true</static>
-      <pose>0.25 0.05 0.05 0 0 0</pose>
+      <pose>0.44 0.30 0.15 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.10 0.10 0.10</size>
+              <size>0.06 0.06 0.30</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.10 0.10 0.10</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.8 0.4 0.0 1</ambient>
-            <diffuse>0.8 0.4 0.0 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- Obstacle B: 10×10×10 cm box at (0.25, -0.05, 0.05) -->
-    <model name="obstacle_box_b">
-      <static>true</static>
-      <pose>0.25 -0.05 0.05 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.10</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.10</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.8 0.4 0.0 1</ambient>
-            <diffuse>0.8 0.4 0.0 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- Obstacle C: 10×10×10 cm box at (0.30, 0.00, 0.05) -->
-    <model name="obstacle_box_c">
-      <static>true</static>
-      <pose>0.30 0.00 0.05 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.10</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>0.10 0.10 0.10</size>
+              <size>0.06 0.06 0.30</size>
             </box>
           </geometry>
           <material>
