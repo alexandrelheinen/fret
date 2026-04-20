@@ -176,6 +176,29 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
+    # ------------------------------------------------------------------
+    # Visualisation — trajectory waypoints + live EE trace in RViz2
+    # ------------------------------------------------------------------
+    viz_node = Node(
+        package="fret",
+        executable="viz_node",
+        name="viz_node",
+        output="screen",
+        parameters=[{"model": LaunchConfiguration("model")}],
+    )
+
+    rviz_config = PathJoinSubstitution(
+        [pkg_share, "rviz", [LaunchConfiguration("model"), ".rviz"]]
+    )
+
+    rviz2 = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        arguments=["-d", rviz_config],
+        output="screen",
+    )
+
     return LaunchDescription(
         [
             model_arg,
@@ -191,5 +214,8 @@ def generate_launch_description() -> LaunchDescription:
             perception_bridge_node,
             # Shared
             controller_node,
+            # Visualisation
+            viz_node,
+            rviz2,
         ]
     )

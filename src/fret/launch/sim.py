@@ -88,7 +88,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         launch_arguments={
             "gz_args": [
-                "-r ",
+                "-r -s ",
                 PathJoinSubstitution(
                     [pkg_share, "worlds", LaunchConfiguration("world")]
                 ),
