@@ -82,7 +82,11 @@ class OccupancyAdapter:
             payload: Latest obstacle geometry in the ``world`` frame.
         """
         if KDTreeOccupancy is not None:  # pragma: no cover
-            self._occupancy = KDTreeOccupancy(payload.obstacle_points)
+            # Use a 5 cm clearance radius — matches the 6 cm column width
+            # with a small buffer while keeping most of the workspace reachable.
+            self._occupancy = KDTreeOccupancy(
+                payload.obstacle_points, clearance=0.05
+            )
         else:
             self._occupancy = _SimpleOccupancy(payload.obstacle_points)
 

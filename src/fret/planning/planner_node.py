@@ -39,9 +39,29 @@ from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
 try:
-    from arco.planning import SST
+    from arco.planning import SSTPlanner
 except ImportError:
-    SST = None
+    SSTPlanner = None
+
+
+class _CSpaceOccupancy:
+    """Adapts ``CSpaceChecker`` to the ARCO ``Occupancy`` interface.
+
+    ``SSTPlanner`` operates in joint space and calls ``is_occupied(q)`` where
+    ``q`` is a joint configuration.  This adapter forwards the call to
+    ``CSpaceChecker.is_collision_free``, which performs FK + world-frame
+    obstacle lookup internally.
+
+    Args:
+        checker: Configured ``CSpaceChecker`` instance.
+    """
+
+    def __init__(self, checker: "CSpaceChecker") -> None:
+        self._checker = checker
+
+    def is_occupied(self, point: npt.NDArray[np.float64]) -> bool:
+        """Return True if the joint configuration collides with an obstacle."""
+        return not self._checker.is_collision_free(point)
 
 
 class PlannerNode:
@@ -181,12 +201,24 @@ class PlannerNode:
             TimeoutError: If ARCO SST exceeds the timeout.
             RuntimeError: If no path exists.
         """
-        if SST is not None and checker is not None:  # pragma: no cover
-            sst = SST(
-                collision_free=checker.is_collision_free,
-                timeout=timeout,
+        if SSTPlanner is not None and checker is not None:  # pragma: no cover
+            limits = self._kin.joint_limits  # shape (DOF, 2)
+            bounds = [(float(lo), float(hi)) for lo, hi in limits]
+            sst = SSTPlanner(
+                occupancy=_CSpaceOccupancy(checker),
+                bounds=bounds,
+                max_sample_count=8000,
+                step_size=0.25,
+                goal_tolerance=0.1,
+                witness_radius=0.15,
+                goal_bias=0.10,
             )
-            result: list[npt.NDArray[np.float64]] = sst.plan(start, goal)
+            result: list[npt.NDArray[np.float64]] | None = sst.plan(
+                np.asarray(start, dtype=np.float64),
+                np.asarray(goal, dtype=np.float64),
+            )
+            if result is None:
+                raise RuntimeError("SSTPlanner found no collision-free path")
             return result
 
         # Fallback: straight joint-space path (valid in an empty world).

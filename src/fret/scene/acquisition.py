@@ -47,7 +47,7 @@ class SceneAcquisition:
         )
         node.create_subscription(
             PointCloud2,
-            "/world_state",
+            "/obstacle_cloud",
             self._point_cloud_callback,
             qos,
         )

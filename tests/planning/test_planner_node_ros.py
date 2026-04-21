@@ -230,8 +230,8 @@ class TestPlannerRosNodeConstruction:
         assert "/joint_trajectory" in topics
 
     def test_subscription_created_when_no_start_override(self) -> None:
-        """When start_configuration is empty, /joint_states subscription is
-        created (subscription-trigger path)."""
+        """When start_configuration is empty, both /obstacle_cloud and
+        /joint_states subscriptions are created."""
         node, _ = _new_node(start_cfg=[])
         assert node.create_subscription.called  # type: ignore[attr-defined]
         topics = [
@@ -239,23 +239,24 @@ class TestPlannerRosNodeConstruction:
             for c in node.create_subscription.call_args_list  # type: ignore[attr-defined]
         ]
         assert "/joint_states" in topics
+        assert "/obstacle_cloud" in topics
 
-    def test_no_subscription_when_start_override_set(self) -> None:
-        """When a non-empty start_configuration is given, no /joint_states
-        subscription should be created (immediate-trigger path)."""
+    def test_obstacle_cloud_subscription_always_created(self) -> None:
+        """/obstacle_cloud subscription must be created even when a start
+        override is given (planning waits for the obstacle cloud too)."""
         node, _ = _new_node(start_cfg=[0.0, 0.0, 0.0])
-        assert not node.create_subscription.called  # type: ignore[attr-defined]
+        assert node.create_subscription.called  # type: ignore[attr-defined]
+        topics = [
+            str(c[0][1])
+            for c in node.create_subscription.call_args_list  # type: ignore[attr-defined]
+        ]
+        assert "/obstacle_cloud" in topics
+        assert "/joint_states" not in topics
 
-    def test_trigger_called_immediately_with_start_override(self) -> None:
-        """_trigger_planning must be called during __init__ when
-        start_configuration is non-empty."""
+    def test_trigger_not_called_immediately_with_start_override(self) -> None:
+        """_trigger_planning must NOT fire at __init__ even with a start
+        override — planning is deferred until the first obstacle cloud."""
         node, mock_trigger = _new_node(start_cfg=[0.1, 0.2, 0.05])
-        assert mock_trigger.call_count == 1
-
-    def test_trigger_not_called_without_start_override(self) -> None:
-        """_trigger_planning must NOT be called during __init__ when
-        start_configuration is empty (deferred until /joint_states)."""
-        node, mock_trigger = _new_node(start_cfg=[])
         assert mock_trigger.call_count == 0
 
 
@@ -274,26 +275,44 @@ class TestJointStatesCallback:
         inst = object.__new__(PlannerRosNode)
         inst._planned = False  # type: ignore[attr-defined]
         inst._start_cfg = None  # type: ignore[attr-defined]
+        inst._scene_ready = False  # type: ignore[attr-defined]
         inst._traj_pub = MagicMock()  # type: ignore[attr-defined]
         inst.get_logger = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
         return inst
 
-    def test_planning_triggered_on_first_joint_state(self) -> None:
-        """_joint_states_callback must call _trigger_planning exactly once."""
+    def test_planning_triggered_on_first_joint_state_when_scene_ready(
+        self,
+    ) -> None:
+        """_joint_states_callback must call _trigger_planning when _scene_ready."""
         from fret.planning.planner_node_ros import PlannerRosNode
 
         inst = self._make_bare_node()
+        inst._scene_ready = True  # type: ignore[attr-defined]
         with patch.object(inst, "_trigger_planning") as mock_trigger:  # type: ignore[arg-type]
             msg = MagicMock()
             msg.position = [0.1, 0.2, 0.05]
             PlannerRosNode._joint_states_callback(inst, msg)  # type: ignore[attr-defined]
             assert mock_trigger.call_count == 1
 
+    def test_planning_deferred_when_scene_not_ready(self) -> None:
+        """_joint_states_callback must NOT call _trigger_planning before the
+        first obstacle cloud has been received."""
+        from fret.planning.planner_node_ros import PlannerRosNode
+
+        inst = self._make_bare_node()
+        inst._scene_ready = False  # type: ignore[attr-defined]
+        with patch.object(inst, "_trigger_planning") as mock_trigger:  # type: ignore[arg-type]
+            msg = MagicMock()
+            msg.position = [0.1, 0.2, 0.05]
+            PlannerRosNode._joint_states_callback(inst, msg)  # type: ignore[attr-defined]
+            assert mock_trigger.call_count == 0
+
     def test_planning_not_triggered_twice(self) -> None:
         """_joint_states_callback is idempotent after the first call."""
         from fret.planning.planner_node_ros import PlannerRosNode
 
         inst = self._make_bare_node()
+        inst._scene_ready = True  # type: ignore[attr-defined]
 
         # The mock must also set _planned=True, mirroring the real behaviour
         # of _trigger_planning, so that the guard condition works.
@@ -313,6 +332,7 @@ class TestJointStatesCallback:
         from fret.planning.planner_node_ros import PlannerRosNode
 
         inst = self._make_bare_node()
+        inst._scene_ready = True  # type: ignore[attr-defined]
         with patch.object(inst, "_trigger_planning") as mock_trigger:  # type: ignore[arg-type]
             msg = MagicMock()
             msg.position = [0.1]  # too short
@@ -324,6 +344,7 @@ class TestJointStatesCallback:
         from fret.planning.planner_node_ros import PlannerRosNode
 
         inst = self._make_bare_node()
+        inst._scene_ready = True  # type: ignore[attr-defined]
         with patch.object(inst, "_trigger_planning"):  # type: ignore[arg-type]
             msg = MagicMock()
             msg.position = [0.1, 0.2, 0.05]
@@ -344,6 +365,7 @@ class TestTriggerPlanning:
     def _make_bare_node(self) -> object:
         """Create a minimal node state for _trigger_planning tests."""
         from fret.planning.planner_node_ros import PlannerRosNode
+        from fret.scene.occupancy_adapter import OccupancyAdapter
 
         inst = object.__new__(PlannerRosNode)
         inst._model = "scara"  # type: ignore[attr-defined]
@@ -352,6 +374,7 @@ class TestTriggerPlanning:
         inst._planning_timeout = 10.0  # type: ignore[attr-defined]
         inst._start_cfg = [0.0, 0.0, 0.0]  # type: ignore[attr-defined]
         inst._planned = False  # type: ignore[attr-defined]
+        inst._occ_adapter = OccupancyAdapter()  # type: ignore[attr-defined]
         inst._traj_pub = MagicMock()  # type: ignore[attr-defined]
         inst.get_logger = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
         return inst
@@ -382,7 +405,6 @@ class TestTriggerPlanning:
             patch(
                 "fret.planning.trajectory_generator.TrajectoryGenerator"
             ) as MockTrajGen,
-            patch("fret.scene.occupancy_adapter.OccupancyAdapter"),
             patch("fret.control.kinematics.Kinematics"),
             patch.object(
                 inst, "_publish_trajectory"  # type: ignore[arg-type]
@@ -410,7 +432,6 @@ class TestTriggerPlanning:
 
         with (
             patch("fret.planning.planner_node.PlannerNode") as MockCore,
-            patch("fret.scene.occupancy_adapter.OccupancyAdapter"),
             patch.object(
                 inst, "_publish_trajectory"  # type: ignore[arg-type]
             ) as mock_pub,
@@ -441,7 +462,6 @@ class TestTriggerPlanning:
             patch(
                 "fret.planning.trajectory_generator.TrajectoryGenerator"
             ) as MockTrajGen,
-            patch("fret.scene.occupancy_adapter.OccupancyAdapter"),
             patch("fret.control.kinematics.Kinematics"),
             patch.object(
                 inst, "_publish_trajectory"  # type: ignore[arg-type]

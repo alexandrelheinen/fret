@@ -65,11 +65,11 @@ def test_construction_with_node(mock_node: MagicMock) -> None:
 
 
 def test_subscribes_to_world_state(mock_node: MagicMock) -> None:
-    """Constructor must register a subscription on /world_state."""
+    """Constructor must register a subscription on /obstacle_cloud."""
     SceneAcquisition(node=mock_node)
     assert mock_node.create_subscription.called
     topic = mock_node.create_subscription.call_args[0][1]
-    assert topic == "/world_state"
+    assert topic == "/obstacle_cloud"
 
 
 def test_raises_before_first_message(mock_node: MagicMock) -> None:

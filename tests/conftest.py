@@ -80,25 +80,33 @@ def mock_kinematics() -> MagicMock:
 
 @pytest.fixture()
 def mock_occupancy() -> MagicMock:
-    """Return a mock occupancy that checks the EE z-height.
+    """Return a mock occupancy matching the ``KDTreeOccupancy`` interface.
 
-    Returns positive clearance (free space) when the last sampled position
-    (EE) is above 0.18 m, and negative clearance (obstacle penetration)
-    otherwise.
+    ``CSpaceChecker.clearance`` detects ``KDTreeOccupancy`` by looking for a
+    ``query_distances`` method; this mock exposes the same API so that the
+    production code path is exercised even in unit tests.
+
+    Returns distances that yield positive clearance (free space) when the EE
+    z-height is above 0.18 m, and negative clearance (obstacle) otherwise.
 
     SCARA reference heights:
       - q3 = 0.00 → EE z = 0.238 > 0.18 → free (home config).
       - q3 = 0.10 → EE z = 0.138 < 0.18 → penetrating (colliding config).
     """
     occ = MagicMock()
+    # ``clearance`` is a float *attribute* on KDTreeOccupancy, not callable.
+    occ.clearance = 0.05  # 5 cm clearance radius
 
-    def _clearance(pts: np.ndarray) -> float:
+    def _query_distances(pts: np.ndarray) -> np.ndarray:
         pts_2d = np.atleast_2d(pts)
-        # Last row is the EE position (highest alpha = 1.0 in the sampler).
+        # Last row is the EE position (alpha = 1.0 in the sampler).
         ee_z = float(pts_2d[-1, 2])
-        return 0.05 if ee_z > 0.18 else -0.01
+        # 0.10 → clearance = 0.10 − 0.05 =  0.05 > 0  (free space)
+        # 0.03 → clearance = 0.03 − 0.05 = −0.02 < 0  (inside obstacle)
+        dist = 0.10 if ee_z > 0.18 else 0.03
+        return np.full(pts_2d.shape[0], dist)
 
-    occ.clearance.side_effect = _clearance
+    occ.query_distances.side_effect = _query_distances
     return occ
 
 
