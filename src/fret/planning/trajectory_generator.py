@@ -1,12 +1,12 @@
 """Trajectory post-processing chain.
 
-Applies three successive refinement stages to a raw ARCO planner path when
-ARCO is installed:
+When ARCO is installed, applies ``arco.planning.TrajectoryPruner`` to remove
+redundant waypoints from the raw planner path, then applies the same linear
+interpolation used in the fallback path (see below).
 
-1. ``arco.planning.TrajectoryPruner`` — remove redundant waypoints.
-2. ``arco.planning.TrajectoryOptimizer`` — time-optimal refinement with
-   collision awareness and an IK hook.
-3. ``arco.guidance.BSplineInterpolator`` — C² smooth interpolation.
+Note: ``arco.planning.TrajectoryOptimizer`` and
+``arco.guidance.BSplineInterpolator`` are stubs in ARCO 0.3.x and do not yet
+produce usable waypoint sequences, so they are intentionally omitted.
 
 When ARCO is **not** installed, a pure-Python linear-interpolation fallback
 is used instead, producing a ``_JointTrajectory`` compatible with the
@@ -32,12 +32,9 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 try:
-    from arco.guidance import BSplineInterpolator
-    from arco.planning import TrajectoryOptimizer, TrajectoryPruner
+    from arco.planning import TrajectoryPruner
 except ImportError:
-    TrajectoryOptimizer = None
     TrajectoryPruner = None
-    BSplineInterpolator = None
 
 # ---------------------------------------------------------------------------
 # Pure-Python trajectory containers (duck-type compatible with ROS msgs)
@@ -76,14 +73,13 @@ class _JointTrajectory:
 class TrajectoryGenerator:
     """Run the post-processing chain on a raw joint-space path.
 
-    Uses the ARCO chain (``TrajectoryPruner`` → ``TrajectoryOptimizer`` →
-    ``BSplineInterpolator``) when ARCO is installed.  Falls back to a
-    uniform linear interpolation otherwise, producing a ``_JointTrajectory``
-    that satisfies the ``len(traj.points) >= 2`` contract.
+    Uses ``TrajectoryPruner`` to remove redundant waypoints when ARCO is
+    installed, then applies linear interpolation to produce dense waypoints
+    that satisfy the controller's maximum Cartesian step constraint.
+    Falls back to linear interpolation only when ARCO is absent.
 
     Args:
-        kinematics: Kinematics engine used by the optimizer as an IK callable
-            and for feasibility checks.  Must expose ``dof: int`` and
+        kinematics: Kinematics engine.  Must expose ``dof: int`` and
             ``joint_names: list[str]``.
     """
 
@@ -173,10 +169,15 @@ class TrajectoryGenerator:
     def _process_arco(
         self, path: list[npt.NDArray[np.float64]]
     ) -> Any:  # pragma: no cover - requires ARCO
-        """Full ARCO post-processing chain."""
+        """Full ARCO post-processing chain.
+
+        Prunes redundant waypoints with ``TrajectoryPruner``, then applies
+        the same linear interpolation used in the fallback path so that the
+        output satisfies the controller's maximum step constraint.
+        ``TrajectoryOptimizer`` and ``BSplineInterpolator`` are stubs in ARCO
+        0.3.x and do not yet return usable waypoint sequences, so they are
+        intentionally omitted here.
+        """
         pruner = TrajectoryPruner()
         pruned = pruner.prune(path)
-        optimizer = TrajectoryOptimizer(ik_hook=self._kin.inverse_kinematics)
-        optimized = optimizer.optimize(pruned)
-        interpolator = BSplineInterpolator()
-        return interpolator.interpolate(optimized)
+        return self._process_linear(pruned)

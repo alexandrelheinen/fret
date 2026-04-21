@@ -114,6 +114,10 @@ class PlannerRosNode:  # pragma: no cover
             JointTrajectory, "/joint_trajectory", tl_qos
         )
 
+        from sensor_msgs.msg import PointCloud2
+
+        from fret.scene.occupancy_adapter import OccupancyAdapter
+
         # ------------------------------------------------------------------
         # State
         # ------------------------------------------------------------------
@@ -123,14 +127,32 @@ class PlannerRosNode:  # pragma: no cover
             else None
         )
         self._planned: bool = False
+        self._occ_adapter = OccupancyAdapter()
+        self._scene_ready: bool = False
 
         # ------------------------------------------------------------------
-        # If start configuration is overridden, plan immediately; otherwise
-        # wait for the first /joint_states message.
+        # Subscribe to /obstacle_cloud (TRANSIENT_LOCAL so a late join still
+        # receives the most recent cloud published by PerceptionBridgeNode).
         # ------------------------------------------------------------------
-        if self._start_cfg is not None:
-            self._trigger_planning()
-        else:
+        tl_qos_sub = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            depth=1,
+        )
+        self._cloud_sub = self.create_subscription(  # type: ignore[attr-defined]
+            PointCloud2,
+            "/obstacle_cloud",
+            self._obstacle_cloud_callback,
+            tl_qos_sub,
+        )
+        self.get_logger().info(  # type: ignore[attr-defined]
+            "PlannerNode: waiting for /obstacle_cloud and /joint_states …"
+        )
+
+        # ------------------------------------------------------------------
+        # Subscribe to /joint_states (unless start config is overridden).
+        # ------------------------------------------------------------------
+        if self._start_cfg is None:
             be_qos = QoSProfile(
                 reliability=ReliabilityPolicy.BEST_EFFORT,
                 depth=1,
@@ -141,13 +163,67 @@ class PlannerRosNode:  # pragma: no cover
                 self._joint_states_callback,
                 be_qos,
             )
-            self.get_logger().info(  # type: ignore[attr-defined]
-                "PlannerNode: waiting for first /joint_states message …"
-            )
 
     # ------------------------------------------------------------------
     # Callbacks
     # ------------------------------------------------------------------
+
+    def _obstacle_cloud_callback(self, msg: object) -> None:
+        """Handle an incoming /obstacle_cloud message.
+
+        Converts the PointCloud2 to an ``OccupancyUpdatePayload``, updates the
+        shared ``OccupancyAdapter``, and triggers planning once joint states are
+        also available.
+
+        Args:
+            msg: ``sensor_msgs/PointCloud2`` message.
+        """
+        import numpy as np
+
+        try:
+            from sensor_msgs_py.point_cloud2 import read_points_numpy
+
+            pts = read_points_numpy(
+                msg, field_names=["x", "y", "z"], skip_nans=True
+            )
+            if pts.shape[0] == 0:
+                xyz: np.ndarray = np.empty((0, 3), dtype=np.float64)
+            elif pts.dtype.names is not None:
+                xyz = np.column_stack(
+                    [
+                        pts["x"].astype(np.float64),
+                        pts["y"].astype(np.float64),
+                        pts["z"].astype(np.float64),
+                    ]
+                )
+            else:
+                xyz = pts.astype(np.float64)
+
+            stamp = msg.header.stamp  # type: ignore[attr-defined]
+            timestamp = float(stamp.sec) + float(stamp.nanosec) * 1e-9
+
+            from fret.interfaces import OccupancyUpdatePayload
+
+            payload = OccupancyUpdatePayload(
+                obstacle_points=xyz,
+                timestamp=timestamp,
+                frame_id="world",
+            )
+            self._occ_adapter.update(payload)
+            if not self._scene_ready:
+                self._scene_ready = True
+                n_pts = xyz.shape[0]
+                self.get_logger().info(  # type: ignore[attr-defined]
+                    f"PlannerNode: obstacle cloud received ({n_pts} points)"
+                )
+        except (ValueError, AttributeError, KeyError, TypeError) as exc:
+            self.get_logger().warning(  # type: ignore[attr-defined]
+                f"PlannerNode: failed to process /obstacle_cloud: {exc}"
+            )
+            return
+
+        if self._start_cfg is not None and not self._planned:
+            self._trigger_planning()
 
     def _joint_states_callback(self, msg: object) -> None:
         """Handle the first /joint_states message to obtain the start config.
@@ -170,7 +246,8 @@ class PlannerRosNode:  # pragma: no cover
             f"PlannerNode: start configuration received: "
             f"{[round(v, 4) for v in self._start_cfg]}"
         )
-        self._trigger_planning()
+        if self._scene_ready:
+            self._trigger_planning()
 
     # ------------------------------------------------------------------
     # Planning
@@ -189,7 +266,6 @@ class PlannerRosNode:  # pragma: no cover
         from fret.interfaces import PlanningRequest, PlanningStatus
         from fret.planning.planner_node import PlannerNode
         from fret.planning.trajectory_generator import TrajectoryGenerator
-        from fret.scene.occupancy_adapter import OccupancyAdapter
 
         self._planned = True
 
@@ -203,8 +279,9 @@ class PlannerRosNode:  # pragma: no cover
             f"timeout={self._planning_timeout} s"
         )
 
-        occ_adapter = OccupancyAdapter()
-        core = PlannerNode(model=self._model, occupancy_adapter=occ_adapter)
+        core = PlannerNode(
+            model=self._model, occupancy_adapter=self._occ_adapter
+        )
         request = PlanningRequest(
             start_configuration=start,
             goal_configuration=goal,

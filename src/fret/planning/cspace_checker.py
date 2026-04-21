@@ -114,4 +114,10 @@ class CSpaceChecker:
                 f"got {configuration.shape}"
             )
         pts = self._sample_arm_positions(configuration)
+        # KDTreeOccupancy exposes `query_distances` (batch) and stores the
+        # clearance radius as a float attribute; _SimpleOccupancy exposes
+        # `clearance` as a callable method.
+        if hasattr(self._occ, "query_distances"):
+            distances = self._occ.query_distances(pts)
+            return float(np.min(distances)) - float(self._occ.clearance)
         return float(self._occ.clearance(pts))
