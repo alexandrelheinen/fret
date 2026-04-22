@@ -658,7 +658,7 @@
      <gazebo>
           <plugin filename="gz_ros2_control-system"
                   name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-               <parameters>\$(find fret)/config/controllers/ros2_control.yaml</parameters>
+               <parameters>$(find fret)/config/controllers/ros2_control.yaml</parameters>
           </plugin>
      </gazebo>
 
