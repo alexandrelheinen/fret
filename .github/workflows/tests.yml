@@ -52,8 +52,8 @@ jobs:
       - name: Build workspace
         run: bash scripts/build.sh
 
-      - name: Run unit tests and quality gates
-        run: bash scripts/run_tests.sh
+      - name: Run unit tests
+        run: bash scripts/tests/unit.sh
 
-      - name: Run launch smoke tests
-        run: bash scripts/run_smoke_tests.sh
+      - name: Run smoke tests
+        run: bash scripts/tests/smoke.sh

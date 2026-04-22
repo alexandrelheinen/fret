@@ -28,4 +28,4 @@ jobs:
           python3 -m pip install mypy numpy
 
       - name: Run type check
-        run: bash scripts/check_types.sh
+        run: bash scripts/check/types.sh

@@ -29,6 +29,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "${SCRIPT_DIR}")"
 source "${SCRIPT_DIR}/common.sh"
 
 SKIP_ROS=0

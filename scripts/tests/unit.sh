@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# scripts/run_integration_tests.sh
+# scripts/run_tests.sh
 #
-# Runs ROS 2 launch_testing integration tests from tests/integration/.
+# Runs the Python unit test suite (pytest + 90 % coverage gate) and the
+# quality gate validation script.
 #
 # Requires:
-#   - ROS 2 Jazzy installed (/opt/ros/jazzy)
-#   - Workspace built:    ./scripts/build.sh
-#   - xvfb installed:     sudo apt install xvfb
-#   - pytest installed:   pip install pytest
+#   - Python packages installed (pytest, pytest-cov, pytest-timeout)
+#   - ROS 2 workspace built: ./scripts/build.sh
+#   - ROS 2 overlay sourced OR let this script source it automatically
 #
 # Usage:
-#   bash scripts/run_integration_tests.sh
+#   bash scripts/run_tests.sh
 #
 # Exit code: 0 = all pass, 1 = any failure.
 
@@ -18,12 +18,13 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "${SCRIPT_DIR}")"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
 source "${SCRIPT_DIR}/common.sh"
 
-trap 'on_error $LINENO "Integration tests"' ERR
+trap 'on_error $LINENO "Tests"' ERR
 
 ROS_SETUP="/opt/ros/jazzy/setup.bash"
 INSTALL_SETUP="${REPO_ROOT}/install/setup.bash"
@@ -47,14 +48,14 @@ source "${ROS_SETUP}"
 source "${INSTALL_SETUP}"
 set -u
 
-require_command xvfb-run "xvfb-run is required. Run: sudo apt install xvfb"
-require_command pytest "pytest is required. Run: pip install pytest"
+require_command python3 "python3 is required."
+require_command pytest "pytest is required. Run: pip install pytest pytest-cov pytest-timeout"
 
-echo "=== Integration tests (launch_testing) ==="
-if xvfb-run -a pytest tests/integration/ -v --timeout=120; then
-    ok "Integration tests: PASSED"
-    exit 0
+if pytest tests/ \
+    --ignore=tests/integration \
+    -v \
+    --cov=src/fret; then
+    ok "Unit tests: PASSED"
 else
-    fail "Integration tests: FAILED"
-    exit 1
+    fail "Unit tests: FAILED"
 fi

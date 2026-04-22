@@ -30,4 +30,4 @@ jobs:
           python3 -m pip install black isort
 
       - name: Run formatting checks
-        run: bash scripts/check_formatting.sh
+        run: bash scripts/check/formatting.sh
