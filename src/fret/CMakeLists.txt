@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.8)
 project(fret)
 
@@ -5,6 +6,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_program(XACRO_EXECUTABLE xacro REQUIRED)
+
 
 set(GENERATED_URDF_DIR   ${CMAKE_CURRENT_BINARY_DIR}/generated)
 set(GENERATED_MESHES_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_meshes)
@@ -26,7 +28,7 @@ foreach(XACRO_FILE ${XACRO_FILES})
   set(URDF_FILE ${GENERATED_URDF_DIR}/${MODEL_NAME}.urdf)
   add_custom_command(
     OUTPUT  ${URDF_FILE}
-    COMMAND ${XACRO_EXECUTABLE} ${XACRO_FILE} -o ${URDF_FILE}
+    COMMAND ${CMAKE_COMMAND} -E env "AMENT_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}/ament_cmake_index:${AMENT_PREFIX_PATH}" ${XACRO_EXECUTABLE} ${XACRO_FILE} -o ${URDF_FILE} "fret:=${CMAKE_CURRENT_SOURCE_DIR}"
     DEPENDS ${XACRO_FILE}
     COMMENT "[fret] ${MODEL_NAME}: XACRO → URDF"
     VERBATIM
