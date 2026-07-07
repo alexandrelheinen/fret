@@ -69,6 +69,11 @@ These validate the MS-1–5 pipeline. They are **not** the v1.0 product demo.
 ```bash
 # MuJoCo headless MP4 (v1.0 CI target)
 python3 scripts/render_mujoco.py --scenario ppp_warehouse --output /tmp/v10.mp4
+# or via wrapper:
+./scripts/video.sh -o /tmp/v10.mp4
+
+# Magnetic grasp FSM demo (pure Python, no sim)
+python3 scripts/demo_grasp.py
 
 # ROS bag
 ros2 bag record /joint_states /joint_commands /joint_trajectory

@@ -37,17 +37,65 @@ Full specification: **[docs/releases.md](docs/releases.md)**
 
 ## Quick start
 
+### Pure Python (algorithms only — no ROS)
+
 ```bash
 git clone https://github.com/alexandrelheinen/fret.git && cd fret
 pip install -e ".[dev]"
 pytest tests/ -v --ignore=tests/integration
 ```
 
-Full workspace (ROS 2 + Gazebo):
+### Full workspace (ROS 2 + Gazebo)
 
 ```bash
 ./scripts/install.sh -y && ./scripts/setup.sh -y && ./scripts/build.sh
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
+```
+
+### MuJoCo preview video (optional)
+
+```bash
+pip install -e ".[sim]"
+./scripts/video.sh -o /tmp/fret_ppp_warehouse.mp4
+```
+
+---
+
+## v1.0 local development (incremental)
+
+Each PR adds a testable slice. After `pip install -e ".[dev]"`:
+
+| Step | Feature | Verify locally |
+|---|---|---|
+| 1 | PPP kinematics (T10-01) | `pytest tests/control/test_kinematics_ppp.py -v` |
+| 2 | Magnetic grasp FSM (T10-04) | `pytest tests/control/test_grasp_magnet.py -v` |
+| 3 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
+
+**PPP kinematics** — identity-map FK/IK for the gantry:
+
+```bash
+python3 -c "
+from fret.control import Kinematics
+import numpy as np
+k = Kinematics('ppp')
+q = np.array([10.0, 5.0, 2.0])
+print('EE position:', k.forward_kinematics(q)[:3, 3])
+"
+```
+
+**Magnetic grasp FSM** — weld / transport / release without ROS:
+
+```bash
+python3 scripts/demo_grasp.py
+# or run the unit tests:
+pytest tests/control/test_grasp_magnet.py -v
+```
+
+**MuJoCo warehouse preview** — headless MP4 of gantry motion:
+
+```bash
+pip install -e ".[sim]"
+./scripts/video.sh --duration 30 --fps 30 -o /tmp/v10.mp4
 ```
 
 ---
@@ -113,7 +161,10 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | Item | Status |
 |---|---|
 | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done (regression CI) |
-| v1.0 PPP + MuJoCo | 🔲 Specification complete; implementation next |
+| v1.0 PPP kinematics (T10-01) | ✅ Done |
+| v1.0 magnetic grasp FSM (T10-04) | ✅ Done |
+| v1.0 MuJoCo preview video script (T10-07) | ✅ Done |
+| v1.0 C-space checker + scenario launch | 🔲 Next |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---
