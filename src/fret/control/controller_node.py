@@ -491,6 +491,35 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
             rclpy.shutdown()
 
 
+def make_controller_node(
+    model: str,
+    config_path: str | pathlib.Path,
+) -> ControllerNode | Any:
+    """Build a model-appropriate Level-3 controller (FR-SYS-01).
+
+    Dispatches to ``PPPControllerNode`` for the PPP gantry and the legacy
+    Jacobian ``ControllerNode`` for SCARA / RRP models.
+
+    Args:
+        model: Robot model name (``"ppp"`` or ``"scara"``).
+        config_path: Path to controller YAML or the controllers directory.
+
+    Returns:
+        ``PPPControllerNode`` or ``ControllerNode`` instance.
+
+    Raises:
+        ValueError: If ``model`` is not recognised.
+    """
+    path = str(config_path)
+    if model == "ppp":
+        from fret.control.controller_ppp import PPPControllerNode
+
+        return PPPControllerNode(path)
+    if model == "scara":
+        return ControllerNode(model=model, config_path=path)
+    raise ValueError(f"Unknown controller model: {model!r}")
+
+
 def _make_controller_ros_node(  # pragma: no cover
     model: str = "scara",
     config_path: str = "",

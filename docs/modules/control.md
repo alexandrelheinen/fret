@@ -85,6 +85,33 @@ IDLE → APPROACH → CAPTURE → TRANSPORT → RELEASE → IDLE
 
 ---
 
+### `controller_ppp.py` — PPPControllerNode (v1.0)
+
+Per-axis proportional velocity control for the PPP gantry at 50 Hz.
+Because ``q ≡ p_ee``, joint-space P-control is equivalent to Cartesian
+P-control:
+
+```
+q̇ = Kp · (q_ref − q)   (clipped per joint)
+```
+
+| Property / method | Description |
+|---|---|
+| `compute_prismatic_command(kin, q)` | Per-axis velocity command [m/s] |
+| `get_ee_error_m(kin, q)` | EE position error against current waypoint |
+| `set_trajectory(waypoints)` | Load waypoints and enter ``TRACKING`` |
+| `fault_threshold` | 10 mm joint-space error → ``HALTED`` |
+
+**Config:** `src/fret/config/controllers/ppp.yml` — Kp=1.5,
+max velocity [3, 3, 1.5] m/s, 50 Hz.
+
+**Demo:** `python3 scripts/demo_ppp_controller.py`  
+**Tests:** `tests/control/test_controller_ppp.py` — 12 unit tests.
+
+Use ``make_controller_node(model, config_path)`` to dispatch PPP vs SCARA.
+
+---
+
 ### `controller_node.py` — ControllerNode
 
 Jacobian-based 50 Hz trajectory tracking controller, organized in two levels:
