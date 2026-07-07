@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Headless MuJoCo video renderer for FRET showcase scenarios.
 
-Renders an MP4 of the PPP gantry traversing a warehouse preview scene
+Renders MP4s of the PPP gantry traversing a warehouse preview scene
 without requiring a ROS runtime.  Intended for README / article assets
 (releases.md V10-6, T10-07).
 
@@ -9,6 +9,7 @@ Example::
 
     python3 scripts/render_mujoco.py --scenario ppp_warehouse -o /tmp/v10.mp4
     ./scripts/video.sh --model ppp --duration 30
+    ./scripts/video.sh --all-cameras --output-dir /tmp/showcase
 
 Dependencies (not required for core FRET algorithms)::
 
@@ -19,6 +20,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -45,6 +48,29 @@ _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([10.5, 3.2, 0.95]),
     np.array([10.5, 3.2, 2.4]),
 ]
+
+# Default release export order (must match MJCF camera names).
+_PPP_WAREHOUSE_CAMERAS: tuple[str, ...] = (
+    "overview",
+    "aisle",
+    "topdown",
+    "follow",
+    "pick",
+)
+
+_EGL_APT_HINT = (
+    "sudo apt install libegl1 libegl-mesa0 libgles2 libgl1 "
+    "libgl1-mesa-dri libosmesa6"
+)
+
+
+@dataclass(frozen=True)
+class RenderResult:
+    """One rendered showcase clip."""
+
+    camera: str
+    path: Path
+    frame_mean: float
 
 
 def _project_root() -> Path:
@@ -84,6 +110,40 @@ def resolve_mjcf_path(
     )
 
 
+def list_showcase_cameras(
+    mjcf_path: Path,
+    *,
+    scenario: str = "ppp_warehouse",
+) -> list[str]:
+    """Return ordered showcase camera names for a scenario MJCF.
+
+    Args:
+        mjcf_path: Path to the MJCF scene file.
+        scenario: Scenario stem used for fallback defaults.
+
+    Returns:
+        Camera names in release-export order.
+    """
+    root = ET.parse(mjcf_path).getroot()
+    cameras = [
+        name
+        for node in root.iter("camera")
+        if (name := node.get("name")) is not None
+    ]
+    if cameras:
+        return cameras
+
+    if scenario in {"ppp_warehouse", "ppp"}:
+        return list(_PPP_WAREHOUSE_CAMERAS)
+
+    raise ValueError(f"No showcase cameras found in MJCF: {mjcf_path}")
+
+
+def showcase_output_name(scenario: str, camera: str) -> str:
+    """Build the canonical showcase MP4 filename for a scenario/camera pair."""
+    return f"{scenario}_{camera}.mp4"
+
+
 def interpolate_waypoints(
     waypoints: list[npt.NDArray[np.float64]],
     duration_s: float,
@@ -107,7 +167,6 @@ def interpolate_waypoints(
 
     n_frames = max(2, int(round(duration_s * fps)))
     segment_count = len(waypoints) - 1
-    frames_per_segment = n_frames / segment_count
     trajectory = np.zeros((n_frames, 3), dtype=np.float64)
 
     for frame_idx in range(n_frames):
@@ -122,12 +181,6 @@ def interpolate_waypoints(
         trajectory[frame_idx] = (1.0 - alpha) * q0 + alpha * q1
 
     return np.clip(trajectory, _PPP_LIMITS[:, 0], _PPP_LIMITS[:, 1])
-
-
-_EGL_APT_HINT = (
-    "sudo apt install libegl1 libegl-mesa0 libgles2 libgl1 "
-    "libgl1-mesa-dri libosmesa6"
-)
 
 
 def _require_mujoco() -> tuple[object, object]:
@@ -171,17 +224,42 @@ def _set_slide_joint(
     data.qpos[qpos_adr] = value
 
 
+def _open_video_writer(path: Path, fps: int) -> object:
+    """Open an incremental MP4 writer (low memory for multi-POV export)."""
+    import imageio
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return imageio.get_writer(
+        str(path),
+        fps=fps,
+        codec="libx264",
+        pixelformat="yuv420p",
+        macro_block_size=1,
+    )
+
+
+def _frame_mean(frame: npt.NDArray[np.uint8]) -> float:
+    return float(frame.mean())
+
+
+def _assert_camera_exists(mujoco: object, model: object, camera: str) -> None:
+    cam_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, camera)
+    if cam_id < 0:
+        raise ValueError(f"Camera not found in MJCF: {camera}")
+
+
 def render_video(
     mjcf_path: Path,
     output_path: Path,
     *,
+    scenario: str = "ppp_warehouse",
     duration_s: float = 30.0,
     fps: int = 30,
     width: int = 1280,
     height: int = 720,
     camera: str = "overview",
     waypoints: list[npt.NDArray[np.float64]] | None = None,
-) -> Path:
+) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
     Args:
@@ -195,9 +273,63 @@ def render_video(
         waypoints: Optional joint-space path; defaults to warehouse demo.
 
     Returns:
-        The output path (created parent directories as needed).
+        Render metadata including the output path and first-frame mean.
     """
-    mujoco, iio = _require_mujoco()
+    results = render_showcase_videos(
+        mjcf_path,
+        output_path.parent,
+        scenario=scenario,
+        cameras=[camera],
+        output_names={camera: output_path.name},
+        duration_s=duration_s,
+        fps=fps,
+        width=width,
+        height=height,
+        waypoints=waypoints,
+    )
+    return results[0]
+
+
+def render_showcase_videos(
+    mjcf_path: Path,
+    output_dir: Path,
+    *,
+    scenario: str = "ppp_warehouse",
+    cameras: list[str] | None = None,
+    output_names: dict[str, str] | None = None,
+    duration_s: float = 30.0,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+    waypoints: list[npt.NDArray[np.float64]] | None = None,
+) -> list[RenderResult]:
+    """Render one MP4 per showcase camera in a single simulation pass.
+
+    Each frame updates the robot once, then renders every requested POV.
+    Frames stream directly to disk to keep memory bounded.
+
+    Args:
+        mjcf_path: Path to the MJCF scene file.
+        output_dir: Directory for output MP4 files.
+        scenario: Scenario stem used in default filenames.
+        cameras: Camera names to export; defaults to all MJCF cameras.
+        output_names: Optional per-camera filename overrides.
+        duration_s: Clip length in seconds.
+        fps: Frame rate.
+        width: Frame width in pixels.
+        height: Frame height in pixels.
+        waypoints: Optional joint-space path; defaults to warehouse demo.
+
+    Returns:
+        One :class:`RenderResult` per exported camera.
+    """
+    mujoco, _iio = _require_mujoco()
+    camera_names = cameras if cameras is not None else list_showcase_cameras(
+        mjcf_path, scenario=scenario
+    )
+    if not camera_names:
+        raise ValueError("At least one showcase camera is required")
+
     path_waypoints = (
         waypoints if waypoints is not None else _PPP_WAREHOUSE_WAYPOINTS
     )
@@ -207,32 +339,55 @@ def render_video(
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, height=height, width=width)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    frames: list[npt.NDArray[np.uint8]] = []
+    for camera in camera_names:
+        _assert_camera_exists(mujoco, model, camera)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    names = output_names or {
+        camera: showcase_output_name(scenario, camera) for camera in camera_names
+    }
+    paths = {
+        camera: output_dir / names[camera] for camera in camera_names
+    }
+    writers = {
+        camera: _open_video_writer(paths[camera], fps) for camera in camera_names
+    }
+    first_frames: dict[str, npt.NDArray[np.uint8]] = {}
 
     joint_names = ("joint_x", "joint_y", "joint_z")
-    for q in trajectory:
-        for idx, name in enumerate(joint_names):
-            _set_slide_joint(mujoco, model, data, name, float(q[idx]))
-        mujoco.mj_forward(model, data)
-        renderer.update_scene(data, camera=camera)
-        frames.append(renderer.render().copy())
+    try:
+        for q in trajectory:
+            for idx, name in enumerate(joint_names):
+                _set_slide_joint(mujoco, model, data, name, float(q[idx]))
+            mujoco.mj_forward(model, data)
+            for camera in camera_names:
+                renderer.update_scene(data, camera=camera)
+                frame = renderer.render()
+                writers[camera].append_data(frame)
+                if camera not in first_frames:
+                    first_frames[camera] = frame.copy()
+    finally:
+        for writer in writers.values():
+            writer.close()
+        renderer.close()
 
-    renderer.close()
-    iio.imwrite(
-        output_path,
-        np.stack(frames, axis=0),
-        fps=fps,
-        codec="libx264",
-        pixelformat="yuv420p",
-    )
-    return output_path
+    results: list[RenderResult] = []
+    for camera in camera_names:
+        frame = first_frames[camera]
+        mean = _frame_mean(frame)
+        if mean <= 1.0:
+            raise RuntimeError(
+                f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+            )
+        results.append(RenderResult(camera=camera, path=paths[camera], frame_mean=mean))
+
+    return results
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="Render a headless MuJoCo MP4 for FRET showcase scenarios.",
+        description="Render headless MuJoCo MP4s for FRET showcase scenarios.",
     )
     parser.add_argument(
         "--model",
@@ -248,8 +403,14 @@ def build_parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         type=Path,
-        default=Path("/tmp/fret_ppp_warehouse.mp4"),
-        help="Output MP4 path (default: /tmp/fret_ppp_warehouse.mp4)",
+        default=None,
+        help="Output MP4 path for single-camera mode",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("/tmp/fret_showcase"),
+        help="Output directory for --all-cameras (default: /tmp/fret_showcase)",
     )
     parser.add_argument(
         "--mjcf",
@@ -283,8 +444,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--camera",
-        default="overview",
-        help="MJCF camera name (default: overview)",
+        action="append",
+        dest="cameras",
+        metavar="NAME",
+        help="MJCF camera name (repeatable; default: overview)",
+    )
+    parser.add_argument(
+        "--all-cameras",
+        action="store_true",
+        help="Export every showcase camera defined in the MJCF",
     )
     return parser
 
@@ -293,16 +461,63 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     args = build_parser().parse_args(argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
-    output = render_video(
+
+    if args.all_cameras:
+        cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
+        results = render_showcase_videos(
+            mjcf_path,
+            args.output_dir,
+            scenario=args.scenario,
+            cameras=cameras,
+            duration_s=args.duration,
+            fps=args.fps,
+            width=args.width,
+            height=args.height,
+        )
+        for result in results:
+            print(
+                f"Wrote {result.path} "
+                f"(camera={result.camera}, mean={result.frame_mean:.1f}, "
+                f"{args.duration:.1f}s @ {args.fps} fps)"
+            )
+        return 0
+
+    cameras = args.cameras or ["overview"]
+    if len(cameras) == 1:
+        output = args.output or Path(
+            f"/tmp/{showcase_output_name(args.scenario, cameras[0])}"
+        )
+        result = render_video(
+            mjcf_path,
+            output,
+            scenario=args.scenario,
+            duration_s=args.duration,
+            fps=args.fps,
+            width=args.width,
+            height=args.height,
+            camera=cameras[0],
+        )
+        print(
+            f"Wrote {result.path} ({args.duration:.1f}s @ {args.fps} fps, "
+            f"mean={result.frame_mean:.1f})"
+        )
+        return 0
+
+    results = render_showcase_videos(
         mjcf_path,
-        args.output,
+        args.output_dir,
+        scenario=args.scenario,
+        cameras=cameras,
         duration_s=args.duration,
         fps=args.fps,
         width=args.width,
         height=args.height,
-        camera=args.camera,
     )
-    print(f"Wrote {output} ({args.duration:.1f}s @ {args.fps} fps)")
+    for result in results:
+        print(
+            f"Wrote {result.path} "
+            f"(camera={result.camera}, mean={result.frame_mean:.1f})"
+        )
     return 0
 
 

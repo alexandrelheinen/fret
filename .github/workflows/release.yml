@@ -1,7 +1,7 @@
 name: Release
 
-# Renders the PPP warehouse MuJoCo showcase MP4 on version tags, verifies
-# pixels are non-blank, uploads to Cloudflare R2, and keeps a GitHub artifact.
+# Renders PPP warehouse MuJoCo showcase MP4s (multi-POV) on version tags,
+# verifies pixels are non-blank, uploads to Cloudflare R2, and keeps artifacts.
 
 on:
   push:
@@ -25,7 +25,7 @@ concurrency:
 jobs:
   showcase-video:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -52,29 +52,18 @@ jobs:
           python3 -m pip install --break-system-packages \
             awscli mujoco imageio imageio-ffmpeg
 
-      - name: Render PPP warehouse MP4
+      - name: Render PPP warehouse showcase clips (all POVs)
         run: |
           ./scripts/video.sh \
             --model ppp \
             --scenario ppp_warehouse \
+            --all-cameras \
+            --output-dir showcase_renders \
             --duration 30 \
             --fps 30 \
             --width 1280 \
-            --height 720 \
-            -o ppp_warehouse_showcase.mp4
-          test -s ppp_warehouse_showcase.mp4
-
-      - name: Verify render is not blank
-        run: |
-          python3 - <<'PY'
-          import imageio.v3 as iio
-
-          frame = iio.imread("ppp_warehouse_showcase.mp4", index=0)
-          mean = float(frame.mean())
-          print(f"frame mean={mean}")
-          if mean <= 1.0:
-              raise SystemExit("Render looks blank (frame mean <= 1.0)")
-          PY
+            --height 720
+          ls -la showcase_renders/
 
       - name: Write release metadata
         run: |
@@ -83,21 +72,58 @@ jobs:
           else
             TAG="${{ github.ref_name }}"
           fi
-          cat > meta.json <<EOF
-          {
-            "repo": "${{ github.repository }}",
-            "git_sha": "${{ github.sha }}",
-            "git_ref": "${TAG}",
-            "scenario": "ppp_warehouse",
-            "model": "ppp",
-            "duration_s": 30,
-            "fps": 30,
-            "width": 1280,
-            "height": 720,
-            "rendered_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-            "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          tag = os.environ["TAG"]
+          renders = sorted(Path("showcase_renders").glob("*.mp4"))
+          if not renders:
+              raise SystemExit("No showcase MP4 files were produced")
+
+          videos = []
+          for path in renders:
+              camera = path.stem.removeprefix("ppp_warehouse_")
+              videos.append(
+                  {
+                      "camera": camera,
+                      "file": path.name,
+                      "bytes": path.stat().st_size,
+                  }
+              )
+
+          meta = {
+              "repo": "${{ github.repository }}",
+              "git_sha": "${{ github.sha }}",
+              "git_ref": tag,
+              "scenario": "ppp_warehouse",
+              "model": "ppp",
+              "duration_s": 30,
+              "fps": 30,
+              "width": 1280,
+              "height": 720,
+              "cameras": [video["camera"] for video in videos],
+              "videos": videos,
+              "primary_video": "ppp_warehouse_overview.mp4",
+              "rendered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
           }
-          EOF
+          Path("meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(meta, indent=2))
+          PY
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
+
+      - name: Upload GitHub artifacts (backup)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ppp-warehouse-showcase-${{ github.ref_name }}
+          path: |
+            showcase_renders/
+            meta.json
+          retention-days: 90
 
       - name: Upload to Cloudflare R2
         env:
@@ -111,24 +137,25 @@ jobs:
             TAG="${{ github.ref_name }}"
           fi
 
-          aws s3 cp ppp_warehouse_showcase.mp4 \
-            "s3://${R2_BUCKET}/releases/${TAG}/ppp_warehouse_showcase.mp4" \
-            --endpoint-url "${R2_ENDPOINT}" \
-            --content-type video/mp4
+          for mp4 in showcase_renders/*.mp4; do
+            base="$(basename "${mp4}")"
+            aws s3 cp "${mp4}" \
+              "s3://${R2_BUCKET}/releases/${TAG}/${base}" \
+              --endpoint-url "${R2_ENDPOINT}" \
+              --content-type video/mp4
+            aws s3 cp "${mp4}" \
+              "s3://${R2_BUCKET}/latest/${base}" \
+              --endpoint-url "${R2_ENDPOINT}" \
+              --content-type video/mp4
+          done
 
           aws s3 cp meta.json \
             "s3://${R2_BUCKET}/releases/${TAG}/meta.json" \
             --endpoint-url "${R2_ENDPOINT}" \
             --content-type application/json
 
-          aws s3 cp ppp_warehouse_showcase.mp4 \
+          # Backward-compatible primary pointer for README / download script.
+          aws s3 cp showcase_renders/ppp_warehouse_overview.mp4 \
             "s3://${R2_BUCKET}/latest/ppp_warehouse.mp4" \
             --endpoint-url "${R2_ENDPOINT}" \
             --content-type video/mp4
-
-      - name: Upload GitHub artifact (backup)
-        uses: actions/upload-artifact@v6
-        with:
-          name: ppp-warehouse-showcase-${{ github.ref_name }}
-          path: ppp_warehouse_showcase.mp4
-          retention-days: 90
