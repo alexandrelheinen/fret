@@ -38,17 +38,11 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
-from launch.conditions import (
-    AndCondition,
-    IfCondition,
-    LaunchConfigurationEquals,
-    UnlessCondition,
-)
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     EqualsSubstitution,
     LaunchConfiguration,
-    NotEqualsSubstitution,
     OrSubstitution,
     PathJoinSubstitution,
 )
@@ -78,7 +72,10 @@ def generate_launch_description() -> LaunchDescription:
 
     is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
     is_gazebo = UnlessCondition(is_mujoco)
-    is_ppp_model = LaunchConfigurationEquals("model", "ppp")
+    is_ppp_model = EqualsSubstitution(LaunchConfiguration("model"), "ppp")
+    is_ppp_warehouse = EqualsSubstitution(
+        LaunchConfiguration("scenario"), "ppp_warehouse"
+    )
 
     is_straight_line = EqualsSubstitution(
         LaunchConfiguration("scenario"), "straight_line"
@@ -172,8 +169,10 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(is_injector_scenario),
     )
 
-    is_ppp_warehouse = LaunchConfigurationEquals("scenario", "ppp_warehouse")
-    is_standard_planner = UnlessCondition(is_injector_scenario)
+    skip_default_perception = OrSubstitution(
+        is_injector_scenario,
+        is_ppp_warehouse,
+    )
 
     perception_bridge_default = Node(
         package="fret",
@@ -186,12 +185,7 @@ def generate_launch_description() -> LaunchDescription:
                 "config_path": default_perception_config,
             }
         ],
-        condition=IfCondition(
-            AndCondition(
-                is_standard_planner,
-                UnlessCondition(is_ppp_warehouse),
-            )
-        ),
+        condition=UnlessCondition(skip_default_perception),
     )
 
     perception_bridge_ppp = Node(
@@ -205,9 +199,7 @@ def generate_launch_description() -> LaunchDescription:
                 "config_path": ppp_perception_config,
             }
         ],
-        condition=IfCondition(
-            AndCondition(is_standard_planner, is_ppp_warehouse)
-        ),
+        condition=IfCondition(is_ppp_warehouse),
     )
 
     controller_scara = Node(
