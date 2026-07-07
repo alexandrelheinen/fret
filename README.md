@@ -302,8 +302,9 @@ ros2 run plotjuggler plotjuggler
 
 ## Contributing
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/guidelines.md](docs/guidelines.md).
-All contributions must follow the V-cycle and pass all CI checks.
+[CONTRIBUTING.md](CONTRIBUTING.md) is the single source of truth for humans and AI
+agents: SDD workflow, 4-level V-cycle stages, quality gates, and merge policy.
+Coding conventions live in [docs/guidelines.md](docs/guidelines.md).
 
 ---
 
