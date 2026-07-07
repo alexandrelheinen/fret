@@ -156,6 +156,13 @@ class PlannerNode:
 
         # -- 4. Post-process -------------------------------------------------
         try:
+            if checker is not None:
+                self._traj_gen.set_collision_context(
+                    _CSpaceOccupancy(checker),
+                    np.full(self._kin.dof, 0.1, dtype=np.float64),
+                )
+            else:
+                self._traj_gen.clear_collision_context()
             self._traj_gen.process(path)
         except (ValueError, RuntimeError):
             return PlanningResult(

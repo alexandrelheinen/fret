@@ -23,6 +23,14 @@ _DEFAULT_OBSTACLE_FILE = (
     / "ppp_warehouse_obstacles.yml"
 )
 
+#: MJCF 1:5 preview layout for MuJoCo / E2E validation (SC-v10).
+_PREVIEW_OBSTACLE_FILE = (
+    Path(__file__).resolve().parents[1]
+    / "config"
+    / "worlds"
+    / "ppp_warehouse_preview_obstacles.yml"
+)
+
 _PPP_JOINT_NAMES: list[str] = ["joint_x", "joint_y", "joint_z"]
 
 
@@ -65,6 +73,11 @@ class BoxObstacle:
 def default_obstacle_file() -> Path:
     """Return the path to the bundled PPP warehouse obstacle YAML."""
     return _DEFAULT_OBSTACLE_FILE
+
+
+def preview_obstacle_file() -> Path:
+    """Return the path to the MJCF 1:5 preview obstacle YAML."""
+    return _PREVIEW_OBSTACLE_FILE
 
 
 def load_ppp_warehouse_obstacles(
@@ -111,6 +124,26 @@ def load_ppp_warehouse_obstacles(
             )
         )
     return boxes
+
+
+def load_ppp_warehouse_preview_obstacles(
+    path: Path | None = None,
+) -> list[BoxObstacle]:
+    """Load PPP warehouse preview-scale obstacles from YAML.
+
+    Args:
+        path: YAML file path.  Defaults to ``ppp_warehouse_preview_obstacles.yml``.
+
+    Returns:
+        List of ``BoxObstacle`` instances for the MuJoCo preview scene.
+
+    Raises:
+        FileNotFoundError: If the YAML file does not exist.
+        ValueError: If the file format is invalid.
+    """
+    return load_ppp_warehouse_obstacles(
+        path if path is not None else preview_obstacle_file()
+    )
 
 
 def boxes_to_point_cloud(
