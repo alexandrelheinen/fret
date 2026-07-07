@@ -114,7 +114,7 @@ class ControllerNode:
             path = path / "jacobian.yml"
         if not path.is_file():
             return
-        import yaml  # type: ignore[import-untyped]
+        import yaml
 
         try:
             with path.open() as fh:
