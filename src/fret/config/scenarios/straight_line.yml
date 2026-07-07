@@ -20,7 +20,7 @@
 #   - /joint_commands published at >= 45 Hz for full duration.
 #   - No fault published on /controller_fault.
 #
-# See docs/milestones.md — Milestone 1 for full acceptance criteria.
+# See docs/releases.md (regression) and docs/scenarios.md SC-04.
 
 /**:
   ros__parameters:

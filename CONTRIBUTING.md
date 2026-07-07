@@ -58,7 +58,8 @@ The specification stack is in place:
 | 3 — Module API | Typed stubs under `src/fret/` | `tests/` mirroring `src/fret/` |
 | 4 — Implementation | Filled algorithms and ROS nodes | Full CI suite, SITL smoke tests |
 
-Project status, milestones, and roadmap: [docs/milestones.md](docs/milestones.md),
+Project status and roadmap: [docs/releases.md](docs/releases.md),
+[docs/roadmap.md](docs/roadmap.md).
 [docs/roadmap.md](docs/roadmap.md). User-facing usage: [README.md](README.md),
 [docs/simulation.md](docs/simulation.md).
 
@@ -320,7 +321,7 @@ down to the test that proves it, and from any test back to the criterion.
 | --- | --- | --- |
 | `FR-<LAYER>-<NN>` | [docs/requirements.md](docs/requirements.md) | `FR-CTL-02` |
 | `SC-<NN>` | [docs/scenarios.md](docs/scenarios.md) | `SC-01` |
-| Milestone | [docs/milestones.md](docs/milestones.md) | MS-3 |
+| Release | [docs/releases.md](docs/releases.md) | v1.0 |
 
 **Rules:**
 
@@ -515,7 +516,7 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | [docs/scenarios.md](docs/scenarios.md) | Level 1 — `SC-*` scenario validation |
 | [docs/architecture.md](docs/architecture.md) | Level 2 — system design |
 | [docs/interfaces.md](docs/interfaces.md) | Level 2 — typed contracts, QoS, FSMs |
-| [docs/milestones.md](docs/milestones.md) | Milestone completion and MS-* traceability |
+| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.3 |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |
 
 ### Methodology (external)

@@ -4,13 +4,14 @@
 **Source:** `src/fret/scene/`  
 **Tests:** `tests/scene/`
 
+> v1.0 PPP warehouse obstacles feed this module from YAML/MuJoCo. See [releases.md](../releases.md).
+
 ---
 
 ## Responsibility
 
-The scene module acquires obstacle geometry from the simulation environment (Gazebo),
-transforms it to the world frame, and constructs the occupancy model used by the
-planning layer. It owns all data flowing from the simulator to the planner.
+The scene module acquires obstacle geometry, transforms it to the world frame, and
+constructs the ARCO `KDTreeOccupancy` model for planning.
 
 ---
 

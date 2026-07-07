@@ -16,7 +16,7 @@
 #   - EE tracking error < 5 mm at all times.
 #   - No fault published on /controller_fault.
 #
-# See docs/milestones.md Milestone 5 for full acceptance criteria.
+# See docs/releases.md (bootstrap regression; v1.2 RRP target).
 
 /**:
   ros__parameters:

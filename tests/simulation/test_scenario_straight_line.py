@@ -8,7 +8,7 @@ tracking error ≤ 5 mm throughout the 3-second run.
 This test does NOT require a live ROS context — it runs the pure-Python
 logic layer only.
 
-Acceptance criteria checked here (docs/milestones.md Milestone 1):
+Acceptance criteria checked here (regression SC-04; see docs/releases.md):
   AC-2 The EE moves from FK([0,0,0.10]) to FK([0.785,0,0.10]) in 3 s.
   AC-4 Maximum EE tracking error ≤ 5 mm at every timestep (FR-CTL-02).
   AC-5 No fault is triggered during the run.
