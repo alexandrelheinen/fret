@@ -22,10 +22,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install type checker
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install mypy numpy
+          python -m pip install --upgrade pip
+          python -m pip install mypy numpy
 
       - name: Run type check
         run: bash scripts/check/types.sh
