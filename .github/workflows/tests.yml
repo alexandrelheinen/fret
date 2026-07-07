@@ -31,10 +31,11 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             xvfb \
-            python3-pytest \
+            python3-pip \
             curl \
             gnupg
-          python3 -m pip install --break-system-packages pytest-cov pytest-timeout
+          python3 -m pip install --break-system-packages \
+            pytest pytest-cov pytest-timeout
 
       - name: Configure Gazebo apt repository
         run: |
