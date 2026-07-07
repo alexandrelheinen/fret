@@ -31,9 +31,18 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             xvfb \
-            python3-pip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pytest pytest-cov pytest-timeout
+            python3-pytest \
+            curl \
+            gnupg
+          python3 -m pip install --break-system-packages pytest-cov pytest-timeout
+
+      - name: Configure Gazebo apt repository
+        run: |
+          curl -sSL https://packages.osrfoundation.org/gazebo.gpg \
+            | gpg --dearmor --yes -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable noble main" \
+            > /etc/apt/sources.list.d/gazebo-stable.list
+          apt-get update
 
       - name: Initialize rosdep
         run: |
