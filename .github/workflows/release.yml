@@ -7,7 +7,13 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch: {}
+      - "v*.*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag label for R2 path (e.g. v0.2). Used for manual runs."
+        required: true
+        default: "v0.2"
 
 permissions:
   contents: read
@@ -63,11 +69,16 @@ jobs:
 
       - name: Write release metadata
         run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
           cat > meta.json <<EOF
           {
             "repo": "${{ github.repository }}",
             "git_sha": "${{ github.sha }}",
-            "git_ref": "${{ github.ref_name }}",
+            "git_ref": "${TAG}",
             "scenario": "ppp_warehouse",
             "model": "ppp",
             "duration_s": 30,
@@ -85,7 +96,11 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
         run: |
-          TAG="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
 
           aws s3 cp ppp_warehouse_showcase.mp4 \
             "s3://${R2_BUCKET}/releases/${TAG}/ppp_warehouse_showcase.mp4" \
