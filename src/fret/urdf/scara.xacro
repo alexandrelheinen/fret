@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!-- SCARA robot description (xacro)
 
-      Generated from docs/scara/scara.md specifications.
+      RRP SCARA bootstrap model (v1.2). See docs/robots/rrp.md.
       Conventions: who_what naming, counts start at 0, R-R-P-R kinematics.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="SCARA">

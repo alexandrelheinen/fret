@@ -1,233 +1,112 @@
 # ARCO Integration in FRET
 
+> **Release mapping:** [releases.md](releases.md) · **Robot models:** [robots/README.md](robots/README.md)
+
+---
+
 ## What is ARCO
 
-ARCO (Autonomous Routing, Control, and Observation) is a pure-Python library
-for autonomous navigation building blocks. It provides the motion planning
-layer that FRET consumes: given an obstacle model of the workspace, ARCO
-computes a collision-free path that FRET's control stack then executes.
+ARCO (Algorithms for Robotic Control and Optimization) is the author-owned Python
+planning library. FRET consumes ARCO for occupancy, sampling-based planning, and
+(selected releases) guidance controllers.
 
-ARCO repository: `../arco/`
+ARCO repository: `https://github.com/alexandrelheinen/arco`
 
 ---
 
-## ARCO Capabilities
+## ARCO usage by FRET release
 
-ARCO is organized in three layers.
-
-### Mapping
-
-Environment representation used by planners to query obstacle proximity.
-
-| Structure | Description |
-|---|---|
-| `ManhattanGrid` | 4-connected discrete grid, $L_1$ metric |
-| `EuclideanGrid` | 8-connected discrete grid, $L_2$ metric |
-| `Graph → WeightedGraph → CartesianGraph → RoadGraph` | Layered graph hierarchy for network routing |
-| `KDTreeOccupancy` | KD-tree obstacle set answering nearest-obstacle and clearance queries in N-dimensional spaces |
-
-`KDTreeOccupancy` is the primary interface for continuous-space planning and
-the one FRET uses: FRET acquires obstacle geometry from Gazebo, transforms
-it to the world frame, and constructs a `KDTreeOccupancy` from the resulting
-point set.
-
-### Planning
-
-| Algorithm | Type | Notes |
+| Release | ARCO components | ARCO scenario reference |
 |---|---|---|
-| A* | Discrete (grid / graph) | Optimal; used for grid and road-network routing |
-| Route planning | Discrete (road graph) | A* with nearest-node projection and waypoint smoothing |
-| RRT* | Sampling-based | Asymptotically optimal; simpler fallback for continuous spaces |
-| SST | Sampling-based, kinodynamic | Stable Sparse Trees; asymptotically near-optimal, memory-efficient, designed for systems with dynamics |
-| `TrajectoryOptimizer` | Post-processing | Two-stage time-optimal refinement; collision-aware; accepts an IK callable |
-| `TrajectoryPruner` | Post-processing | Removes redundant waypoints from a raw planner path |
-
-SST is the preferred algorithm for manipulator planning: it handles kinodynamic
-constraints, scales to N-dimensional joint spaces, and converges to a
-near-optimal solution while keeping memory bounded.
-
-### Guidance
-
-Post-planning components that shape raw paths into executable trajectories.
-
-| Component | Description |
-|---|---|
-| `BSplineInterpolator` | C² smooth trajectory from discrete waypoints, arc-length parameterized |
-| `PIDController` | Classic setpoint tracking with derivative filtering and anti-windup |
-| `PurePursuitController` | Geometric look-ahead path tracker for car-like vehicles |
-| `MPCController` | Optimization-based controller with preview horizon and constraint handling |
-| `TrackingLoop` | Integration wrapper: timing, state management, consistent interface across controllers |
-| `DubinsPrimitive` | Shortest-path kinematic steering for forward-only vehicles (Dubins 1957) |
-| `DubinsVehicle` | Car-like kinematic model (used internally by ARCO's 2-D scenarios) |
-
-> Note: the guidance layer's vehicle models are currently 2-D. FRET must
-> supply its own kinematics (Jacobian-based control) and use ARCO's controllers
-> only if they fit the manipulator model.
-
-### Entity model
-
-A typed, JSON-serializable hierarchy for physical entities in a planning scene:
-
-```
-Entity
-├── Agent (DubinsAgent, CartesianAgent)
-├── Link
-├── Joint (RevoluteJoint, PrismaticJoint)
-├── EndEffector
-└── Object
-```
-
-`KinematicChain` assembles Links, Joints, and an EndEffector into a manipulator
-description. For the SCARA (RRP topology) this maps to two `RevoluteJoint`s and
-one `PrismaticJoint`.
-
-### Middleware and pipeline
-
-> **Decision**: ARCO's ``arco.middleware`` package (``Bus`` / ``InMemoryBus``,
-> ``PipelineRunner``) is **not used** in FRET.  All inter-node communication
-> uses standard ROS 2 topics, services, and actions.  ARCO is consumed as a
-> pure algorithm library (occupancy model + planners + trajectory post-processing).
-
-~~ARCO's `arco.middleware` package provides an in-process typed message bus~~
-~~(`Bus` / `InMemoryBus`) with arc dataclasses (`MappingFrame`, `PlanFrame`,~~
-~~`GuidanceFrame`) and a `PipelineRunner` that wires nodes to a shared bus.~~
-~~The pipeline is designed around a file-I/O discipline: each stage reads one~~
-~~artifact and writes the next, making stages independently restartable.~~
-
-## Confirmed Architecture Decisions (Milestone 1)
-
-The following decisions are locked for Milestone 1 and are not open for
-re-discussion at this stage.
-
-| Question | Decision |
-|---|---|
-| Planning space | **Configuration-space (Option B)**: ARCO SST samples joint configurations; collision checked by FRET's ``CSpaceChecker`` (FK → ``KDTreeOccupancy``). |
-| Robot model scope | **SCARA only** (RRP, 3-DOF) in Milestone 1.  Delta and other models are out-of-scope until after the first full control-stack milestone. |
-| ARCO import strategy | **Hard import, try/except ImportError** (Option B): modules that depend on ARCO use `try: from arco... except ImportError: Symbol = None`.  ARCO-dependent methods raise ``NotImplementedError`` until ARCO is available. |
-| ARCO middleware | **Not used**.  The ``arco.middleware`` package (Bus / PipelineRunner) is not integrated.  FRET uses ROS 2 topics/actions for all inter-node communication. |
-| Integration test strategy | **launch_testing-based** (Option B): spin real ROS 2 nodes, inject simulated messages, assert outputs. |
+| **v1.0** PPP | `KDTreeOccupancy`, `SSTPlanner`, `TrajectoryPruner` | `map/ppp.yml` |
+| **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, `DubinsPrimitive`, Pure Pursuit | `map/vehicle.yml` |
+| **v1.2** RRP | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
+| **v1.3** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
 
 ---
 
-
-
-### Ownership boundary
+## Ownership boundary
 
 | Responsibility | Owner |
 |---|---|
-| Occupancy representation (KD-tree construction, update, query API) | ARCO |
-| Planner logic (sampling, collision checking, path search, diagnostics) | ARCO |
-| Scene acquisition (point cloud capture, frame transform pipeline) | FRET |
-| Robot state (joint positions, velocities, forward kinematics) | FRET |
-| Control and execution (trajectory interpolation, controller dispatch, feedback) | FRET |
-| TF broadcast (`world → base_link → sensor`) | FRET |
+| Occupancy (`KDTreeOccupancy`) | ARCO |
+| Planner (SST, RRT*) | ARCO |
+| Dubins vehicle + Pure Pursuit | ARCO (v1.1) |
+| Scene acquisition, TF | FRET |
+| Per-robot kinematics | FRET |
+| Magnetic grasp FSM | FRET (v1.0) |
+| ROS 2 I/O, sim backends | FRET |
 
-ARCO must not read robot state from ROS topics.
-FRET must not call ARCO planner internals directly; it only calls the planning
-request interface.
-
-### Data flow
-
-```
-FRET                                ARCO
-────────────────────                ────────────────────────
-SceneAcquisition                    OccupancyModel
-  │  point cloud (world frame)        │  KD-tree
-  ▼                                   ▼
-OccupancyUpdatePayload ──────────► occupancy_update()
-                                        │
-RobotState (joint positions,            │
-  TF snapshot)                          ▼
-PlanningRequest ────────────────► plan()
-                                        │
-                                        ▼
-PlanningResult ◄────────────────  (path, status, diagnostics)
-  │
-  ▼
-TrajectoryConverter ─────────────► ControllerDispatch
-  │  JointTrajectory (ROS message)
-  ▼
-ExecutionFeedback ◄─────────────── TrackingMonitor
-```
-
-### Frame convention
-
-All data crossing the integration boundary must be expressed in the `world`
-frame. ARCO never performs TF lookups. FRET is responsible for resolving all
-transforms before sending any payload to ARCO.
-
-| Frame | Owner | Rate |
-|---|---|---|
-| `world → base_link` | FRET | 100 Hz |
-| `world → sensor_frame` | FRET | 100 Hz |
-| `base_link → tool0` | FRET (FK) | 100 Hz; not sent to ARCO |
+ARCO never reads ROS topics. FRET never calls ARCO internals beyond the public API.
 
 ---
 
-## Integration Potential Assessment
+## Data flow
 
-### What maps cleanly
+```
+FRET SceneAcquisition → OccupancyUpdatePayload → ARCO KDTreeOccupancy
+FRET CSpaceChecker    ← wraps occupancy + FK / grasp envelope
+FRET PlanningRequest  → ARCO SSTPlanner.plan()
+FRET PlanningResult   ← path + diagnostics
+FRET TrajectoryGenerator → ARCO TrajectoryPruner
+FRET ControllerNode   → execution
+```
 
-**Occupancy model.** `KDTreeOccupancy` is a direct fit: FRET acquires a Gazebo
-point cloud, transforms it to `world`, and hands it to ARCO's constructor.
-No adaptation is needed at the interface level.
+---
 
-**Sampling planners.** SST and RRT* accept an N-dimensional bounding box and
-an `Occupancy` instance. As long as FRET supplies an occupancy model — either
-in Cartesian task space or in joint configuration space — the planners are
-immediately usable.
+## Import strategy
 
-**Trajectory post-processing.** `TrajectoryOptimizer` accepts a callable IK
-function and a feasibility predicate, making it model-agnostic. Combined with
-`BSplineInterpolator`, the chain raw-path → optimized → smooth is directly
-applicable before handing off to FRET's controller.
+```python
+try:
+    from arco.planning import SSTPlanner
+except ImportError:
+    SSTPlanner = None
+```
 
-**Entity model.** `KinematicChain` with `RevoluteJoint` and `PrismaticJoint`
-matches the SCARA RRP topology and provides a planning-side robot description
-decoupled from URDF.
+CI may use linear-interpolation fallback when ARCO is absent. Release tags (v1.0+)
+require ARCO installed.
 
-### The central open question: planning space
+---
 
-ARCO planners operate in whatever N-dimensional space they are given.
-The key architectural decision for the refactor is:
+## ARCO middleware
 
-**Option A — Task-space planning (default, simpler):** Sample EE positions in
-3-D world space; use ARCO's `KDTreeOccupancy` directly on obstacle point clouds.
-FRET resolves IK only at execution time. Simple to integrate but incomplete
-near singularities and for self-collision avoidance.
+`arco.middleware` (Bus / PipelineRunner) is **not used**. FRET uses ROS 2 topics
+and actions for all inter-node communication.
 
-**Option B — Configuration-space planning (correct for manipulation):** Sample
-joint configurations; collision check by running FK → checking world-space
-clearance via `KDTreeOccupancy`. This requires a FRET-side C-space collision
-checker adapter, but handles self-collisions and singularities correctly.
+---
 
-The `TrajectoryOptimizer` already accepts an IK callable as a hook — that is
-the right seam for bridging the two options.
+## v1.0 PPP alignment
 
-### What ARCO does not yet provide for FRET
+Port obstacle layout from ARCO `map/ppp.yml`:
 
-| Gap | Impact | Mitigation |
-|---|---|---|
-| No 3-D manipulator kinematic primitive | ARCO's `DubinsPrimitive` / `DubinsVehicle` are 2-D car-like | FRET supplies Jacobian-based kinematics; ARCO planners are used without ARCO's guidance primitives |
-| No C-space collision checker | Planners operate on point-cloud occupancy, not joint-space | FRET adapter: FK call + `KDTreeOccupancy` query wrapped as a custom `Occupancy` subclass |
-| No replanning loop | ARCO is a one-shot planner | FRET implements replanning triggers; ARCO is re-invoked; the `arco.middleware` Bus is the right foundation |
+- Workspace bounds: 60 × 20 × 6 m
+- Width-crossing barriers and scatter boxes
+- Start `(1, 1, 0)` → Goal `(59, 19, 0)` (adapt for FRET scenario YAML)
 
-### Summary
+FRET adds magnetic grasp semantics not present in ARCO (cargo weld/release).
 
-ARCO provides the correct primitives — occupancy model, sampling planners,
-trajectory optimizer, B-spline interpolation — for FRET's planning stage
-(roadmap step 5). The integration boundary is clean and the ownership split is
-well-defined.
+---
 
-**v1.0 platform decision (2026 Q3):** ARCO remains the sole motion planner for
-v1.0. OMPL is a post-v1.0 research option (hybrid: OMPL search + ARCO occupancy).
-See [reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
+## v1.1 Dubins alignment
 
-The main refactoring work ahead is:
+Reuse ARCO race infrastructure:
 
-1. Decide on planning space (task-space vs. C-space) and implement the
-   corresponding collision-check adapter in FRET.
-2. Wire ARCO's one-shot planning output into FRET's ROS 2 execution cycle
-   with proper replanning triggers and scene-update logic.
-3. Clarify which ARCO guidance components (interpolation, controllers) are
-   reused in FRET and which are replaced by FRET's own Jacobian-based stack.
+- `arco/simulator/scenes/vehicle.py` — dual-planner race scene
+- `DubinsVehicle` + Pure Pursuit for execution
+- Extend environment with 3-D columns (MuJoCo visual)
+
+---
+
+## v1.2 RRP alignment
+
+Reproduce ARCO CI scenarios `rrp` and `rr` inside FRET `sitl.py` pipeline.
+FRET bootstrap SCARA (`scara.xacro`) maps to ARCO RRP topology.
+
+---
+
+## References
+
+- ARCO visualization docs: `arco/docs/VISUALIZATION.md`
+- ARCO PPP scene: `arco/src/arco/simulator/scenes/ppp.py`
+- ARCO vehicle scene: `arco/src/arco/simulator/scenes/vehicle.py`
+- ARCO RRP scene: `arco/src/arco/simulator/scenes/rrp.py`

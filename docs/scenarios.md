@@ -1,219 +1,154 @@
 # FRET Scenario Library
 
-Named SITL scenarios for **Level 1 (functional)** and **Level 2 (integration)** validation.
-Each scenario is a named, reproducible run defined by a YAML file in `config/scenarios/`.
+Scenarios are defined in `src/fret/config/scenarios/` and launched via:
 
-A scenario **passes** when all its listed pass criteria are met simultaneously.
-Scenarios are executed via `launch_testing` in `tests/integration/` and can also be
-run manually with `ros2 launch fret sitl.py scenario:=<name>`.
+```bash
+ros2 launch fret sitl.py scenario:=<name> model:=<model> backend:=mujoco
+```
 
-> **v1.0 note:** MS-1–5 scenarios use the SCARA bootstrap robot on Gazebo (engineering)
-> or pure-Python (CI). Milestone 7 will add **SC-v1**, the v1.0 showcase scenario,
-> runnable on both Gazebo and MuJoCo. The robot and environment for SC-v1 are
-> **TBD** in a design session — see [docs/v1.0.md](v1.0.md).
+**Release scenarios** (product targets): SC-v10 – SC-v13.
+**Regression scenarios** (bootstrap SCARA): SC-01 – SC-05.
+
+Full release spec: [releases.md](releases.md).
 
 ---
 
-## SC-01 — Static Reach
+## Release scenarios
 
-**File:** `config/scenarios/static_reach.yml`
-**Purpose:** Validate the full end-to-end SITL pipeline (scene → planning →
-post-processing → control → execution) in an obstacle-free environment.
-**Requirements:** FR-SYS-02, FR-PLN-01, FR-PLN-06, FR-CTL-01, FR-CTL-02
+### SC-v10 — PPP warehouse pick-and-place (v1.0)
 
-### Setup
+**File:** `config/scenarios/ppp_warehouse.yml` *(planned)*  
+**Model:** `ppp` · **Backend:** `mujoco`
+
+**Purpose:** Gantry moves a cargo box from start to goal through warehouse box obstacles
+using magnetic grasp.
 
 | Parameter | Value |
 |---|---|
-| Robot | SCARA |
-| World | Empty (no obstacles) |
-| Start configuration | `[0.0, 0.0, 0.10]` — home pose |
-| Goal configuration | `[0.785, 0.524, 0.05]` — approx. 45°, 30°, 5 cm |
-| Planning timeout | 30 s |
-| Controller gains | `config/controllers/jacobian.yml` defaults |
+| Workspace | 60 × 20 × 6 m |
+| Obstacles | Static boxes (ARCO `ppp.yml` layout) |
+| Grasp | Magnetic weld |
+| Planner | ARCO SST |
+| Timeout | 30 s |
 
-### Pass Criteria
-
-1. Planning Action returns `SUCCESS` within 30 s.
-2. Post-processed trajectory has ≥ 2 waypoints and no discontinuities (C² smooth).
-3. Controller publishes to `/joint_commands` at ≥ 45 Hz for the full trajectory duration.
-4. Maximum end-effector position error in world space ≤ 5 mm at every timestep.
-5. No `/fault` message is published at any point during execution.
+**Pass criteria:** See [releases.md § v1.0](releases.md#v10--ppp-gantry-warehouse-pick-and-place).
 
 ---
 
-## SC-02 — Obstacle Avoidance
+### SC-v11 — Dubins dual race (v1.1)
 
-**File:** `config/scenarios/obstacle_avoidance.yml`
-**Purpose:** Validate C-space collision avoidance. The planner must find a path that
-clears a known static obstacle; direct joint-space interpolation would collide.
-**Requirements:** FR-SCN-01–04, FR-PLN-01, FR-PLN-02
+**File:** `config/scenarios/dubins_race.yml` *(planned)*  
+**Model:** `dubins` · **Backend:** `mujoco`
 
-### Setup
+**Purpose:** Two Dubins robots race A → B through columns of varied height.
 
 | Parameter | Value |
 |---|---|
-| Robot | SCARA |
-| World | Single box obstacle: center `(0.20, 0.10, 0.15)` m in world frame, size `0.05 × 0.05 × 0.05` m |
-| Start configuration | `[0.0, 0.0, 0.10]` |
-| Goal configuration | `[1.047, 0.0, 0.05]` — approx. 60°, 0°, 5 cm |
-| Planning timeout | 30 s |
+| Agents | 2 |
+| Environment | Column forest + optional walls |
+| Control | ARCO Pure Pursuit |
+| Planner | ARCO SST per agent |
 
-### Pass Criteria
-
-1. Planning Action returns `SUCCESS` within 30 s.
-2. For every waypoint `q` in the returned path: `FK(q)` world-frame end-effector
-   position has clearance ≥ 0.02 m from the obstacle surface (as reported by
-   `KDTreeOccupancy.clearance()`).
-3. Controller execution end-effector error ≤ 5 mm throughout.
-4. No `/fault` message is published.
+**Pass criteria:** See [releases.md § v1.1](releases.md#v11--dubins-dual-robot-race).
 
 ---
 
-## SC-03 — Planning Failure / Timeout
+### SC-v12a — RRP pillars and slabs (v1.2)
 
-**File:** `config/scenarios/planning_timeout.yml`
-**Purpose:** Validate the failure-mode behavior. The goal maps to a configuration
-whose FK falls inside a bounding obstacle, making the planning problem infeasible.
-**Requirements:** FR-PLN-04, FR-PLN-05, FR-PLN-07
+**File:** `config/scenarios/rrp_pillars.yml` *(planned)*  
+**Model:** `rrp` / `scara`
 
-### Setup
+**Purpose:** Reproduce ARCO `map/rrp.yml` — 3-D C-space with pillars and horizontal slabs.
 
-| Parameter | Value |
-|---|---|
-| Robot | SCARA |
-| World | Box obstacle at `(0.30, 0.0, 0.10)` m, size `0.30 × 0.30 × 0.20` m (large, enclosing goal) |
-| Goal configuration | `[0.785, 0.0, 0.10]` — FK maps inside obstacle bounding box |
-| Planning timeout | 10 s (shortened to keep CI fast) |
-
-### Pass Criteria
-
-1. Planning Action returns `ABORTED` within `timeout + 2 s` (12 s total).
-2. Error code is `TIMEOUT` or `NO_PATH_FOUND` (either is acceptable for this scenario).
-3. No `JointTrajectory` is published on `/joint_trajectory`.
-4. No `/fault` message is published (fault is a controller-layer concern only).
+**Pass criteria:** See [releases.md § v1.2](releases.md#v12--rrp--scara-arco-reproduction).
 
 ---
 
-## SC-04 — Straight-Line Trajectory Tracking
+### SC-v12b — RR planar arm (v1.2)
 
-**File:** `config/scenarios/straight_line.yml`
-**Purpose:** Validate the controller in isolation using a pre-computed trajectory
-published directly, bypassing the planning node entirely.
-**Requirements:** FR-CTL-01, FR-CTL-02, FR-CTL-03, FR-CTL-04
+**File:** `config/scenarios/rr_planar.yml` *(planned)*  
+**Model:** `rr`
 
-### Setup
-
-| Parameter | Value |
-|---|---|
-| Robot | SCARA |
-| Trajectory source | Analytically generated: linear interpolation in joint space from `[0.0, 0.0, 0.10]` to `[0.785, 0.0, 0.05]`, duration 5 s, 250 waypoints |
-| How injected | Published directly to `/joint_trajectory` by the test harness (no planning node) |
-
-### Pass Criteria
-
-1. Controller publishes to `/joint_commands` at ≥ 45 Hz (50 Hz target, 10% tolerance)
-   for the full 5 s trajectory duration.
-2. Maximum end-effector position error ≤ 5 mm at every timestep.
-3. All published joint velocity commands are within the operational envelope limits
-   (≤ 1.57 rad/s for revolute, ≤ 0.1 m/s for prismatic).
-4. TF2 broadcast `base_link → tool0` is present and updated throughout execution.
-5. No `/fault` message is published.
+**Purpose:** Reproduce ARCO `map/rr.yml` — 2-DOF planar arm with box obstacles.
 
 ---
 
-## SC-v1 — v1.0 Showcase Scenario (planned, MS-7)
+### SC-v13 — 6-DOF challenge (v1.3)
 
-**File:** `config/scenarios/v1_showcase.yml` *(not yet created)*  
-**Purpose:** The definitive v1.0 demo scenario — robot topology, environment, and
-narrative selected in a design session. Must run on **both** Gazebo (engineering)
-and MuJoCo (visual showcase) backends.
+**File:** `config/scenarios/six_dof_challenge.yml` *(planned)*  
+**Model:** `six_dof`
 
-**Requirements:** All FR-PLN, FR-CTL, FR-SCN, FR-SIM requirements; see [docs/v1.0.md](v1.0.md).
+**Purpose:** Capstone — 6-DOF manipulator in cluttered cell.
 
-### Status
-
-| Item | State |
-|---|---|
-| Robot model | 🔲 TBD (SCARA bootstrap or new topology) |
-| Environment | 🔲 TBD |
-| Scenario YAML | 🔲 Not created |
-| Gazebo validation | 🔲 Pending |
-| MuJoCo validation | 🔲 Pending (depends on MS-6) |
-| Article assets | 🔲 Pending |
-
-### Pass criteria (draft — to be finalized in design session)
-
-1. Planning Action returns `SUCCESS` within 30 s with ARCO SST (not fallback).
-2. Controller EE error ≤ 5 mm throughout execution.
-3. Scenario passes identically on `backend:=gazebo` and `backend:=mujoco`.
-4. Headless MuJoCo render produces article-ready PNG or MP4.
-5. No `/fault` message published.
+**Pass criteria:** See [releases.md § v1.3](releases.md#v13--6-dof-manipulator-final-challenge).
 
 ---
 
-## Running Scenarios
+## Regression scenarios (bootstrap SCARA)
 
-### Manual execution
+These scenarios validated MS-1–5. They remain in CI as regression tests until v1.2.
+
+| ID | File | Purpose | Status |
+|---|---|---|---|
+| SC-01 | `static_reach.yml` | Empty-world reach | ✅ Regression |
+| SC-02 | `obstacle_avoidance.yml` | Single box avoidance | ✅ Regression |
+| SC-03 | `planning_timeout.yml` | Timeout / ABORTED | ✅ Regression |
+| SC-04 | `straight_line.yml` | Controller-only tracking | ✅ Regression |
+| SC-05 | `arc.yml` | Arc injector | ✅ Regression |
+| — | `pillar_avoidance.yml` | Pillar world (MS-5) | ✅ Regression |
+
+---
+
+## Scenario YAML schema
+
+```yaml
+scenario:
+  name: ppp_warehouse
+  release: v1.0                    # v1.0 | v1.1 | v1.2 | v1.3
+  description: "..."
+
+robot:
+  model: ppp                       # ppp | dubins | rrp | scara | rr | six_dof
+
+simulation:
+  backend: mujoco                  # mujoco | gazebo
+
+world:
+  file: worlds/ppp_warehouse.sdf   # backend-specific (optional)
+  obstacles: []                    # or inline box list
+
+task:
+  start_configuration: [1.0, 1.0, 0.0]
+  goal_configuration:  [59.0, 19.0, 0.0]
+
+grasp:
+  mode: magnetic                   # v1.0 only
+  capture_radius: 0.3
+  goal_radius: 0.5
+
+planner:
+  algorithm: sst
+  planning_timeout: 30.0
+
+controller:
+  config: config/controllers/ppp.yml
+
+recording:
+  enabled: true
+  video: true
+  topics: [/joint_states, /joint_commands, /joint_trajectory]
+```
+
+---
+
+## Running scenarios
 
 ```bash
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-# Gazebo backend (default, engineering SITL)
-ros2 launch fret sitl.py scenario:=static_reach      model:=scara
-ros2 launch fret sitl.py scenario:=obstacle_avoidance model:=scara
-ros2 launch fret sitl.py scenario:=planning_timeout   model:=scara
-ros2 launch fret sitl.py scenario:=straight_line      model:=scara
+# v1.0 (when implemented)
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 
-# MuJoCo backend (visual showcase — MS-6, not yet available)
-# ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=mujoco
-```
-
-### Automated (CI)
-
-Integration tests in `tests/integration/` wrap these scenarios with quantitative
-assertions using `launch_testing`. Each `test_scenario_<name>.py` file:
-
-1. Launches the SITL stack via `launch_testing.actions.launch_process`.
-2. Subscribes to relevant topics with a timeout.
-3. Asserts quantitative pass criteria from the scenario definition above.
-4. Tears down the launch cleanly on pass or fail.
-
-The integration test workflow is defined in `.github/workflows/integration.yml`.
-
----
-
-## Scenario YAML Schema
-
-Each scenario YAML must conform to the following structure:
-
-```yaml
-scenario:
-  name: static_reach                   # matches file name
-  description: "..."
-
-robot:
-  model: scara                         # selects URDF/MJCF and kinematics config
-
-simulation:
-  backend: gazebo                      # gazebo | mujoco (mujoco: MS-6, v1.0)
-
-world:
-  file: worlds/empty.sdf               # Gazebo world file (relative to share/fret/)
-  obstacles: []                        # list of programmatic obstacles (optional)
-
-task:
-  start_configuration: [0.0, 0.0, 0.10]
-  goal_configuration:  [0.785, 0.524, 0.05]
-
-planner:
-  algorithm: sst                       # sst | rrt_star
-  planning_timeout: 30.0              # seconds
-
-controller:
-  config: config/controllers/jacobian.yml
-
-recording:
-  enabled: false                       # set true to record a ROS bag
-  topics: [/joint_states, /joint_commands, /joint_trajectory]
+# Regression (bootstrap SCARA)
+ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=gazebo
 ```

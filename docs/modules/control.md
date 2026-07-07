@@ -4,13 +4,17 @@
 **Source:** `src/fret/control/`  
 **Tests:** `tests/control/`
 
+> **Release roadmap:** v1.0 adds PPP prismatic control + magnetic grasp FSM;
+> v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 extends existing SCARA Jacobian stack;
+> v1.3 adds 6-DOF numerical IK. See [releases.md](../releases.md).
+
 ---
 
 ## Responsibility
 
-The control module implements all kinematic computations and the Jacobian-based
-trajectory tracking controller for the SCARA robot. It is the layer that translates
-a planned joint-space trajectory into joint velocity commands at 50 Hz.
+The control module implements kinematic computations and trajectory tracking
+controllers. The current implementation targets the **bootstrap SCARA (RRP)**;
+v1.0+ adds per-model kinematics selected by `model:=` at launch.
 
 ---
 

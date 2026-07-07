@@ -1,237 +1,92 @@
 # FretSim — Simulation Tutorial
 
-This document provides step-by-step instructions to download, build, and run the
-FRET simulation stack (FretSim) from scratch.
+> **Release focus:** v1.0 PPP warehouse in MuJoCo. See [releases.md](releases.md).
 
-Two modes are available:
+---
+
+## Modes
 
 | Mode | Requirements | Purpose |
 |---|---|---|
-| **Pure-Python** | Python 3.10+, numpy, matplotlib | Validate all milestone algorithms offline |
-| **Gazebo SITL** | Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic | Engineering simulation (ROS-native, CI) |
-| **MuJoCo SITL** | Ubuntu 24.04, ROS 2 Jazzy, `mujoco` Python package | Visual showcase (demos, article assets) — **MS-6, v1.0** |
-
-> **Platform strategy (2026 Q3):** Gazebo is the engineering backend; MuJoCo is the
-> visual showcase backend. Both drive the same pure-Python FRET pipeline.
-> See [reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md)
-> and [v1.0.md](v1.0.md).
+| **Pure-Python** | Python 3.12+, numpy | Unit tests, algorithm validation |
+| **MuJoCo SITL** | `mujoco`, ROS 2 Jazzy | **v1.0 showcase** — PPP warehouse video |
+| **Gazebo SITL** | Gazebo Harmonic, ROS 2 Jazzy | Engineering validation (v1.2+ RRP) |
 
 ---
 
-## Prerequisites
-
-- Ubuntu 24.04 (or WSL2 on Windows)
-- `git` installed and configured
-- Internet access for package installation
-
----
-
-## Step 1 — Clone the repository
+## Quick start (no simulator)
 
 ```bash
-git clone https://github.com/alexandrelheinen/fret.git
-cd fret
+git clone https://github.com/alexandrelheinen/fret.git && cd fret
+pip install -e ".[dev]"
+pytest tests/ -v --ignore=tests/integration
 ```
 
 ---
 
-## Step 2 — Install system dependencies
-
-Run the provided installer (requires `sudo`). It installs ROS 2 Jazzy,
-Gazebo Harmonic, Python tools, and clang-format:
+## Full workspace build
 
 ```bash
 ./scripts/install.sh -y
-```
-
-To install and set up the ROS workspace in one command:
-
-```bash
-./scripts/setup.sh --install -y
-```
-
-> **What gets installed:**
-> - ROS 2 Jazzy Desktop (`ros-jazzy-desktop`, `ros-dev-tools`)
-> - Gazebo Harmonic (`gz-harmonic`, `ros-jazzy-ros-gz`)
-> - Build tools: `colcon`, `rosdep`, `vcstool`
-> - Python tools: `black`, `isort`, `pytest`
-> - C++ tools: `clang-format`
-
----
-
-## Step 3 — Build the workspace
-
-```bash
+./scripts/setup.sh -y
 ./scripts/build.sh
-```
-
-This runs `colcon build`, generates URDF files from XACRO, generates STL meshes,
-and installs all launch and config files.
-
-Build artefacts are written to `build/`, `install/`, and `log/`.
-
----
-
-## Step 4 — Activate the environment
-
-Every terminal that runs FRET nodes must source both overlays:
-
-```bash
-source /opt/ros/jazzy/setup.bash
-source install/setup.bash
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
 ```
 
 ---
 
-## Step 5A — Pure-Python validation (no Gazebo required)
-
-Milestone and scenario acceptance criteria are enforced by **pytest** under
-`tests/simulation/` and `tests/integration/` (the latter needs ROS; see Step 5B).
-
-### Install the package
+## v1.0 — PPP warehouse (planned)
 
 ```bash
-pip install -e ".[dev]" --no-deps
+# Primary v1.0 entry point (not yet implemented)
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 ```
 
-### Milestone 1 — Straight-line tracking (MS-1)
+**Deliverables:**
 
-```bash
-pytest tests/simulation/test_scenario_straight_line.py -v
-```
-
-Validates FR-CTL-02 (EE error ≤ 5 mm) and straight-line corridor constraints
-without a live ROS context.
-
-### Milestones 2–5 and scenarios
-
-| Milestone / scenario | Test location |
+| Asset | Path |
 |---|---|
-| MS-2 planning | `tests/planning/` |
-| MS-3 static reach | `tests/integration/test_scenario_static_reach_full.py` (ROS) |
-| MS-4 occupancy | `tests/scene/test_workspace_occupancy.py` |
-| MS-5 pillar avoidance | `tests/integration/test_scenario_pillar_avoidance.py` (ROS) |
-| SC-05 arc | `tests/planning/test_arc_injector.py` |
-
-Run the full unit suite (no ROS):
-
-```bash
-pytest tests/ --ignore=tests/integration -v
-```
-
-Run integration scenarios (requires Steps 1–4 and `xvfb`):
-
-```bash
-bash scripts/tests/integration.sh
-```
+| MJCF world | `src/fret/mjcf/ppp_warehouse.xml` |
+| Scenario | `src/fret/config/scenarios/ppp_warehouse.yml` |
+| Video script | `scripts/render_mujoco.py` |
 
 ---
 
-## Step 5B — Full SITL with Gazebo
-
-> **Requires:** Steps 1–4 completed, Gazebo running with a display.
-
-### Visualize the SCARA model in RViz
+## Regression — bootstrap SCARA
 
 ```bash
 ros2 launch fret view.py model:=scara
-```
-
-### Run the SCARA in Gazebo (manual joint control)
-
-```bash
 ros2 launch fret sim.py model:=scara
+ros2 launch fret sitl.py scenario:=static_reach model:=scara
 ```
 
-### Run the full SITL pipeline (planning + control + execution)
+These validate the MS-1–5 pipeline. They are **not** the v1.0 product demo.
+
+---
+
+## Recording
 
 ```bash
-ros2 launch fret sitl.py model:=scara scenario:=static_reach
-```
+# MuJoCo headless MP4 (v1.0 CI target)
+python3 scripts/render_mujoco.py --scenario ppp_warehouse --output /tmp/v10.mp4
 
-Other available scenarios:
-
-```bash
-# Milestone 1: controller only (no planner), straight-line trajectory
-ros2 launch fret sitl.py model:=scara scenario:=straight_line
-
-# SC-05: arc trajectory
-ros2 launch fret sitl.py model:=scara scenario:=arc
-
-# SC-02: obstacle avoidance
-ros2 launch fret sitl.py model:=scara scenario:=obstacle_avoidance
-
-# SC-03: planning failure / timeout
-ros2 launch fret sitl.py model:=scara scenario:=planning_timeout
-```
-
-### Record a ROS bag
-
-```bash
-ros2 launch fret sitl.py model:=scara scenario:=static_reach
-# In a second terminal:
-source /opt/ros/jazzy/setup.bash && source install/setup.bash
-mkdir -p log/bags
-ros2 bag record -o log/bags/sitl_run /joint_states /joint_commands /joint_trajectory
+# ROS bag
+ros2 bag record /joint_states /joint_commands /joint_trajectory
 ```
 
 ---
 
-## Running Unit Tests
+## Log locations
 
-```bash
-source /opt/ros/jazzy/setup.bash
-source install/setup.bash
-pytest tests/ -v
-```
-
----
-
-## Log Locations
-
-| Log type | Path |
+| Log | Path |
 |---|---|
-| Build (colcon) | `./log/latest_build/logger_all.log` |
-| ROS 2 runtime | `~/.ros/log/latest/launch.log` |
-| Gazebo server | `~/.gz/sim/log/<timestamp>/server_console.log` |
-| Simulation results | `/tmp/sim_<name>/results.env` (or `--output` path) |
+| colcon build | `./log/latest_build/logger_all.log` |
+| ROS 2 | `~/.ros/log/latest/launch.log` |
+| Sim results | `/tmp/sim_<name>/results.env` |
 
 ---
 
-## MuJoCo SITL (planned — Milestone 6)
+## Known limitations
 
-MuJoCo integration is planned for v1.0 as the **visual showcase backend**. It will
-reuse the same scenario YAMLs and pure-Python pipeline; only the joint I/O adapter
-in `fret.ros` changes.
-
-### Planned usage
-
-```bash
-# Not yet available — target interface:
-ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=mujoco
-```
-
-### Planned deliverables (MS-6)
-
-| Deliverable | Path |
-|---|---|
-| MJCF robot model | `src/fret/mjcf/scara.xml` |
-| MuJoCo bridge node | `src/fret/ros/mujoco_bridge.py` |
-| Launch file | `src/fret/launch/mujoco.py` |
-| Headless render script | `scripts/render_mujoco.py` |
-
-### Why MuJoCo alongside Gazebo?
-
-| Backend | Role |
-|---|---|
-| **Gazebo** | ROS-native engineering SITL, CI smoke tests, hardware path |
-| **MuJoCo** | Smooth physics, polished rendering for demos and article figures |
-
-See the full comparative study in
-[reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
-
----
-
-## Known Issues
-
-See the [v1.0 release assessment](v1.0.md) for a full list of known limitations.
+See [releases.md](releases.md) for current release status. v1.0 MuJoCo backend and
+PPP model are not yet implemented in code — specification only.

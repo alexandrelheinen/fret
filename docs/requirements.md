@@ -1,194 +1,170 @@
 # FRET Functional Requirements
 
-This document lists the functional requirements for FRET at **Level 1** of the V-cycle.
-Requirements are traceable to scenarios in [docs/scenarios.md](scenarios.md) and validated
-by integration tests in `tests/integration/` and `.github/workflows/integration.yml`.
+Requirements trace to [releases.md](releases.md) and [scenarios.md](scenarios.md).
 
-Format: `FR-<LAYER>-<NN>: The system shall...`
+Format: `FR-<LAYER>-<NN>`
 
-Layers: `SYS` (system-level), `SCN` (scene acquisition), `PLN` (planning), `CTL` (control), `HW` (hardware).
+Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 
 ---
 
-## System-Level Requirements
+## System-Level
 
-**FR-SYS-01:** The system shall support multiple robot models selectable at launch time
-via a `model:=` argument. The active model determines the URDF loaded, the kinematics
-engine configuration, and the joint-limit operational envelope.
+**FR-SYS-01:** Multiple robot models selectable via `model:=` at launch.
 
-**FR-SYS-02:** A scenario YAML file shall fully specify a reproducible run: robot model,
-world file, start configuration, goal configuration, planner parameters, and controller
-gains. Running the same scenario YAML on the same software version shall produce the
-same observable result.
+**FR-SYS-02:** A scenario YAML fully specifies a reproducible run.
 
-**FR-SYS-03:** The system shall operate in multiple SITL backends and HITL mode:
+**FR-SYS-03:** SITL backends:
 
-- **Gazebo Harmonic** — engineering SITL (ROS-native, CI, hardware path).
-- **MuJoCo** — visual showcase SITL (demos, article assets) — v1.0 target.
-- **HITL** — hardware-based (Phase 3, deferred past v1.0).
-
-Phases 1–2 targeted Gazebo exclusively. Phase 5 adds MuJoCo as a second backend
-behind the same pure-Python pipeline. See [docs/v1.0.md](v1.0.md).
-
-**FR-SYS-04:** All runtime-significant configurable values shall be declared as ROS 2
-parameters or YAML configuration files. No magic number that affects observable behavior
-shall be hardcoded in source files.
-
-### Operational Envelope — Phase 1–2 (SCARA SITL)
-
-The following constraints define the valid operating domain. Requirements that reference
-"within the operational envelope" refer to this table.
-
-| Parameter | Constraint | Notes |
+| Backend | Role | From |
 |---|---|---|
-| Robot model | SCARA, 3 DOF (RRP) | joint_1 and joint_2 revolute; joint_3 prismatic |
-| joint_1 range | [−π, π] rad | Shoulder revolute |
-| joint_2 range | [−π/2, π/2] rad | Elbow revolute |
-| joint_3 range | [0.0, 0.2] m | Vertical prismatic |
-| Max revolute joint velocity | 1.57 rad/s | Per joint |
-| Max prismatic joint velocity | 0.1 m/s | |
-| Workspace volume | Cylinder: radius ≤ 0.5 m, height ∈ [0, 0.3 m] | Centered at base_link origin |
-| Obstacle model | Static convex point clouds in world frame | Dynamic obstacles out of scope |
-| Simulation — engineering | Gazebo Harmonic with ROS 2 bridge | Phases 1–5 |
-| Simulation — visual showcase | MuJoCo (MJCF model, Python bindings) | Phase 5 (v1.0) |
-| Motion planning | ARCO SST (C-space, sampling-based) | All phases |
+| MuJoCo | Visual showcase (primary) | v1.0 |
+| Gazebo Harmonic | Engineering SITL | v1.2+ |
+| HITL | Hardware | post v1.3 |
+
+**FR-SYS-04:** All runtime-significant values in ROS parameters or YAML.
 
 ---
 
-## Scene Acquisition Requirements
+## Scene Acquisition
 
-**FR-SCN-01:** The system shall subscribe to world geometry published by Gazebo as a
-`sensor_msgs/PointCloud2` message on the `/world_state` topic.
+**FR-SCN-01:** Subscribe to obstacle geometry as `sensor_msgs/PointCloud2` on `/obstacle_cloud`.
 
-**FR-SCN-02:** The system shall transform all received point cloud data to the `world`
-coordinate frame before passing it to the planning layer. No data in any other frame
-shall cross the FRET/ARCO boundary.
+**FR-SCN-02:** Transform all obstacle data to `world` frame before ARCO.
 
-**FR-SCN-03:** The scene acquisition layer shall construct and maintain a
-`KDTreeOccupancy` instance from the transformed obstacle point cloud.
+**FR-SCN-03:** Maintain `KDTreeOccupancy` from obstacle point cloud.
 
-**FR-SCN-04:** The occupancy model shall be updated each time a new `/world_state`
-message arrives, without blocking the planning or control loops.
+**FR-SCN-04:** Occupancy updates shall not block planning or control loops.
 
 ---
 
-## Planning Requirements
+## Planning
 
-**FR-PLN-01:** The system shall compute a collision-free joint-space path from a start
-configuration `q_start` to a goal configuration `q_goal`, both expressed as arrays of
-joint positions in radians (revolute) or meters (prismatic).
+**FR-PLN-01:** Collision-free C-space path from `q_start` to `q_goal`.
 
-**FR-PLN-02:** Path planning shall operate in configuration space (C-space). Collision
-checking shall evaluate `FK(q)` to obtain the world-frame position of each link, then
-query `KDTreeOccupancy` for clearance. Task-space planning is explicitly out of scope.
+**FR-PLN-02:** C-space planning with FK → KDTree clearance (or direct C-space for PPP).
 
-**FR-PLN-03:** The planner shall expose its progress via ROS 2 Action feedback messages
-containing: current iteration count, current path cost, and elapsed planning time.
+**FR-PLN-03:** Action feedback: iteration count, cost, elapsed time.
 
-**FR-PLN-04:** Planning shall complete within 30 seconds (soft deadline). Exceeding this
-deadline shall cause the Action to return `ABORTED` with error code `TIMEOUT`.
+**FR-PLN-04:** Planning timeout 30 s (60 s for v1.3 6-DOF) → `ABORTED / TIMEOUT`.
 
-**FR-PLN-05:** When planning fails for any reason (timeout, no path found, invalid
-configuration), the system shall return `ABORTED` with a structured error code and an
-empty path. No automatic retry shall occur.
+**FR-PLN-05:** Failure → `ABORTED` with error code; no auto-retry.
 
-**FR-PLN-06:** The raw planner output path shall be post-processed before execution in
-the following order: (1) redundant waypoint removal, (2) time-optimal refinement, (3)
-C² smooth trajectory interpolation.
+**FR-PLN-06:** Post-process: prune → optimize → B-spline (when ARCO available).
 
-**FR-PLN-07:** The planner shall reject any start or goal configuration that violates the
-operational envelope (joint limits) before invoking ARCO, and shall return `ABORTED`
-with error code `INVALID_CONFIGURATION`.
+**FR-PLN-07:** Reject out-of-envelope start/goal before planning.
 
 ---
 
-## Control Requirements
+## Control
 
-**FR-CTL-01:** The controller node shall track a `trajectory_msgs/JointTrajectory` at a
-fixed loop rate of 50 Hz.
+**FR-CTL-01:** Trajectory tracking at 50 Hz.
 
-**FR-CTL-02:** The end-effector position tracking error in world space shall remain below
-5 mm during trajectory execution in SITL under nominal conditions (no disturbances,
-static environment, calibrated model).
+**FR-CTL-02:** Position tracking error limits:
 
-**FR-CTL-03:** Joint velocity commands shall be computed from the Jacobian pseudoinverse
-of the Cartesian tracking error and published to `/joint_commands` as
-`std_msgs/Float64MultiArray`.
-
-**FR-CTL-04:** Forward kinematics shall be computed from `/joint_states` and broadcast
-as a TF2 transform: `base_link → tool0`, at the same rate as the control loop.
-
-**FR-CTL-05:** The controller node shall operate independently of the planning node. It
-shall not block waiting for planning to complete and shall begin execution as soon as a
-valid trajectory is received on `/joint_trajectory`.
-
-**FR-CTL-06:** If the end-effector tracking error exceeds 20 mm for more than 0.5
-consecutive seconds, the controller node shall: zero all joint velocity commands,
-transition to HALTED state, and publish a fault message on `/fault`.
-
----
-
-## Simulation Backend Requirements (Phase 5 / v1.0)
-
-**FR-SIM-01:** The system shall support at least two SITL backends selectable at
-launch time via a `backend:=` argument: `gazebo` (default) and `mujoco`.
-
-**FR-SIM-02:** All algorithm layers (`scene/`, `planning/`, `control/`, `validation/`)
-shall remain simulator-agnostic. Simulator-specific code shall live only in `fret.ros`
-and `launch/`.
-
-**FR-SIM-03:** The Gazebo backend shall use `ros_gz_sim`, `ros_gz_bridge`, and
-`gz_ros2_control` for joint state and command exchange.
-
-**FR-SIM-04:** The MuJoCo backend shall provide equivalent joint I/O
-(`/joint_states`, `/joint_commands`) so the same scenario YAML drives both backends.
-
-**FR-SIM-05:** The MuJoCo backend shall support headless rendering to produce
-PNG or MP4 artifacts for CI and documentation without a display server.
-
-**FR-SIM-06:** Isaac Sim is explicitly out of scope for v1.0.
-
----
-
-## Hardware Requirements (Phase 3 and later)
-
-**FR-HW-01:** The hardware bridge shall relay joint velocity commands from `/joint_commands`
-to an Arduino Mega via a Micro-ROS serial link.
-
-**FR-HW-02:** The hardware bridge shall receive joint encoder feedback from the Arduino
-and publish it to `/joint_states` at a rate consistent with the control loop (≥ 50 Hz).
-
-**FR-HW-03:** The hardware bridge shall validate message integrity (checksum or frame
-delimiter) before forwarding any command to the low-level actuator driver.
-
----
-
-## Validation Mapping
-
-This table traces each requirement to its validation method and V-cycle level.
-
-| Requirement | Validated by | V-level |
+| Release | Robot | Limit |
 |---|---|---|
-| FR-SYS-01 | Smoke tests: `view.py model:=scara`, `sim.py model:=scara` | L2 |
-| FR-SYS-02 | Scenario SC-01 run produces identical observable result twice | L1 |
-| FR-SYS-03 | SITL smoke tests; HITL deferred to Phase 3 | L1 |
-| FR-SYS-04 | `mypy` type check + code review (no literals outside config) | L3 |
-| FR-SCN-01 | `tests/scene/test_acquisition.py` | L3 |
-| FR-SCN-02 | `tests/scene/test_acquisition.py` frame assertion | L3 |
-| FR-SCN-03 | `tests/scene/test_occupancy_adapter.py` | L3 |
-| FR-SCN-04 | Integration test: occupancy update latency ≤ 100 ms | L2 |
-| FR-PLN-01 | Scenario SC-01, SC-02 | L1 |
-| FR-PLN-02 | `tests/planning/test_cspace_checker.py`: confirm C-space path | L3 |
-| FR-PLN-03 | `tests/planning/test_planner_node.py`: feedback message fields | L3 |
-| FR-PLN-04 | Scenario SC-03: ABORTED within 12 s | L1 |
-| FR-PLN-05 | Scenario SC-03: no trajectory published on failure | L1 |
-| FR-PLN-06 | `tests/planning/test_trajectory_generator.py` | L3 |
-| FR-PLN-07 | `tests/planning/test_planner_node.py`: invalid config rejection | L3 |
-| FR-CTL-01 | Scenario SC-04: command rate ≥ 45 Hz | L1 |
-| FR-CTL-02 | Scenario SC-01, SC-04: EE error ≤ 5 mm | L1 |
-| FR-CTL-03 | `tests/control/test_controller_node.py` | L3 |
-| FR-CTL-04 | `tests/control/test_kinematics.py` + TF2 broadcast check | L3 |
-| FR-CTL-05 | Integration test: controller starts before planner action completes | L2 |
-| FR-CTL-06 | `tests/control/test_controller_node.py`: fault injection | L3 |
-| FR-SIM-01–06 | MS-6 MuJoCo backend; MS-7 dual-backend showcase | L1–L2 |
-| FR-HW-01–03 | Deferred to Phase 3 | — |
+| v1.0 | PPP gantry | ≤ 10 mm EE |
+| v1.1 | Dubins | ≤ 0.5 m pose (SE(2)) |
+| v1.2 | RRP | ≤ 5 mm EE |
+| v1.3 | 6-DOF | ≤ 5 mm EE |
+
+**FR-CTL-03:** Velocity commands published to `/joint_commands`.
+
+**FR-CTL-04:** FK → TF2 broadcast `base_link → tool0` at control rate.
+
+**FR-CTL-05:** Controller independent of planner (async start on trajectory).
+
+**FR-CTL-06:** Fault on sustained tracking error → HALTED + `/fault`.
+
+---
+
+## Grasp (v1.0+)
+
+**FR-GSP-01:** v1.0 uses **magnetic weld** grasp only (no finger DOF).
+
+**FR-GSP-02:** Welded cargo included in planner collision predicate during TRANSPORT.
+
+**FR-GSP-03:** Weld releases at goal; cargo remains at goal pose.
+
+**FR-GSP-04:** Grasp FSM states: IDLE, APPROACH, CAPTURE, TRANSPORT, RELEASE.
+
+---
+
+## Simulation
+
+**FR-SIM-01:** `backend:=mujoco` selectable at launch (v1.0 primary).
+
+**FR-SIM-02:** Algorithm layers simulator-agnostic; I/O in `fret.ros` only.
+
+**FR-SIM-03:** MuJoCo headless MP4 render for CI and release artifacts.
+
+**FR-SIM-04:** Gazebo backend for arm scenarios (v1.2+).
+
+---
+
+## Hardware (post v1.3)
+
+**FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
+
+**FR-HW-02:** Publish encoder feedback on `/joint_states` ≥ 50 Hz.
+
+**FR-HW-03:** Validate message integrity before actuation.
+
+---
+
+## Operational envelopes by release
+
+### v1.0 — PPP
+
+| Parameter | Value |
+|---|---|
+| Joints | 3 prismatic (x, y, z) |
+| Workspace | [0,60] × [0,20] × [0,6] m |
+| Cargo | 0.5 m box, magnetic weld |
+| Planner | ARCO SST |
+
+### v1.1 — Dubins
+
+| Parameter | Value |
+|---|---|
+| State | (x, y, θ) SE(2) |
+| Agents | 2 |
+| Planner | ARCO SST per agent |
+| Control | ARCO Pure Pursuit |
+
+### v1.2 — RRP
+
+| Parameter | Value |
+|---|---|
+| Joints | 2 revolute + 1 prismatic |
+| Planner | ARCO SST |
+| Control | Jacobian pseudoinverse |
+
+### v1.3 — 6-DOF
+
+| Parameter | Value |
+|---|---|
+| Joints | 6 revolute |
+| Planner | ARCO SST |
+| Planning timeout | 60 s |
+
+---
+
+## Validation mapping
+
+| Requirement | Release | Validated by |
+|---|---|---|
+| FR-SYS-01–04 | all | Launch smoke tests |
+| FR-SCN-01–04 | v1.0+ | `tests/scene/` |
+| FR-PLN-01–07 | v1.0+ | `tests/planning/`, SC-v10+ |
+| FR-CTL-01–06 | v1.0+ | `tests/control/` |
+| FR-GSP-01–04 | v1.0 | `tests/control/test_grasp_magnet.py` *(planned)* |
+| FR-SIM-01–03 | v1.0 | MuJoCo launch + MP4 artifact |
+| FR-SIM-04 | v1.2 | Gazebo sitl smoke |
+| FR-HW-01–03 | post v1.3 | — |
+
+### Regression (bootstrap SCARA)
+
+MS-1–5 scenarios (SC-01 – SC-05) remain in CI as regression tests until v1.2
+supersedes them. They are **not** release acceptance criteria.

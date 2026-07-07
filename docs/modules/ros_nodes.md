@@ -2,15 +2,16 @@
 
 **Package:** `fret.ros`  
 **Source:** `src/fret/ros/`  
-**Tests:** `tests/scene/test_perception_bridge.py`, `tests/planning/test_arc_injector.py`
+**Tests:** `tests/scene/`, `tests/planning/`
+
+> v1.0 adds `mujoco_bridge.py` as the primary simulator I/O node. See [releases.md](../releases.md).
 
 ---
 
 ## Responsibility
 
-The `fret.ros` package contains ROS 2 nodes that form the bridge between the
-simulation environment (Gazebo) and FRET's algorithm layers. These are nodes with
-a single, well-defined responsibility in the SITL pipeline.
+The `fret.ros` package contains ROS 2 nodes bridging simulators (MuJoCo, Gazebo) to
+FRET algorithm layers.
 
 ---
 

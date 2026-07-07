@@ -4,14 +4,16 @@
 **Source:** `src/fret/planning/`  
 **Tests:** `tests/planning/`
 
+> **All releases** use ARCO SST via this module. Collision checking adapts per robot
+> (PPP Cartesian envelope, RRP FK, 6-DOF per-link FK in v1.3). See [releases.md](../releases.md).
+
 ---
 
 ## Responsibility
 
-The planning module computes collision-free joint-space trajectories from a start
-configuration to a goal configuration. It wraps ARCO's SST planner (or falls back
-to a linear interpolation when ARCO is absent), post-processes the raw path into a
-smooth, time-parameterized trajectory, and delivers the result to the controller.
+The planning module computes collision-free trajectories from start to goal. It wraps
+ARCO's SST planner, post-processes the path, and delivers a time-parameterized
+trajectory to the controller.
 
 ---
 
