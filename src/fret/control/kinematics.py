@@ -1,18 +1,22 @@
-"""Kinematics engine for the FRET SCARA RRP robot model.
+"""Per-model kinematics facade for FRET robot models.
 
-Provides closed-form forward kinematics (FK), analytical inverse kinematics
-(IK), and the geometric Jacobian for the SCARA RRP (3-DOF) manipulator.
-Parameters are extracted directly from ``src/fret/urdf/scara.xacro``.
+Dispatches to model-specific engines:
 
-Satisfies requirements FR-CTL-02 and FR-PLN-02.
+- ``"scara"`` — SCARA RRP (bootstrap, v0.9)
+- ``"ppp"`` — PPP gantry (v1.0)
+
+Satisfies requirements FR-SYS-01, FR-CTL-02, and FR-PLN-02.
 """
 
 from __future__ import annotations
 
 import math
+from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
+
+from fret.control.kinematics_ppp import PPPKinematics
 
 # ---------------------------------------------------------------------------
 # SCARA model constants (source: src/fret/urdf/scara.xacro)
@@ -44,25 +48,37 @@ _JOINT_NAMES: list[str] = [
 ]
 
 
-class Kinematics:
-    """Closed-form FK, IK, and Jacobian for the FRET SCARA RRP model.
+class _KinematicsBackend(Protocol):
+    """Structural protocol shared by per-model kinematics engines."""
 
-    A single ``Kinematics`` instance is shared between ``CSpaceChecker``
-    (planning layer) and ``StateEstimator`` (control layer) to avoid
-    redundant computation.
+    @property
+    def dof(self) -> int: ...
 
-    Args:
-        model: Robot model name.  Only ``"scara"`` is supported in Phase 1–2.
+    @property
+    def joint_names(self) -> list[str]: ...
 
-    Raises:
-        ValueError: If ``model`` is not ``"scara"``.
-    """
+    @property
+    def joint_limits(self) -> npt.NDArray[np.float64]: ...
 
-    def __init__(self, model: str) -> None:
-        if model != "scara":
-            raise ValueError(
-                f"Unsupported model '{model}'. Only 'scara' is supported."
-            )
+    def forward_kinematics(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]: ...
+
+    def inverse_kinematics(
+        self,
+        ee_pose: npt.NDArray[np.float64],
+        seed: npt.NDArray[np.float64] | None = None,
+    ) -> npt.NDArray[np.float64]: ...
+
+    def jacobian(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]: ...
+
+
+class _ScaraKinematics:
+    """Closed-form FK, IK, and Jacobian for the FRET SCARA RRP model."""
+
+    def __init__(self) -> None:
         self._l1: float = _L1
         self._l2: float = _L2
         self._z_base: float = _Z_BASE
@@ -284,3 +300,67 @@ class Kinematics:
             ],
             dtype=np.float64,
         )
+
+
+_SUPPORTED_MODELS: frozenset[str] = frozenset({"scara", "ppp"})
+
+
+class Kinematics:
+    """Facade for per-model kinematics engines (FR-SYS-01).
+
+    A single ``Kinematics`` instance is shared between ``CSpaceChecker``
+    (planning layer) and ``StateEstimator`` (control layer) to avoid
+    redundant computation.
+
+    Args:
+        model: Robot model name — ``"scara"`` or ``"ppp"``.
+
+    Raises:
+        ValueError: If ``model`` is not supported.
+    """
+
+    def __init__(self, model: str) -> None:
+        if model not in _SUPPORTED_MODELS:
+            supported = ", ".join(sorted(_SUPPORTED_MODELS))
+            raise ValueError(
+                f"Unsupported model '{model}'. Supported models: {supported}"
+            )
+        if model == "scara":
+            self._impl: _KinematicsBackend = _ScaraKinematics()
+        else:
+            self._impl = PPPKinematics()
+
+    @property
+    def dof(self) -> int:
+        """Number of degrees of freedom for the active model."""
+        return self._impl.dof
+
+    @property
+    def joint_names(self) -> list[str]:
+        """URDF joint names in kinematic-chain order (length ``DOF``)."""
+        return self._impl.joint_names
+
+    @property
+    def joint_limits(self) -> npt.NDArray[np.float64]:
+        """Joint limits array, shape ``(DOF, 2)`` — columns: lower, upper."""
+        return self._impl.joint_limits
+
+    def forward_kinematics(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Compute the homogeneous end-effector pose from joint positions."""
+        return self._impl.forward_kinematics(joint_positions)
+
+    def inverse_kinematics(
+        self,
+        ee_pose: npt.NDArray[np.float64],
+        seed: npt.NDArray[np.float64] | None = None,
+    ) -> npt.NDArray[np.float64]:
+        """Compute a joint configuration that achieves the given EE pose."""
+        return self._impl.inverse_kinematics(ee_pose, seed=seed)
+
+    def jacobian(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Return the geometric Jacobian at the given configuration."""
+        return self._impl.jacobian(joint_positions)
