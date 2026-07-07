@@ -1,0 +1,12 @@
+# PPP prismatic velocity controller configuration (v1.0).
+#
+# Consumed by: PPPControllerNode (control/controller_ppp.py)
+# Per-axis P-control aligned with ARCO map/ppp.yml simulator settings.
+
+/**:
+  ros__parameters:
+    kp: 1.5
+    max_joint_velocity: [3.0, 3.0, 1.5]
+    update_rate: 50.0
+    fault_threshold: 0.010
+    ticks_per_waypoint: 5

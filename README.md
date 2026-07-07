@@ -71,6 +71,7 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 | 2 | Magnetic grasp FSM (T10-04) | `pytest tests/control/test_grasp_magnet.py -v` |
 | 3 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
 | 4 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
+| 5 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -105,6 +106,14 @@ pip install -e ".[sim]"
 python3 scripts/demo_ppp_checker.py
 # or run the unit tests:
 pytest tests/planning/test_cspace_checker_ppp.py tests/planning/test_ppp_obstacles.py -v
+```
+
+**PPP prismatic controller** — per-axis P-control at 50 Hz:
+
+```bash
+python3 scripts/demo_ppp_controller.py
+# or run the unit tests:
+pytest tests/control/test_controller_ppp.py -v
 ```
 
 ---
