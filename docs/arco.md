@@ -217,7 +217,13 @@ the right seam for bridging the two options.
 ARCO provides the correct primitives — occupancy model, sampling planners,
 trajectory optimizer, B-spline interpolation — for FRET's planning stage
 (roadmap step 5). The integration boundary is clean and the ownership split is
-well-defined. The main refactoring work is:
+well-defined.
+
+**v1.0 platform decision (2026 Q3):** ARCO remains the sole motion planner for
+v1.0. OMPL is a post-v1.0 research option (hybrid: OMPL search + ARCO occupancy).
+See [reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
+
+The main refactoring work ahead is:
 
 1. Decide on planning space (task-space vs. C-space) and implement the
    corresponding collision-check adapter in FRET.

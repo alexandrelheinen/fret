@@ -7,6 +7,11 @@ A scenario **passes** when all its listed pass criteria are met simultaneously.
 Scenarios are executed via `launch_testing` in `tests/integration/` and can also be
 run manually with `ros2 launch fret sitl.py scenario:=<name>`.
 
+> **v1.0 note:** MS-1–5 scenarios use the SCARA bootstrap robot on Gazebo (engineering)
+> or pure-Python (CI). Milestone 7 will add **SC-v1**, the v1.0 showcase scenario,
+> runnable on both Gazebo and MuJoCo. The robot and environment for SC-v1 are
+> **TBD** in a design session — see [docs/v1.0.md](v1.0.md).
+
 ---
 
 ## SC-01 — Static Reach
@@ -117,6 +122,36 @@ published directly, bypassing the planning node entirely.
 
 ---
 
+## SC-v1 — v1.0 Showcase Scenario (planned, MS-7)
+
+**File:** `config/scenarios/v1_showcase.yml` *(not yet created)*  
+**Purpose:** The definitive v1.0 demo scenario — robot topology, environment, and
+narrative selected in a design session. Must run on **both** Gazebo (engineering)
+and MuJoCo (visual showcase) backends.
+
+**Requirements:** All FR-PLN, FR-CTL, FR-SCN, FR-SIM requirements; see [docs/v1.0.md](v1.0.md).
+
+### Status
+
+| Item | State |
+|---|---|
+| Robot model | 🔲 TBD (SCARA bootstrap or new topology) |
+| Environment | 🔲 TBD |
+| Scenario YAML | 🔲 Not created |
+| Gazebo validation | 🔲 Pending |
+| MuJoCo validation | 🔲 Pending (depends on MS-6) |
+| Article assets | 🔲 Pending |
+
+### Pass criteria (draft — to be finalized in design session)
+
+1. Planning Action returns `SUCCESS` within 30 s with ARCO SST (not fallback).
+2. Controller EE error ≤ 5 mm throughout execution.
+3. Scenario passes identically on `backend:=gazebo` and `backend:=mujoco`.
+4. Headless MuJoCo render produces article-ready PNG or MP4.
+5. No `/fault` message published.
+
+---
+
 ## Running Scenarios
 
 ### Manual execution
@@ -124,10 +159,14 @@ published directly, bypassing the planning node entirely.
 ```bash
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
+# Gazebo backend (default, engineering SITL)
 ros2 launch fret sitl.py scenario:=static_reach      model:=scara
 ros2 launch fret sitl.py scenario:=obstacle_avoidance model:=scara
 ros2 launch fret sitl.py scenario:=planning_timeout   model:=scara
 ros2 launch fret sitl.py scenario:=straight_line      model:=scara
+
+# MuJoCo backend (visual showcase — MS-6, not yet available)
+# ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=mujoco
 ```
 
 ### Automated (CI)
@@ -154,10 +193,13 @@ scenario:
   description: "..."
 
 robot:
-  model: scara                         # selects URDF and kinematics config
+  model: scara                         # selects URDF/MJCF and kinematics config
+
+simulation:
+  backend: gazebo                      # gazebo | mujoco (mujoco: MS-6, v1.0)
 
 world:
-  file: worlds/empty.sdf               # Gazebo world file path (relative to share/fret/)
+  file: worlds/empty.sdf               # Gazebo world file (relative to share/fret/)
   obstacles: []                        # list of programmatic obstacles (optional)
 
 task:

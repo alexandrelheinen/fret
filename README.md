@@ -3,8 +3,11 @@
 <img src="docs/images/fret.svg" alt="FRET Logo" width="120" align="left">
 
 FRET (A Full-stack framework for Robotic End-effector control and Trajectory planning) is a
-ROS 2 robotics project providing end-to-end trajectory planning and execution for a SCARA
-manipulator, from pure-Python simulation to Gazebo SITL and physical hardware.
+ROS 2 robotics project providing end-to-end trajectory planning and execution for manipulators,
+from pure-Python simulation to dual-backend SITL (Gazebo + MuJoCo) and physical hardware.
+
+**v1.0 direction (2026 Q3):** ARCO motion planning + Gazebo engineering SITL + MuJoCo visual showcase.
+The SCARA was the bootstrap robot; the v1.0 showcase scenario is TBD. See [docs/v1.0.md](docs/v1.0.md).
 
 The project uses a clean architecture: algorithm layers (kinematics, planning, scene acquisition,
 validation) are pure Python with no ROS dependency, and a thin ROS 2 layer wires them into
@@ -63,8 +66,10 @@ For the full Gazebo SITL tutorial (requires Ubuntu 24.04 + ROS 2 Jazzy), see
 ### Project
 
 - [Simulation Tutorial (A-Z)](docs/simulation.md) — download, build, and run fretsim
+- [v1.0 Goals and Release Criteria](docs/v1.0.md) — MuJoCo + Gazebo + ARCO target
+- [Platform Study (2026 Q3)](docs/reports/simulation-platform-study-2026-q3.md) — simulator and planner comparison
 - [Project Roadmap](docs/roadmap.md) — phases 0–7
-- [Milestones](docs/milestones.md) — requirements table, completion status, MS-1 through MS-5
+- [Milestones](docs/milestones.md) — MS-1 through MS-7, completion status
 - [Coding guidelines (authoritative)](docs/guidelines.md)
 - [Contributing guide](CONTRIBUTING.md)
 
@@ -94,29 +99,26 @@ For the full Gazebo SITL tutorial (requires Ubuntu 24.04 + ROS 2 Jazzy), see
 ## Architecture
 
 ```
-Gazebo (Ignition)
-    │  /joint_states
-    │  /tf (obstacle transforms)
-    ▼
-PerceptionBridgeNode ──► /obstacle_cloud ──► SceneAcquisitionNode
-                                                     │ OccupancyUpdatePayload
-                                                     ▼
-                                             PlannerNodeRos (Action server)
-                                             ├── CSpaceChecker (FK + KDTree)
-                                             └── TrajectoryGenerator (prune → optimize → B-spline)
-                                                     │ /joint_trajectory
-                                                     ▼
-                                             ControllerRosNode (50 Hz, Jacobian)
-                                                     │ /joint_commands
-                                                     ▼
-                                               Gazebo joint controllers
+                    ┌─────────────────────────────────┐
+                    │  ARCO (planning library)        │
+                    │  KDTree + SST + TrajectoryPruner│
+                    └───────────────┬─────────────────┘
+                                    │
+Gazebo (engineering) ◄──► FRET pipeline ◄──► MuJoCo (visual, MS-6)
+    │  /joint_states         │                      │  /joint_states
+    │  /joint_commands       │                      │  /joint_commands
+    ▼                        ▼                      ▼
+PerceptionBridge ──► SceneAcquisition ──► PlannerNode ──► ControllerNode
 ```
 
 **Key design decisions:**
 - Algorithm layers (`kinematics`, `planning`, `scene`, `validation`) are pure Python — no ROS imports — making them fast to test.
 - ROS 2 nodes (`*RosNode`, `*Node` in `fret.ros`) are thin wrappers that own only I/O.
-- ARCO is an optional dependency: `try/except ImportError` pattern; linear interpolation fallback when absent.
+- **ARCO** is the motion planner for v1.0; optional `try/except ImportError` with linear fallback when absent.
+- **Gazebo** is the engineering SITL backend; **MuJoCo** is the visual showcase backend (MS-6).
 - Configuration via YAML files and ROS 2 parameters; no magic numbers in source.
+
+Full diagrams: [docs/architecture.md](docs/architecture.md) · [platform study](docs/reports/simulation-platform-study-2026-q3.md)
 
 ---
 
@@ -145,9 +147,12 @@ bash scripts/check/pre_push.sh
 | Middleware | ROS 2 Jazzy |
 | Low-level controller | Arduino Mega (Phase 3) |
 | Communication | Micro-ROS serial bridge (Phase 3) |
-| Simulation | Gazebo Harmonic + RViz 2 |
+| Engineering simulation | Gazebo Harmonic + RViz 2 |
+| Visual simulation | MuJoCo (MS-6, v1.0 target) |
 | Motion planning | ARCO SST (C-space, sampling-based) |
 | Control | Jacobian pseudoinverse, 50 Hz |
+| Bootstrap robot | SCARA 3-DOF RRP (MS-1–5) |
+| v1.0 showcase robot | TBD (design session) |
 | Physical target | Delta-like robot (Phase 4) |
 
 ---
@@ -249,33 +254,35 @@ pytest tests/ -v
 
 ## v1.0 Release Assessment
 
-**FRET is not yet ready for a functional v1.0 release.** The following blockers remain:
+**FRET is approaching v1.0 but not yet ready to tag `v1.0.0`.** See [docs/v1.0.md](docs/v1.0.md)
+for the full acceptance criteria and task list.
 
-1. **Milestone 5 not complete:** The pillar-avoidance scenario (`pillar_avoidance.yml`,
-   `pillar_scenario.sdf`) has not been implemented. This is the final milestone that
-   demonstrates full autonomous obstacle avoidance in Gazebo.
+### What is done (MS-1–5)
 
-2. **ARCO not validated in CI:** The CI uses the linear-interpolation fallback planner
-   because ARCO is not installed. Full ARCO SST integration requires a dedicated CI job
-   with `pip install -e ../arco/` (or a pip-published ARCO package).
-
-3. **Gazebo SITL not smoke-tested in CI:** All CI simulations are pure-Python (no Gazebo).
-   The `sitl.py` launch file exists and is structurally correct but has not been validated
-   against a live Gazebo instance in CI. At least `view.py` and `sim.py` smoke tests should
-   be re-validated on the current codebase.
-
-4. **No ROS bag for a real Gazebo run:** The tutorial logs above come from pure-Python
-   simulation. A real Gazebo bag has not been recorded and uploaded.
-
-**What is v1.0-ready (pure-Python simulation):**
-- MS-1 through MS-4 all pass CI.
+- MS-1 through MS-5 pass in pure-Python CI (including pillar avoidance).
 - EE tracking error is well within spec (0.56 mm vs. 5 mm limit).
-- All core algorithm modules are tested (>90% coverage target).
-- Architecture, interfaces, and requirements are fully documented.
+- Core algorithm modules tested (>90% coverage target).
+- Architecture, interfaces, and requirements fully documented.
+- Platform study completed; direction locked: **ARCO + Gazebo + MuJoCo**.
 
-**Recommendation:** Tag `v0.9.0` to mark the completion of Milestones 1–4 and the
-documentation update. Target `v1.0.0` after Milestone 5 is complete and Gazebo SITL
-is validated end-to-end in CI.
+### What remains for v1.0
+
+| Gap | Milestone | Priority |
+|---|---|---|
+| Gazebo SITL end-to-end validation (pillar scenario) | MS-5 | High |
+| ARCO SST active in CI (not linear fallback) | MS-5 / v1.0 B-1 | High |
+| MuJoCo visual backend | MS-6 | High |
+| v1.0 showcase scenario (robot + environment) | MS-7 | **Next: design session** |
+| Article-ready demo assets (video, benchmark table) | MS-7 | Medium |
+| Hardware HITL | Phase 3 | Deferred past v1.0 |
+
+**Version tagging plan:**
+
+| Tag | When |
+|---|---|
+| `v0.9.0` | MS-1–5 algorithm core (now) |
+| `v1.0.0-rc1` | MS-6 MuJoCo backend functional |
+| `v1.0.0` | MS-7 showcase scenario on both backends |
 
 ---
 

@@ -21,8 +21,14 @@ world file, start configuration, goal configuration, planner parameters, and con
 gains. Running the same scenario YAML on the same software version shall produce the
 same observable result.
 
-**FR-SYS-03:** The system shall operate in two modes: SITL (Gazebo-based) and HITL
-(hardware-based). Phases 1 and 2 target SITL exclusively.
+**FR-SYS-03:** The system shall operate in multiple SITL backends and HITL mode:
+
+- **Gazebo Harmonic** — engineering SITL (ROS-native, CI, hardware path).
+- **MuJoCo** — visual showcase SITL (demos, article assets) — v1.0 target.
+- **HITL** — hardware-based (Phase 3, deferred past v1.0).
+
+Phases 1–2 targeted Gazebo exclusively. Phase 5 adds MuJoCo as a second backend
+behind the same pure-Python pipeline. See [docs/v1.0.md](v1.0.md).
 
 **FR-SYS-04:** All runtime-significant configurable values shall be declared as ROS 2
 parameters or YAML configuration files. No magic number that affects observable behavior
@@ -43,7 +49,9 @@ The following constraints define the valid operating domain. Requirements that r
 | Max prismatic joint velocity | 0.1 m/s | |
 | Workspace volume | Cylinder: radius ≤ 0.5 m, height ∈ [0, 0.3 m] | Centered at base_link origin |
 | Obstacle model | Static convex point clouds in world frame | Dynamic obstacles out of scope |
-| Simulation environment | Gazebo (Ignition) with ROS 2 bridge | Phases 1–2 only |
+| Simulation — engineering | Gazebo Harmonic with ROS 2 bridge | Phases 1–5 |
+| Simulation — visual showcase | MuJoCo (MJCF model, Python bindings) | Phase 5 (v1.0) |
+| Motion planning | ARCO SST (C-space, sampling-based) | All phases |
 
 ---
 
@@ -120,6 +128,28 @@ transition to HALTED state, and publish a fault message on `/fault`.
 
 ---
 
+## Simulation Backend Requirements (Phase 5 / v1.0)
+
+**FR-SIM-01:** The system shall support at least two SITL backends selectable at
+launch time via a `backend:=` argument: `gazebo` (default) and `mujoco`.
+
+**FR-SIM-02:** All algorithm layers (`scene/`, `planning/`, `control/`, `validation/`)
+shall remain simulator-agnostic. Simulator-specific code shall live only in `fret.ros`
+and `launch/`.
+
+**FR-SIM-03:** The Gazebo backend shall use `ros_gz_sim`, `ros_gz_bridge`, and
+`gz_ros2_control` for joint state and command exchange.
+
+**FR-SIM-04:** The MuJoCo backend shall provide equivalent joint I/O
+(`/joint_states`, `/joint_commands`) so the same scenario YAML drives both backends.
+
+**FR-SIM-05:** The MuJoCo backend shall support headless rendering to produce
+PNG or MP4 artifacts for CI and documentation without a display server.
+
+**FR-SIM-06:** Isaac Sim is explicitly out of scope for v1.0.
+
+---
+
 ## Hardware Requirements (Phase 3 and later)
 
 **FR-HW-01:** The hardware bridge shall relay joint velocity commands from `/joint_commands`
@@ -160,4 +190,5 @@ This table traces each requirement to its validation method and V-cycle level.
 | FR-CTL-04 | `tests/control/test_kinematics.py` + TF2 broadcast check | L3 |
 | FR-CTL-05 | Integration test: controller starts before planner action completes | L2 |
 | FR-CTL-06 | `tests/control/test_controller_node.py`: fault injection | L3 |
+| FR-SIM-01–06 | MS-6 MuJoCo backend; MS-7 dual-backend showcase | L1–L2 |
 | FR-HW-01–03 | Deferred to Phase 3 | — |

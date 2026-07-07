@@ -64,7 +64,9 @@ The **scenario YAML** is the primary user-facing configuration file. It specifie
 - **ROS 2 is the middleware** for all runtime inter-process communication. Topics carry time-stamped data between nodes; services handle request-response calls; the parameter server holds configuration.
 - **ARCO is a library, not a node.** It is called synchronously inside the `PlannerNode`. Its outputs are plain Python objects (lists of joint configurations) that the node converts to ROS messages.
 - **Configuration space is the planning domain.** FRET plans in joint space (C-space), not task space. Obstacle avoidance uses ARCO's `KDTreeOccupancy`, but the collision check is: FK(q) → world-frame point → nearest obstacle distance.
-- **Gazebo owns the ground truth.** The simulator is the authoritative source of robot state and world geometry. FRET nodes subscribe to Gazebo-published topics; they do not drive Gazebo directly.
+- **Gazebo owns the engineering ground truth.** The Gazebo simulator is the authoritative source of robot state for CI and the hardware path. MuJoCo is a visual showcase backend (v1.0) that must expose equivalent joint I/O.
+- **Simulator backends are replaceable.** Algorithm layers are simulator-agnostic. Simulator-specific code lives in `fret.ros` and `launch/` only.
+- **ARCO is the sole planner for v1.0.** OMPL integration is a post-v1.0 research option. See [reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
 
 ### Layers
 
@@ -189,8 +191,12 @@ src/fret/
 ├── launch/                      ← all Python launch files
 │   ├── view.py                  ← RViz visualization (model:=)
 │   ├── sim.py                   ← Gazebo simulation (model:=)
-│   ├── sitl.py                  ← full SITL pipeline (scenario:=, model:=)
+│   ├── sitl.py                  ← full SITL pipeline (scenario:=, model:=, backend:=)
+│   ├── mujoco.py                ← MuJoCo visual backend (MS-6, planned)
 │   └── hardware.py              ← HITL / physical stack (Phase 3)
+│
+├── mjcf/                        ← MuJoCo models (MS-6, planned)
+│   └── scara.xml
 │
 ├── config/                      ← YAML parameter files
 │   ├── scenarios/               ← one YAML per runnable scenario
@@ -229,6 +235,7 @@ src/fret/
 │
 ├── ros/                         ← ROS bridge nodes
 │   ├── perception_bridge.py     ← obstacle cloud publisher (from config YAML)
+│   ├── mujoco_bridge.py         ← MuJoCo joint I/O adapter (MS-6, planned)
 │   ├── straight_line_injector.py← Milestone 1 trajectory injector
 │   └── arc_injector.py          ← SC-05 arc trajectory injector
 │

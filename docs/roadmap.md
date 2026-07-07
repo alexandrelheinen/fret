@@ -6,10 +6,15 @@
 * **Middleware:** ROS 2 (Jazzy) for logic, kinematics, and communication.
 * **Low-Level Controller:** Arduino Mega for real-time actuation and signal conversion to physical layer for the initial prototyping. To be reviewed and replaced by a dedicated driver afterwards.
 * **Communication:** Serial-based bridge Micro-ROS for data exchange between RPi 5 and Arduino.
-* **SITL topology:** A SCARA robot (RRP: 2 revolute + 1 prismatic) is used for Phases 1 and 2. It is already modeled in `src/fret/urdf/scara.xacro` and exemplified by ARCO's planning primitives, making it the natural starting point.
-* **Physical target topology:** A delta-like robot (4 arms) is the intended physical prototype. The topology will be finalized at Phase 4 based on procurement constraints. The simulation stack will be extended to match the physical reality at that point.
+* **Motion planning:** **ARCO** (author-owned Python library) for C-space sampling-based planning, occupancy, and trajectory post-processing.
+* **Simulation — engineering backend:** **Gazebo Harmonic** for ROS-native SITL, CI validation, and the hardware path.
+* **Simulation — visual showcase:** **MuJoCo** for polished demos, article figures, and portfolio video (v1.0 target).
+* **Bootstrap robot:** A SCARA (RRP, 3-DOF) was used for Phases 1–2 and Milestones 1–5 because it was already validated on ARCO. The **v1.0 showcase robot and environment** will be selected in a dedicated design session — see [docs/v1.0.md](v1.0.md).
+* **Physical target topology:** A delta-like robot (4 arms) is the intended physical prototype. The topology will be finalized at Phase 4 based on procurement constraints.
 
 > The current system specification must be kept updated at the main project [README file](README.md) as decisions are made.
+>
+> **Platform study (2026 Q3):** [docs/reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md)
 
 ## Setup
 
@@ -34,7 +39,7 @@ for the full SDD and V-cycle workflow.
   (planning < 30 s, control 50 Hz, EE error < 5 mm). See [docs/requirements.md](requirements.md).
 - [x] Define failure mode policy: `ABORTED` with structured error code, no auto-retry.
   See [docs/interfaces.md](interfaces.md).
-- [x] Write scenario library for functional validation (SC-01 through SC-04).
+- [x] Write scenario library for functional validation (SC-01 through SC-05).
   See [docs/scenarios.md](scenarios.md).
 
 **Level 2 — Architecture and pipeline definition**
@@ -48,7 +53,7 @@ for the full SDD and V-cycle workflow.
 - [x] Define node state machines (`PlannerNode`, `ControllerNode`) with full transition
   tables. See [docs/interfaces.md](interfaces.md).
 - [x] Document error propagation paths end-to-end. See [docs/interfaces.md](interfaces.md).
-- [x] Pin ARCO dependency mechanism: `pip install -e ../arco/`.
+- [x] Pin ARCO dependency mechanism: `pip install -e ../arco/` (or git dep in `pyproject.toml`).
   See [docs/interfaces.md](interfaces.md).
 
 **CI/CD gates**
@@ -77,12 +82,8 @@ for the full SDD and V-cycle workflow.
 - [x] Implement the Jacobian-based velocity controller (`control/controller_node.py`).
 - [x] Execute predefined trajectories (straight lines, arcs) in the simulator — scenario SC-04, SC-05.
 - [x] Implement feedback correction to reject model disturbances and validate EE error < 5 mm — scenario SC-01.
-- [x] Implement ARCO planning pipeline (MS-2) and full end-to-end SITL (MS-3, MS-4).
+- [x] Implement ARCO planning pipeline (MS-2) and full end-to-end SITL (MS-3, MS-4, MS-5).
 - [x] Verify scenario SC-01 (Static Reach), SC-04 (Straight Line), SC-05 (Arc) pass.
-
-> **ARCO note:** The planning fallback (linear interpolation) is used in CI because ARCO
-> is not installed in the CI environment. Full ARCO SST integration requires `pip install -e ../arco/`.
-> Scenario SC-02 (Obstacle Avoidance) with real ARCO planning is pending Milestone 5.
 
 ---
 
@@ -93,7 +94,7 @@ for the full SDD and V-cycle workflow.
 - [ ] Validate the control stack end-to-end with the Arduino (without active motor drivers).
 - [ ] Test telemetry loopback: verify data integrity and measure round-trip latency.
 
-> Status: TODO
+> Status: TODO — deferred past v1.0.
 
 ---
 
@@ -102,21 +103,44 @@ for the full SDD and V-cycle workflow.
 - [ ] Define and purchase remaining mechanical and electronic components. This step finalizes
   the actual physical robot topology (expected: delta-like, 4 arms).
 - [ ] Select actuators (e.g., Nema 17) and drivers (e.g., TMC series).
-- [ ] Extend the simulation stack to reproduce the physical prototype: new URDF, new kinematics,
+- [ ] Extend the simulation stack to reproduce the physical prototype: new URDF, new MJCF,
   new scenario YAMLs.
 
-> Status: TODO
+> Status: TODO — deferred past v1.0.
 
 ---
 
-### Phase 5 — Motion Planner Integration
+### Phase 5 — v1.0 Release (ARCO + Gazebo + MuJoCo) 🔄 *In progress*
 
-- [ ] Wire ARCO's full planning pipeline into the SITL stack (ARCO SST planner, C-space checker).
-- [ ] Implement replanning triggers and scene-update loop.
-- [ ] Deploy the full SITL pipeline with dynamic goal specification.
-- [ ] Validate in both SITL and HITL setups.
+This phase consolidates the platform study decisions into a shippable v1.0 release.
+See [docs/v1.0.md](v1.0.md) for acceptance criteria and task list.
 
-> Status: TODO
+**Phase 5a — Close Gazebo engineering gaps (MS-5 completion)**
+
+- [x] Wire ARCO's planning pipeline into the SITL stack (SST planner, C-space checker).
+- [x] Implement pillar-avoidance scenario (MS-5 pure-Python pipeline).
+- [ ] Validate pillar avoidance in live Gazebo SITL (not just pure-Python).
+- [ ] Add Gazebo headless smoke test to CI.
+- [ ] Wire `ReplanningManager` into the live ROS pipeline.
+- [ ] Add ARCO-enabled CI job with real SST (not linear fallback).
+
+**Phase 5b — MuJoCo visual backend (MS-6)**
+
+- [ ] Evaluate MuJoCo integration path (`mujoco` Python bindings vs ROS bridge).
+- [ ] Create MJCF model for bootstrap robot (SCARA; migrate with v1.0 showcase).
+- [ ] Implement simulator backend adapter in `fret.ros` (joint I/O abstraction).
+- [ ] Add `launch/mujoco.py` and `backend:=` selector on `sitl.py`.
+- [ ] Produce headless render artifacts (PNG/video) for CI and article.
+
+**Phase 5c — v1.0 showcase scenario (MS-7)**
+
+- [ ] Design session: select robot topology and environment for v1.0 demo.
+- [ ] Define SC-v1 scenario YAML with pass criteria.
+- [ ] Run end-to-end on both Gazebo and MuJoCo backends.
+- [ ] Record article-ready assets (screenshot, short video, benchmark table).
+- [ ] Tag `v1.0.0`.
+
+> **Post-v1.0 research (not blocking):** OMPL side-by-side benchmark; Isaac Sim evaluation.
 
 ---
 
