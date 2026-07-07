@@ -30,6 +30,7 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       MUJOCO_GL: egl
+      PYOPENGL_PLATFORM: egl
       R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
 
@@ -37,8 +38,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Python, sim deps, and AWS CLI
+      - name: Install EGL/Mesa and Python render deps
         run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            libegl1 \
+            libegl-mesa0 \
+            libgles2 \
+            libgl1 \
+            libgl1-mesa-dri \
+            libosmesa6
           python3 -m pip install --break-system-packages --upgrade pip
           python3 -m pip install --break-system-packages \
             awscli mujoco imageio imageio-ffmpeg

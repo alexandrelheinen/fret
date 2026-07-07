@@ -124,6 +124,12 @@ def interpolate_waypoints(
     return np.clip(trajectory, _PPP_LIMITS[:, 0], _PPP_LIMITS[:, 1])
 
 
+_EGL_APT_HINT = (
+    "sudo apt install libegl1 libegl-mesa0 libgles2 libgl1 "
+    "libgl1-mesa-dri libosmesa6"
+)
+
+
 def _require_mujoco() -> tuple[object, object]:
     """Import MuJoCo and imageio, raising a clear error when missing."""
     try:
@@ -133,6 +139,13 @@ def _require_mujoco() -> tuple[object, object]:
             "MuJoCo is required for video rendering.\n"
             "Install with: pip install mujoco imageio imageio-ffmpeg"
         ) from exc
+    except AttributeError as exc:
+        if "eglQueryString" in str(exc):
+            raise SystemExit(
+                "MuJoCo EGL rendering requires system OpenGL/EGL libraries.\n"
+                f"On Ubuntu 24.04: {_EGL_APT_HINT}"
+            ) from exc
+        raise
     try:
         import imageio.v3 as iio  # type: ignore[import-not-found]
     except ImportError as exc:
