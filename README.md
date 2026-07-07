@@ -37,6 +37,8 @@ Full specification: **[docs/releases.md](docs/releases.md)**
 
 ## Quick start
 
+> **Visual guide (for dummies):** [docs/mujoco_for_dummies.md](docs/mujoco_for_dummies.md)
+
 ### Pure Python (algorithms only — no ROS)
 
 ```bash
@@ -45,7 +47,14 @@ pip install -e ".[dev]"
 pytest tests/ -v --ignore=tests/integration
 ```
 
-### Full workspace (ROS 2 + Gazebo)
+### MuJoCo interactive viewer (easiest visual)
+
+```bash
+pip install -e ".[sim]"
+./scripts/view.sh
+```
+
+### Full workspace (ROS 2 SITL)
 
 ```bash
 ./scripts/install.sh -y && ./scripts/setup.sh -y && ./scripts/build.sh
@@ -69,12 +78,13 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 |---|---|---|
 | 1 | PPP kinematics (T10-01) | `pytest tests/control/test_kinematics_ppp.py -v` |
 | 2 | Magnetic grasp FSM (T10-04) | `pytest tests/control/test_grasp_magnet.py -v` |
-| 3 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
-| 4 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
-| 5 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
-| 6 | MuJoCo ROS bridge (T10-03) | `pytest tests/ros/test_mujoco_bridge.py -v` |
-| 7 | PPP warehouse launch config (T10-06) | `pytest tests/test_sitl_config.py -v` |
-| 8 | PPP warehouse E2E validation (V10-2–5) | `pytest tests/integration/test_scenario_ppp_warehouse.py -v` |
+| 3 | MuJoCo interactive viewer | `pip install -e ".[sim]" && ./scripts/view.sh` |
+| 4 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
+| 5 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
+| 6 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
+| 7 | MuJoCo ROS bridge (T10-03) | `pytest tests/ros/test_mujoco_bridge.py -v` |
+| 8 | PPP warehouse launch config (T10-06) | `pytest tests/test_sitl_config.py -v` |
+| 9 | PPP warehouse E2E validation (V10-2–5) | `pytest tests/integration/test_scenario_ppp_warehouse.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -94,6 +104,13 @@ print('EE position:', k.forward_kinematics(q)[:3, 3])
 python3 scripts/demo_grasp.py
 # or run the unit tests:
 pytest tests/control/test_grasp_magnet.py -v
+```
+
+**MuJoCo interactive viewer** — live 3D warehouse preview:
+
+```bash
+pip install -e ".[sim]"
+./scripts/view.sh
 ```
 
 **MuJoCo warehouse preview** — headless MP4 of gantry motion:
@@ -150,6 +167,7 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 - [Release specification v1.0–v1.3](docs/releases.md)
 - [Project roadmap](docs/roadmap.md)
 - [Scenario library](docs/scenarios.md)
+- [MuJoCo for dummies (visual guide)](docs/mujoco_for_dummies.md)
 - [Simulation tutorial](docs/simulation.md)
 
 ### Architecture

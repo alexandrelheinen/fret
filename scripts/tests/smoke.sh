@@ -79,8 +79,8 @@ FAILED=0
 
 echo "=== ROS 2 launch smoke tests ==="
 
-# Pure-ROS launch (no Gazebo dependency) — always run.
-run_smoke_test "view_launch" xvfb-run -a ros2 launch fret view.py model:=scara \
+# MuJoCo viewer dry-run (no ROS, no display required).
+run_smoke_test "mujoco_view_dry_run" python3 scripts/view_mujoco.py --dry-run \
     || FAILED=1
 
 # Gazebo-dependent launches — skip gracefully when ros_gz_sim is not installed.

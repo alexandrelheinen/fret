@@ -57,7 +57,7 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] PlannerNode (SST + fallback), CSpaceChecker
 - [x] Trajectory post-processing and conversion
 - [x] Pure-Python CI through pillar avoidance (MS-5)
-- [x] Gazebo launch files (`view.py`, `sim.py`, `sitl.py`)
+- [x] Gazebo launch files (`sim.py`, `sitl.py`) — headless backend only
 
 ---
 

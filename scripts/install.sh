@@ -129,8 +129,7 @@ sudo apt install -y \
   "ros-${ROS_DISTRO}-ros-gz-sim" \
   "ros-${ROS_DISTRO}-xacro" \
   "ros-${ROS_DISTRO}-joint-state-publisher-gui" \
-  "ros-${ROS_DISTRO}-robot-state-publisher" \
-  "ros-${ROS_DISTRO}-rviz2"
+  "ros-${ROS_DISTRO}-robot-state-publisher"
 ok "Simulation stack installed."
 
 info "Initializing rosdep..."
@@ -149,4 +148,4 @@ info "For a session-based ROS environment: source /opt/ros/${ROS_DISTRO}/setup.b
 info "Recommended project ROS source path: ./src"
 info "Recommended build output paths: ./build ./install ./log"
 info "Verify with: ros2 --version"
-info "Optional checks: gz sim, rviz2"
+info "Optional checks: gz sim, python3 scripts/view_mujoco.py --dry-run"

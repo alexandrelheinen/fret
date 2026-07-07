@@ -104,7 +104,7 @@ src/fret/
 ├── ros/               # Simulator bridges (mujoco_bridge, perception_bridge)
 ├── validation/        # Metrics, quality gates
 ├── hardware/          # HITL stub (post v1.3)
-├── launch/            # view.py, sim.py, sitl.py, mujoco.py
+├── launch/            # sim.py, sitl.py, mujoco.py
 ├── config/
 │   ├── scenarios/     # SC-v10 – SC-v13 + regression SC-01–05
 │   └── controllers/   # Per-model gain files

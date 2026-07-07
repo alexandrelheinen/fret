@@ -71,5 +71,6 @@ Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
 | File | Purpose |
 |---|---|
 | `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo gantry + warehouse |
-| `src/fret/urdf/ppp.xacro` | Gazebo / RViz (optional v1.0) |
+| `src/fret/urdf/ppp.xacro` | Gazebo backend (optional; v1.2+) |
+| `scripts/view.sh` | MuJoCo interactive viewer (v1.0) |
 | `src/fret/config/scenarios/ppp_warehouse.yml` | SC-v10 scenario |

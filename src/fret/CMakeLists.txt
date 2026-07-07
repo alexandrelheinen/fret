@@ -59,14 +59,6 @@ foreach(XACRO_FILE ${XACRO_FILES})
     message(STATUS "[fret]   mesh generator : (none)")
   endif()
 
-  # -- RViz config (optional: rviz/<model>.rviz) -----------------------------
-  set(RVIZ_FILE ${CMAKE_CURRENT_SOURCE_DIR}/rviz/${MODEL_NAME}.rviz)
-  if(EXISTS ${RVIZ_FILE})
-    message(STATUS "[fret]   RViz config    : rviz/${MODEL_NAME}.rviz")
-  else()
-    message(STATUS "[fret]   RViz config    : (none, using default.rviz)")
-  endif()
-
 endforeach()
 
 # ---------------------------------------------------------------------------
@@ -120,12 +112,6 @@ install(DIRECTORY action
   DESTINATION share/${PROJECT_NAME}
 )
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rviz)
-  install(DIRECTORY rviz
-    DESTINATION share/${PROJECT_NAME}
-  )
-endif()
-
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
   install(DIRECTORY worlds
     DESTINATION share/${PROJECT_NAME}
@@ -154,7 +140,6 @@ install(PROGRAMS
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/straight_line_injector
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/perception_bridge
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/mujoco_bridge
-  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/viz_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
