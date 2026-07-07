@@ -53,7 +53,9 @@ jobs:
       - name: Install ROS package dependencies
         run: |
           . /opt/ros/jazzy/setup.bash
-          rosdep install --from-paths src --ignore-src -r -y
+          # Gazebo packages are optional in CI — smoke tests skip when absent.
+          rosdep install --from-paths src --ignore-src -r -y \
+            --skip-keys="ros_gz_sim ros_gz_bridge gz_ros2_control gz_sim gz-harmonic"
 
       - name: Build workspace
         run: bash scripts/build.sh
