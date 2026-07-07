@@ -4,7 +4,7 @@
 # against the quality gates.  All joint configurations use the SCARA RRP
 # convention: [joint_arm_0 (rad), joint_arm_1 (rad), joint_extension (m)].
 #
-# See scripts/validate_quality_gates.py for the runner and metric definitions.
+# See src/fret/validation/quality_gates.py and tests/test_quality_gates.py.
 
 benchmark:
   # Number of repeated runs per scenario.  3 is sufficient for deterministic

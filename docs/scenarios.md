@@ -140,7 +140,7 @@ assertions using `launch_testing`. Each `test_scenario_<name>.py` file:
 3. Asserts quantitative pass criteria from the scenario definition above.
 4. Tears down the launch cleanly on pass or fail.
 
-The integration test workflow is defined in `.github/workflows/integration_tests.yml`.
+The integration test workflow is defined in `.github/workflows/integration.yml`.
 
 ---
 

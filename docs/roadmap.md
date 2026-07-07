@@ -22,8 +22,8 @@ The development was done on Ubuntu 24.04 under WSL on Windows 10.
 ### Phase 0 — Specification Completion ✅ *Complete*
 
 All items in this phase are prerequisites for writing any implementation code.
-They correspond to V-cycle Levels 1 and 2. See [docs/guidelines.md](guidelines.md)
-for the full V-cycle definition.
+They correspond to V-cycle Levels 1 and 2. See [CONTRIBUTING.md](../CONTRIBUTING.md)
+for the full SDD and V-cycle workflow.
 
 **Level 1 — Functional specifications and validation plan**
 
@@ -56,8 +56,7 @@ for the full V-cycle definition.
 - [x] `formatting.yml` — Black, isort, clang-format on every PR.
 - [x] `tests.yml` — build, unit tests (pytest, ≥ 90% coverage), smoke tests.
 - [x] `type_check.yml` — mypy strict mode on `src/`.
-- [x] `integration_tests.yml` — launch_testing inter-node scenario tests.
-- [x] `release.yml` — full suite on version tags.
+- [x] `integration.yml` — launch_testing inter-node scenario tests.
 
 ---
 

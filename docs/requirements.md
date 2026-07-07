@@ -2,7 +2,7 @@
 
 This document lists the functional requirements for FRET at **Level 1** of the V-cycle.
 Requirements are traceable to scenarios in [docs/scenarios.md](scenarios.md) and validated
-by the integration test workflows in `.github/workflows/`.
+by integration tests in `tests/integration/` and `.github/workflows/integration.yml`.
 
 Format: `FR-<LAYER>-<NN>: The system shall...`
 

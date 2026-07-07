@@ -180,7 +180,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
-# Standalone helper (used by scripts/simulate_straight_line.py)
+# See tests/simulation/test_scenario_straight_line.py for pure-Python validation.
 # ---------------------------------------------------------------------------
 
 

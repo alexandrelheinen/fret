@@ -10,7 +10,7 @@
 
 The validation module provides quantitative metrics and quality gates for evaluating
 the performance of FRET simulation runs. It is a pure-Python, ROS-independent layer
-used both in CI scripts and in post-processing analysis.
+used in pytest validation and post-processing analysis.
 
 ---
 
@@ -57,17 +57,12 @@ min_command_hz: 45.0
 
 ## CI Integration
 
-The validation module is used by all CI simulation scripts:
+Quality gates are evaluated in unit tests (`tests/test_quality_gates.py`) and
+in scenario/integration tests.
 
 ```bash
-python3 scripts/simulate_milestone3_pipeline.py --output /tmp/sim_ms3
-# Writes results.env with MAX_EE_ERROR_MM, RMS_EE_ERROR_MM, FAULT_TRIGGERED, ...
+pytest tests/test_metrics.py tests/test_quality_gates.py -v
 ```
-
-The `validate_quality_gates.py` script runs all gates against a completed run's
-`results.env` and exits non-zero if any gate fails.
-
----
 
 ## Tests
 
@@ -75,7 +70,6 @@ The `validate_quality_gates.py` script runs all gates against a completed run's
   smoothness, clearance, RMSE)
 - `tests/test_quality_gates.py` — unit tests for gate evaluation and report
   formatting
-- **Total: 71 tests**
 
 ---
 

@@ -16,7 +16,7 @@
 #   - EE tracking error < 5 mm at all times.
 #   - No fault published on /controller_fault.
 #
-# See MILESTONES.md Milestone 5 for full acceptance criteria.
+# See docs/milestones.md Milestone 5 for full acceptance criteria.
 
 /**:
   ros__parameters:
