@@ -24,7 +24,7 @@ Scenario behaviour:
         Cartesian straight-line trajectory once; the controller tracks it.
     arc — Launches the ``arc_injector`` node instead of ``planner_node``.
         The injector publishes a circular arc trajectory in Cartesian space
-        once; the controller tracks it.  Produces a visible arc in Gazebo.
+        once; the controller tracks it.
     ppp_warehouse — v1.0 PPP warehouse pick-and-place with ``backend:=mujoco``.
     static_reach (and others) — standard SITL with ``planner_node`` and
         ``scene_acquisition_node``.  The planner auto-triggers at startup
@@ -229,28 +229,6 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(is_ppp_model),
     )
 
-    viz_node = Node(
-        package="fret",
-        executable="viz_node",
-        name="viz_node",
-        output="screen",
-        parameters=[{"model": LaunchConfiguration("model")}],
-        condition=is_gazebo,
-    )
-
-    rviz_config = PathJoinSubstitution(
-        [pkg_share, "rviz", [LaunchConfiguration("model"), ".rviz"]]
-    )
-
-    rviz2 = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        arguments=["-d", rviz_config],
-        output="screen",
-        condition=is_gazebo,
-    )
-
     return LaunchDescription(
         [
             model_arg,
@@ -266,7 +244,5 @@ def generate_launch_description() -> LaunchDescription:
             perception_bridge_ppp,
             controller_scara,
             controller_ppp,
-            viz_node,
-            rviz2,
         ]
     )

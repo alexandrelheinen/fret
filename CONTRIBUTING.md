@@ -447,9 +447,9 @@ When contributing ROS 2 components, also update build metadata:
 
 1. XACRO in `src/fret/urdf/<model>.xacro`
 2. Optional mesh generator in `src/fret/mesh/<model>.py`
-3. Optional RViz config in `src/fret/rviz/<model>.rviz`
-4. `CMakeLists.txt` install rules
-5. Smoke test: `ros2 launch fret view.py model:=<model>`
+3. `CMakeLists.txt` install rules
+4. MuJoCo preview: add MJCF under `src/fret/mjcf/` when applicable
+5. Smoke test: `python3 scripts/view_mujoco.py --dry-run` (MuJoCo models)
 
 ### Adding configuration
 

@@ -25,8 +25,8 @@ src/fret/
 ├── src/                     ← C++ source files and private headers
 ├── urdf/                    ← robot description files (XACRO/URDF)
 ├── mesh/                    ← mesh generator scripts
-├── rviz/                    ← RViz configuration files
-├── launch/                  ← Python launch files
+├── mjcf/                    ← MuJoCo scene files (v1.0+)
+├── launch/                  ← sitl.py, mujoco.py, sim.py, hardware.py
 └── config/                  ← parameter files (YAML)
 ```
 
@@ -34,7 +34,8 @@ src/fret/
 
 - Launch files live in `src/fret/launch/` and use the `.py` extension.
 - Launch files must be Python-based (not XML) for programmatic flexibility.
-- Use descriptive names: `view.py` (RViz visualization), `sim.py` (Gazebo simulation), `hardware.py` (hardware nodes).
+- Use descriptive names: `sim.py` (Gazebo simulation backend), `mujoco.py` (MuJoCo bridge), `hardware.py` (hardware nodes).
+- Visual inspection uses MuJoCo only: `scripts/view.sh` (interactive) and `scripts/video.sh` (MP4).
 - Launch files should support command-line arguments for model selection and configuration.
 
 ### C++ Files
