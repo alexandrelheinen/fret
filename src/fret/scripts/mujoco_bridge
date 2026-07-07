@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.ros.mujoco_bridge import main
+
+main()

@@ -1,0 +1,10 @@
+# MuJoCo simulation bridge configuration (v1.0).
+#
+# Consumed by: MuJoCoBridgeNode (ros/mujoco_bridge.py)
+
+/**:
+  ros__parameters:
+    model: ppp
+    scenario: ppp_warehouse
+    update_rate: 50.0
+    initial_joint_positions: [0.0, 0.0, 0.0]

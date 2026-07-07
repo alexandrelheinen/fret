@@ -72,6 +72,7 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 | 3 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
 | 4 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
 | 5 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
+| 6 | MuJoCo ROS bridge (T10-03) | `pytest tests/ros/test_mujoco_bridge.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -114,6 +115,14 @@ pytest tests/planning/test_cspace_checker_ppp.py tests/planning/test_ppp_obstacl
 python3 scripts/demo_ppp_controller.py
 # or run the unit tests:
 pytest tests/control/test_controller_ppp.py -v
+```
+
+**MuJoCo ROS bridge** — `/joint_commands` → `/joint_states` core:
+
+```bash
+python3 scripts/demo_mujoco_bridge.py
+# or run the unit tests:
+pytest tests/ros/test_mujoco_bridge.py -v
 ```
 
 ---
@@ -183,7 +192,9 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | v1.0 magnetic grasp FSM (T10-04) | ✅ Done |
 | v1.0 PPP C-space checker (T10-05, T10-08) | ✅ Done |
 | v1.0 MuJoCo preview video script (T10-07) | ✅ Done |
-| v1.0 MuJoCo bridge + scenario launch | 🔲 Next |
+| v1.0 PPP prismatic controller (T10-09) | ✅ Done |
+| v1.0 MuJoCo bridge (T10-03) | 🟡 PR open |
+| v1.0 scenario launch (T10-06) | 🔲 Next |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---
