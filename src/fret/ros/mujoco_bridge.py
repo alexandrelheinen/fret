@@ -253,7 +253,7 @@ class MuJoCoBridgeCore:
 
     def _load_mujoco_optional(self) -> None:
         try:
-            import mujoco  # type: ignore[import-not-found]
+            import mujoco
         except ImportError:
             return
 
@@ -394,7 +394,7 @@ class MuJoCoBridgeNode:
 
     def _command_callback(self, msg: Any) -> None:
         data = list(getattr(msg, "data", []))
-        dof = self._latest_cmd.shape[0]
+        dof = len(self._latest_cmd)
         if len(data) < dof:
             self._node.get_logger().warning(
                 f"Received /joint_commands with {len(data)} values; expected {dof}."
