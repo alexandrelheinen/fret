@@ -8,7 +8,13 @@ Two modes are available:
 | Mode | Requirements | Purpose |
 |---|---|---|
 | **Pure-Python** | Python 3.10+, numpy, matplotlib | Validate all milestone algorithms offline |
-| **Full SITL** | Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic | Real-time simulation with physics |
+| **Gazebo SITL** | Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic | Engineering simulation (ROS-native, CI) |
+| **MuJoCo SITL** | Ubuntu 24.04, ROS 2 Jazzy, `mujoco` Python package | Visual showcase (demos, article assets) — **MS-6, v1.0** |
+
+> **Platform strategy (2026 Q3):** Gazebo is the engineering backend; MuJoCo is the
+> visual showcase backend. Both drive the same pure-Python FRET pipeline.
+> See [reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md)
+> and [v1.0.md](v1.0.md).
 
 ---
 
@@ -192,7 +198,40 @@ pytest tests/ -v
 
 ---
 
+## MuJoCo SITL (planned — Milestone 6)
+
+MuJoCo integration is planned for v1.0 as the **visual showcase backend**. It will
+reuse the same scenario YAMLs and pure-Python pipeline; only the joint I/O adapter
+in `fret.ros` changes.
+
+### Planned usage
+
+```bash
+# Not yet available — target interface:
+ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=mujoco
+```
+
+### Planned deliverables (MS-6)
+
+| Deliverable | Path |
+|---|---|
+| MJCF robot model | `src/fret/mjcf/scara.xml` |
+| MuJoCo bridge node | `src/fret/ros/mujoco_bridge.py` |
+| Launch file | `src/fret/launch/mujoco.py` |
+| Headless render script | `scripts/render_mujoco.py` |
+
+### Why MuJoCo alongside Gazebo?
+
+| Backend | Role |
+|---|---|
+| **Gazebo** | ROS-native engineering SITL, CI smoke tests, hardware path |
+| **MuJoCo** | Smooth physics, polished rendering for demos and article figures |
+
+See the full comparative study in
+[reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
+
+---
+
 ## Known Issues
 
-See the [v1.0 release assessment](../README.md#release-assessment) for a full
-list of known limitations.
+See the [v1.0 release assessment](v1.0.md) for a full list of known limitations.

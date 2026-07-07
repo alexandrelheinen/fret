@@ -1,12 +1,15 @@
 # FRET Milestones
 
-> **Scope:** Five milestones that take the project from the existing framework to a
-> complete SITL simulation where a SCARA arm autonomously avoids two cylindrical
-> pillars using an ARCO-planned trajectory derived from a dense workspace occupancy map.
+> **Scope:** Milestones 1–5 established the algorithm stack on a SCARA bootstrap robot
+> with Gazebo as the engineering simulator. Milestones 6–7 and the v1.0 release add
+> a **MuJoCo visual backend** and a **showcase scenario** (robot + environment TBD).
 >
-> **Stop condition:** end of Milestone 5 — the SCARA arm starts from a rest pose,
-> discovers two cylindrical pillars via its occupancy map, plans a collision-free
-> path at constant z using ARCO, and executes it in Gazebo.
+> **v1.0 target:** ARCO planning + Gazebo engineering SITL + MuJoCo visual showcase.
+> See [docs/v1.0.md](v1.0.md) and
+> [docs/reports/simulation-platform-study-2026-q3.md](reports/simulation-platform-study-2026-q3.md).
+>
+> **MS-1–5 stop condition (met):** SCARA arm plans and executes collision-aware motion
+> using ARCO occupancy and a workspace map (pillar scenario validated in pure-Python CI).
 
 ---
 
@@ -309,7 +312,91 @@ MS-4  ✅  Workspace occupancy map (20-cm grid, matplotlib validation)
   │
   ▼
 MS-5  ✅  Pillar world + autonomous collision-aware motion at constant z
+  │
+  ▼
+MS-6  🔲  MuJoCo visual backend (MJCF model, launch, render pipeline)
+  │
+  ▼
+MS-7  🔲  v1.0 showcase scenario (robot + environment — design session TBD)
+  │
+  ▼
+v1.0.0    Polished demo + article-ready assets
 ```
+
+---
+
+## Milestone 6 — MuJoCo visual backend
+
+**Status: 🔲 Not started**
+
+**Goal:** Add MuJoCo as a second simulator backend behind the same pure-Python FRET
+pipeline. MuJoCo provides smooth physics and polished rendering for demos, portfolio
+video, and the planned 2026 Q3 article on robotics simulation.
+
+### Acceptance criteria
+
+1. MJCF model exists for the bootstrap SCARA (migrates with the v1.0 showcase robot).
+2. `ros2 launch fret mujoco.py` (or `sitl.py backend:=mujoco`) starts without errors.
+3. The same scenario YAML that drives Gazebo also drives MuJoCo (joint I/O only differs).
+4. Controller tracks a planned trajectory with EE error ≤ 5 mm in MuJoCo.
+5. A headless render produces a PNG or short MP4 artifact suitable for README/article.
+6. Unit or integration test validates the MuJoCo backend adapter (mocked or headless).
+
+### Implementation tasks
+
+| ID | Task | File(s) |
+|---|---|---|
+| T-601 | Evaluate `mujoco` Python bindings vs ROS bridge | `docs/v1.0.md` |
+| T-602 | Create MJCF model | `src/fret/mjcf/scara.xml` (new) |
+| T-603 | Implement joint I/O adapter | `src/fret/ros/mujoco_bridge.py` (new) |
+| T-604 | Add launch file + `backend:=` selector | `src/fret/launch/mujoco.py`, `sitl.py` |
+| T-605 | Headless render → CI artifact | `scripts/render_mujoco.py` (new) |
+| T-606 | Gazebo vs MuJoCo benchmark on SC-01 | `docs/reports/` or `benchmark.yaml` |
+
+### Key files (planned)
+
+| File | Role |
+|---|---|
+| `src/fret/mjcf/scara.xml` | MuJoCo robot + scene model |
+| `src/fret/ros/mujoco_bridge.py` | Simulator backend adapter |
+| `src/fret/launch/mujoco.py` | MuJoCo launch entry point |
+
+---
+
+## Milestone 7 — v1.0 showcase scenario
+
+**Status: 🔲 Not started — design session required**
+
+**Goal:** Define and implement the **v1.0 showcase scenario** — the robot topology,
+environment, and narrative that best present FRET + ARCO to an external audience.
+The SCARA was the bootstrap; the showcase robot may differ.
+
+### Open design questions
+
+1. Robot: SCARA, 6-DOF arm, or delta topology?
+2. Environment: pillars (proven), pick-and-place, or richer scene?
+3. Narrative: academic benchmark vs. cinematic MuJoCo video?
+
+### Acceptance criteria
+
+1. SC-v1 scenario YAML defined with documented pass criteria.
+2. End-to-end run passes on **Gazebo** (engineering validation).
+3. End-to-end run passes on **MuJoCo** (visual showcase).
+4. ARCO SST active (not linear fallback) in the showcase run.
+5. Article-ready assets: screenshot, short video, benchmark table.
+6. All v1.0 release gates in [docs/v1.0.md](v1.0.md) satisfied.
+7. Tag `v1.0.0`.
+
+### Implementation tasks
+
+| ID | Task |
+|---|---|
+| T-701 | Design session: select robot + environment |
+| T-702 | Define `config/scenarios/v1_showcase.yml` (SC-v1) |
+| T-703 | Port or create robot model (URDF + MJCF) |
+| T-704 | Run SC-v1 on Gazebo and MuJoCo |
+| T-705 | Write article section + README demo assets |
+| T-706 | Tag `v1.0.0` |
 
 ---
 
@@ -326,11 +413,13 @@ MS-5  ✅  Pillar world + autonomous collision-aware motion at constant z
 
 ## References
 
-- Scenario library and pass criteria: [`docs/scenarios.md`](docs/scenarios.md)
-- Interface contracts and QoS profiles: [`docs/interfaces.md`](docs/interfaces.md)
-- Architecture and data-flow diagrams: [`docs/architecture.md`](docs/architecture.md)
-- ARCO integration details and boundary: [`docs/arco.md`](docs/arco.md)
-- Coding standards: [`docs/guidelines.md`](docs/guidelines.md)
+- v1.0 goals and release gates: [`docs/v1.0.md`](v1.0.md)
+- Platform study (2026 Q3): [`docs/reports/simulation-platform-study-2026-q3.md`](reports/simulation-platform-study-2026-q3.md)
+- Scenario library and pass criteria: [`docs/scenarios.md`](scenarios.md)
+- Interface contracts and QoS profiles: [`docs/interfaces.md`](interfaces.md)
+- Architecture and data-flow diagrams: [`docs/architecture.md`](architecture.md)
+- ARCO integration details and boundary: [`docs/arco.md`](arco.md)
+- Coding standards: [`docs/guidelines.md`](guidelines.md)
 - Development workflow (SDD, V-cycle): [`CONTRIBUTING.md`](../CONTRIBUTING.md)
-- Simulation tutorial (A-Z): [`docs/simulation.md`](docs/simulation.md)
+- Simulation tutorial (A-Z): [`docs/simulation.md`](simulation.md)
 
