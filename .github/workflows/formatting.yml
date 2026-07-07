@@ -22,12 +22,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install formatting tools
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-format
-          python3 -m pip install --upgrade pip
-          python3 -m pip install black isort
+          python -m pip install --upgrade pip
+          python -m pip install black isort
 
       - name: Run formatting checks
         run: bash scripts/check/formatting.sh

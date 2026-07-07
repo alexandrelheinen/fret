@@ -26,6 +26,9 @@ on_error() {
 }
 
 require_not_root() {
+  if [[ -n "${CI:-}" ]]; then
+    return 0
+  fi
   if [[ "${EUID}" -eq 0 ]]; then
     fail "Do not run this script as root. Run it as your normal user (sudo will be used when needed)."
     exit 1
