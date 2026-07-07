@@ -9,6 +9,7 @@ dependencies = [
     "arco @ git+https://github.com/alexandrelheinen/arco.git@main",
 ]
 
+[project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -16,6 +17,11 @@ dev = [
     "black>=24.0",
     "isort>=5.13",
     "mypy>=1.10",
+]
+sim = [
+    "mujoco>=3.2",
+    "imageio>=2.34",
+    "imageio-ffmpeg>=0.5",
 ]
 
 [project.scripts]

@@ -1,0 +1,70 @@
+<mujoco model="ppp_warehouse">
+  <!--
+    PPP gantry preview scene for MuJoCo headless video (SC-v10 / T10-02).
+
+    Uses a 1:5 scale of the v1.0 operational envelope for readable visuals:
+      X 0–12 m, Y 0–4 m, Z 0–3 m  (maps to joint_x/y/z limits in MJCF).
+
+    Joint names match fret.control.kinematics_ppp.PPPKinematics.
+  -->
+  <compiler angle="degree" coordinate="local"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
+
+  <visual>
+    <headlight ambient="0.45 0.45 0.45" diffuse="0.85 0.85 0.85" specular="0.2 0.2 0.2"/>
+    <rgba haze="0.9 0.92 0.95 1"/>
+    <global azimuth="140" elevation="-25" offwidth="1920" offheight="1080"/>
+  </visual>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.92 0.93 0.95" rgb2="0.78 0.80 0.84" width="512" height="512"/>
+    <material name="floor" texture="grid" texrepeat="6 6" reflectance="0.05"/>
+    <material name="gantry" rgba="0.25 0.45 0.75 1"/>
+    <material name="rail" rgba="0.35 0.35 0.40 1"/>
+    <material name="cargo" rgba="0.92 0.62 0.12 1"/>
+    <material name="obstacle" rgba="0.55 0.55 0.58 1"/>
+    <material name="goal" rgba="0.20 0.75 0.35 0.35"/>
+  </asset>
+
+  <worldbody>
+    <light pos="6 2 8" dir="-0.3 -0.2 -1" diffuse="1 1 1"/>
+    <light pos="-2 6 6" dir="0.5 -0.8 -1" diffuse="0.6 0.6 0.7"/>
+
+    <geom name="floor" type="plane" size="8 6 0.1" material="floor"/>
+
+    <!-- Static warehouse boxes (scaled layout inspired by ARCO ppp.yml). -->
+    <geom name="obs_a" type="box" pos="4.0 1.2 0.6" size="0.8 0.6 0.6" material="obstacle"/>
+    <geom name="obs_b" type="box" pos="6.5 2.8 0.5" size="0.7 0.7 0.5" material="obstacle"/>
+    <geom name="obs_c" type="box" pos="8.0 1.0 0.9" size="0.6 0.5 0.9" material="obstacle"/>
+    <geom name="goal_zone" type="box" pos="10.5 3.2 0.05" size="0.9 0.9 0.05" material="goal" contype="0" conaffinity="0"/>
+
+    <!-- PPP gantry: nested prismatic joints along world X, Y, Z. -->
+    <body name="gantry_base" pos="0 0 0">
+      <geom name="base_rail_y" type="box" pos="6 2 0.08" size="6.2 0.12 0.08" material="rail"/>
+
+      <body name="x_carriage" pos="0 0 0.2">
+        <joint name="joint_x" type="slide" axis="1 0 0" range="0 12" damping="80"/>
+        <geom name="x_rail" type="box" pos="0 0 0" size="0.12 2.2 0.08" material="rail"/>
+
+        <body name="y_carriage" pos="0 0 0.15">
+          <joint name="joint_y" type="slide" axis="0 1 0" range="0 4" damping="80"/>
+          <geom name="y_carriage_geom" type="box" size="0.18 0.18 0.06" material="gantry"/>
+
+          <body name="z_hoist" pos="0 0 0.12">
+            <joint name="joint_z" type="slide" axis="0 0 1" range="0 3" damping="120"/>
+            <geom name="z_column" type="box" size="0.08 0.08 0.5" pos="0 0 0.25" material="gantry"/>
+            <geom name="ee_plate" type="box" size="0.25 0.25 0.04" pos="0 0 0.55" material="gantry"/>
+
+            <!-- Cargo box welded to EE (magnetic grasp preview). -->
+            <body name="cargo" pos="0 0 0.75">
+              <geom name="cargo_box" type="box" size="0.25 0.25 0.25" material="cargo" mass="2.0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+    <!-- Fixed camera used by the headless renderer. -->
+    <camera name="overview" pos="13 6 7" xyaxes="-0.85 -0.52 0 0.25 -0.41 0.88" fovy="45"/>
+  </worldbody>
+</mujoco>
