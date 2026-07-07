@@ -132,6 +132,12 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
   )
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/mjcf)
+  install(DIRECTORY mjcf
+    DESTINATION share/${PROJECT_NAME}
+  )
+endif()
+
 # ---------------------------------------------------------------------------
 # Environment hook (adds src/ to PYTHONPATH)
 # ---------------------------------------------------------------------------
