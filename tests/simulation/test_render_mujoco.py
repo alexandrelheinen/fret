@@ -57,3 +57,21 @@ def test_interpolate_waypoints_respects_limits() -> None:
     assert np.all(traj[:, 0] <= rm._PPP_LIMITS[0, 1])
     assert np.all(traj[:, 1] <= rm._PPP_LIMITS[1, 1])
     assert np.all(traj[:, 2] <= rm._PPP_LIMITS[2, 1])
+
+
+def test_list_showcase_cameras_reads_mjcf() -> None:
+    path = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    cameras = rm.list_showcase_cameras(path)
+    assert cameras == [
+        "overview",
+        "aisle",
+        "topdown",
+        "follow",
+        "pick",
+    ]
+
+
+def test_showcase_output_name() -> None:
+    assert rm.showcase_output_name("ppp_warehouse", "aisle") == (
+        "ppp_warehouse_aisle.mp4"
+    )
