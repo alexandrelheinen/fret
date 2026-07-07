@@ -16,6 +16,8 @@ from fret.planning.ppp_obstacles import (
     default_obstacle_file,
     is_ppp_kinematics,
     load_ppp_warehouse_obstacles,
+    load_ppp_warehouse_preview_obstacles,
+    preview_obstacle_file,
 )
 
 
@@ -34,6 +36,15 @@ def test_first_box_matches_arco_barrier() -> None:
     assert first.x_min == 15.0
     assert first.y_max == 20.0
     assert first.z_max == 2.5
+
+
+def test_load_ppp_warehouse_preview_has_three_boxes() -> None:
+    boxes = load_ppp_warehouse_preview_obstacles()
+    assert len(boxes) == 3
+
+
+def test_preview_obstacle_file_exists() -> None:
+    assert preview_obstacle_file().is_file()
 
 
 def test_boxes_to_point_cloud_non_empty() -> None:

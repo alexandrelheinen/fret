@@ -1,0 +1,46 @@
+name: Release
+
+# Builds the v1.0 showcase MP4 on version tags (releases.md V10-6).
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  showcase-video:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python and sim dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[sim]"
+
+      - name: Render PPP warehouse MP4 (≥ 30 s)
+        run: |
+          ./scripts/video.sh \
+            --model ppp \
+            --scenario ppp_warehouse \
+            --duration 30 \
+            --fps 30 \
+            -o ppp_warehouse_v10.mp4
+          test -s ppp_warehouse_v10.mp4
+
+      - name: Upload showcase video artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppp-warehouse-v10-showcase
+          path: ppp_warehouse_v10.mp4
+          retention-days: 90

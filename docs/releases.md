@@ -82,7 +82,7 @@ boxes and width-crossing barriers create detours (see ARCO PPP scene for referen
 
 ### Scenario ID
 
-**SC-v10** — `config/scenarios/ppp_warehouse.yml` *(to be created)*
+**SC-v10** — `config/scenarios/ppp_warehouse.yml`
 
 ### Acceptance criteria
 

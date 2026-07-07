@@ -85,6 +85,32 @@ class TrajectoryGenerator:
 
     def __init__(self, kinematics: Kinematics) -> None:
         self._kin = kinematics
+        self._prune_occupancy: Any | None = None
+        self._prune_step_size: npt.NDArray[np.float64] | None = None
+
+    def set_collision_context(
+        self,
+        occupancy: Any,
+        step_size: npt.NDArray[np.float64],
+    ) -> None:
+        """Provide occupancy and step size for ARCO ``TrajectoryPruner``.
+
+        Args:
+            occupancy: Object exposing ``is_occupied(q)`` for joint configs.
+            step_size: Per-joint prune step sizes, shape ``(DOF,)``.
+        """
+        step = np.asarray(step_size, dtype=np.float64)
+        if step.shape != (self._kin.dof,):
+            raise ValueError(
+                f"step_size must have shape ({self._kin.dof},), got {step.shape}"
+            )
+        self._prune_occupancy = occupancy
+        self._prune_step_size = step
+
+    def clear_collision_context(self) -> None:
+        """Remove collision context so pruning falls back to linear only."""
+        self._prune_occupancy = None
+        self._prune_step_size = None
 
     def process(self, path: list[npt.NDArray[np.float64]]) -> Any:
         """Apply the post-processing chain to a raw planner path.
@@ -107,7 +133,7 @@ class TrajectoryGenerator:
                 f"path must have at least 2 waypoints, got {len(path)}"
             )
 
-        if TrajectoryPruner is not None:
+        if TrajectoryPruner is not None and self._prune_occupancy is not None:
             return self._process_arco(path)
         return self._process_linear(path)
 
@@ -178,6 +204,9 @@ class TrajectoryGenerator:
         0.3.x and do not yet return usable waypoint sequences, so they are
         intentionally omitted here.
         """
-        pruner = TrajectoryPruner()
+        pruner = TrajectoryPruner(
+            self._prune_occupancy,
+            self._prune_step_size,
+        )
         pruned = pruner.prune(path)
         return self._process_linear(pruned)

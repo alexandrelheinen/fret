@@ -17,7 +17,7 @@ Full release spec: [releases.md](releases.md).
 
 ### SC-v10 — PPP warehouse pick-and-place (v1.0)
 
-**File:** `config/scenarios/ppp_warehouse.yml` *(planned)*  
+**File:** `config/scenarios/ppp_warehouse.yml`  
 **Model:** `ppp` · **Backend:** `mujoco`
 
 **Purpose:** Gantry moves a cargo box from start to goal through warehouse box obstacles

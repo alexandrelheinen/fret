@@ -11,6 +11,8 @@ from fret.planning.ppp_obstacles import (
     BoxObstacleOccupancy,
     build_box_obstacle_occupancy,
     load_ppp_warehouse_obstacles,
+    load_ppp_warehouse_preview_obstacles,
+    preview_obstacle_file,
 )
 from fret.planning.replanning_manager import (
     ManagerState,
@@ -37,6 +39,8 @@ __all__ = [
     "ManagerState",
     "TriggerKind",
     "load_ppp_warehouse_obstacles",
+    "load_ppp_warehouse_preview_obstacles",
+    "preview_obstacle_file",
     "build_box_obstacle_occupancy",
     "make_cspace_checker",
 ]

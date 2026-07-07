@@ -14,7 +14,7 @@ and hardware.
 
 | Version | Robot | Scenario |
 |---|---|---|
-| **v1.0** *(current)* | PPP gantry | Warehouse box pick-and-place (magnetic grasp) |
+| **v1.0** *(complete)* | PPP gantry | Warehouse box pick-and-place (magnetic grasp) |
 | **v1.1** | Dubins mobile × 2 | Dual race A→B through column forest |
 | **v1.2** | RRP / SCARA | Reproduce ARCO `rrp` + `rr` examples |
 | **v1.3** | 6-DOF arm | Final challenge |
@@ -74,6 +74,7 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 | 5 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
 | 6 | MuJoCo ROS bridge (T10-03) | `pytest tests/ros/test_mujoco_bridge.py -v` |
 | 7 | PPP warehouse launch config (T10-06) | `pytest tests/test_sitl_config.py -v` |
+| 8 | PPP warehouse E2E validation (V10-2–5) | `pytest tests/integration/test_scenario_ppp_warehouse.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -126,19 +127,15 @@ python3 scripts/demo_mujoco_bridge.py
 pytest tests/ros/test_mujoco_bridge.py -v
 ```
 
-**PPP warehouse SITL launch** — scenario YAML + `backend:=mujoco` wiring:
+**PPP warehouse E2E** — pure-Python acceptance for V10-2 – V10-5:
 
 ```bash
-# After workspace build + source:
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
-
-# Config helpers (no ROS):
-pytest tests/test_sitl_config.py tests/control/test_controller_ros_dispatch.py -v
+pytest tests/integration/test_scenario_ppp_warehouse.py -v
 ```
 
 ---
 
-## v1.0 target launch (planned)
+## v1.0 launch
 
 ```bash
 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
@@ -205,8 +202,9 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | v1.0 MuJoCo preview video script (T10-07) | ✅ Done |
 | v1.0 PPP prismatic controller (T10-09) | ✅ Done |
 | v1.0 MuJoCo bridge (T10-03) | ✅ Done |
-| v1.0 scenario launch (T10-06) | 🟡 PR open |
-| E2E acceptance V10-1…6 | 🔲 Next |
+| v1.0 scenario launch (T10-06) | ✅ Done |
+| v1.0 E2E acceptance V10-2…5 | ✅ Done |
+| v1.0 release video CI (V10-6) | ✅ Done |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---
@@ -223,6 +221,7 @@ bash scripts/check/pre_push.sh
 | `formatting.yml` | Black, isort, clang-format |
 | `type_check.yml` | mypy strict |
 | `integration.yml` | launch_testing |
+| `release.yml` | Showcase MP4 on version tags |
 
 ---
 
