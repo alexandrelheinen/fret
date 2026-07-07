@@ -1,11 +1,13 @@
 name: Release
 
-# Builds the v1.0 showcase MP4 on version tags (releases.md V10-6).
+# Renders the PPP warehouse MuJoCo showcase MP4 on version tags, verifies
+# pixels are non-blank, uploads to Cloudflare R2, and keeps a GitHub artifact.
 
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -19,28 +21,90 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
+    env:
+      MUJOCO_GL: egl
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Python and sim dependencies
+      - name: Install Python, sim deps, and AWS CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
           python3 -m pip install --upgrade pip
           python3 -m pip install -e ".[sim]"
 
-      - name: Render PPP warehouse MP4 (≥ 30 s)
+      - name: Render PPP warehouse MP4
         run: |
           ./scripts/video.sh \
             --model ppp \
             --scenario ppp_warehouse \
             --duration 30 \
             --fps 30 \
-            -o ppp_warehouse_v10.mp4
-          test -s ppp_warehouse_v10.mp4
+            --width 1280 \
+            --height 720 \
+            -o ppp_warehouse_showcase.mp4
+          test -s ppp_warehouse_showcase.mp4
 
-      - name: Upload showcase video artifact
+      - name: Verify render is not blank
+        run: |
+          python3 - <<'PY'
+          import imageio.v3 as iio
+
+          frame = iio.imread("ppp_warehouse_showcase.mp4", index=0)
+          mean = float(frame.mean())
+          print(f"frame mean={mean}")
+          if mean <= 1.0:
+              raise SystemExit("Render looks blank (frame mean <= 1.0)")
+          PY
+
+      - name: Write release metadata
+        run: |
+          cat > meta.json <<EOF
+          {
+            "repo": "${{ github.repository }}",
+            "git_sha": "${{ github.sha }}",
+            "git_ref": "${{ github.ref_name }}",
+            "scenario": "ppp_warehouse",
+            "model": "ppp",
+            "duration_s": 30,
+            "fps": 30,
+            "width": 1280,
+            "height": 720,
+            "rendered_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Upload to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          aws s3 cp ppp_warehouse_showcase.mp4 \
+            "s3://${R2_BUCKET}/releases/${TAG}/ppp_warehouse_showcase.mp4" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --content-type video/mp4
+
+          aws s3 cp meta.json \
+            "s3://${R2_BUCKET}/releases/${TAG}/meta.json" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --content-type application/json
+
+          aws s3 cp ppp_warehouse_showcase.mp4 \
+            "s3://${R2_BUCKET}/latest/ppp_warehouse.mp4" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --content-type video/mp4
+
+      - name: Upload GitHub artifact (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: ppp-warehouse-v10-showcase
-          path: ppp_warehouse_v10.mp4
+          name: ppp-warehouse-showcase-${{ github.ref_name }}
+          path: ppp_warehouse_showcase.mp4
           retention-days: 90

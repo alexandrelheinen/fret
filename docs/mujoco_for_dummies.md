@@ -83,7 +83,22 @@ Options:
 Underlying script: `scripts/render_mujoco.py`
 
 Release CI builds the same asset on version tags (`v*.*.*`) via
-`.github/workflows/release.yml`.
+`.github/workflows/release.yml`, uploads to Cloudflare R2, and keeps a
+GitHub Actions artifact backup.
+
+### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
+
+CI uploads to a **private** R2 bucket. Download locally with the same API
+token used for CI (never commit secrets to git):
+
+```bash
+cp .env.example .env    # fill R2_* values once; .env is gitignored
+sudo apt install awscli # if needed
+./scripts/download_showcase.sh
+./scripts/download_showcase.sh --tag v0.2.0
+```
+
+Default output: `artifacts/r2/ppp_warehouse_latest.mp4` (also gitignored).
 
 ---
 
@@ -161,8 +176,10 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 ```
 scripts/view.sh              ← interactive 3D viewer (start here)
 scripts/view_mujoco.py
-scripts/video.sh             ← headless MP4
+scripts/video.sh             ← headless MP4 (local; needs working GL)
+scripts/download_showcase.sh ← download CI/R2 MP4 (no GL needed)
 scripts/render_mujoco.py
+.env.example                 ← R2 credential template (.env gitignored)
 src/fret/mjcf/ppp_warehouse.xml
 src/fret/ros/mujoco_bridge.py
 src/fret/launch/mujoco.py
