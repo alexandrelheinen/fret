@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 30
 
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       MUJOCO_GL: egl
       R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -38,13 +39,9 @@ jobs:
 
       - name: Install Python, sim deps, and AWS CLI
         run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-          python3 -m pip install --upgrade pip
-          # Standalone render script only needs sim extras (not full editable
-          # install with ARCO git dep). --break-system-packages for Ubuntu 24.04.
+          python3 -m pip install --break-system-packages --upgrade pip
           python3 -m pip install --break-system-packages \
-            mujoco imageio imageio-ffmpeg
+            awscli mujoco imageio imageio-ffmpeg
 
       - name: Render PPP warehouse MP4
         run: |
@@ -121,7 +118,7 @@ jobs:
             --content-type video/mp4
 
       - name: Upload GitHub artifact (backup)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ppp-warehouse-showcase-${{ github.ref_name }}
           path: ppp_warehouse_showcase.mp4
