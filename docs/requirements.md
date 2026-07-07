@@ -159,7 +159,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 | FR-SCN-01–04 | v1.0+ | `tests/scene/` |
 | FR-PLN-01–07 | v1.0+ | `tests/planning/`, SC-v10+ |
 | FR-CTL-01–06 | v1.0+ | `tests/control/` |
-| FR-GSP-01–04 | v1.0 | `tests/control/test_grasp_magnet.py` *(planned)* |
+| FR-GSP-01–04 | v1.0 | `tests/control/test_grasp_magnet.py` |
 | FR-SIM-01–03 | v1.0 | MuJoCo launch + MP4 artifact |
 | FR-SIM-04 | v1.2 | Gazebo sitl smoke |
 | FR-HW-01–03 | post v1.3 | — |
