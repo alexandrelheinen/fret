@@ -34,7 +34,7 @@ from fret.interfaces import (
     PlanningResult,
     PlanningStatus,
 )
-from fret.planning.cspace_checker import CSpaceChecker
+from fret.planning.cspace_checker import CSpaceChecker, make_cspace_checker
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
@@ -124,10 +124,10 @@ class PlannerNode:
                 )
 
         # -- 2. Build CSpaceChecker ------------------------------------------
-        checker: CSpaceChecker | None = None
+        checker: CSpaceChecker | Any | None = None
         try:
             occ = self._occ_adapter.get_occupancy()
-            checker = CSpaceChecker(self._kin, occ)
+            checker = make_cspace_checker(self._kin, occ)
         except RuntimeError:
             pass  # occupancy not yet available; skip collision checking
 

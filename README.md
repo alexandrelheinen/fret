@@ -73,6 +73,7 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 | 4 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
 | 5 | PPP prismatic controller (T10-09) | `pytest tests/control/test_controller_ppp.py -v` |
 | 6 | MuJoCo ROS bridge (T10-03) | `pytest tests/ros/test_mujoco_bridge.py -v` |
+| 7 | PPP warehouse launch config (T10-06) | `pytest tests/test_sitl_config.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -123,6 +124,16 @@ pytest tests/control/test_controller_ppp.py -v
 python3 scripts/demo_mujoco_bridge.py
 # or run the unit tests:
 pytest tests/ros/test_mujoco_bridge.py -v
+```
+
+**PPP warehouse SITL launch** — scenario YAML + `backend:=mujoco` wiring:
+
+```bash
+# After workspace build + source:
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+
+# Config helpers (no ROS):
+pytest tests/test_sitl_config.py tests/control/test_controller_ros_dispatch.py -v
 ```
 
 ---
@@ -193,8 +204,9 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | v1.0 PPP C-space checker (T10-05, T10-08) | ✅ Done |
 | v1.0 MuJoCo preview video script (T10-07) | ✅ Done |
 | v1.0 PPP prismatic controller (T10-09) | ✅ Done |
-| v1.0 MuJoCo bridge (T10-03) | 🟡 PR open |
-| v1.0 scenario launch (T10-06) | 🔲 Next |
+| v1.0 MuJoCo bridge (T10-03) | ✅ Done |
+| v1.0 scenario launch (T10-06) | 🟡 PR open |
+| E2E acceptance V10-1…6 | 🔲 Next |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---
