@@ -17,6 +17,32 @@ FRET algorithm layers.
 
 ## Components
 
+### `mujoco_bridge.py` — MuJoCoBridgeNode (v1.0)
+
+Primary simulator I/O for the PPP MuJoCo backend.  Subscribes to velocity
+commands and publishes joint state at 50 Hz.
+
+| Symbol | Description |
+|---|---|
+| `MuJoCoBridgeCore` | Level-3 joint integration against MJCF limits |
+| `make_mujoco_bridge_core()` | Factory for model/scenario dispatch |
+| `integrate_joint_velocities()` | Clip + Euler integration helper |
+| `resolve_mjcf_path()` | Resolve `ppp_warehouse.xml` for PPP |
+
+**Topics:**
+
+| Topic | Type | Direction |
+|---|---|---|
+| `/joint_commands` | `std_msgs/Float64MultiArray` | Subscribe |
+| `/joint_states` | `sensor_msgs/JointState` | Publish |
+
+**Config:** `src/fret/config/simulation/mujoco.yml`
+
+**Demo:** `python3 scripts/demo_mujoco_bridge.py`  
+**Tests:** `tests/ros/test_mujoco_bridge.py` — 11 unit tests.
+
+---
+
 ### `perception_bridge.py` — PerceptionBridgeNode
 
 Reads obstacle definitions from `config/perception.yaml` and publishes a
@@ -89,6 +115,6 @@ else:                           # static_reach, obstacle_avoidance, ...
 |---|---|---|---|
 | `/obstacle_cloud` | `PointCloud2` | `PerceptionBridgeNode` | `SceneAcquisitionNode` |
 | `/joint_trajectory` | `JointTrajectory` | Injectors / `PlannerNodeRos` | `ControllerRosNode` |
-| `/joint_commands` | `Float64MultiArray` | `ControllerRosNode` | Gazebo / `BridgeNode` |
-| `/joint_states` | `JointState` | Gazebo | `StateEstimator`, `ControllerRosNode` |
+| `/joint_commands` | `Float64MultiArray` | `ControllerRosNode` | MuJoCo bridge / Gazebo |
+| `/joint_states` | `JointState` | MuJoCo bridge / Gazebo | `StateEstimator`, `ControllerRosNode` |
 | `/controller_fault` | `Bool` | `ControllerRosNode` | Operator / monitoring |

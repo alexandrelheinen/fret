@@ -32,6 +32,7 @@ arc_injector = "fret.ros.arc_injector:main"
 scene_acquisition_node = "fret.scene.acquisition_node:main"
 planner_node = "fret.planning.planner_node_ros:main"
 perception_bridge = "fret.ros.perception_bridge:main"
+mujoco_bridge = "fret.ros.mujoco_bridge:main"
 
 [build-system]
 requires = ["setuptools>=71", "wheel"]

@@ -153,6 +153,7 @@ install(PROGRAMS
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/arc_injector
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/straight_line_injector
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/perception_bridge
+  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/mujoco_bridge
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/viz_node
   DESTINATION lib/${PROJECT_NAME}
 )
