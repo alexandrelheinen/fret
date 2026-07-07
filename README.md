@@ -70,6 +70,7 @@ Each PR adds a testable slice. After `pip install -e ".[dev]"`:
 | 1 | PPP kinematics (T10-01) | `pytest tests/control/test_kinematics_ppp.py -v` |
 | 2 | Magnetic grasp FSM (T10-04) | `pytest tests/control/test_grasp_magnet.py -v` |
 | 3 | MuJoCo preview video (T10-07) | `pip install -e ".[sim]" && ./scripts/video.sh -o /tmp/v10.mp4` |
+| 4 | PPP C-space checker (T10-05, T10-08) | `pytest tests/planning/test_cspace_checker_ppp.py -v` |
 
 **PPP kinematics** — identity-map FK/IK for the gantry:
 
@@ -96,6 +97,14 @@ pytest tests/control/test_grasp_magnet.py -v
 ```bash
 pip install -e ".[sim]"
 ./scripts/video.sh --duration 30 --fps 30 -o /tmp/v10.mp4
+```
+
+**PPP C-space checker** — warehouse obstacles + EE/cargo envelope:
+
+```bash
+python3 scripts/demo_ppp_checker.py
+# or run the unit tests:
+pytest tests/planning/test_cspace_checker_ppp.py tests/planning/test_ppp_obstacles.py -v
 ```
 
 ---
@@ -163,8 +172,9 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done (regression CI) |
 | v1.0 PPP kinematics (T10-01) | ✅ Done |
 | v1.0 magnetic grasp FSM (T10-04) | ✅ Done |
+| v1.0 PPP C-space checker (T10-05, T10-08) | ✅ Done |
 | v1.0 MuJoCo preview video script (T10-07) | ✅ Done |
-| v1.0 C-space checker + scenario launch | 🔲 Next |
+| v1.0 MuJoCo bridge + scenario launch | 🔲 Next |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---

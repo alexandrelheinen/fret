@@ -75,6 +75,9 @@ python3 scripts/render_mujoco.py --scenario ppp_warehouse --output /tmp/v10.mp4
 # Magnetic grasp FSM demo (pure Python, no sim)
 python3 scripts/demo_grasp.py
 
+# PPP C-space checker demo (warehouse obstacles)
+python3 scripts/demo_ppp_checker.py
+
 # ROS bag
 ros2 bag record /joint_states /joint_commands /joint_trajectory
 ```

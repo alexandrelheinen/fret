@@ -24,6 +24,28 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 
+def occupancy_min_clearance(
+    occupancy: Any, points: npt.NDArray[np.float64]
+) -> float:
+    """Return minimum clearance from query points to an occupancy model.
+
+    Supports ARCO ``KDTreeOccupancy`` (``query_distances`` + ``clearance``
+    attribute) and duck-typed ``clearance(pts)`` callables such as
+    ``scene.OccupancyAdapter._SimpleOccupancy``.
+
+    Args:
+        occupancy: Occupancy model instance.
+        points: Query positions, shape ``(N, 3)``.
+
+    Returns:
+        Minimum clearance in metres (positive = free).
+    """
+    if hasattr(occupancy, "query_distances"):
+        distances = occupancy.query_distances(points)
+        return float(np.min(distances)) - float(occupancy.clearance)
+    return float(occupancy.clearance(points))
+
+
 class CSpaceChecker:
     """Query collision-free status for a joint configuration via FK + occupancy.
 
@@ -114,10 +136,43 @@ class CSpaceChecker:
                 f"got {configuration.shape}"
             )
         pts = self._sample_arm_positions(configuration)
-        # KDTreeOccupancy exposes `query_distances` (batch) and stores the
-        # clearance radius as a float attribute; _SimpleOccupancy exposes
-        # `clearance` as a callable method.
-        if hasattr(self._occ, "query_distances"):
-            distances = self._occ.query_distances(pts)
-            return float(np.min(distances)) - float(self._occ.clearance)
-        return float(self._occ.clearance(pts))
+        return occupancy_min_clearance(self._occ, pts)
+
+
+def make_cspace_checker(
+    kinematics: Kinematics,
+    occupancy: Any,
+    *,
+    include_cargo: bool = False,
+    grasp_config: Any | None = None,
+) -> CSpaceChecker | Any:
+    """Build a model-appropriate C-space checker (FR-SYS-01).
+
+    Dispatches to ``PPPcSpaceChecker`` for the PPP gantry and the legacy
+    arm-sampling ``CSpaceChecker`` for SCARA / RRP models.
+
+    Args:
+        kinematics: Active ``Kinematics`` engine.
+        occupancy: Occupancy model for clearance queries.
+        include_cargo: When True, PPP checker includes welded cargo (FR-GSP-02).
+        grasp_config: Optional ``GraspConfig`` for cargo geometry.
+
+    Returns:
+        ``PPPcSpaceChecker`` or ``CSpaceChecker`` instance.
+    """
+    from fret.control.grasp_magnet import GraspConfig
+    from fret.planning.cspace_checker_ppp import (
+        PPPCheckerConfig,
+        PPPcSpaceChecker,
+    )
+    from fret.planning.ppp_obstacles import is_ppp_kinematics
+
+    if is_ppp_kinematics(kinematics.joint_names):
+        cfg = PPPCheckerConfig(
+            include_cargo=include_cargo,
+            grasp_config=(
+                grasp_config if grasp_config is not None else GraspConfig()
+            ),
+        )
+        return PPPcSpaceChecker(kinematics, occupancy, cfg)
+    return CSpaceChecker(kinematics, occupancy)

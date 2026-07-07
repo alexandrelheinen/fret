@@ -3,8 +3,15 @@
 Re-exports the public API of the planning sub-package.
 """
 
-from fret.planning.cspace_checker import CSpaceChecker
+from fret.planning.cspace_checker import CSpaceChecker, make_cspace_checker
+from fret.planning.cspace_checker_ppp import PPPCheckerConfig, PPPcSpaceChecker
 from fret.planning.planner_node import PlannerNode
+from fret.planning.ppp_obstacles import (
+    BoxObstacle,
+    BoxObstacleOccupancy,
+    build_box_obstacle_occupancy,
+    load_ppp_warehouse_obstacles,
+)
 from fret.planning.replanning_manager import (
     ManagerState,
     ReplanningManager,
@@ -17,7 +24,11 @@ from fret.planning.trajectory_converter import (
 from fret.planning.trajectory_generator import TrajectoryGenerator
 
 __all__ = [
+    "BoxObstacle",
+    "BoxObstacleOccupancy",
     "CSpaceChecker",
+    "PPPcSpaceChecker",
+    "PPPCheckerConfig",
     "PlannerNode",
     "TrajectoryGenerator",
     "TrajectoryConverter",
@@ -25,4 +36,7 @@ __all__ = [
     "ReplanningManager",
     "ManagerState",
     "TriggerKind",
+    "load_ppp_warehouse_obstacles",
+    "build_box_obstacle_occupancy",
+    "make_cspace_checker",
 ]
