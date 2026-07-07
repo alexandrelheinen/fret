@@ -58,6 +58,40 @@ Implements duck-typed occupancy interface — no direct ARCO import required.
 
 ---
 
+### `cspace_checker_ppp.py` — PPPcSpaceChecker (v1.0)
+
+C-space collision predicate for the PPP gantry. Configuration ``q`` maps
+directly to EE position; clearance is the minimum over axis-aligned samples
+on the EE box and (optionally) the welded cargo box (FR-GSP-02).
+
+Use ``make_cspace_checker(kinematics, occupancy, include_cargo=True)`` to
+dispatch PPP vs SCARA checkers automatically.
+
+| Symbol | Description |
+|---|---|
+| `PPPCheckerConfig` | EE half-extent, cargo inclusion, `GraspConfig` |
+| `PPPcSpaceChecker` | `is_collision_free(q)`, `clearance(q)` |
+
+**Tests:** `tests/planning/test_cspace_checker_ppp.py`
+
+---
+
+### `ppp_obstacles.py` — warehouse layout (T10-08)
+
+Loads 10 static boxes from ``config/worlds/ppp_warehouse_obstacles.yml``
+(ported from ARCO ``map/ppp.yml``).
+
+| Symbol | Description |
+|---|---|
+| `load_ppp_warehouse_obstacles()` | Parse YAML → ``list[BoxObstacle]`` |
+| `BoxObstacleOccupancy` | Signed AABB clearance for box obstacles |
+| `build_box_obstacle_occupancy()` | Default warehouse occupancy model |
+
+**Demo:** `python3 scripts/demo_ppp_checker.py`  
+**Tests:** `tests/planning/test_ppp_obstacles.py`
+
+---
+
 ### `trajectory_generator.py` — TrajectoryGenerator
 
 Post-processing chain applied to the raw planner output:
