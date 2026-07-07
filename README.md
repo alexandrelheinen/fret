@@ -48,11 +48,9 @@ pip install numpy matplotlib pyyaml
 # 3. Install the fret package (pure-Python, no ROS)
 pip install -e . --no-deps
 
-# 4. Run the full A-to-B simulation (Milestone 3: planning + 50 Hz tracking)
-python3 scripts/simulate_milestone3_pipeline.py --output /tmp/sim_ms3
-
-# 5. Run the arc scenario (SC-05)
-bash scripts/simulate_arc.sh --output /tmp/sim_arc
+# 4. Run pure-Python validation (no ROS)
+pip install -e . --no-deps
+pytest tests/simulation/ -v
 ```
 
 For the full Gazebo SITL tutorial (requires Ubuntu 24.04 + ROS 2 Jazzy), see
@@ -66,7 +64,7 @@ For the full Gazebo SITL tutorial (requires Ubuntu 24.04 + ROS 2 Jazzy), see
 
 - [Simulation Tutorial (A-Z)](docs/simulation.md) — download, build, and run fretsim
 - [Project Roadmap](docs/roadmap.md) — phases 0–7
-- [Milestones](MILESTONES.md) — requirements table, completion status, MS-1 through MS-5
+- [Milestones](docs/milestones.md) — requirements table, completion status, MS-1 through MS-5
 - [Coding guidelines (authoritative)](docs/guidelines.md)
 - [Contributing guide](CONTRIBUTING.md)
 
@@ -129,13 +127,12 @@ PerceptionBridgeNode ──► /obstacle_cloud ──► SceneAcquisitionNode
 | `tests.yml` | PR, push | ROS 2 build, pytest, smoke tests |
 | `formatting.yml` | PR | Black, isort, clang-format |
 | `type_check.yml` | PR | mypy strict on `src/` |
-| `simulations_ci.yml` | PR (non-draft) | MS-1 through MS-4, SC-01, SC-05 pure-Python simulations |
-| `release.yml` | version tags | full suite |
+| `integration.yml` | PR (non-draft) | launch_testing inter-node scenarios |
 
 Run the same checks locally before pushing:
 
 ```bash
-bash scripts/pre_push.sh
+bash scripts/check/pre_push.sh
 ```
 
 ---

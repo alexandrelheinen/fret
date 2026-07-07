@@ -116,7 +116,7 @@ Kinematics engine.  This milestone validates the control stack in isolation.
 - `ControllerRosNode` subclasses `rclpy.node.Node` with full ROS wiring.
 - `StraightLineInjector` node reads `straight_line.yml` and publishes once.
 - `sitl.py` routes `scenario:=straight_line` to the injector (no planner).
-- **CI:** `bash scripts/simulate_milestone1.sh` passes (max EE error = 4.11 mm).
+- **CI:** `pytest tests/simulation/test_scenario_straight_line.py` passes.
 
 ### Key files
 
@@ -158,7 +158,7 @@ validation before wiring it to the control stack.
 - `PlannerNode` (L3) and `PlannerNodeRos` (L4 Action server) fully implemented.
 - `CSpaceChecker` (FK + KDTreeOccupancy) and `TrajectoryGenerator` implemented.
 - ARCO optional: linear-interpolation fallback when ARCO absent.
-- **CI:** `bash scripts/simulate_milestone2.sh` passes (EE error = 0.00 mm).
+- **CI:** `pytest tests/planning/` and integration tests for static reach pass.
 
 ### Key files
 
@@ -193,9 +193,8 @@ then tracked by the Jacobian controller.
 
 - `sitl.py` routes planner → controller via `/joint_trajectory` (no injector).
 - `PerceptionBridgeNode` feeds `/obstacle_cloud` → `SceneAcquisition` → `CSpaceChecker`.
-- **CI:** `python3 scripts/simulate_milestone3_pipeline.py` passes:
-  - Max EE error = **0.56 mm** (limit: 5 mm)
-  - No fault triggered
+- **CI:** `tests/integration/test_scenario_static_reach_full.py` and controller
+  tracking tests pass (max EE error **0.56 mm**, limit 5 mm).
 
 ### Key files
 
@@ -205,7 +204,7 @@ then tracked by the Jacobian controller.
 | `src/fret/config/scenarios/static_reach.yml` | Scenario config |
 | `tests/control/test_controller_node_tracking.py` | Tracking unit tests |
 | `tests/integration/test_scenario_static_reach_full.py` | End-to-end test |
-| `scripts/simulate_milestone3_pipeline.py` | CI simulation script |
+| `tests/integration/test_scenario_static_reach_full.py` | End-to-end integration test |
 
 ---
 
@@ -226,7 +225,7 @@ Total: **147 voxels**. Only voxels within `0.05 m ≤ r ≤ 0.60 m` are evaluate
 
 ### Acceptance criteria — ✅ All passed
 
-1. `scripts/validate_occupancy.py` runs without error.
+1. `pytest tests/scene/test_workspace_occupancy.py` passes.
 2. Matplotlib figure shows occupied (red) vs. free (grey) voxels as a 3-D scatter.
 3. `is_occupied(x, y, z)` returns correct values for known points.
 4. Unit test coverage for `WorkspaceOccupancyBuilder` ≥ 90 %.
@@ -234,18 +233,15 @@ Total: **147 voxels**. Only voxels within `0.05 m ≤ r ≤ 0.60 m` are evaluate
 ### Implementation summary
 
 - `WorkspaceOccupancyBuilder` pure-Python class in `src/fret/scene/workspace_occupancy.py`.
-- **CI:** `python3 scripts/simulate_milestone4_pipeline.py` passes:
-  - 19 occupied voxels, 59 free voxels
-  - `clearance(inside)` = −0.023 m, `clearance(free)` = +0.143 m
+- **CI:** `pytest tests/scene/test_workspace_occupancy.py` passes (19 occupied
+  voxels, 59 free voxels in golden configuration).
 
 ### Key files
 
 | File | Role |
 |---|---|
 | `src/fret/scene/workspace_occupancy.py` | WorkspaceOccupancyBuilder |
-| `scripts/validate_occupancy.py` | Standalone occupancy validation script |
-| `scripts/simulate_milestone4_pipeline.py` | CI simulation |
-| `tests/scene/test_workspace_occupancy.py` | 20 unit tests |
+| `tests/scene/test_workspace_occupancy.py` | Unit tests |
 
 ---
 
@@ -291,13 +287,9 @@ path at **constant z**, autonomously avoiding the pillars.
 - ✅ `src/fret/config/scenarios/pillar_avoidance.yml` — scenario YAML
 - ✅ `src/fret/config/perception.yaml` — cylinder obstacle entries added
 - ✅ `PerceptionBridgeNode` already supports cylinder surface sampling
-- ✅ `tests/scene/test_workspace_occupancy_pillars.py` — 13 unit tests
-- ✅ `tests/integration/test_scenario_pillar_avoidance.py` — 5 integration tests
-- ✅ `scripts/simulate_milestone5_pipeline.py` — CI pure-Python simulation
-- ✅ `scripts/simulate_milestone5.sh` — shell wrapper
-- ✅ `scripts/post_milestone5_report.sh` — PR report
-- ✅ MS-05 job added to `simulations_ci.yml`
-- ✅ MS-5 gate added to `pre_push.sh`
+- ✅ `tests/scene/test_workspace_occupancy_pillars.py` — pillar occupancy unit tests
+- ✅ `tests/integration/test_scenario_pillar_avoidance.py` — integration tests
+- ✅ MS-5 covered by `tests/integration/test_scenario_pillar_avoidance.py` in CI
 
 ---
 
@@ -338,6 +330,7 @@ MS-5  ✅  Pillar world + autonomous collision-aware motion at constant z
 - Interface contracts and QoS profiles: [`docs/interfaces.md`](docs/interfaces.md)
 - Architecture and data-flow diagrams: [`docs/architecture.md`](docs/architecture.md)
 - ARCO integration details and boundary: [`docs/arco.md`](docs/arco.md)
-- Coding standards and V-cycle: [`docs/guidelines.md`](docs/guidelines.md)
+- Coding standards: [`docs/guidelines.md`](docs/guidelines.md)
+- Development workflow (SDD, V-cycle): [`CONTRIBUTING.md`](../CONTRIBUTING.md)
 - Simulation tutorial (A-Z): [`docs/simulation.md`](docs/simulation.md)
 

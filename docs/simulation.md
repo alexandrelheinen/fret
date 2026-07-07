@@ -77,100 +77,46 @@ source install/setup.bash
 
 ---
 
-## Step 5A — Pure-Python simulation (no Gazebo required)
+## Step 5A — Pure-Python validation (no Gazebo required)
 
-The pure-Python pipelines run all milestone algorithms end-to-end without Gazebo.
-They are the primary CI validation path.
+Milestone and scenario acceptance criteria are enforced by **pytest** under
+`tests/simulation/` and `tests/integration/` (the latter needs ROS; see Step 5B).
 
-### Milestone 1 — Straight-line tracking
-
-```bash
-bash scripts/simulate_milestone1.sh --output /tmp/sim_ms1
-```
-
-Expected output:
-```
-✅ Simulation PASSED — EE error ≤ 5 mm (max: 4.11 mm)
-```
-
-### Milestone 2 — Planning pipeline
+### Install the package
 
 ```bash
-bash scripts/simulate_milestone2.sh --output /tmp/sim_ms2
+pip install -e ".[dev]" --no-deps
 ```
 
-Expected output:
-```
-✅ Simulation PASSED - 2 waypoints, EE error = 0.00 mm
-```
-
-### Milestone 3 — Full end-to-end (planning + tracking)
-
-This is the primary A-to-B demonstration. The SCARA moves from
-`[0.0, 0.0, 0.0]` (home) to `[0.5, -0.3, 0.05]` over 20 seconds:
+### Milestone 1 — Straight-line tracking (MS-1)
 
 ```bash
-python3 scripts/simulate_milestone3_pipeline.py --output /tmp/sim_ms3
+pytest tests/simulation/test_scenario_straight_line.py -v
 ```
 
-Expected output:
-```
-=== Milestone 3 end-to-end simulation (planning + tracking) ===
-Start config  : [0.0, 0.0, 0.0]
-Goal  config  : [0.5, -0.3, 0.05]
-Sim duration  : 20 s  (1000 steps @ 50 Hz)
-Plot saved to /tmp/sim_ms3/tracking_plots.png
+Validates FR-CTL-02 (EE error ≤ 5 mm) and straight-line corridor constraints
+without a live ROS context.
 
---- Results ---
-  PLANNING_DURATION_S = 0.0001
-  N_WAYPOINTS = 2.0000
-  MAX_EE_ERROR_MM = 0.5594        ← well below 5 mm limit
-  RMS_EE_ERROR_MM = 0.5563
-  FAULT_TRIGGERED = 0.0000
+### Milestones 2–5 and scenarios
 
-✅ Simulation PASSED
-```
+| Milestone / scenario | Test location |
+|---|---|
+| MS-2 planning | `tests/planning/` |
+| MS-3 static reach | `tests/integration/test_scenario_static_reach_full.py` (ROS) |
+| MS-4 occupancy | `tests/scene/test_workspace_occupancy.py` |
+| MS-5 pillar avoidance | `tests/integration/test_scenario_pillar_avoidance.py` (ROS) |
+| SC-05 arc | `tests/planning/test_arc_injector.py` |
 
-The plot at `/tmp/sim_ms3/tracking_plots.png` shows:
-- EE path in Cartesian (x, y) — reference vs. executed
-- EE tracking error over time
-- Joint variables over time (q1, q2, q3)
-
-![MS-3 Tracking Plot](images/simulations/ms3_tracking.png)
-
-### Milestone 4 — Workspace occupancy map
+Run the full unit suite (no ROS):
 
 ```bash
-python3 scripts/simulate_milestone4_pipeline.py --output /tmp/sim_ms4
+pytest tests/ --ignore=tests/integration -v
 ```
 
-Expected output:
-```
-✅ [M4] PASSED — 19 occupied voxels, 59 free voxels
-```
-
-3-D scatter plot at `/tmp/sim_ms4/occupancy_map.png`.
-
-### SC-05 — Arc trajectory scenario
+Run integration scenarios (requires Steps 1–4 and `xvfb`):
 
 ```bash
-bash scripts/simulate_arc.sh --output /tmp/sim_arc
-```
-
-Expected output:
-```
-✅ Simulation PASSED — max EE error = 2.96 mm
-```
-
-### SC-01 — Static reach (full pipeline)
-
-```bash
-bash scripts/simulate_static_reach.sh --output /tmp/sim_sc01
-```
-
-Expected output:
-```
-✅ SC-01 static-reach PASSED — planning SUCCESS, no fault
+bash scripts/tests/integration.sh
 ```
 
 ---

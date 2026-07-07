@@ -4,7 +4,8 @@
 > - Functional requirements and operational envelope: [docs/requirements.md](requirements.md)
 > - Cross-module interface contracts, QoS assignments, node FSMs, error propagation: [docs/interfaces.md](interfaces.md)
 > - Named SITL validation scenarios: [docs/scenarios.md](scenarios.md)
-> - Coding standards and V-cycle: [docs/guidelines.md](guidelines.md)
+> - Development workflow (SDD, V-cycle): [CONTRIBUTING.md](../CONTRIBUTING.md)
+> - Coding standards: [docs/guidelines.md](guidelines.md)
 
 ## 1. UX / Developer Experience
 
@@ -168,10 +169,7 @@ Full QoS profile specifications are in [docs/interfaces.md](interfaces.md).
 | `src/fret/CMakeLists.txt` | 🔄 Evolve | Keep XACRO/mesh build loop; remove deleted node targets |
 | `src/fret/__init__.py` | ✅ Keep | Package marker |
 | `scripts/install.sh`, `build.sh`, `setup.sh` | ✅ Keep | Dev workflow scripts |
-| `scripts/benchmark_planner.py` | 🗑 Delete | References old implementation; to be rewritten later |
-| `scripts/validate_quality_gates.py` | 🔄 Evolve | Keep structure, update paths |
-| `scripts/scara/` (empty `__pycache__`) | 🗑 Delete | Empty artifact |
-| `docs/arco/` (entire folder) | 🗑 Delete | Old milestone specs, superseded by `docs/arco.md` |
+| `scripts/check/pre_push.sh` | ✅ Keep | Local CI gate runner |
 | `src/fret.egg-info/` | 🗑 Ignore | Build artifact, in `.gitignore` |
 
 ### Source tree
