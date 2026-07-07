@@ -98,13 +98,21 @@ Arc parameters (from `config/scenarios/arc.yml`):
 These nodes are wired into `sitl.py` via scenario-conditional launch:
 
 ```python
-# sitl.py — scenario routing
-if scenario == "straight_line":
+# sitl.py — backend routing (T10-06)
+if backend == "mujoco":
+    launch mujoco.py          # /joint_states publisher
+else:
+    launch sim.py             # Gazebo + ros2_control
+
+if scenario == "ppp_warehouse":
+    perception_ppp_warehouse.yaml
+    controller ppp.yml
+elif scenario == "straight_line":
     launch StraightLineInjector
 elif scenario == "arc":
     launch ArcInjector
-else:                           # static_reach, obstacle_avoidance, ...
-    launch PlannerNodeRos + SceneAcquisitionNode + PerceptionBridgeNode
+else:
+    launch PlannerNodeRos + SceneAcquisitionNode + perception.yaml
 ```
 
 ---

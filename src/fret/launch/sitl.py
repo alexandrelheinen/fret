@@ -7,6 +7,7 @@ Usage::
     ros2 launch fret sitl.py model:=scara scenario:=static_reach
     ros2 launch fret sitl.py model:=scara scenario:=straight_line
     ros2 launch fret sitl.py model:=scara scenario:=arc
+    ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 
 Arguments:
     model (str, default: scara)
@@ -14,6 +15,8 @@ Arguments:
     scenario (str, default: static_reach)
         Scenario YAML stem (e.g. ``static_reach``).  Must match a file under
         ``fret/config/scenarios/<scenario>.yml``.
+    backend (str, default: gazebo)
+        Simulator backend: ``gazebo`` (SCARA regression) or ``mujoco`` (v1.0 PPP).
 
 Scenario behaviour:
     straight_line — Milestone 1.  Launches the ``straight_line_injector``
@@ -22,6 +25,7 @@ Scenario behaviour:
     arc — Launches the ``arc_injector`` node instead of ``planner_node``.
         The injector publishes a circular arc trajectory in Cartesian space
         once; the controller tracks it.  Produces a visible arc in Gazebo.
+    ppp_warehouse — v1.0 PPP warehouse pick-and-place with ``backend:=mujoco``.
     static_reach (and others) — standard SITL with ``planner_node`` and
         ``scene_acquisition_node``.  The planner auto-triggers at startup
         and publishes the resulting trajectory; the controller executes it.
@@ -32,10 +36,14 @@ from __future__ import annotations
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    GroupAction,
     IncludeLaunchDescription,
 )
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import (
+    AndCondition,
+    IfCondition,
+    LaunchConfigurationEquals,
+    UnlessCondition,
+)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     EqualsSubstitution,
@@ -62,14 +70,21 @@ def generate_launch_description() -> LaunchDescription:
         default_value="static_reach",
         description="Scenario YAML stem (config/scenarios/<scenario>.yml)",
     )
-
-    sim_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([pkg_share, "/launch/sim.py"]),
-        launch_arguments={
-            "model": LaunchConfiguration("model"),
-            "world": "arco_scenario.sdf",
-        }.items(),
+    backend_arg = DeclareLaunchArgument(
+        "backend",
+        default_value="gazebo",
+        description="Simulator backend: gazebo | mujoco",
     )
+
+    is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
+    is_gazebo = UnlessCondition(is_mujoco)
+    is_ppp_model = LaunchConfigurationEquals("model", "ppp")
+
+    is_straight_line = EqualsSubstitution(
+        LaunchConfiguration("scenario"), "straight_line"
+    )
+    is_arc = EqualsSubstitution(LaunchConfiguration("scenario"), "arc")
+    is_injector_scenario = OrSubstitution(is_straight_line, is_arc)
 
     scenario_config = PathJoinSubstitution(
         [
@@ -79,21 +94,39 @@ def generate_launch_description() -> LaunchDescription:
             [LaunchConfiguration("scenario"), ".yml"],
         ]
     )
-    controller_config = PathJoinSubstitution(
+
+    scara_controller_config = PathJoinSubstitution(
         [pkg_share, "config", "controllers", "jacobian.yml"]
     )
-
-    is_straight_line = EqualsSubstitution(
-        LaunchConfiguration("scenario"), "straight_line"
+    ppp_controller_config = PathJoinSubstitution(
+        [pkg_share, "config", "controllers", "ppp.yml"]
     )
-    is_arc = EqualsSubstitution(LaunchConfiguration("scenario"), "arc")
 
-    # Injector scenarios share the "no planner" path
-    is_injector_scenario = OrSubstitution(is_straight_line, is_arc)
+    default_perception_config = PathJoinSubstitution(
+        [pkg_share, "config", "perception.yaml"]
+    )
+    ppp_perception_config = PathJoinSubstitution(
+        [pkg_share, "config", "perception_ppp_warehouse.yaml"]
+    )
 
-    # ------------------------------------------------------------------
-    # Milestone 1 path: straight-line injector (no planner, no scene)
-    # ------------------------------------------------------------------
+    sim_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([pkg_share, "/launch/sim.py"]),
+        launch_arguments={
+            "model": LaunchConfiguration("model"),
+            "world": "arco_scenario.sdf",
+        }.items(),
+        condition=is_gazebo,
+    )
+
+    mujoco_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([pkg_share, "/launch/mujoco.py"]),
+        launch_arguments={
+            "model": LaunchConfiguration("model"),
+            "scenario": LaunchConfiguration("scenario"),
+        }.items(),
+        condition=IfCondition(is_mujoco),
+    )
+
     straight_line_injector = Node(
         package="fret",
         executable="straight_line_injector",
@@ -106,9 +139,6 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(is_straight_line),
     )
 
-    # ------------------------------------------------------------------
-    # Arc injector path: arc injector (no planner, no scene)
-    # ------------------------------------------------------------------
     arc_injector = Node(
         package="fret",
         executable="arc_injector",
@@ -121,9 +151,6 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(is_arc),
     )
 
-    # ------------------------------------------------------------------
-    # Standard path: planner + scene acquisition
-    # ------------------------------------------------------------------
     planner_node = Node(
         package="fret",
         executable="planner_node",
@@ -145,46 +172,78 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(is_injector_scenario),
     )
 
-    perception_bridge_node = Node(
+    is_ppp_warehouse = LaunchConfigurationEquals("scenario", "ppp_warehouse")
+    is_standard_planner = UnlessCondition(is_injector_scenario)
+
+    perception_bridge_default = Node(
         package="fret",
         executable="perception_bridge",
         name="perception_bridge_node",
         output="screen",
         parameters=[
-            {"model": LaunchConfiguration("model")},
-            scenario_config,
+            {
+                "model": LaunchConfiguration("model"),
+                "config_path": default_perception_config,
+            }
         ],
-        condition=UnlessCondition(is_injector_scenario),
+        condition=IfCondition(
+            AndCondition(
+                is_standard_planner,
+                UnlessCondition(is_ppp_warehouse),
+            )
+        ),
     )
 
-    # ------------------------------------------------------------------
-    # Controller — used by both paths
-    # ------------------------------------------------------------------
-    controller_node = Node(
+    perception_bridge_ppp = Node(
+        package="fret",
+        executable="perception_bridge",
+        name="perception_bridge_node",
+        output="screen",
+        parameters=[
+            {
+                "model": LaunchConfiguration("model"),
+                "config_path": ppp_perception_config,
+            }
+        ],
+        condition=IfCondition(
+            AndCondition(is_standard_planner, is_ppp_warehouse)
+        ),
+    )
+
+    controller_scara = Node(
         package="fret",
         executable="controller_node",
         name="controller_node",
         output="screen",
         parameters=[
             {"model": LaunchConfiguration("model")},
-            controller_config,
+            scara_controller_config,
         ],
-        # Remap fret's /joint_commands to the ros2_control velocity controller
-        # command topic so Gazebo physics receives the velocity setpoints.
         remappings=[
             ("/joint_commands", "/joint_group_velocity_controller/commands")
         ],
+        condition=UnlessCondition(is_ppp_model),
     )
 
-    # ------------------------------------------------------------------
-    # Visualisation — trajectory waypoints + live EE trace in RViz2
-    # ------------------------------------------------------------------
+    controller_ppp = Node(
+        package="fret",
+        executable="controller_node",
+        name="controller_node",
+        output="screen",
+        parameters=[
+            {"model": LaunchConfiguration("model")},
+            ppp_controller_config,
+        ],
+        condition=IfCondition(is_ppp_model),
+    )
+
     viz_node = Node(
         package="fret",
         executable="viz_node",
         name="viz_node",
         output="screen",
         parameters=[{"model": LaunchConfiguration("model")}],
+        condition=is_gazebo,
     )
 
     rviz_config = PathJoinSubstitution(
@@ -197,24 +256,24 @@ def generate_launch_description() -> LaunchDescription:
         name="rviz2",
         arguments=["-d", rviz_config],
         output="screen",
+        condition=is_gazebo,
     )
 
     return LaunchDescription(
         [
             model_arg,
             scenario_arg,
+            backend_arg,
             sim_launch,
-            # Milestone 1 path
+            mujoco_launch,
             straight_line_injector,
-            # Arc path
             arc_injector,
-            # Standard path
             scene_acquisition_node,
             planner_node,
-            perception_bridge_node,
-            # Shared
-            controller_node,
-            # Visualisation
+            perception_bridge_default,
+            perception_bridge_ppp,
+            controller_scara,
+            controller_ppp,
             viz_node,
             rviz2,
         ]

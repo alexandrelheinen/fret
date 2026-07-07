@@ -1,0 +1,23 @@
+# Perception layout for SC-v10 PPP warehouse (MJCF 1:5 preview scale).
+#
+# Box poses/sizes match static geoms in mjcf/ppp_warehouse.xml.
+
+perception:
+  update_hz: 1.0
+  surface_density: 800.0
+
+  obstacles:
+    - id: obs_a
+      type: box
+      size: [1.6, 1.2, 1.2]
+      pose: [4.0, 1.2, 0.6, 0.0, 0.0, 0.0]
+
+    - id: obs_b
+      type: box
+      size: [1.4, 1.4, 1.0]
+      pose: [6.5, 2.8, 0.5, 0.0, 0.0, 0.0]
+
+    - id: obs_c
+      type: box
+      size: [1.2, 1.0, 1.8]
+      pose: [8.0, 1.0, 0.9, 0.0, 0.0, 0.0]

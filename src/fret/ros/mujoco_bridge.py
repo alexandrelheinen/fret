@@ -339,15 +339,50 @@ class MuJoCoBridgeNode:
         from std_msgs.msg import Float64MultiArray
 
         self._rclpy = rclpy
+
+        class _Node(rclpy.node.Node):  # type: ignore[misc]
+            pass
+
+        self._node: rclpy.node.Node = _Node("mujoco_bridge_node")
+
         resolved = _resolve_config_path(config_path)
         cfg = _load_bridge_config(resolved)
 
-        model_name = model or str(cfg.get("model", "ppp"))
-        scenario_name = scenario or str(cfg.get("scenario", "ppp_warehouse"))
-        self._update_rate = float(
-            cfg.get("update_rate", _DEFAULT_UPDATE_RATE_HZ)
+        self._node.declare_parameter(
+            "model", model or str(cfg.get("model", "ppp"))
         )
-        initial = cfg.get("initial_joint_positions", [0.0, 0.0, 0.0])
+        self._node.declare_parameter(
+            "scenario", scenario or str(cfg.get("scenario", "ppp_warehouse"))
+        )
+        self._node.declare_parameter(
+            "update_rate",
+            float(cfg.get("update_rate", _DEFAULT_UPDATE_RATE_HZ)),
+        )
+        self._node.declare_parameter(
+            "initial_joint_positions",
+            list(cfg.get("initial_joint_positions", [0.0, 0.0, 0.0])),
+        )
+
+        model_name = str(
+            self._node.get_parameter("model")
+            .get_parameter_value()
+            .string_value
+        )
+        scenario_name = str(
+            self._node.get_parameter("scenario")
+            .get_parameter_value()
+            .string_value
+        )
+        self._update_rate = float(
+            self._node.get_parameter("update_rate")
+            .get_parameter_value()
+            .double_value
+        )
+        initial = (
+            self._node.get_parameter("initial_joint_positions")
+            .get_parameter_value()
+            .double_array_value
+        )
         q0 = np.asarray(initial, dtype=np.float64)
 
         self._core = make_mujoco_bridge_core(
@@ -359,11 +394,6 @@ class MuJoCoBridgeNode:
         self._latest_cmd = np.zeros(
             self._core.get_positions().shape, dtype=np.float64
         )
-
-        class _Node(rclpy.node.Node):  # type: ignore[misc]
-            pass
-
-        self._node: rclpy.node.Node = _Node("mujoco_bridge_node")
 
         cmd_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,

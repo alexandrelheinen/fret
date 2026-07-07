@@ -377,5 +377,13 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
 
     rclpy.init(args=args)
-    node = PerceptionBridgeNode()
+
+    loader = rclpy.create_node("_perception_bridge_param_loader")
+    loader.declare_parameter("config_path", "")
+    config_path = (
+        loader.get_parameter("config_path").get_parameter_value().string_value
+    )
+    loader.destroy_node()
+
+    node = PerceptionBridgeNode(config_path=config_path or None)
     node.spin()

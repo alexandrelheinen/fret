@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import enum
 import pathlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -342,7 +342,11 @@ class ControllerRosNode:  # pragma: no cover
         # Initialise ROS 2 node (must be the first super() call)
         rclpy.node.Node.__init__(self, "controller_node")
 
-        self._logic = ControllerNode(model=model, config_path=config_path)
+        self._logic = make_controller_node(
+            model=model, config_path=config_path
+        )
+        self._model = model
+        self._is_ppp = model == "ppp"
         self._kinematics = Kinematics(model=model)
         self._state_estimator = StateEstimator(
             node=self,
@@ -379,12 +383,12 @@ class ControllerRosNode:  # pragma: no cover
             1,
         )
 
-        dt = 1.0 / self._logic._update_rate
+        dt = 1.0 / controller_update_rate_hz(self._logic, self._model)
         self.create_timer(dt, self._timer_callback)  # type: ignore[attr-defined]
 
         self.get_logger().info(  # type: ignore[attr-defined]
             f"ControllerRosNode ready (model={model}, "
-            f"rate={self._logic._update_rate} Hz)"
+            f"rate={controller_update_rate_hz(self._logic, self._model)} Hz)"
         )
 
     # ------------------------------------------------------------------
@@ -444,8 +448,8 @@ class ControllerRosNode:  # pragma: no cover
             if isinstance(sub_count, int) and sub_count == 0:
                 return
 
-        q_dot = self._logic.compute_jacobian_command(
-            self._kinematics, q_current
+        q_dot = compute_tracking_command(
+            self._logic, self._model, self._kinematics, q_current
         )
 
         # Publish joint velocity command
@@ -454,7 +458,7 @@ class ControllerRosNode:  # pragma: no cover
         self._cmd_pub.publish(cmd_msg)
 
         # Publish fault flag
-        is_halted = self._logic._state == _NodeState.HALTED
+        is_halted = controller_is_halted(self._logic, self._model)
         fault_msg = Bool()
         fault_msg.data = is_halted
         self._fault_pub.publish(fault_msg)
@@ -477,10 +481,19 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     rclpy.init(args=args)
 
     pkg_share = get_package_share_directory("fret")
-    config_path = str(pathlib.Path(pkg_share) / "config" / "controllers")
+    controllers_dir = pathlib.Path(pkg_share) / "config" / "controllers"
 
-    # ControllerRosNode inherits Node at runtime; create via composition
-    node = _make_controller_ros_node(config_path=config_path)
+    loader = rclpy.create_node("_controller_param_loader")
+    loader.declare_parameter("model", "scara")
+    model = loader.get_parameter("model").get_parameter_value().string_value
+    loader.destroy_node()
+
+    if model == "ppp":
+        config_path = str(controllers_dir / "ppp.yml")
+    else:
+        config_path = str(controllers_dir)
+
+    node = _make_controller_ros_node(model=model, config_path=config_path)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -518,6 +531,46 @@ def make_controller_node(
     if model == "scara":
         return ControllerNode(model=model, config_path=path)
     raise ValueError(f"Unknown controller model: {model!r}")
+
+
+def controller_update_rate_hz(logic: Any, model: str) -> float:
+    """Return the active controller update rate [Hz]."""
+    if model == "ppp":
+        return float(logic.update_rate)
+    return float(logic._update_rate)
+
+
+def controller_is_halted(logic: Any, model: str) -> bool:
+    """Return ``True`` when the controller logic core is in ``HALTED``."""
+    if model == "ppp":
+        from fret.control.controller_ppp import PPPControllerState
+
+        return bool(logic.state == PPPControllerState.HALTED)
+    return bool(logic._state == _NodeState.HALTED)
+
+
+def compute_tracking_command(
+    logic: Any,
+    model: str,
+    kinematics: Kinematics,
+    current_positions: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Dispatch to Jacobian or PPP prismatic tracking."""
+    if model == "ppp":
+        return cast(
+            npt.NDArray[np.float64],
+            np.asarray(
+                logic.compute_prismatic_command(kinematics, current_positions),
+                dtype=np.float64,
+            ),
+        )
+    return cast(
+        npt.NDArray[np.float64],
+        np.asarray(
+            logic.compute_jacobian_command(kinematics, current_positions),
+            dtype=np.float64,
+        ),
+    )
 
 
 def _make_controller_ros_node(  # pragma: no cover

@@ -35,15 +35,14 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
 ---
 
-## v1.0 — PPP warehouse (planned)
+## v1.0 — PPP warehouse
 
 ```bash
-# Primary v1.0 entry point (launch wiring in T10-06)
+# Primary v1.0 entry point
 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 
-# MuJoCo bridge core demo (pure Python, no ROS)
-python3 scripts/demo_mujoco_bridge.py
-pytest tests/ros/test_mujoco_bridge.py -v
+# Config helpers (no ROS)
+pytest tests/test_sitl_config.py -v
 ```
 
 **Deliverables:**
@@ -53,7 +52,8 @@ pytest tests/ros/test_mujoco_bridge.py -v
 | MJCF world | `src/fret/mjcf/ppp_warehouse.xml` |
 | MuJoCo bridge | `src/fret/ros/mujoco_bridge.py` |
 | Bridge config | `src/fret/config/simulation/mujoco.yml` |
-| Scenario | `src/fret/config/scenarios/ppp_warehouse.yml` *(T10-06)* |
+| Scenario | `src/fret/config/scenarios/ppp_warehouse.yml` |
+| Perception layout | `src/fret/config/perception_ppp_warehouse.yaml` |
 | Video script | `scripts/render_mujoco.py` |
 
 ---
@@ -102,6 +102,5 @@ ros2 bag record /joint_states /joint_commands /joint_trajectory
 
 ## Known limitations
 
-See [releases.md](releases.md) for current release status. v1.0 scenario launch
-and full SITL wiring (T10-06) are not yet implemented — the MuJoCo bridge core
-is available for unit testing and incremental integration.
+See [releases.md](releases.md) for E2E acceptance status. The PPP warehouse
+launch path is wired (T10-06); full V10-2…6 validation remains in progress.
