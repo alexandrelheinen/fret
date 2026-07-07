@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 #: Default obstacle layout shipped with FRET (ARCO ``ppp.yml`` port).
 _DEFAULT_OBSTACLE_FILE = (
