@@ -173,10 +173,19 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 
 ## Visual assets and realism
 
-FRET v1.0 ships a **procedural MJCF** scene (`ppp_warehouse.xml`) built from
-MuJoCo primitives (boxes, cylinders, checker floor). The topology matches
-industrial Cartesian gantries: four corner legs, **two parallel overhead rails**,
-an X bridge, Y trolley, and descending Z column.
+FRET v1.0 ships a **hybrid MJCF** scene (`ppp_warehouse.xml`):
+
+- **Gantry:** procedural primitives (Cartesian topology, identity FK)
+- **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for shelves, box clusters, floor, and wall textures
+
+Assets live under `src/fret/mjcf/assets/aws_warehouse/`. Regenerate with:
+
+```bash
+pip install trimesh pycollada
+python3 scripts/import_aws_warehouse_assets.py
+```
+
+Collision boxes for planning/perception are unchanged (invisible box geoms).
 
 ### Reference photos (mechanical layout)
 
