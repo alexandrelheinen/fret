@@ -32,6 +32,27 @@ _PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
     dtype=np.float64,
 )
 
+# Dubins race workspace limits for dubins_race.xml.
+_DUBINS_RACE_LIMITS: npt.NDArray[np.float64] = np.array(
+    [
+        [0.0, 24.0],
+        [0.0, 16.0],
+        [-np.pi, np.pi],
+    ],
+    dtype=np.float64,
+)
+
+_RRT_JOINT_NAMES: list[str] = [
+    "rrt_joint_x",
+    "rrt_joint_y",
+    "rrt_joint_yaw",
+]
+_SST_JOINT_NAMES: list[str] = [
+    "sst_joint_x",
+    "sst_joint_y",
+    "sst_joint_yaw",
+]
+
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
 
 
@@ -66,6 +87,11 @@ def resolve_mjcf_path(
 
     if model == "ppp" and scenario in {"ppp_warehouse", "ppp"}:
         candidate = _project_root() / "mjcf" / "ppp_warehouse.xml"
+        if candidate.is_file():
+            return candidate
+
+    if model == "dubins" and scenario in {"dubins_race", "dubins"}:
+        candidate = _project_root() / "mjcf" / "dubins_race.xml"
         if candidate.is_file():
             return candidate
 
@@ -123,25 +149,30 @@ def make_mujoco_bridge_core(
     Raises:
         ValueError: If ``model`` is not recognised.
     """
-    if model != "ppp":
-        raise ValueError(f"Unknown MuJoCo bridge model: {model!r}")
+    if model == "ppp":
+        kin = PPPKinematics()
+        resolved = resolve_mjcf_path(model, scenario, mjcf_path)
+        q0 = (
+            np.zeros(kin.dof, dtype=np.float64)
+            if initial_positions is None
+            else np.asarray(initial_positions, dtype=np.float64)
+        )
+        if q0.shape != (kin.dof,):
+            raise ValueError(f"initial_positions must have shape ({kin.dof},)")
 
-    kin = PPPKinematics()
-    resolved = resolve_mjcf_path(model, scenario, mjcf_path)
-    q0 = (
-        np.zeros(kin.dof, dtype=np.float64)
-        if initial_positions is None
-        else np.asarray(initial_positions, dtype=np.float64)
-    )
-    if q0.shape != (kin.dof,):
-        raise ValueError(f"initial_positions must have shape ({kin.dof},)")
+        return MuJoCoBridgeCore(
+            mjcf_path=resolved,
+            joint_names=kin.joint_names,
+            limits=_PPP_MJCF_LIMITS,
+            initial_positions=q0,
+        )
 
-    return MuJoCoBridgeCore(
-        mjcf_path=resolved,
-        joint_names=kin.joint_names,
-        limits=_PPP_MJCF_LIMITS,
-        initial_positions=q0,
-    )
+    if model == "dubins":
+        raise ValueError(
+            "Use make_dubins_race_bridge_core() for the dual-agent dubins race."
+        )
+
+    raise ValueError(f"Unknown MuJoCo bridge model: {model!r}")
 
 
 class MuJoCoBridgeCore:
@@ -278,6 +309,129 @@ class MuJoCoBridgeCore:
         for idx, adr in enumerate(self._qpos_adrs):
             self._data.qpos[adr] = float(self._positions[idx])
         self._mujoco.mj_forward(self._model, self._data)
+
+
+class DubinsRaceBridgeCore:
+    """MuJoCo state mirror for the dual-agent Dubins race scene.
+
+    Writes RRT* and SST vehicle poses into ``dubins_race.xml`` joint
+    coordinates without integrating dynamics (poses come from ARCO tracking).
+    """
+
+    def __init__(
+        self,
+        *,
+        mjcf_path: str | pathlib.Path | None = None,
+        initial_rrt: npt.NDArray[np.float64] | None = None,
+        initial_sst: npt.NDArray[np.float64] | None = None,
+    ) -> None:
+        resolved = resolve_mjcf_path("dubins", "dubins_race", mjcf_path)
+        self._mjcf_path = resolved
+        self._limits = _DUBINS_RACE_LIMITS
+        self._rrt = (
+            np.zeros(3, dtype=np.float64)
+            if initial_rrt is None
+            else np.clip(
+                np.asarray(initial_rrt, dtype=np.float64),
+                self._limits[:, 0],
+                self._limits[:, 1],
+            )
+        )
+        self._sst = (
+            np.zeros(3, dtype=np.float64)
+            if initial_sst is None
+            else np.clip(
+                np.asarray(initial_sst, dtype=np.float64),
+                self._limits[:, 0],
+                self._limits[:, 1],
+            )
+        )
+        self._mujoco: Any | None = None
+        self._model: Any | None = None
+        self._data: Any | None = None
+        self._joint_adrs: dict[str, int] = {}
+        self._load_mujoco_optional()
+        self._write_mujoco_state()
+
+    @property
+    def mjcf_path(self) -> pathlib.Path:
+        """Loaded MJCF scene path."""
+        return self._mjcf_path
+
+    @property
+    def has_mujoco_runtime(self) -> bool:
+        """Return ``True`` when MuJoCo is available."""
+        return self._model is not None
+
+    def set_rrt_pose(self, pose: tuple[float, float, float]) -> None:
+        """Update RRT* agent pose ``(x, y, heading)``."""
+        self._rrt = np.array(pose, dtype=np.float64)
+        self._rrt = np.clip(self._rrt, self._limits[:, 0], self._limits[:, 1])
+        self._write_mujoco_state()
+
+    def set_sst_pose(self, pose: tuple[float, float, float]) -> None:
+        """Update SST agent pose ``(x, y, heading)``."""
+        self._sst = np.array(pose, dtype=np.float64)
+        self._sst = np.clip(self._sst, self._limits[:, 0], self._limits[:, 1])
+        self._write_mujoco_state()
+
+    def get_rrt_pose(self) -> npt.NDArray[np.float64]:
+        """Return RRT* pose copy."""
+        return self._rrt.copy()
+
+    def get_sst_pose(self) -> npt.NDArray[np.float64]:
+        """Return SST pose copy."""
+        return self._sst.copy()
+
+    def _load_mujoco_optional(self) -> None:
+        try:
+            import mujoco
+        except ImportError:
+            return
+
+        self._mujoco = mujoco
+        self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
+        self._data = mujoco.MjData(self._model)
+        for name in _RRT_JOINT_NAMES + _SST_JOINT_NAMES:
+            joint_id = mujoco.mj_name2id(
+                self._model,
+                mujoco.mjtObj.mjOBJ_JOINT,
+                name,
+            )
+            if joint_id < 0:
+                raise ValueError(f"Joint not found in MJCF: {name}")
+            self._joint_adrs[name] = int(self._model.jnt_qposadr[joint_id])
+
+    def _write_mujoco_state(self) -> None:
+        if self._model is None or self._data is None or self._mujoco is None:
+            return
+        mapping = {
+            "rrt_joint_x": float(self._rrt[0]),
+            "rrt_joint_y": float(self._rrt[1]),
+            "rrt_joint_yaw": float(self._rrt[2]),
+            "sst_joint_x": float(self._sst[0]),
+            "sst_joint_y": float(self._sst[1]),
+            "sst_joint_yaw": float(self._sst[2]),
+        }
+        for name, value in mapping.items():
+            adr = self._joint_adrs.get(name)
+            if adr is not None:
+                self._data.qpos[adr] = value
+        self._mujoco.mj_forward(self._model, self._data)
+
+
+def make_dubins_race_bridge_core(
+    *,
+    mjcf_path: str | pathlib.Path | None = None,
+    initial_rrt: npt.NDArray[np.float64] | None = None,
+    initial_sst: npt.NDArray[np.float64] | None = None,
+) -> DubinsRaceBridgeCore:
+    """Build a dual-agent MuJoCo bridge for SC-v11."""
+    return DubinsRaceBridgeCore(
+        mjcf_path=mjcf_path,
+        initial_rrt=initial_rrt,
+        initial_sst=initial_sst,
+    )
 
 
 def _resolve_config_path(config_path: str | None) -> str:
@@ -467,9 +621,11 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
 
 __all__ = [
+    "DubinsRaceBridgeCore",
     "MuJoCoBridgeCore",
     "MuJoCoBridgeNode",
     "integrate_joint_velocities",
+    "make_dubins_race_bridge_core",
     "make_mujoco_bridge_core",
     "resolve_mjcf_path",
 ]

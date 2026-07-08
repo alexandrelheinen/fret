@@ -1,0 +1,59 @@
+# Dubins race column forest (SC-v11 / T11-02).
+#
+# Staggered circular columns in an AWS-warehouse-style floor.  Deliberately
+# NOT a single mid-field wall maze (contrast ARCO map/vehicle.yml): multiple
+# corridors remain open from A (lower-left) to B (upper-right).
+#
+# Column format: {x, y, radius, height} — planning uses (x, y) centres.
+
+workspace_bounds:
+  x: [0.0, 24.0]
+  y: [0.0, 16.0]
+  z: [0.0, 4.0]
+
+start_xy: [2.0, 2.0]
+goal_xy: [22.0, 14.0]
+
+# Agent spawn offsets perpendicular to the start heading (m).
+agent_lateral_offset: 0.6
+
+vehicle:
+  radius: 0.42
+  clearance_margin: 0.28
+
+planner:
+  bounds:
+    - [0.0, 24.0]
+    - [0.0, 16.0]
+  rrt_max_sample_count: 4000
+  sst_max_sample_count: 4000
+  step_size: 0.35
+  goal_tolerance: 0.55
+  collision_check_count: 10
+  goal_bias: 0.12
+  witness_radius: 0.22
+  enable_pruning: true
+
+columns:
+  # Lower band — south corridor stays open near y ≈ 2
+  - {x: 7.0, y: 3.8, radius: 0.50, height: 2.8}
+  - {x: 11.0, y: 3.5, radius: 0.50, height: 3.5}
+  - {x: 15.0, y: 4.2, radius: 0.50, height: 2.2}
+  - {x: 19.0, y: 3.2, radius: 0.50, height: 3.0}
+
+  # Mid-left cluster — diagonal route through (8, 8)
+  - {x: 5.5, y: 7.0, radius: 0.50, height: 2.5}
+  - {x: 9.0, y: 7.5, radius: 0.50, height: 3.8}
+  - {x: 13.0, y: 6.5, radius: 0.50, height: 2.0}
+
+  # Centre weave — gaps at (12, 9) and (14, 11)
+  - {x: 11.5, y: 10.0, radius: 0.50, height: 2.6}
+  - {x: 16.5, y: 8.0, radius: 0.50, height: 3.2}
+  - {x: 7.5, y: 10.5, radius: 0.50, height: 3.0}
+
+  # Upper band — north approach with open north-east corner
+  - {x: 6.0, y: 12.0, radius: 0.50, height: 2.2}
+  - {x: 10.0, y: 13.0, radius: 0.50, height: 2.8}
+  - {x: 14.0, y: 12.5, radius: 0.50, height: 2.4}
+  - {x: 18.0, y: 11.5, radius: 0.50, height: 3.6}
+  - {x: 20.0, y: 13.0, radius: 0.48, height: 2.5}

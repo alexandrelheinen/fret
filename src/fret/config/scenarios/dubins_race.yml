@@ -1,0 +1,37 @@
+# Scenario SC-v11: Dubins dual-robot race (v1.1)
+#
+# Two warehouse-floor agents race A → B through a column forest.
+# Agent 1: ARCO RRT* (blue).  Agent 2: ARCO SST (green).
+#
+# Pass criteria (releases.md V11-1):
+#   pytest tests/integration/test_scenario_dubins_race.py
+
+/**:
+  ros__parameters:
+    scenario_id: "dubins_race"
+    model: "dubins"
+    backend: "mujoco"
+
+    start_configuration: [2.0, 1.7, 0.785]
+    goal_configuration: [22.0, 14.0, 0.0]
+
+    planning_timeout: 20.0
+    race_timeout: 90.0
+    simulation_dt: 0.05
+
+    obstacle_file: "worlds/dubins_race_obstacles.yml"
+
+    agents:
+      rrt_star:
+        algorithm: rrt_star
+        label: "1"
+        color: [0.267, 0.467, 0.800]
+      sst:
+        algorithm: sst
+        label: "2"
+        color: [0.267, 0.667, 0.400]
+
+    recording:
+      enabled: true
+      topics:
+        - /joint_states

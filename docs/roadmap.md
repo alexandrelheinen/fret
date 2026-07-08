@@ -81,10 +81,10 @@ Validated on SCARA (RRP, 3-DOF):
 
 **Robot:** Dubins mobile × 2. **Scenario:** SC-v11 column forest race.
 
-- [ ] SE(2) planning adapter (ARCO DubinsVehicle)
-- [ ] Dual-agent race orchestration
-- [ ] Column forest world (varied heights)
-- [ ] Pure Pursuit tracking integration
+- [x] SE(2) planning adapter (ARCO DubinsVehicle)
+- [x] Dual-agent race orchestration
+- [x] Column forest world (varied heights)
+- [x] Pure Pursuit tracking integration
 - [ ] Tag `v1.1.0`
 
 ---

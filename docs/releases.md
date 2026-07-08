@@ -141,7 +141,7 @@ heights**, reproducing the ARCO `vehicle` race format (RRT* vs SST or dual-agent
 
 ### Scenario ID
 
-**SC-v11** — `config/scenarios/dubins_race.yml` *(to be created)*
+**SC-v11** — `config/scenarios/dubins_race.yml`
 
 ### Acceptance criteria
 

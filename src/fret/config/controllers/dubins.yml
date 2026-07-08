@@ -1,0 +1,16 @@
+# Dubins vehicle + Pure Pursuit parameters (SC-v11 / T11-04).
+# Values aligned with ARCO simulator VehicleConfig defaults.
+
+/**:
+  ros__parameters:
+    max_speed: 4.5
+    min_speed: 0.0
+    cruise_speed: 2.8
+    lookahead_distance: 2.5
+    goal_radius: 0.75
+    max_turn_rate_deg: 90.0
+    max_acceleration: 4.9
+    max_turn_rate_dot_deg: 360.0
+    curvature_gain: 0.5
+    repulsion_gain: 1.2
+    update_rate: 20.0

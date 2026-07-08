@@ -11,8 +11,10 @@ import numpy as np
 import pytest
 
 from fret.ros.mujoco_bridge import (
+    DubinsRaceBridgeCore,
     MuJoCoBridgeCore,
     integrate_joint_velocities,
+    make_dubins_race_bridge_core,
     make_mujoco_bridge_core,
     resolve_mjcf_path,
 )
@@ -31,10 +33,17 @@ def test_resolve_mjcf_override_missing_raises() -> None:
         resolve_mjcf_path("ppp", "ppp_warehouse", "/nonexistent/scene.xml")
 
 
+def test_resolve_mjcf_dubins_race() -> None:
+    """MJCF path resolution should find the Dubins race scene."""
+    path = resolve_mjcf_path("dubins", "dubins_race", None)
+    assert path.name == "dubins_race.xml"
+    assert path.is_file()
+
+
 def test_resolve_mjcf_unsupported_model_raises() -> None:
     """Unsupported model/scenario pairs should raise ValueError."""
     with pytest.raises(ValueError, match="Unsupported"):
-        resolve_mjcf_path("dubins", "dubins_race", None)
+        resolve_mjcf_path("scara", "static_reach", None)
 
 
 def test_integrate_joint_velocities_clips_limits() -> None:
@@ -107,6 +116,24 @@ def test_bridge_core_set_positions() -> None:
         core.get_positions(),
         np.array([12.0, 5.0, 3.0]),
     )
+
+
+def test_make_mujoco_bridge_core_dubins_raises() -> None:
+    """Dubins race must use the dual-agent bridge factory."""
+    with pytest.raises(ValueError, match="make_dubins_race_bridge_core"):
+        make_mujoco_bridge_core("dubins", "dubins_race")
+
+
+def test_dubins_race_bridge_core_pose_sync() -> None:
+    """Dual-agent bridge should store RRT* and SST poses."""
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([2.0, 1.7, 0.5]),
+        initial_sst=np.array([2.0, 2.3, 0.5]),
+    )
+    assert core.mjcf_path.name == "dubins_race.xml"
+    np.testing.assert_allclose(core.get_rrt_pose(), [2.0, 1.7, 0.5], atol=1e-9)
+    core.set_sst_pose((10.0, 8.0, 1.0))
+    np.testing.assert_allclose(core.get_sst_pose()[:2], [10.0, 8.0], atol=1e-9)
 
 
 def test_load_mujoco_config_defaults() -> None:
