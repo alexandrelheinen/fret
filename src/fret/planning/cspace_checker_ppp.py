@@ -40,11 +40,14 @@ class PPPCheckerConfig:
 
     include_cargo: bool = False
     grasp_config: GraspConfig = field(default_factory=GraspConfig)
-    workspace_bounds: tuple[
-        tuple[float, float],
-        tuple[float, float],
-        tuple[float, float],
-    ] | None = None
+    workspace_bounds: (
+        tuple[
+            tuple[float, float],
+            tuple[float, float],
+            tuple[float, float],
+        ]
+        | None
+    ) = None
 
 
 class PPPcSpaceChecker:
@@ -94,7 +97,9 @@ class PPPcSpaceChecker:
             )
         cargo = self._cargo_envelope(configuration)
         extras = [cargo] if cargo is not None else None
-        return ppp_envelope_sample_points(configuration, extra_envelopes=extras)
+        return ppp_envelope_sample_points(
+            configuration, extra_envelopes=extras
+        )
 
     def _within_joint_limits(
         self, configuration: npt.NDArray[np.float64]
@@ -109,7 +114,11 @@ class PPPcSpaceChecker:
         if bounds is None:
             return True
         (x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi) = bounds
-        x, y, z = float(configuration[0]), float(configuration[1]), float(configuration[2])
+        x, y, z = (
+            float(configuration[0]),
+            float(configuration[1]),
+            float(configuration[2]),
+        )
         return (
             x_lo - 1e-9 <= x <= x_hi + 1e-9
             and y_lo - 1e-9 <= y <= y_hi + 1e-9

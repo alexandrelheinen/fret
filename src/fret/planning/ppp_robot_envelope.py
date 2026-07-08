@@ -60,7 +60,11 @@ def ppp_body_envelopes(
     """
     if configuration.shape != (3,):
         raise ValueError(f"Expected shape (3,), got {configuration.shape}")
-    x, y, z = float(configuration[0]), float(configuration[1]), float(configuration[2])
+    x, y, z = (
+        float(configuration[0]),
+        float(configuration[1]),
+        float(configuration[2]),
+    )
 
     return [
         # Z column and end-effector (``z_hoist`` body).
