@@ -163,7 +163,7 @@ def load_preview_workspace_bounds(
         data = yaml.safe_load(fh)
     bounds = data.get("workspace_bounds", {})
     xb = bounds.get("x", [0.0, 12.0])
-    yb = bounds.get("y", [0.0, 4.0])
+    yb = bounds.get("y", [0.0, 5.0])
     zb = bounds.get("z", [0.0, 3.0])
     return (
         (float(xb[0]), float(xb[1])),

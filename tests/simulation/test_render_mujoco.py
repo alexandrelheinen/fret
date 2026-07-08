@@ -76,7 +76,7 @@ def test_ppp_warehouse_mjcf_loads_with_aws_meshes() -> None:
     mujoco = pytest.importorskip("mujoco")
     path = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
     model = mujoco.MjModel.from_xml_path(str(path))
-    assert model.nmesh >= 4
+    assert model.nmesh >= 3
 
 
 def test_showcase_output_name() -> None:

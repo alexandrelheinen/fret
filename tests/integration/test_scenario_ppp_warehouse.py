@@ -43,15 +43,15 @@ def test_preview_obstacle_file_exists() -> None:
 
 
 def test_preview_obstacles_match_mjcf_layout() -> None:
-    """Preview layout must contain clutter boxes and back-wall shelf racks."""
+    """Preview layout must contain the three floor clutter boxes only."""
     boxes = load_ppp_warehouse_preview_obstacles()
-    assert len(boxes) == 5
+    assert len(boxes) == 3
     first = boxes[0]
     assert first.x_min == pytest.approx(3.2)
     assert first.x_max == pytest.approx(4.8)
-    rack_b = boxes[4]
-    assert rack_b.x_min == pytest.approx(7.04)
-    assert rack_b.y_max == pytest.approx(4.0)
+    shifted = boxes[1]
+    assert shifted.x_min == pytest.approx(6.3)
+    assert shifted.y_max == pytest.approx(4.7)
 
 
 def test_planner_returns_success_within_timeout() -> None:

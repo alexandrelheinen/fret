@@ -31,7 +31,7 @@ import numpy.typing as npt
 _PPP_LIMITS = np.array(
     [
         [0.0, 12.0],
-        [0.0, 4.0],
+        [0.0, 5.0],
         [0.0, 3.0],
     ],
     dtype=np.float64,

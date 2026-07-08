@@ -2,7 +2,7 @@
 #
 # MuJoCo preview uses the 1:5 MJCF scale (see mjcf/ppp_warehouse.xml).
 # Start/goal configurations are expressed in that preview workspace:
-#   X [0, 12] m, Y [0, 4] m, Z [0, 3] m.
+#   X [0, 12] m, Y [0, 5] m, Z [0, 3] m.
 #
 # Pass criteria (releases.md V10-1):
 #   ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco

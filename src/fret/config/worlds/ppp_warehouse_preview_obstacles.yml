@@ -1,19 +1,19 @@
 # PPP warehouse static obstacles — MJCF 1:5 preview scale (SC-v10 / T10-08).
 #
 # Box bounds match perception_ppp_warehouse.yaml and mjcf/ppp_warehouse.xml:
-#   X [0, 12] m, Y [0, 4] m, Z [0, 3] m.
+#   X [0, 12] m, Y [0, 5] m, Z [0, 3] m.
+#
+# Back-wall racks and the visual wall were removed from the preview scene to
+# open sightlines and give the gantry more lateral clearance.
 #
 # Box format: [x_min, y_min, z_min, x_max, y_max, z_max]
 
 workspace_bounds:
   x: [0.0, 12.0]
-  y: [0.0, 4.0]
+  y: [0.0, 5.0]
   z: [0.0, 3.0]
 
 obstacles:
   - [3.2, 0.6, 0.0, 4.8, 1.8, 1.2]
-  - [5.8, 2.1, 0.0, 7.2, 3.5, 1.0]
+  - [6.3, 3.3, 0.0, 7.7, 4.7, 1.0]
   - [7.4, 0.5, 0.0, 8.6, 1.5, 1.8]
-  # Back-wall shelf racks (AWS shelf.obj footprint, mesh origin = corner).
-  - [-0.46, 3.12, 0.0, 3.46, 4.00, 2.61]
-  - [7.04, 3.12, 0.0, 10.96, 4.00, 2.61]
