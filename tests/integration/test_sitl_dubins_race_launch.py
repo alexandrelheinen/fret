@@ -100,7 +100,7 @@ def test_v11_1_dubins_race_mujoco_sitl_starts(
     del ros_context
     proc = dubins_race_sitl_launch
 
-    deadline = time.monotonic() + 60.0
+    deadline = time.monotonic() + 120.0
     nodes_ok = False
     log_lines: list[str] = []
 

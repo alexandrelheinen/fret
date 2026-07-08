@@ -15,6 +15,7 @@ Parameters:
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import yaml
@@ -52,16 +53,41 @@ class DubinsRaceRosNode:  # pragma: no cover
 
     def __init__(self) -> None:
         import rclpy.node
-        from sensor_msgs.msg import JointState
 
         rclpy.node.Node.__init__(self, "dubins_race_node")
 
         self.declare_parameter("scenario", "dubins_race")  # type: ignore[attr-defined]
-        scenario_stem = str(
+        self._scenario_stem = str(
             self.get_parameter("scenario")  # type: ignore[attr-defined]
             .get_parameter_value()
             .string_value
         )
+        self._ready = False
+        self._runner: Any = None
+        self._rrt_plan: Any = None
+        self._sst_plan: Any = None
+        self._session: Any = None
+        self._bridge: Any = None
+        self._state_pub: Any = None
+        self._race_timer: Any = None
+        self._step_count = 0
+        self._max_steps = 0
+        self._finished_logged = False
+
+        self.get_logger().info(  # type: ignore[attr-defined]
+            f"DubinsRaceRosNode online; planning race for {self._scenario_stem!r}"
+        )
+        self._startup_timer = self.create_timer(  # type: ignore[attr-defined]
+            0.0,
+            self._startup_callback,
+        )
+
+    def _startup_callback(self) -> None:
+        self._startup_timer.cancel()
+        if self._ready:
+            return
+
+        from sensor_msgs.msg import JointState
 
         from fret.ros.mujoco_bridge import make_dubins_race_bridge_core
         from fret.scenario.dubins_race_runner import DubinsRaceRunner
@@ -72,7 +98,7 @@ class DubinsRaceRosNode:  # pragma: no cover
             scenario_config_path,
         )
 
-        scenario_path = scenario_config_path(scenario_stem)
+        scenario_path = scenario_config_path(self._scenario_stem)
         params = load_scenario_parameters(scenario_path)
         race_timeout = float(params.get("race_timeout", 90.0))
         dt = float(params.get("simulation_dt", 0.05))
@@ -114,8 +140,6 @@ class DubinsRaceRosNode:  # pragma: no cover
                 dtype=np.float64,
             ),
         )
-        self._step_count = 0
-        self._finished_logged = False
 
         update_rate = _controller_update_rate()
         self._state_pub = self.create_publisher(  # type: ignore[attr-defined]
@@ -123,13 +147,14 @@ class DubinsRaceRosNode:  # pragma: no cover
             "/joint_states",
             10,
         )
-        self._timer = self.create_timer(  # type: ignore[attr-defined]
+        self._race_timer = self.create_timer(  # type: ignore[attr-defined]
             1.0 / update_rate,
             self._timer_callback,
         )
+        self._ready = True
         self.get_logger().info(  # type: ignore[attr-defined]
             "DubinsRaceRosNode ready: "
-            f"scenario={scenario_stem}, "
+            f"scenario={self._scenario_stem}, "
             f"mjcf={self._bridge.mjcf_path.name}, "
             f"rate={update_rate:.1f} Hz, "
             f"mujoco_runtime={self._bridge.has_mujoco_runtime}"
@@ -138,6 +163,9 @@ class DubinsRaceRosNode:  # pragma: no cover
 
     def _publish_state(self) -> None:
         from sensor_msgs.msg import JointState
+
+        if not self._ready or self._bridge is None or self._state_pub is None:
+            return
 
         rrt = self._bridge.get_rrt_pose()
         sst = self._bridge.get_sst_pose()
@@ -156,6 +184,9 @@ class DubinsRaceRosNode:  # pragma: no cover
         self._state_pub.publish(msg)
 
     def _timer_callback(self) -> None:
+        if not self._ready or self._session is None:
+            return
+
         if self._session.finished:
             if not self._finished_logged:
                 result = self._session.to_result(
@@ -176,7 +207,8 @@ class DubinsRaceRosNode:  # pragma: no cover
             self.get_logger().warning(  # type: ignore[attr-defined]
                 "Dubins race reached step limit before both agents finished"
             )
-            self._timer.cancel()
+            if self._race_timer is not None:
+                self._race_timer.cancel()
             return
 
         self._session.step()
