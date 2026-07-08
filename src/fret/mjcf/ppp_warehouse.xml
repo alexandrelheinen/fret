@@ -109,6 +109,11 @@
       </body>
     </body>
 
+    <!-- Floor cargo shown before pick and after place (mocap, visual only). -->
+    <body name="cargo_floor" mocap="true">
+      <geom name="cargo_floor_box" type="box" size="0.25 0.25 0.25" material="cargo" contype="0" conaffinity="0"/>
+    </body>
+
     <camera name="overview" mode="targetbody" target="gantry_base" pos="14 8 6.5" fovy="42"/>
     <camera name="aisle" mode="targetbody" target="x_carriage" pos="-2.8 2.5 1.5" fovy="58"/>
     <camera name="topdown" mode="targetbody" target="gantry_base" pos="6 2.5 15" fovy="38"/>
