@@ -16,6 +16,7 @@
     goal_configuration: [22.0, 14.0, 0.0]
 
     planning_timeout: 20.0
+    duration: 35.0
     race_timeout: 90.0
     simulation_dt: 0.05
 

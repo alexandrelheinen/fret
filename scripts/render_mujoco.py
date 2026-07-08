@@ -59,6 +59,27 @@ _PPP_WAREHOUSE_CAMERAS: tuple[str, ...] = (
     "pick",
 )
 
+_DUBINS_RACE_CAMERAS: tuple[str, ...] = (
+    "overview",
+    "topdown",
+    "follow",
+    "finish",
+)
+
+_DUBINS_JOINT_NAMES: tuple[tuple[str, str, str], ...] = (
+    ("rrt_joint_x", "rrt_joint_y", "rrt_joint_yaw"),
+    ("sst_joint_x", "sst_joint_y", "sst_joint_yaw"),
+)
+
+_DUBINS_LIMITS = np.array(
+    [
+        [0.0, 24.0],
+        [0.0, 16.0],
+        [-np.pi, np.pi],
+    ],
+    dtype=np.float64,
+)
+
 _EGL_APT_HINT = (
     "sudo apt install libegl1 libegl-mesa0 libgles2 libgl1 "
     "libgl1-mesa-dri libosmesa6"
@@ -105,6 +126,11 @@ def resolve_mjcf_path(
         if candidate.is_file():
             return candidate
 
+    if model == "dubins" and scenario in {"dubins_race", "dubins"}:
+        candidate = _project_root() / "src/fret/mjcf/dubins_race.xml"
+        if candidate.is_file():
+            return candidate
+
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"
@@ -136,6 +162,9 @@ def list_showcase_cameras(
 
     if scenario in {"ppp_warehouse", "ppp"}:
         return list(_PPP_WAREHOUSE_CAMERAS)
+
+    if scenario in {"dubins_race", "dubins"}:
+        return list(_DUBINS_RACE_CAMERAS)
 
     raise ValueError(f"No showcase cameras found in MJCF: {mjcf_path}")
 
@@ -498,7 +527,9 @@ def simulate_tracked_trajectory(
         bridge.step(q_dot, dt)
         history.append(bridge.get_positions().copy())
 
-    return _resample_joint_history(np.asarray(history, dtype=np.float64), n_frames)
+    return _resample_joint_history(
+        np.asarray(history, dtype=np.float64), n_frames
+    )
 
 
 def interpolate_waypoints(
@@ -566,6 +597,21 @@ def _require_mujoco() -> tuple[object, object]:
     return mujoco, iio
 
 
+def _set_joint_position(
+    mujoco: object,
+    model: object,
+    data: object,
+    joint_name: str,
+    value: float,
+) -> None:
+    """Write a scalar position into a joint's qpos slot."""
+    joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+    if joint_id < 0:
+        raise ValueError(f"Joint not found in MJCF: {joint_name}")
+    qpos_adr = model.jnt_qposadr[joint_id]
+    data.qpos[qpos_adr] = value
+
+
 def _set_slide_joint(
     mujoco: object,
     model: object,
@@ -574,11 +620,161 @@ def _set_slide_joint(
     value: float,
 ) -> None:
     """Write a scalar position into a slide joint's qpos slot."""
-    joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
-    if joint_id < 0:
-        raise ValueError(f"Joint not found in MJCF: {joint_name}")
-    qpos_adr = model.jnt_qposadr[joint_id]
-    data.qpos[qpos_adr] = value
+    _set_joint_position(mujoco, model, data, joint_name, value)
+
+
+def _resample_pose_history(
+    history: npt.NDArray[np.float64],
+    n_frames: int,
+) -> npt.NDArray[np.float64]:
+    """Uniformly resample SE(2) pose logs to ``n_frames`` samples."""
+    if history.shape[0] == 0:
+        raise ValueError("history must contain at least one sample")
+    if history.shape[0] == 1:
+        return np.repeat(history, n_frames, axis=0)
+    indices = np.linspace(0, history.shape[0] - 1, n_frames)
+    resampled = np.zeros((n_frames, history.shape[1]), dtype=np.float64)
+    for i, idx in enumerate(indices):
+        lo = int(np.floor(idx))
+        hi = min(lo + 1, history.shape[0] - 1)
+        alpha = float(idx - lo)
+        resampled[i] = (1.0 - alpha) * history[lo] + alpha * history[hi]
+    resampled[:, 2] = np.arctan2(
+        np.sin(resampled[:, 2]),
+        np.cos(resampled[:, 2]),
+    )
+    return np.clip(
+        resampled,
+        _DUBINS_LIMITS[:, 0],
+        _DUBINS_LIMITS[:, 1],
+    )
+
+
+def simulate_dubins_race_poses(
+    scenario: str = "dubins_race",
+    *,
+    duration_s: float,
+    fps: int,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Run the SC-v11 race and resample agent poses for video export."""
+    _ensure_fret_importable()
+    from fret.scenario.dubins_race_runner import DubinsRaceRunner
+
+    result = DubinsRaceRunner().run(record_poses=True)
+    if not result.both_reached_goal:
+        raise RuntimeError(
+            "Dubins race simulation failed before both agents reached goal"
+        )
+
+    rrt_hist = np.asarray(result.rrt_pose_history, dtype=np.float64)
+    sst_hist = np.asarray(result.sst_pose_history, dtype=np.float64)
+    n_frames = max(2, int(round(duration_s * fps)))
+    return (
+        _resample_pose_history(rrt_hist, n_frames),
+        _resample_pose_history(sst_hist, n_frames),
+    )
+
+
+def _assert_dubins_race_moves(
+    rrt_poses: npt.NDArray[np.float64],
+    sst_poses: npt.NDArray[np.float64],
+) -> None:
+    """Fail fast when a release clip would show static agents."""
+    rrt_span = rrt_poses.max(axis=0) - rrt_poses.min(axis=0)
+    sst_span = sst_poses.max(axis=0) - sst_poses.min(axis=0)
+    if float(rrt_span[0]) < 5.0 or float(sst_span[0]) < 5.0:
+        raise RuntimeError(
+            "Dubins race clip lacks horizontal transit "
+            f"(RRT* span={rrt_span[:2]}, SST span={sst_span[:2]})"
+        )
+
+
+def render_dubins_race_showcase_videos(
+    mjcf_path: Path,
+    output_dir: Path,
+    *,
+    scenario: str = "dubins_race",
+    cameras: list[str] | None = None,
+    output_names: dict[str, str] | None = None,
+    duration_s: float = 35.0,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+) -> list[RenderResult]:
+    """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
+    mujoco, _iio = _require_mujoco()
+    camera_names = (
+        cameras
+        if cameras is not None
+        else list_showcase_cameras(mjcf_path, scenario=scenario)
+    )
+    if not camera_names:
+        raise ValueError("At least one showcase camera is required")
+
+    rrt_poses, sst_poses = simulate_dubins_race_poses(
+        scenario,
+        duration_s=duration_s,
+        fps=fps,
+    )
+    _assert_dubins_race_moves(rrt_poses, sst_poses)
+
+    model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    data = mujoco.MjData(model)
+    renderer = mujoco.Renderer(model, height=height, width=width)
+
+    for camera in camera_names:
+        _assert_camera_exists(mujoco, model, camera)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    names = output_names or {
+        camera: showcase_output_name(scenario, camera)
+        for camera in camera_names
+    }
+    paths = {camera: output_dir / names[camera] for camera in camera_names}
+    writers = {
+        camera: _open_video_writer(paths[camera], fps)
+        for camera in camera_names
+    }
+    first_frames: dict[str, npt.NDArray[np.uint8]] = {}
+
+    try:
+        for rrt_q, sst_q in zip(rrt_poses, sst_poses, strict=True):
+            for values, joint_names in (
+                (rrt_q, _DUBINS_JOINT_NAMES[0]),
+                (sst_q, _DUBINS_JOINT_NAMES[1]),
+            ):
+                for idx, joint_name in enumerate(joint_names):
+                    _set_joint_position(
+                        mujoco,
+                        model,
+                        data,
+                        joint_name,
+                        float(values[idx]),
+                    )
+            mujoco.mj_forward(model, data)
+            for camera in camera_names:
+                renderer.update_scene(data, camera=camera)
+                frame = renderer.render()
+                writers[camera].append_data(frame)
+                if camera not in first_frames:
+                    first_frames[camera] = frame.copy()
+    finally:
+        for writer in writers.values():
+            writer.close()
+        renderer.close()
+
+    results: list[RenderResult] = []
+    for camera in camera_names:
+        frame = first_frames[camera]
+        mean = _frame_mean(frame)
+        if mean <= 1.0:
+            raise RuntimeError(
+                f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+            )
+        results.append(
+            RenderResult(camera=camera, path=paths[camera], frame_mean=mean)
+        )
+    return results
 
 
 def _open_video_writer(path: Path, fps: int) -> object:
@@ -689,6 +885,19 @@ def render_showcase_videos(
     Returns:
         One :class:`RenderResult` per exported camera.
     """
+    if scenario in {"dubins_race", "dubins"}:
+        return render_dubins_race_showcase_videos(
+            mjcf_path,
+            output_dir,
+            scenario=scenario,
+            cameras=cameras,
+            output_names=output_names,
+            duration_s=duration_s,
+            fps=fps,
+            width=width,
+            height=height,
+        )
+
     mujoco, _iio = _require_mujoco()
     camera_names = (
         cameras
