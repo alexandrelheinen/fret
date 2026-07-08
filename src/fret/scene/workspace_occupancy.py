@@ -218,7 +218,9 @@ class WorkspaceOccupancyBuilder:
             return None
 
         if KDTreeOccupancy is not None:
-            self._occupancy_model = KDTreeOccupancy(occupied)
+            self._occupancy_model = KDTreeOccupancy(
+                occupied, clearance=self._default_ccd
+            )
         else:
             self._occupancy_model = _SimpleOccupancy(occupied)
 

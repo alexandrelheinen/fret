@@ -37,14 +37,15 @@ def test_mujoco_free_configuration(mujoco_available: None) -> None:
     assert checker.clearance(q) > 0.0
 
 
-def test_mujoco_detects_shelf_penetration(mujoco_available: None) -> None:
+def test_mujoco_detects_obstacle_penetration(mujoco_available: None) -> None:
     kin = Kinematics("ppp")
     checker = make_cspace_checker(
         kin,
         build_box_obstacle_occupancy([]),
         collision_backend="mujoco",
     )
-    q = np.array([9.0, 3.56, 1.0])
+    # Inside obs_b collision box (pos 7.0 4.0 0.5, size 0.7 0.7 0.5).
+    q = np.array([7.0, 4.0, 0.5])
     assert checker.is_collision_free(q) is False
     assert checker.clearance(q) < 0.0
 

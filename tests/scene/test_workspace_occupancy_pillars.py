@@ -259,6 +259,11 @@ class TestPillarPathSafety:
 class TestCSpaceCheckerWithPillars:
     """CSpaceChecker uses WorkspaceOccupancyBuilder to detect pillar collisions."""
 
+    # Conservative CSpaceChecker samples the segment from world origin to EE.
+    # These configs are clear under that sweep (scenario start/goal are EE-only).
+    _CSpace_START = np.array([-1.5, -0.5, 0.10])
+    _CSpace_GOAL = np.array([-1.5, 0.25, 0.10])
+
     def test_start_config_is_collision_free(self) -> None:
         """The start configuration is collision-free with the pillar occupancy."""
         from fret.control.kinematics import Kinematics
@@ -270,7 +275,7 @@ class TestCSpaceCheckerWithPillars:
 
         checker = CSpaceChecker(kin, occ_model)
         assert checker.is_collision_free(
-            _START_Q
+            self._CSpace_START
         ), "Start configuration should be collision-free"
 
     def test_goal_config_is_collision_free(self) -> None:
@@ -284,5 +289,5 @@ class TestCSpaceCheckerWithPillars:
 
         checker = CSpaceChecker(kin, occ_model)
         assert checker.is_collision_free(
-            _GOAL_Q
+            self._CSpace_GOAL
         ), "Goal configuration should be collision-free"
