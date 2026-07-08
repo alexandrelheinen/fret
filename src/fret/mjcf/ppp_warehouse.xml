@@ -19,22 +19,24 @@
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
 
   <visual>
-    <headlight ambient="0.40 0.42 0.45" diffuse="0.80 0.82 0.85" specular="0.25 0.25 0.25"/>
-    <rgba haze="0.88 0.90 0.94 1"/>
+    <headlight ambient="0.50 0.52 0.55" diffuse="0.28 0.30 0.33" specular="0 0 0"/>
+    <rgba haze="0.72 0.74 0.78 0.25"/>
     <global azimuth="135" elevation="-22" offwidth="1920" offheight="1080"/>
   </visual>
 
   <asset>
-    <texture name="grid" type="2d" builtin="checker" rgb1="0.90 0.91 0.93" rgb2="0.76 0.78 0.82" width="512" height="512"/>
+    <!-- Indoor warehouse backdrop (replaces harsh black void in headless renders). -->
+    <texture type="skybox" builtin="gradient" rgb1="0.78 0.80 0.84" rgb2="0.58 0.61 0.66" width="512" height="1536"/>
+    <texture name="grid" type="2d" builtin="checker" mark="edge" rgb1="0.84 0.85 0.87" rgb2="0.74 0.76 0.79" markrgb="0.90 0.91 0.93" width="512" height="512"/>
     <texture name="concrete" type="2d" builtin="flat" rgb1="0.82 0.83 0.85" width="128" height="128"/>
-    <material name="floor" texture="grid" texrepeat="8 6" reflectance="0.04"/>
-    <material name="wall" texture="concrete" rgba="0.78 0.79 0.82 1" reflectance="0.02"/>
-    <material name="frame" rgba="0.72 0.74 0.78 1" specular="0.3" shininess="0.2"/>
-    <material name="rail" rgba="0.30 0.32 0.36 1" specular="0.4" shininess="0.3"/>
-    <material name="rail_top" rgba="0.58 0.60 0.64 1" specular="0.5" shininess="0.35"/>
-    <material name="carriage" rgba="0.95 0.55 0.10 1" specular="0.35" shininess="0.25"/>
-    <material name="gantry" rgba="0.95 0.72 0.12 1" specular="0.35" shininess="0.25"/>
-    <material name="z_axis" rgba="0.35 0.72 0.42 1" specular="0.35" shininess="0.25"/>
+    <material name="floor" texture="grid" texuniform="true" texrepeat="14 5" reflectance="0.01"/>
+    <material name="wall" texture="concrete" rgba="0.78 0.79 0.82 1" reflectance="0.01"/>
+    <material name="frame" rgba="0.72 0.74 0.78 1" specular="0.1" shininess="0.1"/>
+    <material name="rail" rgba="0.30 0.32 0.36 1" specular="0.12" shininess="0.1"/>
+    <material name="rail_top" rgba="0.58 0.60 0.64 1" specular="0.15" shininess="0.1"/>
+    <material name="carriage" rgba="0.82 0.48 0.12 1" specular="0.12" shininess="0.1"/>
+    <material name="gantry" rgba="0.88 0.68 0.15 1" specular="0.12" shininess="0.1"/>
+    <material name="z_axis" rgba="0.40 0.62 0.48 1" specular="0.12" shininess="0.1"/>
     <material name="chain" rgba="0.12 0.12 0.14 1"/>
     <material name="cable" rgba="0.20 0.22 0.25 1"/>
     <material name="shelf" rgba="0.55 0.48 0.40 1"/>
@@ -45,11 +47,12 @@
   </asset>
 
   <worldbody>
-    <light pos="6 2 9" dir="-0.2 -0.1 -1" diffuse="1.0 1.0 1.0" castshadow="true"/>
-    <light pos="-1 5 7" dir="0.4 -0.7 -1" diffuse="0.55 0.58 0.62"/>
-    <light pos="11 0 6" dir="-0.8 0.2 -1" diffuse="0.35 0.38 0.42"/>
+    <!-- Soft warehouse lighting: two low-specular directionals, no harsh hotspots. -->
+    <light name="key" pos="6 2 7" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
+    <light name="fill" pos="-1 5 5" dir="0.35 -0.55 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
 
-    <geom name="floor" type="plane" size="8 6 0.1" material="floor"/>
+    <!-- Floor centered on the 12×4 m envelope; texuniform fills the visible area. -->
+    <geom name="floor" type="plane" pos="6 2 0" size="0 0 0.05" material="floor"/>
     <geom name="wall_back" type="box" pos="6 4.05 1.2" size="6.5 0.06 1.3" material="wall" contype="0" conaffinity="0"/>
 
     <geom name="rack_a_base" type="box" pos="1.5 3.5 0.5" size="0.8 0.35 0.5" material="shelf" contype="0" conaffinity="0"/>
