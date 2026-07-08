@@ -69,6 +69,9 @@ Project status and roadmap: [docs/releases.md](docs/releases.md),
 
 **Requirements:** Ubuntu 24.04, ROS 2 Jazzy Desktop, Python 3.12+, Git.
 
+WSL2 on Windows is supported for development. MuJoCo display and rendering on
+WSL2 are covered in [docs/wsl.md](docs/wsl.md).
+
 ```bash
 git clone https://github.com/alexandrelheinen/fret.git
 cd fret

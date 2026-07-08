@@ -4,7 +4,7 @@
 > FRET uses **MuJoCo only** for 3D visualization. RViz and Gazebo GUIs are
 > not part of this project.
 
-**Related:** [simulation.md](simulation.md) · [releases.md](releases.md) ·
+**Related:** [simulation.md](simulation.md) · [wsl.md](wsl.md) · [releases.md](releases.md) ·
 [robots/ppp.md](robots/ppp.md)
 
 ---
@@ -164,7 +164,7 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 | Problem | Fix |
 |---|---|
 | `MuJoCo is required` | `pip install mujoco` |
-| Black / empty viewer | Check display / Wayland; try native desktop session |
+| Black / empty viewer | WSL2: see [wsl.md](wsl.md); otherwise check display / Wayland |
 | `Joint not found` | Ensure `model:=ppp scenario:=ppp_warehouse` |
 | MP4 won't play | `pip install imageio-ffmpeg` |
 | SITL launch fails | Build workspace, source `install/setup.bash` |

@@ -38,8 +38,8 @@ pip install -e ".[sim]"
 ./scripts/view.sh
 ```
 
-See [tutorial.md](tutorial.md) for controls, options, and
-troubleshooting.
+See [tutorial.md](tutorial.md) for controls and options.
+**WSL2 users:** [wsl.md](wsl.md) — MuJoCo display and rendering on Windows.
 
 ---
 
@@ -120,6 +120,7 @@ ros2 bag record /joint_states /joint_commands /joint_trajectory
 
 ## Known limitations
 
-- Interactive viewer requires a desktop display (or X11 forwarding).
+- Interactive viewer requires a desktop display (or X11 forwarding). On WSL2,
+  see [wsl.md](wsl.md).
 - Gazebo SITL runs headless; it is a physics backend, not a visual viewer.
 - Full v1.0 acceptance criteria: see [releases.md](releases.md).

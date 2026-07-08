@@ -178,6 +178,7 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 - [Scenario library](docs/scenarios.md)
 - [MuJoCo tutorial (visual guide)](docs/tutorial.md)
 - [Simulation tutorial](docs/simulation.md)
+- [WSL2 — MuJoCo visualization](docs/wsl.md)
 
 ### Architecture
 
