@@ -22,6 +22,7 @@ Satisfies requirements FR-PLN-01 through FR-PLN-07.
 
 from __future__ import annotations
 
+import pathlib
 import time
 from typing import Any
 
@@ -34,7 +35,11 @@ from fret.interfaces import (
     PlanningResult,
     PlanningStatus,
 )
-from fret.planning.cspace_checker import CSpaceChecker, make_cspace_checker
+from fret.planning.cspace_checker import (
+    CSpaceChecker,
+    CollisionBackend,
+    make_cspace_checker,
+)
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
@@ -80,18 +85,39 @@ class PlannerNode:
             kinematics engine.
         occupancy_adapter: Pre-constructed adapter providing the live
             occupancy model.
+        collision_backend: PPP collision backend (``analytic`` or ``mujoco``).
+        scenario: Scenario stem for MJCF resolution (MuJoCo backend).
+        mjcf_path: Optional MJCF override for MuJoCo collision checks.
     """
 
     def __init__(
         self,
         model: str,
         occupancy_adapter: OccupancyAdapter,
+        *,
+        occupancy: Any | None = None,
+        collision_backend: CollisionBackend = "analytic",
+        scenario: str = "ppp_warehouse",
+        mjcf_path: str | pathlib.Path | None = None,
+        workspace_bounds: (
+            tuple[
+                tuple[float, float],
+                tuple[float, float],
+                tuple[float, float],
+            ]
+            | None
+        ) = None,
     ) -> None:
         from fret.control.kinematics import Kinematics
 
         self._kin = Kinematics(model)
         self._occ_adapter = occupancy_adapter
+        self._occ_direct = occupancy
         self._traj_gen = TrajectoryGenerator(self._kin)
+        self._collision_backend = collision_backend
+        self._scenario = scenario
+        self._mjcf_path = mjcf_path
+        self._workspace_bounds = workspace_bounds
 
     # ------------------------------------------------------------------
     # Public API
@@ -126,8 +152,19 @@ class PlannerNode:
         # -- 2. Build CSpaceChecker ------------------------------------------
         checker: CSpaceChecker | Any | None = None
         try:
-            occ = self._occ_adapter.get_occupancy()
-            checker = make_cspace_checker(self._kin, occ)
+            occ = (
+                self._occ_direct
+                if self._occ_direct is not None
+                else self._occ_adapter.get_occupancy()
+            )
+            checker = make_cspace_checker(
+                self._kin,
+                occ,
+                collision_backend=self._collision_backend,
+                scenario=self._scenario,
+                mjcf_path=self._mjcf_path,
+                workspace_bounds=self._workspace_bounds,
+            )
         except RuntimeError:
             pass  # occupancy not yet available; skip collision checking
 

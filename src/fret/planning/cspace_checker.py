@@ -15,10 +15,13 @@ Satisfies requirement FR-PLN-02.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import pathlib
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import numpy.typing as npt
+
+CollisionBackend = Literal["analytic", "mujoco"]
 
 if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
@@ -145,20 +148,35 @@ def make_cspace_checker(
     *,
     include_cargo: bool = False,
     grasp_config: Any | None = None,
+    collision_backend: CollisionBackend = "analytic",
+    mjcf_path: str | pathlib.Path | None = None,
+    scenario: str = "ppp_warehouse",
+    workspace_bounds: (
+        tuple[
+            tuple[float, float],
+            tuple[float, float],
+            tuple[float, float],
+        ]
+        | None
+    ) = None,
 ) -> CSpaceChecker | Any:
     """Build a model-appropriate C-space checker (FR-SYS-01).
 
-    Dispatches to ``PPPcSpaceChecker`` for the PPP gantry and the legacy
-    arm-sampling ``CSpaceChecker`` for SCARA / RRP models.
+    Dispatches to ``PPPcSpaceChecker`` or ``MujocoPPPCollisionChecker`` for
+    the PPP gantry and the legacy arm-sampling ``CSpaceChecker`` for SCARA /
+    RRP models.
 
     Args:
         kinematics: Active ``Kinematics`` engine.
-        occupancy: Occupancy model for clearance queries.
+        occupancy: Occupancy model for clearance queries (analytic PPP only).
         include_cargo: When True, PPP checker includes welded cargo (FR-GSP-02).
         grasp_config: Optional ``GraspConfig`` for cargo geometry.
+        collision_backend: ``analytic`` (AABB + occupancy) or ``mujoco``.
+        mjcf_path: Optional MJCF override for the MuJoCo backend.
+        scenario: Scenario stem for MJCF resolution.
 
     Returns:
-        ``PPPcSpaceChecker`` or ``CSpaceChecker`` instance.
+        A checker exposing ``is_collision_free`` and ``clearance``.
     """
     from fret.control.grasp_magnet import GraspConfig
     from fret.planning.cspace_checker_ppp import (
@@ -168,11 +186,30 @@ def make_cspace_checker(
     from fret.planning.ppp_obstacles import is_ppp_kinematics
 
     if is_ppp_kinematics(kinematics.joint_names):
+        resolved_grasp = (
+            grasp_config if grasp_config is not None else GraspConfig()
+        )
+        if collision_backend == "mujoco":
+            from fret.planning.cspace_checker_mujoco import (
+                MujocoCheckerConfig,
+                MujocoPPPCollisionChecker,
+            )
+
+            mj_cfg = MujocoCheckerConfig(
+                include_cargo=include_cargo,
+                grasp_config=resolved_grasp,
+                mjcf_path=(
+                    pathlib.Path(mjcf_path) if mjcf_path is not None else None
+                ),
+                scenario=scenario,
+                workspace_bounds=workspace_bounds,
+            )
+            return MujocoPPPCollisionChecker(kinematics, occupancy, mj_cfg)
+
         cfg = PPPCheckerConfig(
             include_cargo=include_cargo,
-            grasp_config=(
-                grasp_config if grasp_config is not None else GraspConfig()
-            ),
+            grasp_config=resolved_grasp,
+            workspace_bounds=workspace_bounds,
         )
         return PPPcSpaceChecker(kinematics, occupancy, cfg)
     return CSpaceChecker(kinematics, occupancy)

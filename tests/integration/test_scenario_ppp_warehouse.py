@@ -43,12 +43,15 @@ def test_preview_obstacle_file_exists() -> None:
 
 
 def test_preview_obstacles_match_mjcf_layout() -> None:
-    """Preview layout must contain three MJCF warehouse boxes."""
+    """Preview layout must contain clutter boxes and back-wall shelf racks."""
     boxes = load_ppp_warehouse_preview_obstacles()
-    assert len(boxes) == 3
+    assert len(boxes) == 5
     first = boxes[0]
     assert first.x_min == pytest.approx(3.2)
     assert first.x_max == pytest.approx(4.8)
+    rack_b = boxes[4]
+    assert rack_b.x_min == pytest.approx(7.04)
+    assert rack_b.y_max == pytest.approx(4.0)
 
 
 def test_planner_returns_success_within_timeout() -> None:
@@ -101,5 +104,5 @@ def test_runner_loads_scenario_start_goal() -> None:
         params["start_configuration"], [2.0, 1.0, 2.4], atol=1e-9
     )
     np.testing.assert_allclose(
-        params["goal_configuration"], [10.5, 3.2, 2.4], atol=1e-9
+        params["goal_configuration"], [10.5, 2.8, 2.65], atol=1e-9
     )
