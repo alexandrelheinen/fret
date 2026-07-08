@@ -68,13 +68,7 @@ def test_interpolate_waypoints_respects_limits() -> None:
 def test_list_showcase_cameras_reads_mjcf() -> None:
     path = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
     cameras = rm.list_showcase_cameras(path)
-    assert cameras == [
-        "overview",
-        "aisle",
-        "topdown",
-        "follow",
-        "pick",
-    ]
+    assert cameras == ["overview", "follow"]
 
 
 def test_ppp_warehouse_mjcf_loads_with_aws_meshes() -> None:
@@ -155,7 +149,7 @@ def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
 def test_list_showcase_cameras_dubins_race() -> None:
     path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
     cameras = rm.list_showcase_cameras(path, scenario="dubins_race")
-    assert cameras == ["overview", "topdown", "follow", "finish"]
+    assert cameras == ["overview", "follow"]
 
 
 def test_simulate_dubins_race_poses_covers_transit() -> None:

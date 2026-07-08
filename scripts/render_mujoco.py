@@ -50,21 +50,12 @@ _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([10.5, 2.8, 2.65]),
 ]
 
-# Default release export order (must match MJCF camera names).
-_PPP_WAREHOUSE_CAMERAS: tuple[str, ...] = (
-    "overview",
-    "aisle",
-    "topdown",
-    "follow",
-    "pick",
-)
+# Release showcase exports: one oblique overview + one follow POV per scenario.
+# Extra MJCF cameras remain available via explicit --camera flags.
+RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
 
-_DUBINS_RACE_CAMERAS: tuple[str, ...] = (
-    "overview",
-    "topdown",
-    "follow",
-    "finish",
-)
+_PPP_WAREHOUSE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
+_DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
 
 _DUBINS_JOINT_NAMES: tuple[tuple[str, str, str], ...] = (
     ("rrt_joint_x", "rrt_joint_y", "rrt_joint_yaw"),
@@ -149,16 +140,24 @@ def list_showcase_cameras(
         scenario: Scenario stem used for fallback defaults.
 
     Returns:
-        Camera names in release-export order.
+        Camera names in release-export order (overview + follow).
     """
     root = ET.parse(mjcf_path).getroot()
-    cameras = [
+    mjcf_cameras = {
         name
         for node in root.iter("camera")
         if (name := node.get("name")) is not None
-    ]
-    if cameras:
-        return cameras
+    }
+    if mjcf_cameras:
+        release = [
+            cam for cam in RELEASE_SHOWCASE_CAMERAS if cam in mjcf_cameras
+        ]
+        if release:
+            return release
+        raise ValueError(
+            f"MJCF {mjcf_path} has no release showcase cameras "
+            f"{RELEASE_SHOWCASE_CAMERAS}; found {sorted(mjcf_cameras)}"
+        )
 
     if scenario in {"ppp_warehouse", "ppp"}:
         return list(_PPP_WAREHOUSE_CAMERAS)
