@@ -195,64 +195,7 @@ python3 scripts/import_aws_warehouse_assets.py
 
 Collision boxes for planning/perception are unchanged (invisible box geoms).
 
-### Reference photos (mechanical layout)
-
-![Industrial Cartesian gantry](../assets/ppp/cartesian-robot-reference.jpg)
-
-![Gantry XYZ axis convention](../assets/ppp/gantry-xyz-axes-reference.png)
-
-Copies live under `docs/assets/ppp/` (vendor product images, layout reference
-only). See [robots/ppp.md](robots/ppp.md) for axis ↔ joint mapping.
-
-### Public models surveyed (none ready for drop-in use)
-
-| Source | License | Meshes? | Gantry fit |
-|---|---|---|---|
-| [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Per-model (Apache-2.0, BSD, …) | OBJ/STL | **No** — serial arms, quadrupeds, hands |
-| [VSP-AR/urdf_tutorials `cartesian_robot`](https://github.com/VSP-AR/urdf_tutorials/tree/main/cartesian_robot) | Tutorial | Box primitives only | **Topology match** — dual-rail + XYZ slides, no meshes |
-| [GTEC-UDC/linuxcnc_gantry_robot](https://github.com/GTEC-UDC/linuxcnc_gantry_robot) | Open docs | Photos/CAD, no MJCF | Real 5.3 m gantry, not packaged for MuJoCo |
-| [COMPAS FAB UR10 on tower](https://compas.dev/compas_fab/latest/examples/03_backends_ros/09_ros_create_urdf_ur10_on_tower.html) | Docs | STL linear stages | Arm-on-gantry, not PPP-only |
-
-**Conclusion:** no maintained public MJCF with photorealistic gantry meshes was
-found. FRET reproduces the Cartesian topology procedurally, following the
-`cartesian_robot` URDF tutorial pattern (parallel top rails + XYZ slides).
-
-### What MuJoCo provides out of the box
-
-| Source | Content | Fit for PPP warehouse |
-|---|---|---|
-| [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Curated robot MJCF + OBJ/STL meshes (UR5e, Franka, quadrupeds, …) | **No gantry / warehouse kits** — industrial arms only |
-| Built-in MJCF | `builtin="checker"`, `flat` textures, primitive geoms | Used for gantry frame |
-| [obj2mjcf](https://github.com/kevinzakka/obj2mjcf) | Converts composite OBJ → MJCF with materials | Needed when importing external meshes |
-
-Menagerie is the best maintained MuJoCo asset library, but it targets
-**serial manipulators and mobile robots**, not overhead cranes or warehouse
-environments.
-
-### Third-party meshes (manual import)
-
-For higher visual fidelity you would:
-
-1. Obtain OBJ/STL meshes (e.g. warehouse modular kits on CGTrader, Sketchfab,
-   or vendor CAD exports) under a license compatible with your release.
-2. Simplify / convex-decompose collision meshes (MeshLab, V-HACD, Open3D).
-3. Run `obj2mjcf` or hand-author `<asset><mesh …/></asset>` entries.
-4. Replace procedural geoms in `ppp_warehouse.xml` with `type="mesh"` visuals
-   while keeping the same joint names and FK offsets.
-
-Typical search terms: *overhead gantry crane*, *bridge crane*, *modular
-warehouse*, *pallet rack*. Expect to adapt units and split models into static
-frame vs. moving carriage bodies.
-
-### FRET recommendation (v1.0 → v1.2)
-
-| Stage | Approach |
-|---|---|
-| **v1.0 (current)** | Hybrid MJCF: procedural gantry + AWS warehouse meshes |
-| **v1.1** | Optional textured meshes for gantry frame + pallets (visual-only geoms) |
-| **v1.2+** | Consider Menagerie arm as secondary cell robot; warehouse still custom |
-
-Track mesh licensing in `src/fret/mjcf/LICENSE` if external assets are added.
+Reference photos and axis mapping: [robots/ppp.md](robots/ppp.md).
 
 ---
 

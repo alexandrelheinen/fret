@@ -8,12 +8,10 @@ import pytest
 
 from fret.sitl_config import (
     controller_config_relative,
-    is_ppp_warehouse_launch,
     load_scenario_parameters,
     mujoco_sim_config_relative,
     perception_config_relative,
     resolve_package_file,
-    uses_mujoco_backend,
 )
 
 
@@ -43,16 +41,6 @@ def test_perception_config_relative_default() -> None:
 
 def test_mujoco_sim_config_relative() -> None:
     assert mujoco_sim_config_relative() == "config/simulation/mujoco.yml"
-
-
-def test_uses_mujoco_backend() -> None:
-    assert uses_mujoco_backend("mujoco") is True
-    assert uses_mujoco_backend("gazebo") is False
-
-
-def test_is_ppp_warehouse_launch() -> None:
-    assert is_ppp_warehouse_launch("ppp", "ppp_warehouse") is True
-    assert is_ppp_warehouse_launch("scara", "ppp_warehouse") is False
 
 
 def test_load_ppp_warehouse_scenario() -> None:

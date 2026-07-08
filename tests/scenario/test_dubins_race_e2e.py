@@ -1,6 +1,6 @@
 """E2E scenario test: Dubins race (SC-v11 / v1.1).
 
-ROS-free counterpart to ``tests/integration/test_scenario_dubins_race.py``.
+Pure-Python validation of SC-v11 acceptance criteria (no ROS required).
 Runs in the default pytest suite (``--ignore=tests/integration``).
 """
 

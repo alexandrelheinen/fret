@@ -4,7 +4,7 @@
 # Agent 1: ARCO RRT* (blue).  Agent 2: ARCO SST (green).
 #
 # Pass criteria (releases.md V11-1):
-#   pytest tests/integration/test_scenario_dubins_race.py
+#   pytest tests/scenario/test_dubins_race_e2e.py
 
 /**:
   ros__parameters:
