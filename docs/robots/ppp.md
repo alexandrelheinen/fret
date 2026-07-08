@@ -12,6 +12,34 @@ It models an industrial high-bay warehouse crane used for pallet and box handlin
 
 Configuration space **is** Cartesian workspace position: `q = (x, y, z)` in metres.
 
+### Mechanical layout (reference)
+
+Industrial Cartesian / gantry robots use **two parallel overhead rails**
+that sustain a cross bridge. The bridge carries the Y trolley; a Z column
+and gripper hang below. FRET's MJCF reproduces this topology procedurally.
+
+![Industrial Cartesian gantry robot (reference)](../assets/ppp/cartesian-robot-reference.jpg)
+
+*Reference: overhead dual-rail Cartesian gantry with four corner posts,
+orange carriages, and a vertical Z column. Source:
+[ecdn6.globalso.com](https://ecdn6.globalso.com/upload/p/2394/image_other/2024-09/cartesian-robot-1-1.jpg)
+— vendor product photo, included for mechanical layout only.*
+
+### Axis convention
+
+| Axis | MJCF joint | Motion | Visual element |
+|---|---|---|---|
+| **X** | `joint_x` | Bridge travels along the long aisle (0–12 m preview) | Orange carriages on both parallel rails |
+| **Y** | `joint_y` | Trolley travels across the bridge (0–4 m preview) | Orange Y trolley on the X beam |
+| **Z** | `joint_z` | Column + gripper move vertically (0–3 m preview) | Green Z column descending to the spreader |
+
+![Gantry XYZ axis convention (reference)](../assets/ppp/gantry-xyz-axes-reference.png)
+
+*Reference: Y-slide = parallel overhead rails, X-slide = cross bridge,
+Z-slide = vertical column + gripper. Source:
+[cdn.goodao.net](https://cdn.goodao.net/fuyumotion/Gantry-Robot-Linear-Motion-System-XYZ-Positioning-Stage.png)
+— vendor diagram, included for axis labelling only.*
+
 ---
 
 ## Kinematic model
@@ -75,9 +103,10 @@ Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
 | `scripts/view.sh` | MuJoCo interactive viewer (v1.0) |
 | `src/fret/config/scenarios/ppp_warehouse.yml` | SC-v10 scenario |
 
-The MJCF models a **gate-style overhead gantry**: X/Y prismatic axes ride on the
-top bridge at `Z = 3 m` (1:5 preview scale); the Z hoist hangs below. Joint
-names and identity FK match `PPPKinematics`.
+The MJCF models a **gate-style Cartesian gantry** matching industrial reference
+layouts: four corner legs, two parallel overhead rails, X bridge, Y trolley, and
+descending Z column at `Z = 3 m` (1:5 preview scale). Joint names and identity
+FK match `PPPKinematics`.
 
 For photorealistic meshes and third-party asset options, see
 [mujoco_for_dummies.md § Visual assets](../mujoco_for_dummies.md#visual-assets-and-realism).

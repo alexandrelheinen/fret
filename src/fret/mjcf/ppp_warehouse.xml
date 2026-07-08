@@ -1,15 +1,19 @@
 <mujoco model="ppp_warehouse">
   <!--
-    PPP overhead gantry preview scene for MuJoCo (SC-v10 / T10-02).
+    PPP overhead Cartesian gantry (SC-v10 / T10-02).
 
-    Uses a 1:5 scale of the v1.0 operational envelope for readable visuals:
-      X 0–12 m, Y 0–4 m, Z 0–3 m  (maps to joint_x/y/z limits in MJCF).
+    Visual topology matches industrial Cartesian / gantry robots:
+      • four corner legs with footplates
+      • two parallel overhead rails (sustain the bridge)
+      • X-axis bridge spanning the rails
+      • Y-axis trolley on the bridge
+      • Z-axis column + gripper hanging down
 
-    Kinematic layout (identity FK q ≡ p_ee):
-      joint_x / joint_y ride on the overhead bridge at Z_TOP.
-      joint_z lowers the hoist from the bridge; body offset keeps world Z = q_z.
+    Reference photos: docs/assets/ppp/cartesian-robot-reference.jpg
+                      docs/assets/ppp/gantry-xyz-axes-reference.png
 
-    Joint names match fret.control.kinematics_ppp.PPPKinematics.
+    Uses 1:5 scale of the v1.0 envelope: X 0–12 m, Y 0–4 m, Z 0–3 m.
+    Identity FK q ≡ p_ee via x_carriage @ Z_TOP and z_hoist offset -Z_TOP.
   -->
   <compiler angle="degree" coordinate="local"/>
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
@@ -25,10 +29,13 @@
     <texture name="concrete" type="2d" builtin="flat" rgb1="0.82 0.83 0.85" width="128" height="128"/>
     <material name="floor" texture="grid" texrepeat="8 6" reflectance="0.04"/>
     <material name="wall" texture="concrete" rgba="0.78 0.79 0.82 1" reflectance="0.02"/>
-    <material name="frame" rgba="0.42 0.45 0.50 1" specular="0.3" shininess="0.2"/>
-    <material name="rail" rgba="0.28 0.30 0.34 1" specular="0.4" shininess="0.3"/>
+    <material name="frame" rgba="0.72 0.74 0.78 1" specular="0.3" shininess="0.2"/>
+    <material name="rail" rgba="0.30 0.32 0.36 1" specular="0.4" shininess="0.3"/>
     <material name="rail_top" rgba="0.58 0.60 0.64 1" specular="0.5" shininess="0.35"/>
+    <material name="carriage" rgba="0.95 0.55 0.10 1" specular="0.35" shininess="0.25"/>
     <material name="gantry" rgba="0.95 0.72 0.12 1" specular="0.35" shininess="0.25"/>
+    <material name="z_axis" rgba="0.35 0.72 0.42 1" specular="0.35" shininess="0.25"/>
+    <material name="chain" rgba="0.12 0.12 0.14 1"/>
     <material name="cable" rgba="0.20 0.22 0.25 1"/>
     <material name="shelf" rgba="0.55 0.48 0.40 1"/>
     <material name="pallet" rgba="0.68 0.54 0.34 1"/>
@@ -42,19 +49,14 @@
     <light pos="-1 5 7" dir="0.4 -0.7 -1" diffuse="0.55 0.58 0.62"/>
     <light pos="11 0 6" dir="-0.8 0.2 -1" diffuse="0.35 0.38 0.42"/>
 
-    <!-- Warehouse floor (X 0–12, Y 0–4 envelope). -->
     <geom name="floor" type="plane" size="8 6 0.1" material="floor"/>
-
-    <!-- Perimeter back wall for depth cues (non-colliding). -->
     <geom name="wall_back" type="box" pos="6 4.05 1.2" size="6.5 0.06 1.3" material="wall" contype="0" conaffinity="0"/>
 
-    <!-- Storage racks along the back wall (visual only). -->
     <geom name="rack_a_base" type="box" pos="1.5 3.5 0.5" size="0.8 0.35 0.5" material="shelf" contype="0" conaffinity="0"/>
     <geom name="rack_a_mid" type="box" pos="1.5 3.5 1.35" size="0.8 0.35 0.45" material="shelf" contype="0" conaffinity="0"/>
     <geom name="rack_b_base" type="box" pos="9.0 3.5 0.55" size="0.9 0.35 0.55" material="shelf" contype="0" conaffinity="0"/>
     <geom name="rack_b_mid" type="box" pos="9.0 3.5 1.45" size="0.9 0.35 0.50" material="shelf" contype="0" conaffinity="0"/>
 
-    <!-- Static warehouse obstacles (scaled layout from ARCO ppp.yml). -->
     <geom name="obs_a" type="box" pos="4.0 1.2 0.6" size="0.8 0.6 0.6" material="obstacle"/>
     <geom name="obs_a_pallet" type="box" pos="4.0 1.2 0.08" size="0.85 0.65 0.08" material="pallet" contype="0" conaffinity="0"/>
     <geom name="obs_b" type="box" pos="6.5 2.8 0.5" size="0.7 0.7 0.5" material="obstacle"/>
@@ -63,47 +65,55 @@
     <geom name="obs_c_pallet" type="box" pos="8.0 1.0 0.08" size="0.65 0.55 0.08" material="pallet" contype="0" conaffinity="0"/>
     <geom name="goal_zone" type="box" pos="10.5 3.2 0.05" size="0.9 0.9 0.05" material="goal" contype="0" conaffinity="0"/>
 
-    <!--
-      PPP overhead gantry ("gate"): fixed portal frame with X/Y axes on top.
-      Z hoist hangs from the bridge; joint offsets preserve identity FK.
-    -->
+    <!-- Cartesian gantry frame: four legs, dual parallel overhead rails. -->
     <body name="gantry_base" pos="0 0 0">
-      <!-- Portal legs and overhead runway rails (static frame). -->
-      <geom name="column_left" type="box" pos="0 2 1.5" size="0.16 0.12 1.52" material="frame"/>
-      <geom name="column_right" type="box" pos="12 2 1.5" size="0.16 0.12 1.52" material="frame"/>
-      <geom name="cross_beam_left" type="box" pos="0 2 3.04" size="0.14 0.10 0.08" material="frame"/>
-      <geom name="cross_beam_right" type="box" pos="12 2 3.04" size="0.14 0.10 0.08" material="frame"/>
-      <geom name="runway_rail_l" type="box" pos="6 1.72 3.10" size="6.2 0.05 0.05" material="rail_top"/>
-      <geom name="runway_rail_r" type="box" pos="6 2.28 3.10" size="6.2 0.05 0.05" material="rail_top"/>
-      <geom name="runway_guard" type="box" pos="6 2 3.16" size="6.2 0.04 0.03" material="rail" contype="0" conaffinity="0"/>
+      <geom name="foot_fl" type="box" pos="0 0 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
+      <geom name="foot_fr" type="box" pos="0 4 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
+      <geom name="foot_bl" type="box" pos="12 0 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
+      <geom name="foot_br" type="box" pos="12 4 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
 
-      <!-- X carriage rides on the overhead runway at Z_TOP = 3 m. -->
+      <geom name="leg_fl" type="box" pos="0 0 1.5" size="0.12 0.12 1.48" material="frame"/>
+      <geom name="leg_fr" type="box" pos="0 4 1.5" size="0.12 0.12 1.48" material="frame"/>
+      <geom name="leg_bl" type="box" pos="12 0 1.5" size="0.12 0.12 1.48" material="frame"/>
+      <geom name="leg_br" type="box" pos="12 4 1.5" size="0.12 0.12 1.48" material="frame"/>
+
+      <geom name="tie_front" type="box" pos="6 0 2.98" size="6.2 0.08 0.06" material="frame"/>
+      <geom name="tie_back" type="box" pos="6 4 2.98" size="6.2 0.08 0.06" material="frame"/>
+
+      <!-- Two parallel overhead rails that sustain the X bridge (Y ≈ 0.28 m and 3.72 m). -->
+      <geom name="runway_rail_near" type="box" pos="6 0.28 3.04" size="6.2 0.10 0.07" material="rail_top"/>
+      <geom name="runway_rail_far" type="box" pos="6 3.72 3.04" size="6.2 0.10 0.07" material="rail_top"/>
+      <geom name="chain_y_near" type="box" pos="6 0.12 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
+      <geom name="chain_y_far" type="box" pos="6 3.88 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
+
+      <!-- X-axis carriage: rides both parallel rails at Z_TOP = 3 m. -->
       <body name="x_carriage" pos="0 0 3">
         <joint name="joint_x" type="slide" axis="1 0 0" range="0 12" damping="80"/>
-        <!-- Bridge girder spanning the full Y travel range. -->
-        <geom name="x_bridge" type="box" pos="0 2 -0.04" size="0.22 2.08 0.10" material="gantry"/>
-        <geom name="x_bridge_rail_l" type="box" pos="0 1.72 -0.02" size="0.10 2.04 0.04" material="rail"/>
-        <geom name="x_bridge_rail_r" type="box" pos="0 2.28 -0.02" size="0.10 2.04 0.04" material="rail"/>
+        <geom name="x_car_near" type="box" pos="0 0.28 -0.03" size="0.20 0.14 0.11" material="carriage"/>
+        <geom name="x_car_far" type="box" pos="0 3.72 -0.03" size="0.20 0.14 0.11" material="carriage"/>
+        <geom name="x_bridge" type="box" pos="0 2 -0.05" size="0.16 1.96 0.08" material="gantry"/>
+        <geom name="x_bridge_rail_l" type="box" pos="0 0.28 -0.02" size="0.08 0.12 0.04" material="rail"/>
+        <geom name="x_bridge_rail_r" type="box" pos="0 3.72 -0.02" size="0.08 0.12 0.04" material="rail"/>
+        <geom name="chain_x" type="box" pos="0 2 0.06" size="3.8 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
 
         <body name="y_carriage" pos="0 0 0">
           <joint name="joint_y" type="slide" axis="0 1 0" range="0 4" damping="80"/>
-          <!-- Trolley visuals sit slightly below the bridge without shifting joint FK. -->
-          <geom name="y_trolley" type="box" pos="0 0 -0.08" size="0.28 0.24 0.12" material="gantry"/>
-          <geom name="y_trolley_motor" type="box" pos="0 0 0.02" size="0.18 0.16 0.06" material="rail"/>
+          <geom name="y_trolley" type="box" pos="0 0 -0.08" size="0.30 0.22 0.12" material="carriage"/>
+          <geom name="y_trolley_head" type="box" pos="0 0 0.02" size="0.20 0.18 0.06" material="rail"/>
 
-          <!--
-            Hoist body origin tracks the EE; offset -Z_TOP so joint_z equals world Z.
-            Cables and spreader hang below the bridge.
-          -->
+          <!-- Z-axis column + gripper; body offset preserves identity FK. -->
           <body name="z_hoist" pos="0 0 -3">
             <joint name="joint_z" type="slide" axis="0 0 1" range="0 3" damping="120"/>
-            <geom name="cable_l" type="cylinder" fromto="-0.14 0 0 -0.14 0 3" size="0.014" material="cable" contype="0" conaffinity="0"/>
-            <geom name="cable_r" type="cylinder" fromto="0.14 0 0 0.14 0 3" size="0.014" material="cable" contype="0" conaffinity="0"/>
-            <geom name="hoist_head" type="box" pos="0 0 0.08" size="0.20 0.18 0.10" material="rail"/>
-            <geom name="ee_spreader" type="box" size="0.26 0.26 0.05" material="gantry"/>
+            <geom name="z_column" type="box" size="0.11 0.11 1.45" pos="0 0 1.45" material="z_axis"/>
+            <geom name="z_guide_l" type="box" size="0.03 0.14 1.45" pos="-0.10 0 1.45" material="rail" contype="0" conaffinity="0"/>
+            <geom name="z_guide_r" type="box" size="0.03 0.14 1.45" pos="0.10 0 1.45" material="rail" contype="0" conaffinity="0"/>
+            <geom name="chain_z" type="box" pos="0 0 2.85" size="0.05 0.18 0.04" material="chain" contype="0" conaffinity="0"/>
+            <geom name="cable_l" type="cylinder" fromto="-0.12 0 0 -0.12 0 3" size="0.012" material="cable" contype="0" conaffinity="0"/>
+            <geom name="cable_r" type="cylinder" fromto="0.12 0 0 0.12 0 3" size="0.012" material="cable" contype="0" conaffinity="0"/>
+            <geom name="ee_gripper" type="box" size="0.28 0.22 0.08" material="gantry"/>
+            <geom name="ee_spreader" type="box" pos="0 0 -0.06" size="0.30 0.26 0.04" material="rail"/>
 
-            <!-- Cargo box welded to EE (magnetic grasp preview). -->
-            <body name="cargo" pos="0 0 -0.30">
+            <body name="cargo" pos="0 0 -0.34">
               <geom name="cargo_box" type="box" size="0.25 0.25 0.25" material="cargo" mass="2.0"/>
             </body>
           </body>
@@ -111,7 +121,6 @@
       </body>
     </body>
 
-    <!-- Showcase cameras for headless release renders and the interactive viewer. -->
     <camera name="overview" mode="targetbody" target="gantry_base" pos="14 7 6.5" fovy="42"/>
     <camera name="aisle" mode="targetbody" target="x_carriage" pos="-2.8 2 1.5" fovy="58"/>
     <camera name="topdown" mode="targetbody" target="gantry_base" pos="6 2 15" fovy="38"/>

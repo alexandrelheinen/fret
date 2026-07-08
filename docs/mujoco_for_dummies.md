@@ -174,8 +174,31 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 ## Visual assets and realism
 
 FRET v1.0 ships a **procedural MJCF** scene (`ppp_warehouse.xml`) built from
-MuJoCo primitives (boxes, cylinders, checker floor). This keeps the release
-lightweight and avoids licensing issues, but it is not photorealistic.
+MuJoCo primitives (boxes, cylinders, checker floor). The topology matches
+industrial Cartesian gantries: four corner legs, **two parallel overhead rails**,
+an X bridge, Y trolley, and descending Z column.
+
+### Reference photos (mechanical layout)
+
+![Industrial Cartesian gantry](../assets/ppp/cartesian-robot-reference.jpg)
+
+![Gantry XYZ axis convention](../assets/ppp/gantry-xyz-axes-reference.png)
+
+Copies live under `docs/assets/ppp/` (vendor product images, layout reference
+only). See [robots/ppp.md](robots/ppp.md) for axis ↔ joint mapping.
+
+### Public models surveyed (none ready for drop-in use)
+
+| Source | License | Meshes? | Gantry fit |
+|---|---|---|---|
+| [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Per-model (Apache-2.0, BSD, …) | OBJ/STL | **No** — serial arms, quadrupeds, hands |
+| [VSP-AR/urdf_tutorials `cartesian_robot`](https://github.com/VSP-AR/urdf_tutorials/tree/main/cartesian_robot) | Tutorial | Box primitives only | **Topology match** — dual-rail + XYZ slides, no meshes |
+| [GTEC-UDC/linuxcnc_gantry_robot](https://github.com/GTEC-UDC/linuxcnc_gantry_robot) | Open docs | Photos/CAD, no MJCF | Real 5.3 m gantry, not packaged for MuJoCo |
+| [COMPAS FAB UR10 on tower](https://compas.dev/compas_fab/latest/examples/03_backends_ros/09_ros_create_urdf_ur10_on_tower.html) | Docs | STL linear stages | Arm-on-gantry, not PPP-only |
+
+**Conclusion:** no maintained public MJCF with photorealistic gantry meshes was
+found. FRET reproduces the Cartesian topology procedurally, following the
+`cartesian_robot` URDF tutorial pattern (parallel top rails + XYZ slides).
 
 ### What MuJoCo provides out of the box
 
