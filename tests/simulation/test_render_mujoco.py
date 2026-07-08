@@ -71,6 +71,14 @@ def test_list_showcase_cameras_reads_mjcf() -> None:
     ]
 
 
+def test_ppp_warehouse_mjcf_loads_with_aws_meshes() -> None:
+    """MJCF must load including vendored AWS warehouse mesh assets."""
+    mujoco = pytest.importorskip("mujoco")
+    path = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    model = mujoco.MjModel.from_xml_path(str(path))
+    assert model.nmesh >= 4
+
+
 def test_showcase_output_name() -> None:
     assert rm.showcase_output_name("ppp_warehouse", "aisle") == (
         "ppp_warehouse_aisle.mp4"

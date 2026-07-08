@@ -98,15 +98,16 @@ Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
 
 | File | Purpose |
 |---|---|
-| `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo overhead gantry + warehouse (procedural geoms) |
+| `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo overhead gantry + AWS warehouse meshes |
+| `src/fret/mjcf/assets/aws_warehouse/` | MIT-0 shelf/box visuals + floor/wall textures |
+| `scripts/import_aws_warehouse_assets.py` | Regenerate AWS mesh assets from upstream repo |
 | `src/fret/urdf/ppp.xacro` | Gazebo backend (optional; v1.2+) |
 | `scripts/view.sh` | MuJoCo interactive viewer (v1.0) |
 | `src/fret/config/scenarios/ppp_warehouse.yml` | SC-v10 scenario |
 
-The MJCF models a **gate-style Cartesian gantry** matching industrial reference
-layouts: four corner legs, two parallel overhead rails, X bridge, Y trolley, and
-descending Z column at `Z = 3 m` (1:5 preview scale). Joint names and identity
-FK match `PPPKinematics`.
+The MJCF models a **gate-style Cartesian gantry** (procedural primitives) inside an
+**AWS RoboMaker warehouse** shell (MIT-0 meshes for shelves, box clusters, floor,
+and wall). Collision boxes are unchanged for planning and perception alignment.
 
-For photorealistic meshes and third-party asset options, see
-[mujoco_for_dummies.md § Visual assets](../mujoco_for_dummies.md#visual-assets-and-realism).
+For asset provenance and regeneration, see
+`src/fret/mjcf/assets/aws_warehouse/README.md`.

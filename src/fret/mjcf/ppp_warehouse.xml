@@ -2,20 +2,13 @@
   <!--
     PPP overhead Cartesian gantry (SC-v10 / T10-02).
 
-    Visual topology matches industrial Cartesian / gantry robots:
-      • four corner legs with footplates
-      • two parallel overhead rails (sustain the bridge)
-      • X-axis bridge spanning the rails
-      • Y-axis trolley on the bridge
-      • Z-axis column + gripper hanging down
-
-    Reference photos: docs/assets/ppp/cartesian-robot-reference.jpg
-                      docs/assets/ppp/gantry-xyz-axes-reference.png
-
-    Uses 1:5 scale of the v1.0 envelope: X 0–12 m, Y 0–4 m, Z 0–3 m.
-    Identity FK q ≡ p_ee via x_carriage @ Z_TOP and z_hoist offset -Z_TOP.
+    Gantry: procedural primitives (identity FK q ≡ p_ee).
+    Warehouse: MIT-0 AWS RoboMaker meshes (visual only) — see assets/aws_warehouse/.
+    Collision boxes unchanged for planning / perception alignment.
   -->
-  <compiler angle="degree" coordinate="local"/>
+  <compiler angle="degree" coordinate="local"
+            meshdir="assets/aws_warehouse/meshes"
+            texturedir="assets/aws_warehouse/textures"/>
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
 
   <visual>
@@ -25,12 +18,12 @@
   </visual>
 
   <asset>
-    <!-- Indoor warehouse backdrop (replaces harsh black void in headless renders). -->
     <texture type="skybox" builtin="gradient" rgb1="0.78 0.80 0.84" rgb2="0.58 0.61 0.66" width="512" height="1536"/>
-    <texture name="grid" type="2d" builtin="checker" mark="edge" rgb1="0.84 0.85 0.87" rgb2="0.74 0.76 0.79" markrgb="0.90 0.91 0.93" width="512" height="512"/>
-    <texture name="concrete" type="2d" builtin="flat" rgb1="0.82 0.83 0.85" width="128" height="128"/>
-    <material name="floor" texture="grid" texuniform="true" texrepeat="14 5" reflectance="0.01"/>
-    <material name="wall" texture="concrete" rgba="0.78 0.79 0.82 1" reflectance="0.01"/>
+    <texture name="ground_tex" type="2d" file="ground.png"/>
+    <texture name="wall_tex" type="2d" file="wall.png"/>
+
+    <material name="floor" texture="ground_tex" texuniform="true" texrepeat="3 2" reflectance="0.01"/>
+    <material name="wall" texture="wall_tex" texrepeat="2 1" reflectance="0.01"/>
     <material name="frame" rgba="0.72 0.74 0.78 1" specular="0.1" shininess="0.1"/>
     <material name="rail" rgba="0.30 0.32 0.36 1" specular="0.12" shininess="0.1"/>
     <material name="rail_top" rgba="0.58 0.60 0.64 1" specular="0.15" shininess="0.1"/>
@@ -39,36 +32,38 @@
     <material name="z_axis" rgba="0.40 0.62 0.48 1" specular="0.12" shininess="0.1"/>
     <material name="chain" rgba="0.12 0.12 0.14 1"/>
     <material name="cable" rgba="0.20 0.22 0.25 1"/>
-    <material name="shelf" rgba="0.55 0.48 0.40 1"/>
-    <material name="pallet" rgba="0.68 0.54 0.34 1"/>
     <material name="cargo" rgba="0.92 0.62 0.12 1"/>
-    <material name="obstacle" rgba="0.50 0.52 0.55 1"/>
-    <material name="goal" rgba="0.20 0.75 0.35 0.35"/>
+    <material name="prop" rgba="0.85 0.86 0.88 1" specular="0.08" shininess="0.05"/>
+
+    <!-- AWS clutter meshes scaled to match perception obstacle boxes (1:5 preview). -->
+    <mesh name="shelf" file="shelf.obj"/>
+    <mesh name="clutter_a" file="clutter_a.obj" scale="0.589 0.478 0.896"/>
+    <mesh name="clutter_c" file="clutter_c.obj" scale="0.646 0.885 0.555"/>
+    <mesh name="clutter_d" file="clutter_d.obj" scale="0.655 0.967 1.013"/>
   </asset>
 
   <worldbody>
-    <!-- Soft warehouse lighting: two low-specular directionals, no harsh hotspots. -->
     <light name="key" pos="6 2 7" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
     <light name="fill" pos="-1 5 5" dir="0.35 -0.55 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
 
-    <!-- Floor centered on the 12×4 m envelope; texuniform fills the visible area. -->
     <geom name="floor" type="plane" pos="6 2 0" size="0 0 0.05" material="floor"/>
-    <geom name="wall_back" type="box" pos="6 4.05 1.2" size="6.5 0.06 1.3" material="wall" contype="0" conaffinity="0"/>
+    <geom name="wall_back" type="box" pos="6 4.02 1.3" size="6.5 0.06 1.35" material="wall" contype="0" conaffinity="0"/>
 
-    <geom name="rack_a_base" type="box" pos="1.5 3.5 0.5" size="0.8 0.35 0.5" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="rack_a_mid" type="box" pos="1.5 3.5 1.35" size="0.8 0.35 0.45" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="rack_b_base" type="box" pos="9.0 3.5 0.55" size="0.9 0.35 0.55" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="rack_b_mid" type="box" pos="9.0 3.5 1.45" size="0.9 0.35 0.50" material="shelf" contype="0" conaffinity="0"/>
+    <!-- AWS shelf visuals along the back wall (non-colliding). -->
+    <geom name="rack_a_vis" type="mesh" mesh="shelf" pos="-0.46 3.12 0" material="prop" contype="0" conaffinity="0"/>
+    <geom name="rack_b_vis" type="mesh" mesh="shelf" pos="7.04 3.12 0" material="prop" contype="0" conaffinity="0"/>
 
-    <geom name="obs_a" type="box" pos="4.0 1.2 0.6" size="0.8 0.6 0.6" material="obstacle"/>
-    <geom name="obs_a_pallet" type="box" pos="4.0 1.2 0.08" size="0.85 0.65 0.08" material="pallet" contype="0" conaffinity="0"/>
-    <geom name="obs_b" type="box" pos="6.5 2.8 0.5" size="0.7 0.7 0.5" material="obstacle"/>
-    <geom name="obs_b_pallet" type="box" pos="6.5 2.8 0.08" size="0.75 0.75 0.08" material="pallet" contype="0" conaffinity="0"/>
-    <geom name="obs_c" type="box" pos="8.0 1.0 0.9" size="0.6 0.5 0.9" material="obstacle"/>
-    <geom name="obs_c_pallet" type="box" pos="8.0 1.0 0.08" size="0.65 0.55 0.08" material="pallet" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="box" pos="10.5 3.2 0.05" size="0.9 0.9 0.05" material="goal" contype="0" conaffinity="0"/>
+    <!-- Collision boxes (planning / perception); invisible in renders. -->
+    <geom name="obs_a" type="box" pos="4.0 1.2 0.6" size="0.8 0.6 0.6" rgba="0 0 0 0"/>
+    <geom name="obs_b" type="box" pos="6.5 2.8 0.5" size="0.7 0.7 0.5" rgba="0 0 0 0"/>
+    <geom name="obs_c" type="box" pos="8.0 1.0 0.9" size="0.6 0.5 0.9" rgba="0 0 0 0"/>
+    <geom name="goal_zone" type="box" pos="10.5 3.2 0.05" size="0.9 0.9 0.05" rgba="0.20 0.75 0.35 0.35" contype="0" conaffinity="0"/>
 
-    <!-- Cartesian gantry frame: four legs, dual parallel overhead rails. -->
+    <!-- AWS box-cluster visuals (mesh origin = bottom corner of footprint). -->
+    <geom name="obs_a_vis" type="mesh" mesh="clutter_a" pos="3.2 0.6 0" material="prop" contype="0" conaffinity="0"/>
+    <geom name="obs_b_vis" type="mesh" mesh="clutter_c" pos="5.8 2.1 0" material="prop" contype="0" conaffinity="0"/>
+    <geom name="obs_c_vis" type="mesh" mesh="clutter_d" pos="7.4 0.5 0" material="prop" contype="0" conaffinity="0"/>
+
     <body name="gantry_base" pos="0 0 0">
       <geom name="foot_fl" type="box" pos="0 0 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
       <geom name="foot_fr" type="box" pos="0 4 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
@@ -83,13 +78,11 @@
       <geom name="tie_front" type="box" pos="6 0 2.98" size="6.2 0.08 0.06" material="frame"/>
       <geom name="tie_back" type="box" pos="6 4 2.98" size="6.2 0.08 0.06" material="frame"/>
 
-      <!-- Two parallel overhead rails that sustain the X bridge (Y ≈ 0.28 m and 3.72 m). -->
       <geom name="runway_rail_near" type="box" pos="6 0.28 3.04" size="6.2 0.10 0.07" material="rail_top"/>
       <geom name="runway_rail_far" type="box" pos="6 3.72 3.04" size="6.2 0.10 0.07" material="rail_top"/>
       <geom name="chain_y_near" type="box" pos="6 0.12 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
       <geom name="chain_y_far" type="box" pos="6 3.88 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
 
-      <!-- X-axis carriage: rides both parallel rails at Z_TOP = 3 m. -->
       <body name="x_carriage" pos="0 0 3">
         <joint name="joint_x" type="slide" axis="1 0 0" range="0 12" damping="80"/>
         <geom name="x_car_near" type="box" pos="0 0.28 -0.03" size="0.20 0.14 0.11" material="carriage"/>
@@ -104,7 +97,6 @@
           <geom name="y_trolley" type="box" pos="0 0 -0.08" size="0.30 0.22 0.12" material="carriage"/>
           <geom name="y_trolley_head" type="box" pos="0 0 0.02" size="0.20 0.18 0.06" material="rail"/>
 
-          <!-- Z-axis column + gripper; body offset preserves identity FK. -->
           <body name="z_hoist" pos="0 0 -3">
             <joint name="joint_z" type="slide" axis="0 0 1" range="0 3" damping="120"/>
             <geom name="z_column" type="box" size="0.11 0.11 1.45" pos="0 0 1.45" material="z_axis"/>
