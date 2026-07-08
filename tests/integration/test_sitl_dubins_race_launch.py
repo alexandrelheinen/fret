@@ -10,7 +10,9 @@ Requires a built ROS 2 workspace and sourced overlay (see
 
 from __future__ import annotations
 
+import io
 import os
+import select
 import signal
 import subprocess
 import time
@@ -60,6 +62,22 @@ def _terminate_process_group(proc: subprocess.Popen[str]) -> None:
         proc.wait(timeout=10)
 
 
+def _drain_launch_output(stdout: io.TextIO | None) -> list[str]:
+    """Return any complete log lines currently buffered on the launch pipe."""
+    if stdout is None:
+        return []
+    lines: list[str] = []
+    while True:
+        ready, _, _ = select.select([stdout], [], [], 0)
+        if not ready:
+            break
+        line = stdout.readline()
+        if not line:
+            break
+        lines.append(line.rstrip())
+    return lines
+
+
 @pytest.fixture()
 def dubins_race_sitl_launch() -> Iterator[subprocess.Popen[str]]:
     """Launch SC-v11 SITL and tear it down after the test."""
@@ -107,21 +125,14 @@ def test_v11_1_dubins_race_mujoco_sitl_starts(
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             break
-        if proc.stdout is not None and proc.stdout.readable():
-            line = proc.stdout.readline()
-            if line:
-                log_lines.append(line.rstrip())
+        log_lines.extend(_drain_launch_output(proc.stdout))
         nodes = _ros2_node_names()
         if _REQUIRED_NODES.issubset(nodes):
             nodes_ok = True
             break
         time.sleep(0.5)
 
-    if proc.stdout is not None and proc.stdout.readable():
-        remainder = proc.stdout.read()
-        if remainder:
-            log_lines.extend(line.rstrip() for line in remainder.splitlines() if line)
-
+    log_lines.extend(_drain_launch_output(proc.stdout))
     log_tail = "\n".join(log_lines[-40:])
     assert proc.poll() is None, (
         "SITL launch exited before the race node was ready.\n" f"{log_tail}"
