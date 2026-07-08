@@ -1,8 +1,7 @@
 """Dubins race obstacle layout and occupancy builder (T11-02).
 
-Loads the column forest from ``dubins_race_obstacles.yml`` and builds an
-ARCO ``KDTreeOccupancy`` map for 2-D planning, mirroring
-``arco.simulator.scenes.vehicle.VehicleScene._build_occupancy``.
+Loads rectangular warehouse structures from ``dubins_race_obstacles.yml`` and
+builds an ARCO ``KDTreeOccupancy`` map sampled from axis-aligned box surfaces.
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ import numpy.typing as npt
 import yaml
 from arco.mapping import KDTreeOccupancy
 
+from fret.planning.ppp_obstacles import BoxObstacle
 from fret.sitl_config import resolve_package_file
 
 _DEFAULT_OBSTACLE_FILE = resolve_package_file(
@@ -24,13 +24,29 @@ _DEFAULT_OBSTACLE_FILE = resolve_package_file(
 
 
 @dataclass(frozen=True)
-class ColumnObstacle:
-    """Circular column footprint in the warehouse floor plane."""
+class RectObstacle:
+    """Axis-aligned rectangular post or wall segment on the warehouse floor."""
 
     x: float
     y: float
-    radius: float
+    hx: float
+    hy: float
     height: float
+
+    def to_box(self) -> BoxObstacle:
+        """Return a 3-D box for occupancy sampling and analytic checks."""
+        return BoxObstacle(
+            x_min=self.x - self.hx,
+            y_min=self.y - self.hy,
+            z_min=0.0,
+            x_max=self.x + self.hx,
+            y_max=self.y + self.hy,
+            z_max=self.height,
+        )
+
+
+# Backward-compatible alias used by early SC-v11 docs/tests.
+ColumnObstacle = RectObstacle
 
 
 @dataclass(frozen=True)
@@ -48,7 +64,12 @@ class DubinsRaceWorld:
     vehicle_radius: float
     clearance_margin: float
     planner: dict[str, Any]
-    columns: tuple[ColumnObstacle, ...]
+    structures: tuple[RectObstacle, ...]
+
+    @property
+    def columns(self) -> tuple[RectObstacle, ...]:
+        """Legacy name for rectangular race structures."""
+        return self.structures
 
 
 def default_obstacle_file() -> Path:
@@ -56,10 +77,25 @@ def default_obstacle_file() -> Path:
     return _DEFAULT_OBSTACLE_FILE
 
 
+def _parse_rect(entry: dict[str, Any]) -> RectObstacle:
+    hx = float(entry.get("hx", entry.get("half_x", 0.5)))
+    hy = float(entry.get("hy", entry.get("half_y", 0.5)))
+    if "radius" in entry and "hx" not in entry and "half_x" not in entry:
+        legacy = float(entry["radius"])
+        hx = hy = legacy
+    return RectObstacle(
+        x=float(entry["x"]),
+        y=float(entry["y"]),
+        hx=hx,
+        hy=hy,
+        height=float(entry.get("height", 2.5)),
+    )
+
+
 def load_dubins_race_world(
     path: str | Path | None = None,
 ) -> DubinsRaceWorld:
-    """Load column forest and planner parameters from YAML.
+    """Load structure forest and planner parameters from YAML.
 
     Args:
         path: Optional override for ``dubins_race_obstacles.yml``.
@@ -101,16 +137,13 @@ def load_dubins_race_world(
     vehicle_radius = float(vehicle.get("radius", 0.42))
     clearance_margin = float(vehicle.get("clearance_margin", 0.28))
 
-    columns: list[ColumnObstacle] = []
-    for entry in data.get("columns", []):
-        columns.append(
-            ColumnObstacle(
-                x=float(entry["x"]),
-                y=float(entry["y"]),
-                radius=float(entry.get("radius", 0.5)),
-                height=float(entry.get("height", 2.5)),
-            )
-        )
+    structures: list[RectObstacle] = []
+    for entry in data.get("structures", data.get("columns", [])):
+        structures.append(_parse_rect(entry))
+
+    for dead_end in data.get("dead_ends", []):
+        for part in dead_end.get("parts", []):
+            structures.append(_parse_rect(part))
 
     return DubinsRaceWorld(
         workspace_bounds=workspace_bounds,
@@ -120,13 +153,35 @@ def load_dubins_race_world(
         vehicle_radius=vehicle_radius,
         clearance_margin=clearance_margin,
         planner=dict(data.get("planner", {})),
-        columns=tuple(columns),
+        structures=tuple(structures),
     )
 
 
-def column_centres(columns: tuple[ColumnObstacle, ...]) -> list[list[float]]:
-    """Return 2-D obstacle centre points for KDTree occupancy."""
-    return [[col.x, col.y] for col in columns]
+def structure_footprint_points(
+    structures: tuple[RectObstacle, ...],
+    *,
+    samples_per_edge: int = 4,
+) -> list[list[float]]:
+    """Sample 2-D box perimeters for ``KDTreeOccupancy`` (planar planning)."""
+    if samples_per_edge < 2:
+        raise ValueError("samples_per_edge must be at least 2")
+
+    points: list[list[float]] = []
+    for struct in structures:
+        box = struct.to_box()
+        xs = np.linspace(box.x_min, box.x_max, samples_per_edge)
+        ys = np.linspace(box.y_min, box.y_max, samples_per_edge)
+        for x in xs:
+            for y in ys:
+                on_edge = (
+                    abs(x - box.x_min) < 1e-9
+                    or abs(x - box.x_max) < 1e-9
+                    or abs(y - box.y_min) < 1e-9
+                    or abs(y - box.y_max) < 1e-9
+                )
+                if on_edge:
+                    points.append([float(x), float(y)])
+    return points
 
 
 def build_race_occupancy(
@@ -141,7 +196,10 @@ def build_race_occupancy(
         ARCO occupancy with clearance = vehicle radius + margin.
     """
     clearance = world.vehicle_radius + world.clearance_margin
-    return KDTreeOccupancy(column_centres(world.columns), clearance=clearance)
+    points = structure_footprint_points(world.structures)
+    if not points:
+        raise ValueError("Dubins race world produced an empty occupancy cloud")
+    return KDTreeOccupancy(points, clearance=clearance)
 
 
 def load_workspace_bounds(
@@ -153,3 +211,17 @@ def load_workspace_bounds(
 ]:
     """Return workspace bounds from the obstacle YAML."""
     return load_dubins_race_world(path).workspace_bounds
+
+
+def circle_rect_clearance(
+    x: float,
+    y: float,
+    vehicle_radius: float,
+    rect: RectObstacle,
+) -> float:
+    """Signed clearance between a circular vehicle footprint and a rectangle."""
+    closest_x = min(max(x, rect.x - rect.hx), rect.x + rect.hx)
+    closest_y = min(max(y, rect.y - rect.hy), rect.y + rect.hy)
+    return float(
+        np.hypot(x - closest_x, y - closest_y) - vehicle_radius
+    )

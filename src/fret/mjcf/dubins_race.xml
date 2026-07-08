@@ -3,7 +3,7 @@
     Dubins dual-robot warehouse race (SC-v11 / T11-02).
 
     Floor: 80 m × 80 m AWS RoboMaker ground texture.
-    Columns: staggered forest along the A→B corridor (planning layout in
+    Rectangular posts/walls along the A→B corridor (planning layout in
              config/worlds/dubins_race_obstacles.yml).
     Agents: RRT* (blue, marker 1) vs SST (green, marker 2).
   -->
@@ -50,90 +50,99 @@
     <geom name="shelf_b" type="mesh" mesh="shelf" pos="40 76 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
     <geom name="shelf_c" type="mesh" mesh="shelf" pos="62 76 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
 
-    <!-- Column forest (collision + visuals) -->
-    <geom name="col_00" type="cylinder" pos="10.0 10 1.30" size="0.38 1.30" material="column"/>
-    <geom name="col_01" type="cylinder" pos="11.5 13 1.40" size="0.62 1.40" material="column_tall"/>
-    <geom name="col_02" type="cylinder" pos="10.0 16 1.40" size="0.57 1.40" material="column_tall"/>
-    <geom name="col_03" type="cylinder" pos="13.0 16 1.50" size="0.62 1.50" material="column_tall"/>
-    <geom name="col_04" type="cylinder" pos="16.0 16 1.65" size="0.38 1.65" material="column_tall"/>
-    <geom name="col_05" type="cylinder" pos="22.0 16 1.00" size="0.50 1.00" material="column"/>
-    <geom name="col_06" type="cylinder" pos="25.0 16 1.15" size="0.57 1.15" material="column"/>
-    <geom name="col_07" type="cylinder" pos="31.0 16 1.45" size="0.38 1.45" material="column_tall"/>
-    <geom name="col_08" type="cylinder" pos="11.5 19 1.45" size="0.50 1.45" material="column_tall"/>
-    <geom name="col_09" type="cylinder" pos="14.5 19 1.60" size="0.57 1.60" material="column_tall"/>
-    <geom name="col_10" type="cylinder" pos="17.5 19 1.75" size="0.62 1.75" material="column_tall"/>
-    <geom name="col_11" type="cylinder" pos="20.5 19 1.80" size="0.38 1.80" material="column_tall"/>
-    <geom name="col_12" type="cylinder" pos="26.5 19 1.25" size="0.50 1.25" material="column"/>
-    <geom name="col_13" type="cylinder" pos="32.5 19 1.50" size="0.62 1.50" material="column_tall"/>
-    <geom name="col_14" type="cylinder" pos="38.5 19 1.80" size="0.42 1.80" material="column_tall"/>
-    <geom name="col_15" type="cylinder" pos="10.0 22 1.45" size="0.42 1.45" material="column_tall"/>
-    <geom name="col_16" type="cylinder" pos="16.0 22 1.75" size="0.57 1.75" material="column_tall"/>
-    <geom name="col_17" type="cylinder" pos="19.0 22 1.80" size="0.62 1.80" material="column_tall"/>
-    <geom name="col_18" type="cylinder" pos="22.0 22 1.05" size="0.38 1.05" material="column"/>
-    <geom name="col_19" type="cylinder" pos="25.0 22 1.25" size="0.42 1.25" material="column"/>
-    <geom name="col_20" type="cylinder" pos="31.0 22 1.50" size="0.57 1.50" material="column_tall"/>
-    <geom name="col_21" type="cylinder" pos="37.0 22 1.80" size="0.38 1.80" material="column_tall"/>
-    <geom name="col_22" type="cylinder" pos="11.5 25 1.50" size="0.38 1.50" material="column_tall"/>
-    <geom name="col_23" type="cylinder" pos="20.5 25 1.00" size="0.57 1.00" material="column"/>
-    <geom name="col_24" type="cylinder" pos="23.5 25 1.15" size="0.62 1.15" material="column"/>
-    <geom name="col_25" type="cylinder" pos="26.5 25 1.30" size="0.38 1.30" material="column"/>
-    <geom name="col_26" type="cylinder" pos="32.5 25 1.60" size="0.50 1.60" material="column_tall"/>
-    <geom name="col_27" type="cylinder" pos="44.5 25 1.25" size="0.42 1.25" material="column"/>
-    <geom name="col_28" type="cylinder" pos="10.0 28 1.50" size="0.62 1.50" material="column_tall"/>
-    <geom name="col_29" type="cylinder" pos="13.0 28 1.65" size="0.38 1.65" material="column_tall"/>
-    <geom name="col_30" type="cylinder" pos="22.0 28 1.15" size="0.57 1.15" material="column"/>
-    <geom name="col_31" type="cylinder" pos="25.0 28 1.30" size="0.62 1.30" material="column"/>
-    <geom name="col_32" type="cylinder" pos="28.0 28 1.45" size="0.38 1.45" material="column_tall"/>
-    <geom name="col_33" type="cylinder" pos="31.0 28 1.60" size="0.42 1.60" material="column_tall"/>
-    <geom name="col_34" type="cylinder" pos="37.0 28 1.80" size="0.57 1.80" material="column_tall"/>
-    <geom name="col_35" type="cylinder" pos="43.0 28 1.25" size="0.38 1.25" material="column"/>
-    <geom name="col_36" type="cylinder" pos="23.5 31 1.25" size="0.50 1.25" material="column"/>
-    <geom name="col_37" type="cylinder" pos="26.5 31 1.40" size="0.57 1.40" material="column_tall"/>
-    <geom name="col_38" type="cylinder" pos="29.5 31 1.50" size="0.62 1.50" material="column_tall"/>
-    <geom name="col_39" type="cylinder" pos="32.5 31 1.65" size="0.38 1.65" material="column_tall"/>
-    <geom name="col_40" type="cylinder" pos="38.5 31 1.00" size="0.50 1.00" material="column"/>
-    <geom name="col_41" type="cylinder" pos="44.5 31 1.30" size="0.62 1.30" material="column"/>
-    <geom name="col_42" type="cylinder" pos="28.0 34 1.50" size="0.57 1.50" material="column_tall"/>
-    <geom name="col_43" type="cylinder" pos="31.0 34 1.65" size="0.62 1.65" material="column_tall"/>
-    <geom name="col_44" type="cylinder" pos="34.0 34 1.80" size="0.38 1.80" material="column_tall"/>
-    <geom name="col_45" type="cylinder" pos="29.5 37 1.60" size="0.50 1.60" material="column_tall"/>
-    <geom name="col_46" type="cylinder" pos="32.5 37 1.75" size="0.57 1.75" material="column_tall"/>
-    <geom name="col_47" type="cylinder" pos="35.5 37 1.80" size="0.62 1.80" material="column_tall"/>
-    <geom name="col_48" type="cylinder" pos="38.5 37 1.05" size="0.38 1.05" material="column"/>
-    <geom name="col_49" type="cylinder" pos="44.5 37 1.40" size="0.50 1.40" material="column_tall"/>
-    <geom name="col_50" type="cylinder" pos="34.0 40 1.80" size="0.57 1.80" material="column_tall"/>
-    <geom name="col_51" type="cylinder" pos="40.0 40 1.25" size="0.38 1.25" material="column"/>
-    <geom name="col_52" type="cylinder" pos="43.0 40 1.40" size="0.42 1.40" material="column_tall"/>
-    <geom name="col_53" type="cylinder" pos="35.5 43 1.00" size="0.50 1.00" material="column"/>
-    <geom name="col_54" type="cylinder" pos="38.5 43 1.15" size="0.57 1.15" material="column"/>
-    <geom name="col_55" type="cylinder" pos="44.5 43 1.45" size="0.38 1.45" material="column_tall"/>
-    <geom name="col_56" type="cylinder" pos="50.5 43 1.75" size="0.50 1.75" material="column_tall"/>
-    <geom name="col_57" type="cylinder" pos="40.0 46 1.30" size="0.57 1.30" material="column"/>
-    <geom name="col_58" type="cylinder" pos="43.0 46 1.45" size="0.62 1.45" material="column_tall"/>
-    <geom name="col_59" type="cylinder" pos="49.0 46 1.75" size="0.42 1.75" material="column_tall"/>
-    <geom name="col_60" type="cylinder" pos="41.5 49 1.40" size="0.50 1.40" material="column_tall"/>
-    <geom name="col_61" type="cylinder" pos="44.5 49 1.50" size="0.57 1.50" material="column_tall"/>
-    <geom name="col_62" type="cylinder" pos="47.5 49 1.65" size="0.62 1.65" material="column_tall"/>
-    <geom name="col_63" type="cylinder" pos="53.5 49 1.00" size="0.42 1.00" material="column"/>
-    <geom name="col_64" type="cylinder" pos="49.0 52 1.80" size="0.62 1.80" material="column_tall"/>
-    <geom name="col_65" type="cylinder" pos="52.0 52 1.00" size="0.38 1.00" material="column"/>
-    <geom name="col_66" type="cylinder" pos="55.0 52 1.15" size="0.42 1.15" material="column"/>
-    <geom name="col_67" type="cylinder" pos="58.0 52 1.30" size="0.50 1.30" material="column"/>
-    <geom name="col_68" type="cylinder" pos="41.5 55 1.45" size="0.38 1.45" material="column_tall"/>
-    <geom name="col_69" type="cylinder" pos="44.5 55 1.60" size="0.42 1.60" material="column_tall"/>
-    <geom name="col_70" type="cylinder" pos="47.5 55 1.75" size="0.50 1.75" material="column_tall"/>
-    <geom name="col_71" type="cylinder" pos="53.5 55 1.05" size="0.62 1.05" material="column"/>
-    <geom name="col_72" type="cylinder" pos="56.5 55 1.25" size="0.38 1.25" material="column"/>
-    <geom name="col_73" type="cylinder" pos="59.5 55 1.40" size="0.42 1.40" material="column_tall"/>
-    <geom name="col_74" type="cylinder" pos="62.5 55 1.50" size="0.50 1.50" material="column_tall"/>
-    <geom name="col_75" type="cylinder" pos="74.5 55 1.15" size="0.42 1.15" material="column"/>
-    <geom name="col_76" type="cylinder" pos="73.0 58 1.15" size="0.38 1.15" material="column"/>
-    <geom name="col_77" type="cylinder" pos="76.0 58 1.30" size="0.42 1.30" material="column"/>
-    <geom name="col_78" type="cylinder" pos="74.5 61 1.25" size="0.62 1.25" material="column"/>
-    <geom name="col_79" type="cylinder" pos="73.0 64 1.25" size="0.57 1.25" material="column"/>
-    <geom name="col_80" type="cylinder" pos="74.5 67 1.30" size="0.50 1.30" material="column"/>
-    <geom name="col_81" type="cylinder" pos="73.0 70 1.30" size="0.42 1.30" material="column"/>
-    <geom name="col_82" type="cylinder" pos="76.0 70 1.45" size="0.50 1.45" material="column_tall"/>
+    <!-- Rectangular structure forest (collision + visuals) -->
+    <geom name="str_000" type="box" pos="10.0 10 1.30" size="0.38 0.43 1.30" material="column"/>
+    <geom name="str_001" type="box" pos="11.5 13 1.40" size="0.62 0.53 1.40" material="column_tall"/>
+    <geom name="str_002" type="box" pos="10.0 16 1.40" size="0.57 0.66 1.40" material="column_tall"/>
+    <geom name="str_003" type="box" pos="13.0 16 1.50" size="0.62 0.72 1.50" material="column_tall"/>
+    <geom name="str_004" type="box" pos="16.0 16 1.65" size="0.38 0.43 1.65" material="column_tall"/>
+    <geom name="str_005" type="box" pos="22.0 16 1.00" size="0.50 0.57 1.00" material="column"/>
+    <geom name="str_006" type="box" pos="25.0 16 1.15" size="0.57 0.66 1.15" material="column"/>
+    <geom name="str_007" type="box" pos="31.0 16 1.45" size="0.38 0.43 1.45" material="column_tall"/>
+    <geom name="str_008" type="box" pos="11.5 19 1.45" size="0.50 0.42 1.45" material="column_tall"/>
+    <geom name="str_009" type="box" pos="14.5 19 1.60" size="0.57 0.49 1.60" material="column_tall"/>
+    <geom name="str_010" type="box" pos="17.5 19 1.75" size="0.62 0.53 1.75" material="column_tall"/>
+    <geom name="str_011" type="box" pos="20.5 19 1.80" size="0.38 0.32 1.80" material="column_tall"/>
+    <geom name="str_012" type="box" pos="26.5 19 1.25" size="0.50 0.42 1.25" material="column"/>
+    <geom name="str_013" type="box" pos="32.5 19 1.50" size="0.62 0.53 1.50" material="column_tall"/>
+    <geom name="str_014" type="box" pos="38.5 19 1.80" size="0.42 0.36 1.80" material="column_tall"/>
+    <geom name="str_015" type="box" pos="10.0 22 1.45" size="0.42 0.49 1.45" material="column_tall"/>
+    <geom name="str_016" type="box" pos="16.0 22 1.75" size="0.57 0.66 1.75" material="column_tall"/>
+    <geom name="str_017" type="box" pos="19.0 22 1.80" size="0.62 0.72 1.80" material="column_tall"/>
+    <geom name="str_018" type="box" pos="22.0 22 1.05" size="0.38 0.43 1.05" material="column"/>
+    <geom name="str_019" type="box" pos="25.0 22 1.25" size="0.42 0.49 1.25" material="column"/>
+    <geom name="str_020" type="box" pos="31.0 22 1.50" size="0.57 0.66 1.50" material="column_tall"/>
+    <geom name="str_021" type="box" pos="37.0 22 1.80" size="0.38 0.43 1.80" material="column_tall"/>
+    <geom name="str_022" type="box" pos="11.5 25 1.50" size="0.38 0.32 1.50" material="column_tall"/>
+    <geom name="str_023" type="box" pos="20.5 25 1.00" size="0.57 0.49 1.00" material="column"/>
+    <geom name="str_024" type="box" pos="23.5 25 1.15" size="0.62 0.53 1.15" material="column"/>
+    <geom name="str_025" type="box" pos="26.5 25 1.30" size="0.38 0.32 1.30" material="column"/>
+    <geom name="str_026" type="box" pos="32.5 25 1.60" size="0.50 0.42 1.60" material="column_tall"/>
+    <geom name="str_027" type="box" pos="44.5 25 1.25" size="0.42 0.36 1.25" material="column"/>
+    <geom name="str_028" type="box" pos="10.0 28 1.50" size="0.62 0.72 1.50" material="column_tall"/>
+    <geom name="str_029" type="box" pos="13.0 28 1.65" size="0.38 0.43 1.65" material="column_tall"/>
+    <geom name="str_030" type="box" pos="22.0 28 1.15" size="0.57 0.66 1.15" material="column"/>
+    <geom name="str_031" type="box" pos="25.0 28 1.30" size="0.62 0.72 1.30" material="column"/>
+    <geom name="str_032" type="box" pos="28.0 28 1.45" size="0.38 0.43 1.45" material="column_tall"/>
+    <geom name="str_033" type="box" pos="31.0 28 1.60" size="0.42 0.49 1.60" material="column_tall"/>
+    <geom name="str_034" type="box" pos="37.0 28 1.80" size="0.57 0.66 1.80" material="column_tall"/>
+    <geom name="str_035" type="box" pos="43.0 28 1.25" size="0.38 0.43 1.25" material="column"/>
+    <geom name="str_036" type="box" pos="23.5 31 1.25" size="0.50 0.42 1.25" material="column"/>
+    <geom name="str_037" type="box" pos="26.5 31 1.40" size="0.57 0.49 1.40" material="column_tall"/>
+    <geom name="str_038" type="box" pos="29.5 31 1.50" size="0.62 0.53 1.50" material="column_tall"/>
+    <geom name="str_039" type="box" pos="32.5 31 1.65" size="0.38 0.32 1.65" material="column_tall"/>
+    <geom name="str_040" type="box" pos="38.5 31 1.00" size="0.50 0.42 1.00" material="column"/>
+    <geom name="str_041" type="box" pos="44.5 31 1.30" size="0.62 0.53 1.30" material="column"/>
+    <geom name="str_042" type="box" pos="28.0 34 1.50" size="0.57 0.66 1.50" material="column_tall"/>
+    <geom name="str_043" type="box" pos="31.0 34 1.65" size="0.62 0.72 1.65" material="column_tall"/>
+    <geom name="str_044" type="box" pos="34.0 34 1.80" size="0.38 0.43 1.80" material="column_tall"/>
+    <geom name="str_045" type="box" pos="29.5 37 1.60" size="0.50 0.42 1.60" material="column_tall"/>
+    <geom name="str_046" type="box" pos="32.5 37 1.75" size="0.57 0.49 1.75" material="column_tall"/>
+    <geom name="str_047" type="box" pos="35.5 37 1.80" size="0.62 0.53 1.80" material="column_tall"/>
+    <geom name="str_048" type="box" pos="38.5 37 1.05" size="0.38 0.32 1.05" material="column"/>
+    <geom name="str_049" type="box" pos="44.5 37 1.40" size="0.50 0.42 1.40" material="column_tall"/>
+    <geom name="str_050" type="box" pos="34.0 40 1.80" size="0.57 0.66 1.80" material="column_tall"/>
+    <geom name="str_051" type="box" pos="40.0 40 1.25" size="0.38 0.43 1.25" material="column"/>
+    <geom name="str_052" type="box" pos="43.0 40 1.40" size="0.42 0.49 1.40" material="column_tall"/>
+    <geom name="str_053" type="box" pos="35.5 43 1.00" size="0.50 0.42 1.00" material="column"/>
+    <geom name="str_054" type="box" pos="38.5 43 1.15" size="0.57 0.49 1.15" material="column"/>
+    <geom name="str_055" type="box" pos="44.5 43 1.45" size="0.38 0.32 1.45" material="column_tall"/>
+    <geom name="str_056" type="box" pos="50.5 43 1.75" size="0.50 0.42 1.75" material="column_tall"/>
+    <geom name="str_057" type="box" pos="40.0 46 1.30" size="0.57 0.66 1.30" material="column"/>
+    <geom name="str_058" type="box" pos="43.0 46 1.45" size="0.62 0.72 1.45" material="column_tall"/>
+    <geom name="str_059" type="box" pos="49.0 46 1.75" size="0.42 0.49 1.75" material="column_tall"/>
+    <geom name="str_060" type="box" pos="41.5 49 1.40" size="0.50 0.42 1.40" material="column_tall"/>
+    <geom name="str_061" type="box" pos="44.5 49 1.50" size="0.57 0.49 1.50" material="column_tall"/>
+    <geom name="str_062" type="box" pos="47.5 49 1.65" size="0.62 0.53 1.65" material="column_tall"/>
+    <geom name="str_063" type="box" pos="53.5 49 1.00" size="0.42 0.36 1.00" material="column"/>
+    <geom name="str_064" type="box" pos="49.0 52 1.80" size="0.62 0.72 1.80" material="column_tall"/>
+    <geom name="str_065" type="box" pos="52.0 52 1.00" size="0.38 0.43 1.00" material="column"/>
+    <geom name="str_066" type="box" pos="55.0 52 1.15" size="0.42 0.49 1.15" material="column"/>
+    <geom name="str_067" type="box" pos="58.0 52 1.30" size="0.50 0.57 1.30" material="column"/>
+    <geom name="str_068" type="box" pos="41.5 55 1.45" size="0.38 0.32 1.45" material="column_tall"/>
+    <geom name="str_069" type="box" pos="44.5 55 1.60" size="0.42 0.36 1.60" material="column_tall"/>
+    <geom name="str_070" type="box" pos="47.5 55 1.75" size="0.50 0.42 1.75" material="column_tall"/>
+    <geom name="str_071" type="box" pos="53.5 55 1.05" size="0.62 0.53 1.05" material="column"/>
+    <geom name="str_072" type="box" pos="56.5 55 1.25" size="0.38 0.32 1.25" material="column"/>
+    <geom name="str_073" type="box" pos="59.5 55 1.40" size="0.42 0.36 1.40" material="column_tall"/>
+    <geom name="str_074" type="box" pos="62.5 55 1.50" size="0.50 0.42 1.50" material="column_tall"/>
+    <geom name="str_075" type="box" pos="74.5 55 1.15" size="0.42 0.36 1.15" material="column"/>
+    <geom name="str_076" type="box" pos="73.0 58 1.15" size="0.38 0.43 1.15" material="column"/>
+    <geom name="str_077" type="box" pos="76.0 58 1.30" size="0.42 0.49 1.30" material="column"/>
+    <geom name="str_078" type="box" pos="74.5 61 1.25" size="0.62 0.53 1.25" material="column"/>
+    <geom name="str_079" type="box" pos="73.0 64 1.25" size="0.57 0.66 1.25" material="column"/>
+    <geom name="str_080" type="box" pos="74.5 67 1.30" size="0.50 0.42 1.30" material="column"/>
+    <geom name="str_081" type="box" pos="73.0 70 1.30" size="0.42 0.49 1.30" material="column"/>
+    <geom name="str_082" type="box" pos="76.0 70 1.45" size="0.50 0.57 1.45" material="column_tall"/>
+    <geom name="str_083" type="box" pos="28.0 18.0 1.40" size="0.35 2.20 1.40" material="column_tall"/>
+    <geom name="str_084" type="box" pos="26.4 20.0 1.40" size="1.60 0.35 1.40" material="column_tall"/>
+    <geom name="str_085" type="box" pos="26.4 16.0 1.40" size="1.60 0.35 1.40" material="column_tall"/>
+    <geom name="str_086" type="box" pos="41.0 40.5 1.50" size="2.80 0.35 1.50" material="column_tall"/>
+    <geom name="str_087" type="box" pos="43.5 38.8 1.50" size="0.35 1.50 1.50" material="column_tall"/>
+    <geom name="str_088" type="box" pos="38.5 38.8 1.50" size="0.35 1.50 1.50" material="column_tall"/>
+    <geom name="str_089" type="box" pos="60.0 56.0 1.30" size="0.35 2.40 1.30" material="column"/>
+    <geom name="str_090" type="box" pos="58.2 58.0 1.30" size="1.80 0.35 1.30" material="column"/>
+    <geom name="str_091" type="box" pos="58.2 54.0 1.30" size="1.80 0.35 1.30" material="column"/>
 
     <!-- Agent 1: RRT* (blue) -->
     <body name="car_rrt" pos="0 0 0.12">
