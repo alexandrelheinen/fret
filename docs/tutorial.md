@@ -1,4 +1,4 @@
-# MuJoCo for Dummies — FRET v1.0 Visual Guide
+# MuJoCo Tutorial — FRET v1.0 Visual Guide
 
 > **One-stop tutorial** for seeing the PPP warehouse gantry in MuJoCo.
 > FRET uses **MuJoCo only** for 3D visualization. RViz and Gazebo GUIs are
@@ -214,7 +214,7 @@ found. FRET reproduces the Cartesian topology procedurally, following the
 | Source | Content | Fit for PPP warehouse |
 |---|---|---|
 | [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Curated robot MJCF + OBJ/STL meshes (UR5e, Franka, quadrupeds, …) | **No gantry / warehouse kits** — industrial arms only |
-| Built-in MJCF | `builtin="checker"`, `flat` textures, primitive geoms | Used in FRET today |
+| Built-in MJCF | `builtin="checker"`, `flat` textures, primitive geoms | Used for gantry frame |
 | [obj2mjcf](https://github.com/kevinzakka/obj2mjcf) | Converts composite OBJ → MJCF with materials | Needed when importing external meshes |
 
 Menagerie is the best maintained MuJoCo asset library, but it targets
@@ -240,7 +240,7 @@ frame vs. moving carriage bodies.
 
 | Stage | Approach |
 |---|---|
-| **v1.0 (current)** | Procedural overhead-gantry MJCF, identity FK preserved |
+| **v1.0 (current)** | Hybrid MJCF: procedural gantry + AWS warehouse meshes |
 | **v1.1** | Optional textured meshes for gantry frame + pallets (visual-only geoms) |
 | **v1.2+** | Consider Menagerie arm as secondary cell robot; warehouse still custom |
 

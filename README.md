@@ -37,7 +37,7 @@ Full specification: **[docs/releases.md](docs/releases.md)**
 
 ## Quick start
 
-> **Visual guide (for dummies):** [docs/mujoco_for_dummies.md](docs/mujoco_for_dummies.md)
+> **Visual guide:** [docs/tutorial.md](docs/tutorial.md)
 
 ### Pure Python (algorithms only — no ROS)
 
@@ -167,7 +167,7 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 - [Release specification v1.0–v1.3](docs/releases.md)
 - [Project roadmap](docs/roadmap.md)
 - [Scenario library](docs/scenarios.md)
-- [MuJoCo for dummies (visual guide)](docs/mujoco_for_dummies.md)
+- [MuJoCo tutorial (visual guide)](docs/tutorial.md)
 - [Simulation tutorial](docs/simulation.md)
 
 ### Architecture

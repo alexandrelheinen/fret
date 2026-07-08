@@ -1,6 +1,6 @@
 # FretSim — Simulation Tutorial
 
-> **Start here for visuals:** [mujoco_for_dummies.md](mujoco_for_dummies.md) —
+> **Start here for visuals:** [tutorial.md](tutorial.md) —
 > consolidated MuJoCo guide (interactive viewer + MP4 + SITL).
 >
 > **Release focus:** v1.0 PPP warehouse in MuJoCo. See [releases.md](releases.md).
@@ -38,7 +38,7 @@ pip install -e ".[sim]"
 ./scripts/view.sh
 ```
 
-See [mujoco_for_dummies.md](mujoco_for_dummies.md) for controls, options, and
+See [tutorial.md](tutorial.md) for controls, options, and
 troubleshooting.
 
 ---
