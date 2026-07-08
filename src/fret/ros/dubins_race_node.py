@@ -33,12 +33,9 @@ _ALL_JOINTS: tuple[str, ...] = _RRT_JOINTS + _SST_JOINTS
 
 
 def _controller_update_rate() -> float:
-    ctrl_path = (
-        pathlib.Path(__file__).resolve().parents[1]
-        / "config"
-        / "controllers"
-        / "dubins.yml"
-    )
+    from fret.sitl_config import controller_config_path
+
+    ctrl_path = controller_config_path("dubins")
     with ctrl_path.open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     if isinstance(data, dict):
@@ -84,7 +81,9 @@ class DubinsRaceRosNode:  # pragma: no cover
         obstacle_rel = str(
             params.get("obstacle_file", "worlds/dubins_race_obstacles.yml")
         )
-        obstacle_path = resolve_package_file("config", *pathlib.Path(obstacle_rel).parts)
+        obstacle_path = resolve_package_file(
+            "config", *pathlib.Path(obstacle_rel).parts
+        )
 
         self._runner = DubinsRaceRunner(
             scenario_path=scenario_path,
