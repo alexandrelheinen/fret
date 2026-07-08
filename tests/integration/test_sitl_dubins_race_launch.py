@@ -117,6 +117,11 @@ def test_v11_1_dubins_race_mujoco_sitl_starts(
             break
         time.sleep(0.5)
 
+    if proc.stdout is not None and proc.stdout.readable():
+        remainder = proc.stdout.read()
+        if remainder:
+            log_lines.extend(line.rstrip() for line in remainder.splitlines() if line)
+
     log_tail = "\n".join(log_lines[-40:])
     assert proc.poll() is None, (
         "SITL launch exited before the race node was ready.\n" f"{log_tail}"

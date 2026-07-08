@@ -191,11 +191,17 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
 
     rclpy.init(args=args)
-    node = DubinsRaceRosNode()
+    node: DubinsRaceRosNode | None = None
     try:
+        node = DubinsRaceRosNode()
         rclpy.spin(node)
+    except Exception:
+        if node is not None:
+            node.get_logger().exception("Dubins race node failed during startup")  # type: ignore[attr-defined]
+        raise
     finally:
-        node.destroy_node()  # type: ignore[attr-defined]
+        if node is not None:
+            node.destroy_node()  # type: ignore[attr-defined]
         if rclpy.ok():
             rclpy.shutdown()
 
