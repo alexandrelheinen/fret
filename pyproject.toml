@@ -42,6 +42,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"fret" = ["config/**/*", "mjcf/**/*"]
+
 [tool.black]
 line-length = 79
 target-version = ["py312"]

@@ -12,6 +12,7 @@ from fret.sitl_config import (
     load_scenario_parameters,
     mujoco_sim_config_relative,
     perception_config_relative,
+    resolve_package_file,
     uses_mujoco_backend,
 )
 
@@ -78,3 +79,17 @@ def test_load_ppp_warehouse_scenario() -> None:
 def test_load_scenario_missing_file() -> None:
     with pytest.raises(FileNotFoundError):
         load_scenario_parameters("/nonexistent/scenario.yml")
+
+
+def test_resolve_package_file_from_source_tree() -> None:
+    path = resolve_package_file("config", "scenarios", "dubins_race.yml")
+    assert path.name == "dubins_race.yml"
+    assert path.is_file()
+
+
+def test_mjcf_path_dubins_race() -> None:
+    from fret.sitl_config import mjcf_path
+
+    path = mjcf_path("dubins", "dubins_race")
+    assert path.name == "dubins_race.xml"
+    assert path.is_file()

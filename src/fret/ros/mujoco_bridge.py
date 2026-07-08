@@ -85,20 +85,9 @@ def resolve_mjcf_path(
             raise FileNotFoundError(f"MJCF not found: {path}")
         return path
 
-    if model == "ppp" and scenario in {"ppp_warehouse", "ppp"}:
-        candidate = _project_root() / "mjcf" / "ppp_warehouse.xml"
-        if candidate.is_file():
-            return candidate
+    from fret.sitl_config import mjcf_path as resolve_installed_mjcf
 
-    if model == "dubins" and scenario in {"dubins_race", "dubins"}:
-        candidate = _project_root() / "mjcf" / "dubins_race.xml"
-        if candidate.is_file():
-            return candidate
-
-    raise ValueError(
-        f"Unsupported model/scenario combination: model={model!r}, "
-        f"scenario={scenario!r}"
-    )
+    return resolve_installed_mjcf(model, scenario)
 
 
 def integrate_joint_velocities(
