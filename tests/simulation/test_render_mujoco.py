@@ -101,6 +101,36 @@ def test_build_showcase_waypoints_mujoco_backend() -> None:
     assert waypoints[-1][0] == pytest.approx(10.5)
 
 
+def test_showcase_cruise_avoids_flying_over_floor_clutter() -> None:
+    """Transit must route around racks, not pass through obstacle footprints."""
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    from fret.planning.ppp_obstacles import load_ppp_warehouse_preview_obstacles
+
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    waypoints = rm.build_showcase_waypoints(
+        "ppp_warehouse",
+        collision_backend="mujoco",
+        mjcf_path=mjcf,
+    )
+    boxes = load_ppp_warehouse_preview_obstacles()
+    max_obs_z = max(box.z_max for box in boxes)
+    cruise_z = float(waypoints[2][2])
+    assert cruise_z < max_obs_z + 0.6
+    for q in waypoints:
+        if abs(float(q[2]) - cruise_z) > 0.02:
+            continue
+        for box in boxes[:3]:
+            inside_xy = (
+                box.x_min <= float(q[0]) <= box.x_max
+                and box.y_min <= float(q[1]) <= box.y_max
+            )
+            assert not inside_xy, (
+                f"cruise waypoint ({q[0]:.2f}, {q[1]:.2f}) crosses "
+                f"obstacle footprint at z={cruise_z:.2f}"
+            )
+
+
 def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
     """Tracked showcase clips must traverse X/Y, not stall in the pick segment."""
     pytest.importorskip("mujoco")
