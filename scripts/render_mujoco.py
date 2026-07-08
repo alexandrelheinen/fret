@@ -157,6 +157,27 @@ def _scenario_config_path(scenario: str) -> Path:
     return _project_root() / "src/fret/config/scenarios" / f"{scenario}.yml"
 
 
+def resolve_scenario_duration(
+    scenario: str,
+    *,
+    default_s: float = 30.0,
+) -> float:
+    """Return the scenario YAML ``duration`` for showcase clip length."""
+    _ensure_fret_importable()
+    from fret.sitl_config import load_scenario_parameters
+
+    try:
+        params = load_scenario_parameters(_scenario_config_path(scenario))
+    except (FileNotFoundError, OSError, ValueError):
+        return default_s
+    raw = params.get("duration", default_s)
+    try:
+        duration = float(raw)
+    except (TypeError, ValueError):
+        return default_s
+    return duration if duration > 0.0 else default_s
+
+
 def plan_ppp_warehouse_path(
     scenario: str = "ppp_warehouse",
     *,
@@ -344,6 +365,61 @@ def _resample_joint_history(
         alpha = float(idx - lo)
         resampled[i] = (1.0 - alpha) * history[lo] + alpha * history[hi]
     return np.clip(resampled, _PPP_LIMITS[:, 0], _PPP_LIMITS[:, 1])
+
+
+def _assert_showcase_trajectory_moves(
+    trajectory: npt.NDArray[np.float64],
+) -> None:
+    """Fail fast when a release clip would show a static gantry."""
+    spans = trajectory.max(axis=0) - trajectory.min(axis=0)
+    if float(spans[0]) < 5.0 or float(spans[1]) < 0.5:
+        raise RuntimeError(
+            "Showcase trajectory lacks horizontal transit "
+            f"(joint spans X={spans[0]:.2f}, Y={spans[1]:.2f}, Z={spans[2]:.2f})"
+        )
+
+
+def build_showcase_trajectory(
+    path_waypoints: list[npt.NDArray[np.float64]],
+    *,
+    scenario: str,
+    duration_s: float,
+    fps: int,
+    collision_backend: str | None,
+    use_tracking: bool,
+    start: npt.NDArray[np.float64] | None = None,
+) -> npt.NDArray[np.float64]:
+    """Build joint samples for a showcase clip.
+
+    Release renders use joint-space interpolation over the dense planned path
+    (``--no-tracking``), matching the headless demo validated in cloud-agent
+    setup.  Controller tracking remains available for executed-motion previews.
+    """
+    if collision_backend is not None and use_tracking:
+        dense = build_pruned_dense_waypoints(
+            path_waypoints,
+            scenario=scenario,
+        )
+        trajectory = simulate_tracked_trajectory(
+            dense,
+            duration_s=duration_s,
+            fps=fps,
+            start=start if start is not None else path_waypoints[0],
+        )
+    else:
+        interpolate_path = path_waypoints
+        if collision_backend is not None:
+            interpolate_path = build_pruned_dense_waypoints(
+                path_waypoints,
+                scenario=scenario,
+            )
+        trajectory = interpolate_waypoints(
+            interpolate_path,
+            duration_s,
+            fps,
+        )
+    _assert_showcase_trajectory_moves(trajectory)
+    return trajectory
 
 
 def simulate_tracked_trajectory(
@@ -629,19 +705,15 @@ def render_showcase_videos(
         planner_algorithm=planner_algorithm,
         waypoints=waypoints,
     )
-    if collision_backend is not None and use_tracking:
-        dense = build_pruned_dense_waypoints(
-            path_waypoints,
-            scenario=scenario,
-        )
-        trajectory = simulate_tracked_trajectory(
-            dense,
-            duration_s=duration_s,
-            fps=fps,
-            start=path_waypoints[0],
-        )
-    else:
-        trajectory = interpolate_waypoints(path_waypoints, duration_s, fps)
+    trajectory = build_showcase_trajectory(
+        path_waypoints,
+        scenario=scenario,
+        duration_s=duration_s,
+        fps=fps,
+        collision_backend=collision_backend,
+        use_tracking=use_tracking,
+        start=path_waypoints[0],
+    )
 
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
@@ -731,8 +803,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--duration",
         type=float,
-        default=30.0,
-        help="Clip duration in seconds (default: 30)",
+        default=None,
+        help=(
+            "Clip duration in seconds (default: scenario YAML duration, "
+            "else 30)"
+        ),
     )
     parser.add_argument(
         "--fps",
@@ -791,6 +866,11 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     args = build_parser().parse_args(argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
+    duration_s = (
+        args.duration
+        if args.duration is not None
+        else resolve_scenario_duration(args.scenario)
+    )
 
     use_tracking = not args.no_tracking
 
@@ -801,7 +881,7 @@ def main(argv: list[str] | None = None) -> int:
             args.output_dir,
             scenario=args.scenario,
             cameras=cameras,
-            duration_s=args.duration,
+            duration_s=duration_s,
             fps=args.fps,
             width=args.width,
             height=args.height,
@@ -813,7 +893,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"Wrote {result.path} "
                 f"(camera={result.camera}, mean={result.frame_mean:.1f}, "
-                f"{args.duration:.1f}s @ {args.fps} fps)"
+                f"{duration_s:.1f}s @ {args.fps} fps)"
             )
         return 0
 
@@ -826,7 +906,7 @@ def main(argv: list[str] | None = None) -> int:
             mjcf_path,
             output,
             scenario=args.scenario,
-            duration_s=args.duration,
+            duration_s=duration_s,
             fps=args.fps,
             width=args.width,
             height=args.height,
@@ -836,7 +916,7 @@ def main(argv: list[str] | None = None) -> int:
             use_tracking=use_tracking,
         )
         print(
-            f"Wrote {result.path} ({args.duration:.1f}s @ {args.fps} fps, "
+            f"Wrote {result.path} ({duration_s:.1f}s @ {args.fps} fps, "
             f"mean={result.frame_mean:.1f})"
         )
         return 0
@@ -846,7 +926,7 @@ def main(argv: list[str] | None = None) -> int:
         args.output_dir,
         scenario=args.scenario,
         cameras=cameras,
-        duration_s=args.duration,
+        duration_s=duration_s,
         fps=args.fps,
         width=args.width,
         height=args.height,

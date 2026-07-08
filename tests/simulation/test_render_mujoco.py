@@ -121,3 +121,30 @@ def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
     assert traj.shape == (900, 3)
     assert traj[:, 0].max() > 8.0
     assert traj[:, 1].max() > 2.0
+
+
+def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
+    """Release-style interpolation must span the planned warehouse transit."""
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    path = rm.build_showcase_waypoints(
+        "ppp_warehouse",
+        collision_backend="mujoco",
+        mjcf_path=mjcf,
+    )
+    traj = rm.build_showcase_trajectory(
+        path,
+        scenario="ppp_warehouse",
+        duration_s=60.0,
+        fps=30,
+        collision_backend="mujoco",
+        use_tracking=False,
+    )
+    assert traj.shape == (1800, 3)
+    assert traj[:, 0].max() > 8.0
+    assert traj[:, 1].max() > 2.0
+
+
+def test_resolve_scenario_duration_reads_yaml() -> None:
+    assert rm.resolve_scenario_duration("ppp_warehouse") == pytest.approx(60.0)
