@@ -91,6 +91,16 @@ echo "=== ROS 2 launch smoke tests ==="
 run_smoke_test "mujoco_view_dry_run" -- python3 scripts/view_mujoco.py --dry-run \
     || FAILED=1
 
+# Release workflow CLI must parse before tag builds render showcase MP4s.
+info "Showcase release CLI smoke"
+if python3 -m pytest tests/simulation/test_render_mujoco.py \
+    -k "release_workflow_cli_args_parse or main_accepts_release" -q; then
+    ok "showcase_release_cli: PASSED"
+else
+    fail "showcase_release_cli: FAILED"
+    FAILED=1
+fi
+
 # v1.0 V10-1: PPP warehouse MuJoCo SITL (no Gazebo dependency).
 run_smoke_test "sitl_ppp_warehouse_mujoco" 30 -- \
     env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \

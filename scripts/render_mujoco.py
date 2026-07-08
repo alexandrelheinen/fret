@@ -1498,6 +1498,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write per-clip sim/render timing JSON (for release CI)",
     )
+    parser.add_argument(
+        "--no-realtime-postprocess",
+        action="store_true",
+        help="Skip ffmpeg speedup to match simulation time",
+    )
     return parser
 
 

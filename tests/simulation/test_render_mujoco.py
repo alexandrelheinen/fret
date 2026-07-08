@@ -211,3 +211,108 @@ def test_showcase_timing_real_time_factor() -> None:
 def test_resolve_scenario_duration_reads_yaml() -> None:
     assert rm.resolve_scenario_duration("ppp_warehouse") == pytest.approx(60.0)
     assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(35.0)
+
+
+# Mirrors .github/workflows/release.yml showcase render invocations.
+_RELEASE_PPP_CLI: list[str] = [
+    "--model",
+    "ppp",
+    "--scenario",
+    "ppp_warehouse",
+    "--all-cameras",
+    "--collision-backend",
+    "mujoco",
+    "--planner-algorithm",
+    "rrt_star",
+    "--no-tracking",
+    "--output-dir",
+    "showcase_renders",
+    "--timing-json",
+    "showcase_renders/ppp_timing.json",
+    "--fps",
+    "30",
+    "--width",
+    "1280",
+    "--height",
+    "720",
+]
+
+_RELEASE_DUBINS_CLI: list[str] = [
+    "--model",
+    "dubins",
+    "--scenario",
+    "dubins_race",
+    "--all-cameras",
+    "--output-dir",
+    "showcase_renders",
+    "--timing-json",
+    "showcase_renders/dubins_timing.json",
+    "--fps",
+    "30",
+    "--width",
+    "1280",
+    "--height",
+    "720",
+]
+
+
+def test_release_workflow_cli_args_parse() -> None:
+    """Release workflow flags must parse without missing Namespace attributes."""
+    parser = rm.build_parser()
+    ppp_args = parser.parse_args(_RELEASE_PPP_CLI)
+    dubins_args = parser.parse_args(_RELEASE_DUBINS_CLI)
+
+    assert ppp_args.model == "ppp"
+    assert ppp_args.scenario == "ppp_warehouse"
+    assert ppp_args.all_cameras is True
+    assert ppp_args.no_tracking is True
+    assert ppp_args.timing_json == Path("showcase_renders/ppp_timing.json")
+    assert ppp_args.no_realtime_postprocess is False
+
+    assert dubins_args.model == "dubins"
+    assert dubins_args.scenario == "dubins_race"
+    assert dubins_args.all_cameras is True
+    assert dubins_args.timing_json == Path("showcase_renders/dubins_timing.json")
+    assert dubins_args.no_realtime_postprocess is False
+
+
+def test_main_accepts_release_ppp_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    """main() must accept the exact release.yml PPP invocation."""
+    timing = rm.ShowcaseTiming(sim_time_s=12.0, render_duration_s=12.0)
+
+    def _fake_render(*_args: object, **_kwargs: object) -> list[rm.RenderResult]:
+        return [
+            rm.RenderResult(
+                camera="overview",
+                path=Path("/tmp/ppp_warehouse_overview.mp4"),
+                frame_mean=42.0,
+                timing=timing,
+            )
+        ]
+
+    monkeypatch.setattr(rm, "render_showcase_videos", _fake_render)
+    monkeypatch.setattr(rm, "postprocess_showcase_results", lambda r, **k: r)
+    monkeypatch.setattr(rm, "write_showcase_timing_json", lambda *_a, **_k: None)
+
+    assert rm.main(_RELEASE_PPP_CLI) == 0
+
+
+def test_main_accepts_release_dubins_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    """main() must accept the exact release.yml Dubins invocation."""
+    timing = rm.ShowcaseTiming(sim_time_s=34.0, render_duration_s=34.0)
+
+    def _fake_render(*_args: object, **_kwargs: object) -> list[rm.RenderResult]:
+        return [
+            rm.RenderResult(
+                camera="overview",
+                path=Path("/tmp/dubins_race_overview.mp4"),
+                frame_mean=42.0,
+                timing=timing,
+            )
+        ]
+
+    monkeypatch.setattr(rm, "render_showcase_videos", _fake_render)
+    monkeypatch.setattr(rm, "postprocess_showcase_results", lambda r, **k: r)
+    monkeypatch.setattr(rm, "write_showcase_timing_json", lambda *_a, **_k: None)
+
+    assert rm.main(_RELEASE_DUBINS_CLI) == 0
