@@ -47,6 +47,7 @@ _PPP_PICK_DESCEND_S: float = 4.0
 _PPP_PICK_ASCEND_S: float = 3.5
 _PPP_PLACE_DESCEND_S: float = 4.0
 _PPP_PLACE_ASCEND_S: float = 3.0
+_PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.45
 # Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
@@ -476,7 +477,13 @@ def pick_place_segment_durations(
             else:
                 durations.append(max(dz / 1.5, 1.0))
         else:
-            durations.append(float(np.max(delta / np.array([3.0, 3.0, 1.5]))))
+            horiz = float(np.hypot(float(delta[0]), float(delta[1])))
+            if horiz > 1e-6:
+                durations.append(
+                    max(horiz / _PPP_SHOWCASE_TRANSIT_SPEED_M_S, 0.5)
+                )
+            else:
+                durations.append(0.5)
     return durations
 
 
