@@ -54,7 +54,7 @@ The specification stack is in place:
 | Level | Specification artifacts | Validation artifacts |
 | --- | --- | --- |
 | 1 — Functional | [docs/requirements.md](docs/requirements.md) (`FR-*`), [docs/scenarios.md](docs/scenarios.md) (`SC-*`) | Scenario pass criteria, integration tests |
-| 2 — Architecture | [docs/architecture.md](docs/architecture.md), [docs/interfaces.md](docs/interfaces.md) | `tests/integration/`, `.github/workflows/integration.yml` |
+| 2 — Architecture | [README.md § Architecture](../README.md#architecture), [docs/interfaces.md](docs/interfaces.md) | `tests/integration/`, `.github/workflows/integration.yml` |
 | 3 — Module API | Typed stubs under `src/fret/` | `tests/` mirroring `src/fret/` |
 | 4 — Implementation | Filled algorithms and ROS nodes | Full CI suite, SITL smoke tests |
 
@@ -207,7 +207,7 @@ exists and has a matching `SC-*` scenario or test.
 
 | Side | Artifact | FRET location |
 | --- | --- | --- |
-| **Specify** | Layer decomposition, data flows, typed contracts, QoS, FSMs | [docs/architecture.md](docs/architecture.md), [docs/interfaces.md](docs/interfaces.md) |
+| **Specify** | Layer decomposition, data flows, typed contracts, QoS, FSMs | [README.md § Architecture](../README.md#architecture), [docs/interfaces.md](docs/interfaces.md) |
 | **Verify** | Inter-node contract tests | `tests/integration/`, `.github/workflows/integration.yml` |
 
 **Rule:** No Level 3 work on a new module boundary until
@@ -517,7 +517,7 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | --- | --- |
 | [docs/requirements.md](docs/requirements.md) | Level 1 — `FR-*` functional requirements |
 | [docs/scenarios.md](docs/scenarios.md) | Level 1 — `SC-*` scenario validation |
-| [docs/architecture.md](docs/architecture.md) | Level 2 — system design |
+| [README.md § Architecture](../README.md#architecture) | Level 2 — system design |
 | [docs/interfaces.md](docs/interfaces.md) | Level 2 — typed contracts, QoS, FSMs |
 | [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.3 |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |

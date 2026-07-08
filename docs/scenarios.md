@@ -41,14 +41,15 @@ using magnetic grasp.
 **File:** `config/scenarios/dubins_race.yml`  
 **Model:** `dubins` · **Backend:** `mujoco`
 
-**Purpose:** Two Dubins robots race A → B through a warehouse column forest
-(RRT* blue vs SST green).
+**Purpose:** Two Dubins robots race A → B through a warehouse structure forest
+(RRT* blue vs SST green). Rectangular posts, walls, and U-shaped dead-end alcoves
+create multiple corridors — only proper planning avoids traps.
 
 | Parameter | Value |
 |---|---|
 | Agents | 2 (RRT* + SST) |
-| Environment | AWS warehouse floor + staggered column forest |
-| Workspace | 24 × 16 m |
+| Environment | AWS warehouse floor + rectangular structure forest |
+| Workspace | 80 × 80 m |
 | Control | ARCO Pure Pursuit + DubinsVehicle |
 | Planner | ARCO RRT* (agent 1) + SST (agent 2) |
 
