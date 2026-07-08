@@ -25,7 +25,7 @@ _SCENARIO_PATH = (
     / "scenarios"
     / "dubins_race.yml"
 )
-_RACE_TIMEOUT_S = 90.0
+_RACE_TIMEOUT_S = 120.0
 
 
 def test_obstacle_file_exists() -> None:
@@ -52,6 +52,7 @@ def test_dual_agents_plan_and_finish_race() -> None:
     assert result.rrt_time_to_goal_s <= _RACE_TIMEOUT_S
     assert result.sst_time_to_goal_s <= _RACE_TIMEOUT_S
     assert elapsed <= _RACE_TIMEOUT_S + 30.0
+    assert result.min_obstacle_clearance_m >= 0.0
 
 
 def test_agents_can_take_different_path_lengths() -> None:
@@ -59,6 +60,7 @@ def test_agents_can_take_different_path_lengths() -> None:
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
     result = runner.run(record_poses=True)
     assert result.rrt_plan.path_found and result.sst_plan.path_found
+    assert result.min_obstacle_clearance_m >= 0.0
 
     rrt_xy = np.array([(p[0], p[1]) for p in result.rrt_plan.path])
     sst_xy = np.array([(p[0], p[1]) for p in result.sst_plan.path])

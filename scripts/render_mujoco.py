@@ -1000,6 +1000,7 @@ def _assert_dubins_race_moves(
 _DUBINS_CAR_WIDTH_M: float = 0.72
 _DUBINS_FOLLOW_FOVY_DEG: float = 50.0
 _DUBINS_FOLLOW_FILL: float = 0.15
+_DUBINS_FOLLOW_DISTANCE_SCALE: float = 2.0
 
 
 def _dubins_follow_distance(
@@ -1035,7 +1036,9 @@ def _make_dubins_tracking_camera(
         raise ValueError(f"Body not found in MJCF: {body_name}")
     cam.distance = float(distance)
     cam.elevation = -18.0
-    cam.azimuth = math.degrees(float(yaw_rad)) + 180.0
+    # MuJoCo tracking azimuth places the camera on the circle around the
+    # target; match body heading so the chase view sits behind the vehicle.
+    cam.azimuth = math.degrees(float(yaw_rad))
     return cam
 
 
@@ -1102,7 +1105,9 @@ def render_dubins_race_showcase_videos(
     renderer = mujoco.Renderer(model, height=height, width=width)
     split_follow = "follow" in camera_names
     half_width = max(2, width // 2)
-    follow_distance = _dubins_follow_distance(half_width, height)
+    follow_distance = (
+        _dubins_follow_distance(half_width, height) * _DUBINS_FOLLOW_DISTANCE_SCALE
+    )
     follow_renderer_left: object | None = None
     follow_renderer_right: object | None = None
     if split_follow:
