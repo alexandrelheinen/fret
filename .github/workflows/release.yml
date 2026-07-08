@@ -59,8 +59,9 @@ jobs:
             --all-cameras \
             --collision-backend mujoco \
             --planner-algorithm rrt_star \
+            --no-tracking \
             --output-dir showcase_renders \
-            --duration 30 \
+            --duration 60 \
             --fps 30 \
             --width 1280 \
             --height 720
@@ -102,7 +103,7 @@ jobs:
               "scenario": "ppp_warehouse",
               "model": "ppp",
               "collision_backend": "mujoco",
-              "duration_s": 30,
+              "duration_s": 60,
               "fps": 30,
               "width": 1280,
               "height": 720,
