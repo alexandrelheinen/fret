@@ -32,6 +32,7 @@ from fret.planning.ppp_obstacles import (
     BoxObstacleOccupancy,
     boxes_to_point_cloud,
     load_ppp_warehouse_preview_obstacles,
+    load_preview_workspace_bounds,
 )
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.ros.mujoco_bridge import make_mujoco_bridge_core
@@ -132,6 +133,16 @@ def _path_is_collision_free(
     *,
     include_cargo: bool,
     grasp_config: GraspConfig,
+    collision_backend: str = "analytic",
+    scenario: str = "ppp_warehouse",
+    workspace_bounds: (
+        tuple[
+            tuple[float, float],
+            tuple[float, float],
+            tuple[float, float],
+        ]
+        | None
+    ) = None,
 ) -> bool:
     """Return True when every waypoint is collision-free."""
     checker = make_cspace_checker(
@@ -139,6 +150,9 @@ def _path_is_collision_free(
         occupancy,
         include_cargo=include_cargo,
         grasp_config=grasp_config,
+        collision_backend=collision_backend,  # type: ignore[arg-type]
+        scenario=scenario,
+        workspace_bounds=workspace_bounds,
     )
     return all(checker.is_collision_free(q) for q in path)
 
@@ -236,8 +250,18 @@ class PPPWarehouseRunner:
         grasp_cfg = _parse_grasp_config(dict(params.get("grasp", {})))
 
         occ_adapter, box_occ = _build_occupancy_adapter(self._obstacle_path)
+        preview_bounds = load_preview_workspace_bounds(self._obstacle_path)
         kin = Kinematics("ppp")
-        planner = PlannerNode(model="ppp", occupancy_adapter=occ_adapter)
+        collision_backend = str(params.get("collision_backend", "analytic"))
+        scenario_id = str(params.get("scenario_id", "ppp_warehouse"))
+        planner = PlannerNode(
+            model="ppp",
+            occupancy_adapter=occ_adapter,
+            occupancy=box_occ,
+            collision_backend=collision_backend,  # type: ignore[arg-type]
+            scenario=scenario_id,
+            workspace_bounds=preview_bounds,
+        )
         traj_gen = TrajectoryGenerator(kin)
 
         req = PlanningRequest(
@@ -268,6 +292,9 @@ class PPPWarehouseRunner:
             plan_result.path,
             include_cargo=False,
             grasp_config=grasp_cfg,
+            collision_backend=collision_backend,
+            scenario=scenario_id,
+            workspace_bounds=preview_bounds,
         )
 
         waypoints = _trajectory_waypoints(traj_gen, plan_result.path)

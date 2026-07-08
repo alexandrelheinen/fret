@@ -146,6 +146,32 @@ def load_ppp_warehouse_preview_obstacles(
     )
 
 
+def load_preview_workspace_bounds(
+    path: Path | None = None,
+) -> tuple[
+    tuple[float, float],
+    tuple[float, float],
+    tuple[float, float],
+]:
+    """Load preview workspace bounds from obstacle YAML.
+
+    Returns:
+        ``((x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi))`` in metres.
+    """
+    obstacle_path = path if path is not None else preview_obstacle_file()
+    with obstacle_path.open() as fh:
+        data = yaml.safe_load(fh)
+    bounds = data.get("workspace_bounds", {})
+    xb = bounds.get("x", [0.0, 12.0])
+    yb = bounds.get("y", [0.0, 4.0])
+    zb = bounds.get("z", [0.0, 3.0])
+    return (
+        (float(xb[0]), float(xb[1])),
+        (float(yb[0]), float(yb[1])),
+        (float(zb[0]), float(zb[1])),
+    )
+
+
 def boxes_to_point_cloud(
     boxes: list[BoxObstacle],
     *,

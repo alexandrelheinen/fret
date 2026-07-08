@@ -16,10 +16,13 @@
 
     # Pick pose above cargo, then place pose in goal zone (MJCF preview scale).
     start_configuration: [2.0, 1.0, 2.4]
-    goal_configuration: [10.5, 3.2, 2.4]
+    goal_configuration: [10.5, 2.8, 2.65]
 
     planning_timeout: 30.0
     duration: 60.0
+
+    # Collision checking: analytic (AABB + occupancy) or mujoco (MJCF contacts).
+    collision_backend: analytic
 
     grasp:
       capture_radius: 0.3
