@@ -38,19 +38,22 @@ using magnetic grasp.
 
 ### SC-v11 — Dubins dual race (v1.1)
 
-**File:** `config/scenarios/dubins_race.yml` *(planned)*  
+**File:** `config/scenarios/dubins_race.yml`  
 **Model:** `dubins` · **Backend:** `mujoco`
 
-**Purpose:** Two Dubins robots race A → B through columns of varied height.
+**Purpose:** Two Dubins robots race A → B through a warehouse column forest
+(RRT* blue vs SST green).
 
 | Parameter | Value |
 |---|---|
-| Agents | 2 |
-| Environment | Column forest + optional walls |
-| Control | ARCO Pure Pursuit |
-| Planner | ARCO SST per agent |
+| Agents | 2 (RRT* + SST) |
+| Environment | AWS warehouse floor + staggered column forest |
+| Workspace | 24 × 16 m |
+| Control | ARCO Pure Pursuit + DubinsVehicle |
+| Planner | ARCO RRT* (agent 1) + SST (agent 2) |
 
 **Pass criteria:** See [releases.md § v1.1](releases.md#v11--dubins-dual-robot-race).
+Implementation guide: [v1.1-dubins-race.md](v1.1-dubins-race.md).
 
 ---
 

@@ -1,0 +1,101 @@
+<mujoco model="dubins_race">
+  <!--
+    Dubins dual-robot warehouse race (SC-v11 / T11-02).
+
+    Floor: AWS RoboMaker ground texture.
+    Columns: procedural cylinders with varied heights (planning layout in
+             config/worlds/dubins_race_obstacles.yml).
+    Agents: RRT* (blue, marker 1) vs SST (green, marker 2).
+  -->
+  <compiler angle="radian" coordinate="local"
+            meshdir="assets/aws_warehouse/meshes"
+            texturedir="assets/aws_warehouse/textures"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
+
+  <visual>
+    <headlight ambient="0.50 0.52 0.55" diffuse="0.28 0.30 0.33" specular="0 0 0"/>
+    <rgba haze="0.72 0.74 0.78 0.25"/>
+    <global azimuth="140" elevation="-28" offwidth="1920" offheight="1080"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.78 0.80 0.84" rgb2="0.58 0.61 0.66" width="512" height="1536"/>
+    <texture name="ground_tex" type="2d" file="ground.png"/>
+
+    <material name="floor" texture="ground_tex" texuniform="true" texrepeat="4 3" reflectance="0.01"/>
+    <material name="column" rgba="0.62 0.64 0.68 1" specular="0.08" shininess="0.05"/>
+    <material name="column_tall" rgba="0.55 0.57 0.62 1" specular="0.10" shininess="0.06"/>
+    <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
+    <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
+    <material name="car_rrt" rgba="0.267 0.467 0.800 1" specular="0.15" shininess="0.08"/>
+    <material name="car_sst" rgba="0.267 0.667 0.400 1" specular="0.15" shininess="0.08"/>
+    <material name="wheel" rgba="0.12 0.12 0.14 1"/>
+    <material name="marker_light" rgba="0.95 0.95 0.98 1"/>
+    <material name="marker_dark" rgba="0.15 0.15 0.18 1"/>
+    <material name="shelf" rgba="0.72 0.74 0.78 1" specular="0.06" shininess="0.04"/>
+
+    <mesh name="shelf" file="shelf.obj" scale="0.012 0.012 0.012"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" pos="12 8 10" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
+    <light name="fill" pos="-2 18 8" dir="0.2 -0.6 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
+
+    <geom name="floor" type="plane" pos="12 8 0" size="0 0 0.05" material="floor"/>
+    <geom name="start_zone" type="cylinder" pos="2 2 0.02" size="0.9 0.02" material="start_zone" contype="0" conaffinity="0"/>
+    <geom name="goal_zone" type="cylinder" pos="22 14 0.02" size="0.9 0.02" material="goal_zone" contype="0" conaffinity="0"/>
+
+    <!-- Back-wall shelf visuals -->
+    <geom name="shelf_a" type="mesh" mesh="shelf" pos="4 15.2 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="shelf_b" type="mesh" mesh="shelf" pos="12 15.2 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="shelf_c" type="mesh" mesh="shelf" pos="20 15.2 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+
+    <!-- Column forest (collision + visuals) -->
+    <geom name="col_00" type="cylinder" pos="7.0 3.8 1.4" size="0.50 1.4" material="column"/>
+    <geom name="col_01" type="cylinder" pos="11.0 3.5 1.75" size="0.50 1.75" material="column_tall"/>
+    <geom name="col_02" type="cylinder" pos="15.0 4.2 1.1" size="0.50 1.1" material="column"/>
+    <geom name="col_03" type="cylinder" pos="19.0 3.2 1.5" size="0.50 1.5" material="column"/>
+    <geom name="col_04" type="cylinder" pos="5.5 7.0 1.25" size="0.50 1.25" material="column"/>
+    <geom name="col_05" type="cylinder" pos="9.0 7.5 1.9" size="0.50 1.9" material="column_tall"/>
+    <geom name="col_06" type="cylinder" pos="13.0 6.5 1.0" size="0.50 1.0" material="column"/>
+    <geom name="col_07" type="cylinder" pos="11.5 10.0 1.3" size="0.50 1.3" material="column"/>
+    <geom name="col_08" type="cylinder" pos="16.5 8.0 1.6" size="0.50 1.6" material="column_tall"/>
+    <geom name="col_09" type="cylinder" pos="7.5 10.5 1.5" size="0.50 1.5" material="column"/>
+    <geom name="col_10" type="cylinder" pos="6.0 12.0 1.1" size="0.50 1.1" material="column"/>
+    <geom name="col_11" type="cylinder" pos="10.0 13.0 1.4" size="0.50 1.4" material="column"/>
+    <geom name="col_12" type="cylinder" pos="14.0 12.5 1.2" size="0.50 1.2" material="column"/>
+    <geom name="col_13" type="cylinder" pos="18.0 11.5 1.8" size="0.50 1.8" material="column_tall"/>
+    <geom name="col_14" type="cylinder" pos="20.0 13.0 1.25" size="0.48 1.25" material="column"/>
+
+    <!-- Agent 1: RRT* (blue) -->
+    <body name="car_rrt" pos="0 0 0.12">
+      <joint name="rrt_joint_x" type="slide" axis="1 0 0" range="0 24" damping="2"/>
+      <joint name="rrt_joint_y" type="slide" axis="0 1 0" range="0 16" damping="2"/>
+      <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="1"/>
+      <geom name="rrt_chassis" type="box" size="0.36 0.22 0.09" material="car_rrt"/>
+      <geom name="rrt_marker" type="sphere" pos="0 0 0.14" size="0.06" material="marker_light" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_fl" type="cylinder" pos="0.26 0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_fr" type="cylinder" pos="0.26 -0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_rl" type="cylinder" pos="-0.26 0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_rr" type="cylinder" pos="-0.26 -0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- Agent 2: SST (green) -->
+    <body name="car_sst" pos="0 0 0.12">
+      <joint name="sst_joint_x" type="slide" axis="1 0 0" range="0 24" damping="2"/>
+      <joint name="sst_joint_y" type="slide" axis="0 1 0" range="0 16" damping="2"/>
+      <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="1"/>
+      <geom name="sst_chassis" type="box" size="0.36 0.22 0.09" material="car_sst"/>
+      <geom name="sst_marker" type="sphere" pos="0 0 0.14" size="0.06" material="marker_dark" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_fl" type="cylinder" pos="0.26 0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_fr" type="cylinder" pos="0.26 -0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_rl" type="cylinder" pos="-0.26 0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_rr" type="cylinder" pos="-0.26 -0.18 0" size="0.07 0.03" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+    </body>
+
+    <camera name="overview" pos="12 -6 18" xyaxes="1 0 0 0 0.6 0.8" fovy="45"/>
+    <camera name="topdown" pos="12 8 22" xyaxes="1 0 0 0 1 0" fovy="40"/>
+    <camera name="follow" pos="6 4 5" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
+    <camera name="finish" pos="22 10 6" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
+  </worldbody>
+</mujoco>
