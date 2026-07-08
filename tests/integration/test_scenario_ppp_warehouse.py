@@ -43,7 +43,7 @@ def test_preview_obstacle_file_exists() -> None:
 
 
 def test_preview_obstacles_match_mjcf_layout() -> None:
-    """Preview layout must contain floor clutter plus two tall racks."""
+    """Preview layout must contain four floor-clutter boxes."""
     boxes = load_ppp_warehouse_preview_obstacles()
     assert len(boxes) == 4
     first = boxes[0]

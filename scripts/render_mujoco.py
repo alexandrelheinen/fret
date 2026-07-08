@@ -338,12 +338,33 @@ def postprocess_showcase_results(
     return results
 
 
+def _compute_ppp_showcase_cruise_z(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    max_obstacle_z: float,
+    cargo_half_z: float,
+) -> float:
+    """Return EE cruise height that forces lateral detours around floor clutter.
+
+    Start/goal Z for pick-and-place can sit above the racks, but horizontal
+    transit must stay low enough that welded cargo cannot fly over obstacles.
+    """
+    cargo_drop = float(cargo_half_z + abs(_PPP_CARGO_EE_OFFSET_Z))
+    nominal_cruise = float(max(start[2], goal[2], 2.2))
+    flyover_z = max_obstacle_z + cargo_drop + 0.05
+    if nominal_cruise >= flyover_z:
+        return max(1.5, max_obstacle_z + 0.35)
+    return nominal_cruise
+
+
 def plan_ppp_warehouse_path(
     scenario: str = "ppp_warehouse",
     *,
     collision_backend: str = "mujoco",
     planner_algorithm: str = "rrt_star",
     mjcf_path: Path | None = None,
+    transit_z: float | None = None,
 ) -> list[npt.NDArray[np.float64]]:
     """Plan a collision-free PPP warehouse transit path.
 
@@ -352,6 +373,8 @@ def plan_ppp_warehouse_path(
         collision_backend: ``analytic`` or ``mujoco``.
         planner_algorithm: ARCO planner stem (``rrt_star`` or ``sst``).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
+        transit_z: When set, plan horizontal transit at this EE height [m]
+            instead of the scenario start/goal Z values.
 
     Returns:
         Planner waypoints in joint space.
@@ -394,6 +417,11 @@ def plan_ppp_warehouse_path(
 
     start = np.asarray(params["start_configuration"], dtype=np.float64)
     goal = np.asarray(params["goal_configuration"], dtype=np.float64)
+    if transit_z is not None:
+        start = start.copy()
+        goal = goal.copy()
+        start[2] = float(transit_z)
+        goal[2] = float(transit_z)
     req = PlanningRequest(
         start_configuration=start.copy(),
         goal_configuration=goal.copy(),
@@ -423,20 +451,31 @@ def build_showcase_waypoints(
     """
     _ensure_fret_importable()
     from fret.control.grasp_magnet import parse_grasp_config
+    from fret.planning.ppp_obstacles import load_ppp_warehouse_preview_obstacles
     from fret.sitl_config import load_scenario_parameters
+
+    params = load_scenario_parameters(_scenario_config_path(scenario))
+    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+    start = np.asarray(params["start_configuration"], dtype=np.float64)
+    goal = np.asarray(params["goal_configuration"], dtype=np.float64)
+    boxes = load_ppp_warehouse_preview_obstacles(None)
+    max_obs_z = max((box.z_max for box in boxes), default=1.2)
+    cruise_z = _compute_ppp_showcase_cruise_z(
+        start,
+        goal,
+        max_obstacle_z=max_obs_z,
+        cargo_half_z=float(grasp_cfg.box_half_extent[2]),
+    )
 
     transit = plan_ppp_warehouse_path(
         scenario,
         collision_backend=collision_backend,
         planner_algorithm=planner_algorithm,
         mjcf_path=mjcf_path,
+        transit_z=cruise_z,
     )
-    params = load_scenario_parameters(_scenario_config_path(scenario))
-    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
-    start, goal = transit[0], transit[-1]
     box_half_z = float(grasp_cfg.box_half_extent[2])
     pick_ee_z = box_half_z - _PPP_CARGO_EE_OFFSET_Z
-    cruise_z = float(max(start[2], goal[2], 2.2))
 
     waypoints: list[npt.NDArray[np.float64]] = [
         start.copy(),
