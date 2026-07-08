@@ -35,8 +35,8 @@ _PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
 # Dubins race workspace limits for dubins_race.xml.
 _DUBINS_RACE_LIMITS: npt.NDArray[np.float64] = np.array(
     [
-        [0.0, 24.0],
-        [0.0, 16.0],
+        [0.0, 80.0],
+        [0.0, 80.0],
         [-np.pi, np.pi],
     ],
     dtype=np.float64,

@@ -146,6 +146,40 @@ def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
     assert sim_time_s > 0.0
     assert traj[:, 0].max() > 8.0
     assert traj[:, 1].max() > 2.0
+    assert traj[:, 2].max() - traj[:, 2].min() > 1.5
+
+
+def test_pick_place_waypoints_include_vertical_segments() -> None:
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    path = rm.build_showcase_waypoints(
+        "ppp_warehouse",
+        collision_backend="mujoco",
+        mjcf_path=mjcf,
+    )
+    z_vals = [float(q[2]) for q in path]
+    assert min(z_vals) < 1.0
+    assert max(z_vals) > 2.0
+
+
+def test_interpolate_segmented_waypoints_preserves_z_motion() -> None:
+    waypoints = [
+        np.array([2.0, 1.0, 2.4]),
+        np.array([2.0, 1.0, 0.6]),
+        np.array([2.0, 1.0, 2.2]),
+        np.array([10.5, 2.8, 2.2]),
+        np.array([10.5, 2.8, 0.6]),
+        np.array([10.5, 2.8, 2.65]),
+    ]
+    durations = rm.pick_place_segment_durations(waypoints)
+    traj, sim_time_s = rm.interpolate_segmented_waypoints(
+        waypoints,
+        durations,
+        fps=30,
+    )
+    assert sim_time_s > 10.0
+    assert traj[:, 2].max() - traj[:, 2].min() > 1.5
 
 
 def test_list_showcase_cameras_dubins_race() -> None:
@@ -164,7 +198,7 @@ def test_simulate_dubins_race_poses_covers_transit() -> None:
     )
     assert rrt.shape[0] >= 2
     assert sst.shape[0] >= 2
-    assert sim_time_s > 5.0
+    assert sim_time_s > 20.0
     assert rrt[:, 0].max() > 8.0
     assert sst[:, 0].max() > 8.0
 

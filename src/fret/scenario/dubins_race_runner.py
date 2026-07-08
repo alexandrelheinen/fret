@@ -477,7 +477,6 @@ class DubinsRaceRunner:
                 ),
             )
 
-        t0 = time.monotonic()
         for _ in range(max_steps):
             session.step()
             if bridge is not None:
@@ -489,7 +488,7 @@ class DubinsRaceRunner:
         result = session.to_result(
             rrt_plan,
             sst_plan,
-            race_duration_s=time.monotonic() - t0,
+            race_duration_s=session.sim_time_s,
         )
         if not record_poses:
             return DubinsRaceRunResult(

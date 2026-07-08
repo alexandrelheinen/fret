@@ -38,7 +38,14 @@ _PPP_LIMITS = np.array(
     dtype=np.float64,
 )
 
-# Pick-and-place preview path in joint space (x, y, z) [m].
+# MJCF cargo body offset from EE (see ppp_warehouse.xml cargo body pos).
+_PPP_CARGO_EE_OFFSET_Z: float = -0.34
+
+# Per-segment dwell times so pick/place Z motion is visible in showcase clips.
+_PPP_PICK_DESCEND_S: float = 4.0
+_PPP_PICK_ASCEND_S: float = 3.5
+_PPP_PLACE_DESCEND_S: float = 4.0
+_PPP_PLACE_ASCEND_S: float = 3.0
 # Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
@@ -65,8 +72,8 @@ _DUBINS_JOINT_NAMES: tuple[tuple[str, str, str], ...] = (
 
 _DUBINS_LIMITS = np.array(
     [
-        [0.0, 24.0],
-        [0.0, 16.0],
+        [0.0, 80.0],
+        [0.0, 80.0],
         [-np.pi, np.pi],
     ],
     dtype=np.float64,
@@ -406,30 +413,120 @@ def build_showcase_waypoints(
     collision_backend: str = "mujoco",
     planner_algorithm: str = "rrt_star",
     mjcf_path: Path | None = None,
-    pick_depth_z: float = 0.95,
 ) -> list[npt.NDArray[np.float64]]:
     """Build a pick-transit-place path using the planning stack.
 
-    Inserts vertical pick/place approach segments at the scenario
-    start and goal while using a planned collision-free transit path.
+    Inserts explicit vertical pick, cruise, place, and depart segments so
+    showcase videos show full Z-axis motion and cargo transport.
     """
+    _ensure_fret_importable()
+    from fret.control.grasp_magnet import parse_grasp_config
+    from fret.sitl_config import load_scenario_parameters
+
     transit = plan_ppp_warehouse_path(
         scenario,
         collision_backend=collision_backend,
         planner_algorithm=planner_algorithm,
         mjcf_path=mjcf_path,
     )
+    params = load_scenario_parameters(_scenario_config_path(scenario))
+    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
     start, goal = transit[0], transit[-1]
-    cruise_z = float(max(start[2], goal[2]))
-    waypoints: list[npt.NDArray[np.float64]] = [start.copy()]
-    if start[2] > pick_depth_z + 0.05:
-        waypoints.append(np.array([start[0], start[1], pick_depth_z]))
-        waypoints.append(np.array([start[0], start[1], cruise_z]))
-    waypoints.extend(q.copy() for q in transit[1:])
-    if goal[2] > pick_depth_z + 0.05:
-        waypoints.append(np.array([goal[0], goal[1], pick_depth_z]))
+    box_half_z = float(grasp_cfg.box_half_extent[2])
+    pick_ee_z = box_half_z - _PPP_CARGO_EE_OFFSET_Z
+    cruise_z = float(max(start[2], goal[2], 2.2))
+
+    waypoints: list[npt.NDArray[np.float64]] = [
+        start.copy(),
+        np.array([start[0], start[1], pick_ee_z]),
+        np.array([start[0], start[1], cruise_z]),
+    ]
+    for q in transit[1:-1]:
+        waypoints.append(np.array([q[0], q[1], cruise_z]))
+    waypoints.append(np.array([goal[0], goal[1], cruise_z]))
+    waypoints.append(np.array([goal[0], goal[1], pick_ee_z]))
     waypoints.append(goal.copy())
     return waypoints
+
+
+def pick_place_segment_durations(
+    waypoints: list[npt.NDArray[np.float64]],
+) -> list[float]:
+    """Return per-segment durations with extra time on vertical pick/place."""
+    if len(waypoints) < 2:
+        raise ValueError("At least two waypoints are required")
+
+    durations: list[float] = []
+    for idx in range(len(waypoints) - 1):
+        q0 = waypoints[idx]
+        q1 = waypoints[idx + 1]
+        delta = np.abs(q1 - q0)
+        dz = float(delta[2])
+        if dz > 0.2:
+            descending = float(q1[2]) < float(q0[2])
+            if descending and idx == 0:
+                durations.append(_PPP_PICK_DESCEND_S)
+            elif descending:
+                durations.append(_PPP_PLACE_DESCEND_S)
+            elif idx == 1:
+                durations.append(_PPP_PICK_ASCEND_S)
+            elif idx == len(waypoints) - 2:
+                durations.append(_PPP_PLACE_ASCEND_S)
+            else:
+                durations.append(max(dz / 1.5, 1.0))
+        else:
+            durations.append(float(np.max(delta / np.array([3.0, 3.0, 1.5]))))
+    return durations
+
+
+def interpolate_segmented_waypoints(
+    waypoints: list[npt.NDArray[np.float64]],
+    segment_durations_s: list[float],
+    fps: int,
+) -> tuple[npt.NDArray[np.float64], float]:
+    """Sample a trajectory with explicit per-segment timing."""
+    if len(waypoints) < 2:
+        raise ValueError("At least two waypoints are required")
+    if len(segment_durations_s) != len(waypoints) - 1:
+        raise ValueError("segment_durations_s must match waypoint segments")
+
+    sim_time_s = float(sum(segment_durations_s))
+    n_frames = max(2, int(round(sim_time_s * fps)))
+    if n_frames < len(waypoints):
+        n_frames = len(waypoints)
+
+    frame_budgets = [
+        max(1, int(round(duration / sim_time_s * n_frames)))
+        for duration in segment_durations_s
+    ]
+    budget_sum = sum(frame_budgets)
+    while budget_sum > n_frames:
+        for idx in range(len(frame_budgets) - 1, -1, -1):
+            if frame_budgets[idx] > 1 and budget_sum > n_frames:
+                frame_budgets[idx] -= 1
+                budget_sum -= 1
+    while budget_sum < n_frames:
+        frame_budgets[-2] += 1
+        budget_sum += 1
+
+    trajectory = np.zeros((n_frames, waypoints[0].shape[0]), dtype=np.float64)
+    frame_idx = 0
+    for seg_idx, seg_frames in enumerate(frame_budgets):
+        q0 = waypoints[seg_idx]
+        q1 = waypoints[seg_idx + 1]
+        for local in range(seg_frames):
+            if frame_idx >= n_frames:
+                break
+            alpha = 0.0 if seg_frames == 1 else local / (seg_frames - 1)
+            smooth = alpha * alpha * (3.0 - 2.0 * alpha)
+            trajectory[frame_idx] = (1.0 - smooth) * q0 + smooth * q1
+            frame_idx += 1
+
+    trajectory[-1] = waypoints[-1]
+    return (
+        np.clip(trajectory, _PPP_LIMITS[:, 0], _PPP_LIMITS[:, 1]),
+        sim_time_s,
+    )
 
 
 def resolve_showcase_waypoints(
@@ -567,15 +664,23 @@ def build_showcase_trajectory(
                 path_waypoints,
                 scenario=scenario,
             )
-        sim_time_s = estimate_ppp_path_duration_s(interpolate_path)
-        render_duration_s = (
-            sim_time_s if duration_s is None else float(duration_s)
-        )
-        trajectory = interpolate_waypoints(
-            interpolate_path,
-            render_duration_s,
-            fps,
-        )
+        if scenario in {"ppp_warehouse", "ppp"} and len(path_waypoints) >= 4:
+            segment_durations = pick_place_segment_durations(path_waypoints)
+            trajectory, sim_time_s = interpolate_segmented_waypoints(
+                path_waypoints,
+                segment_durations,
+                fps,
+            )
+        else:
+            sim_time_s = estimate_ppp_path_duration_s(interpolate_path)
+            render_duration_s = (
+                sim_time_s if duration_s is None else float(duration_s)
+            )
+            trajectory = interpolate_waypoints(
+                interpolate_path,
+                render_duration_s,
+                fps,
+            )
     _assert_showcase_trajectory_moves(trajectory)
     return trajectory, sim_time_s
 
@@ -947,6 +1052,74 @@ def render_dubins_race_showcase_videos(
     )
 
 
+def _set_geom_alpha(
+    mujoco: object,
+    model: object,
+    geom_name: str,
+    alpha: float,
+) -> None:
+    """Set geom RGBA alpha for show/hide toggles during pick-and-place."""
+    geom_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, geom_name)
+    if geom_id < 0:
+        raise ValueError(f"Geom not found in MJCF: {geom_name}")
+    model.geom_rgba[geom_id][3] = float(np.clip(alpha, 0.0, 1.0))
+
+
+def _set_mocap_position(
+    mujoco: object,
+    model: object,
+    data: object,
+    body_name: str,
+    position: npt.NDArray[np.float64],
+) -> None:
+    """Place a mocap body used for floor cargo visuals."""
+    body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+    if body_id < 0:
+        raise ValueError(f"Mocap body not found in MJCF: {body_name}")
+    mocap_id = model.body_mocapid[body_id]
+    if int(mocap_id) < 0:
+        raise ValueError(f"Body is not mocap-enabled: {body_name}")
+    data.mocap_pos[mocap_id] = np.asarray(position, dtype=np.float64)
+
+
+def _update_ppp_cargo_visuals(
+    mujoco: object,
+    model: object,
+    data: object,
+    *,
+    grasp: object,
+    box_anchor: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    ee_position: npt.NDArray[np.float64],
+    was_welded: bool,
+) -> bool:
+    """Drive floor vs welded cargo visuals from the magnetic grasp FSM."""
+    from fret.control.grasp_magnet import GraspState
+
+    grasp.update(ee_position, box_anchor, goal)
+    if grasp.is_welded:
+        _set_geom_alpha(mujoco, model, "cargo_box", 1.0)
+        _set_geom_alpha(mujoco, model, "cargo_floor_box", 0.0)
+        _set_mocap_position(
+            mujoco,
+            model,
+            data,
+            "cargo_floor",
+            np.array([-20.0, -20.0, -5.0]),
+        )
+        return True
+
+    floor_pos = (
+        grasp.cargo_position
+        if was_welded and grasp.state == GraspState.IDLE
+        else box_anchor
+    )
+    _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
+    _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
+    _set_mocap_position(mujoco, model, data, "cargo_floor", floor_pos)
+    return was_welded
+
+
 def _open_video_writer(path: Path, fps: int) -> object:
     """Open an incremental MP4 writer (low memory for multi-POV export)."""
     import imageio
@@ -1123,10 +1296,49 @@ def render_showcase_videos(
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
 
     joint_names = ("joint_x", "joint_y", "joint_z")
+    ppp_grasp = None
+    box_anchor: npt.NDArray[np.float64] | None = None
+    goal_position: npt.NDArray[np.float64] | None = None
+    was_welded = False
+    if scenario in {"ppp_warehouse", "ppp"}:
+        _ensure_fret_importable()
+        from fret.control.grasp_magnet import MagneticGraspFSM, parse_grasp_config
+        from fret.sitl_config import load_scenario_parameters
+
+        params = load_scenario_parameters(_scenario_config_path(scenario))
+        grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+        start = path_waypoints[0]
+        goal_position = path_waypoints[-1].copy()
+        box_anchor = np.array(
+            [
+                start[0],
+                start[1],
+                float(grasp_cfg.box_half_extent[2]),
+            ],
+            dtype=np.float64,
+        )
+        ppp_grasp = MagneticGraspFSM(grasp_cfg)
+        ppp_grasp.begin_transport()
+
     try:
         for q in trajectory:
             for idx, name in enumerate(joint_names):
                 _set_slide_joint(mujoco, model, data, name, float(q[idx]))
+            if (
+                ppp_grasp is not None
+                and box_anchor is not None
+                and goal_position is not None
+            ):
+                was_welded = _update_ppp_cargo_visuals(
+                    mujoco,
+                    model,
+                    data,
+                    grasp=ppp_grasp,
+                    box_anchor=box_anchor,
+                    goal=goal_position,
+                    ee_position=q,
+                    was_welded=was_welded,
+                )
             mujoco.mj_forward(model, data)
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
