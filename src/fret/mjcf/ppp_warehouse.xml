@@ -114,7 +114,7 @@
       <geom name="cargo_floor_box" type="box" size="0.25 0.25 0.25" material="cargo" contype="0" conaffinity="0"/>
     </body>
 
-    <camera name="overview" mode="targetbody" target="gantry_base" pos="14 8 6.5" fovy="42"/>
+    <camera name="overview" pos="1.38 12.87 8.00" xyaxes="-0.914 -0.406 0 0.225 -0.507 0.832" fovy="48"/>
     <camera name="aisle" mode="targetbody" target="x_carriage" pos="-2.8 2.5 1.5" fovy="58"/>
     <camera name="topdown" mode="targetbody" target="gantry_base" pos="6 2.5 15" fovy="38"/>
     <camera name="follow" mode="targetbody" target="z_hoist" pos="3 1.5 1.5" fovy="48"/>
