@@ -26,7 +26,7 @@ from fret.control.kinematics_ppp import PPPKinematics
 _PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
     [
         [0.0, 12.0],
-        [0.0, 4.0],
+        [0.0, 5.0],
         [0.0, 3.0],
     ],
     dtype=np.float64,

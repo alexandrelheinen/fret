@@ -97,15 +97,13 @@ def test_warehouse_barrier_collision() -> None:
     assert checker.is_collision_free(q_above) is True
 
 
-def test_shelf_rack_collision_with_z_column() -> None:
-    """Z column must not pass through back-wall shelf racks."""
+def test_shifted_obstacle_blocks_far_aisle() -> None:
+    """Shifted obs_b must still constrain the far-side transit lane."""
     boxes = load_ppp_warehouse_preview_obstacles()
     checker = _checker_with_boxes(boxes)
-    # Inside rack_b footprint with column overlapping shelf height.
-    q = np.array([9.0, 3.56, 1.0])
+    q = np.array([7.0, 4.0, 0.5])
     assert checker.is_collision_free(q) is False
-    # Same x but y shifted clear of rack depth.
-    q_clear = np.array([9.0, 2.5, 1.0])
+    q_clear = np.array([5.0, 2.0, 2.0])
     assert checker.is_collision_free(q_clear) is True
 
 

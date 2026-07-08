@@ -76,7 +76,7 @@ def test_bridge_core_step_integrates_velocity() -> None:
     """Velocity commands should advance joint positions."""
     mjcf = resolve_mjcf_path("ppp", "ppp_warehouse", None)
     limits = np.array(
-        [[0.0, 12.0], [0.0, 4.0], [0.0, 3.0]],
+        [[0.0, 12.0], [0.0, 5.0], [0.0, 3.0]],
         dtype=np.float64,
     )
     core = MuJoCoBridgeCore(
@@ -102,10 +102,10 @@ def test_bridge_core_respects_joint_limits() -> None:
 def test_bridge_core_set_positions() -> None:
     """Direct position writes should be clipped to limits."""
     core = make_mujoco_bridge_core("ppp", "ppp_warehouse")
-    core.set_positions(np.array([20.0, 5.0, 4.0]))
+    core.set_positions(np.array([20.0, 6.0, 4.0]))
     np.testing.assert_array_equal(
         core.get_positions(),
-        np.array([12.0, 4.0, 3.0]),
+        np.array([12.0, 5.0, 3.0]),
     )
 
 
