@@ -66,11 +66,18 @@ Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
 
 ---
 
-## Assets (planned)
+## Assets
 
 | File | Purpose |
 |---|---|
-| `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo gantry + warehouse |
+| `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo overhead gantry + warehouse (procedural geoms) |
 | `src/fret/urdf/ppp.xacro` | Gazebo backend (optional; v1.2+) |
 | `scripts/view.sh` | MuJoCo interactive viewer (v1.0) |
 | `src/fret/config/scenarios/ppp_warehouse.yml` | SC-v10 scenario |
+
+The MJCF models a **gate-style overhead gantry**: X/Y prismatic axes ride on the
+top bridge at `Z = 3 m` (1:5 preview scale); the Z hoist hangs below. Joint
+names and identity FK match `PPPKinematics`.
+
+For photorealistic meshes and third-party asset options, see
+[mujoco_for_dummies.md § Visual assets](../mujoco_for_dummies.md#visual-assets-and-realism).

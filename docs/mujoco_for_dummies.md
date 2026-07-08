@@ -171,6 +171,51 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 
 ---
 
+## Visual assets and realism
+
+FRET v1.0 ships a **procedural MJCF** scene (`ppp_warehouse.xml`) built from
+MuJoCo primitives (boxes, cylinders, checker floor). This keeps the release
+lightweight and avoids licensing issues, but it is not photorealistic.
+
+### What MuJoCo provides out of the box
+
+| Source | Content | Fit for PPP warehouse |
+|---|---|---|
+| [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Curated robot MJCF + OBJ/STL meshes (UR5e, Franka, quadrupeds, …) | **No gantry / warehouse kits** — industrial arms only |
+| Built-in MJCF | `builtin="checker"`, `flat` textures, primitive geoms | Used in FRET today |
+| [obj2mjcf](https://github.com/kevinzakka/obj2mjcf) | Converts composite OBJ → MJCF with materials | Needed when importing external meshes |
+
+Menagerie is the best maintained MuJoCo asset library, but it targets
+**serial manipulators and mobile robots**, not overhead cranes or warehouse
+environments.
+
+### Third-party meshes (manual import)
+
+For higher visual fidelity you would:
+
+1. Obtain OBJ/STL meshes (e.g. warehouse modular kits on CGTrader, Sketchfab,
+   or vendor CAD exports) under a license compatible with your release.
+2. Simplify / convex-decompose collision meshes (MeshLab, V-HACD, Open3D).
+3. Run `obj2mjcf` or hand-author `<asset><mesh …/></asset>` entries.
+4. Replace procedural geoms in `ppp_warehouse.xml` with `type="mesh"` visuals
+   while keeping the same joint names and FK offsets.
+
+Typical search terms: *overhead gantry crane*, *bridge crane*, *modular
+warehouse*, *pallet rack*. Expect to adapt units and split models into static
+frame vs. moving carriage bodies.
+
+### FRET recommendation (v1.0 → v1.2)
+
+| Stage | Approach |
+|---|---|
+| **v1.0 (current)** | Procedural overhead-gantry MJCF, identity FK preserved |
+| **v1.1** | Optional textured meshes for gantry frame + pallets (visual-only geoms) |
+| **v1.2+** | Consider Menagerie arm as secondary cell robot; warehouse still custom |
+
+Track mesh licensing in `src/fret/mjcf/LICENSE` if external assets are added.
+
+---
+
 ## File map
 
 ```
