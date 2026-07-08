@@ -40,6 +40,7 @@ jobs:
             gnupg
           python3 -m pip install --break-system-packages \
             pytest pytest-cov pytest-timeout
+          python3 -m pip install --break-system-packages -e ".[sim]"
 
       - name: Configure Gazebo apt repository
         run: |

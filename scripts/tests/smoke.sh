@@ -56,11 +56,19 @@ require_command ros2 "ros2 not found. Source /opt/ros/jazzy/setup.bash first."
 run_smoke_test() {
     local test_name="$1"
     shift
+    local timeout_s=20
+    if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+        timeout_s="$1"
+        shift
+    fi
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
     local log_file="/tmp/smoke_${test_name}.log"
 
-    info "Smoke test: ${test_name}"
+    info "Smoke test: ${test_name} (${timeout_s}s)"
     set +e
-    timeout 20s "$@" >"${log_file}" 2>&1
+    timeout "${timeout_s}s" "$@" >"${log_file}" 2>&1
     local exit_code=$?
     set -e
 
@@ -80,16 +88,23 @@ FAILED=0
 echo "=== ROS 2 launch smoke tests ==="
 
 # MuJoCo viewer dry-run (no ROS, no display required).
-run_smoke_test "mujoco_view_dry_run" python3 scripts/view_mujoco.py --dry-run \
+run_smoke_test "mujoco_view_dry_run" -- python3 scripts/view_mujoco.py --dry-run \
+    || FAILED=1
+
+# v1.0 V10-1: PPP warehouse MuJoCo SITL (no Gazebo dependency).
+run_smoke_test "sitl_ppp_warehouse_mujoco" 30 -- \
+    env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
+    xvfb-run -a ros2 launch fret sitl.py \
+    scenario:=ppp_warehouse model:=ppp backend:=mujoco \
     || FAILED=1
 
 # Gazebo-dependent launches — skip gracefully when ros_gz_sim is not installed.
 if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
-    run_smoke_test "sim_launch"           xvfb-run -a ros2 launch fret sim.py model:=scara \
+    run_smoke_test "sim_launch" -- xvfb-run -a ros2 launch fret sim.py model:=scara \
         || FAILED=1
-    run_smoke_test "arco_scenario_launch" xvfb-run -a ros2 launch fret arco_scenario.py \
+    run_smoke_test "arco_scenario_launch" -- xvfb-run -a ros2 launch fret arco_scenario.py \
         || FAILED=1
-    run_smoke_test "sitl_launch"          xvfb-run -a ros2 launch fret sitl.py \
+    run_smoke_test "sitl_launch" -- xvfb-run -a ros2 launch fret sitl.py \
         || FAILED=1
 else
     info "ros_gz_sim not found — skipping Gazebo-dependent smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
