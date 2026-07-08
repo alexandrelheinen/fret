@@ -1203,11 +1203,13 @@ def _update_ppp_cargo_visuals(
         )
         return True
 
-    floor_pos = (
-        grasp.cargo_position
-        if was_welded and grasp.state == GraspState.IDLE
-        else box_anchor
-    )
+    if was_welded and grasp.state == GraspState.IDLE:
+        floor_pos = np.array(
+            [goal[0], goal[1], box_anchor[2]],
+            dtype=np.float64,
+        )
+    else:
+        floor_pos = box_anchor
     _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
     _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
     _set_mocap_position(mujoco, model, data, "cargo_floor", floor_pos)
@@ -1413,6 +1415,10 @@ def render_showcase_videos(
         )
         ppp_grasp = MagneticGraspFSM(grasp_cfg)
         ppp_grasp.begin_transport()
+        _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
+        _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
+        _set_mocap_position(mujoco, model, data, "cargo_floor", box_anchor)
+        mujoco.mj_forward(model, data)
 
     try:
         for q in trajectory:
