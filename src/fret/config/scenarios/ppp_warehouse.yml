@@ -22,7 +22,8 @@
     duration: 60.0
 
     # Collision checking: analytic (AABB + occupancy) or mujoco (MJCF contacts).
-    collision_backend: analytic
+    collision_backend: mujoco
+    planner_algorithm: rrt_star
 
     grasp:
       capture_radius: 0.3

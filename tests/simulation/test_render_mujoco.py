@@ -86,13 +86,14 @@ def test_showcase_output_name() -> None:
 
 
 def test_build_showcase_waypoints_mujoco_backend() -> None:
-    """Release renders plan via MuJoCo collision checking."""
+    """Release renders plan via MuJoCo collision checking and RRT*."""
     pytest.importorskip("mujoco")
     pytest.importorskip("arco")
     mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
     waypoints = rm.build_showcase_waypoints(
         "ppp_warehouse",
         collision_backend="mujoco",
+        planner_algorithm="rrt_star",
         mjcf_path=mjcf,
     )
     assert len(waypoints) >= 4
