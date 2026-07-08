@@ -42,6 +42,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ffmpeg \
             libegl1 \
             libegl-mesa0 \
             libgles2 \
@@ -61,7 +62,7 @@ jobs:
             --planner-algorithm rrt_star \
             --no-tracking \
             --output-dir showcase_renders \
-            --duration 45 \
+            --timing-json showcase_renders/ppp_timing.json \
             --fps 30 \
             --width 1280 \
             --height 720
@@ -73,7 +74,7 @@ jobs:
             --scenario dubins_race \
             --all-cameras \
             --output-dir showcase_renders \
-            --duration 25 \
+            --timing-json showcase_renders/dubins_timing.json \
             --fps 30 \
             --width 1280 \
             --height 720
@@ -102,12 +103,12 @@ jobs:
           expected = {
               "ppp_warehouse": {
                   "model": "ppp",
-                  "duration_s": 45,
+                  "timing_file": "ppp_timing.json",
                   "primary_video": "ppp_warehouse_overview.mp4",
               },
               "dubins_race": {
                   "model": "dubins",
-                  "duration_s": 25,
+                  "timing_file": "dubins_timing.json",
                   "primary_video": "dubins_race_overview.mp4",
               },
           }
@@ -119,14 +120,30 @@ jobs:
               if not scenario_files:
                   raise SystemExit(f"Missing showcase clips for {scenario}")
 
+              timing_path = Path("showcase_renders") / cfg["timing_file"]
+              if not timing_path.is_file():
+                  raise SystemExit(f"Missing timing metadata: {timing_path}")
+              timing_data = json.loads(timing_path.read_text(encoding="utf-8"))
+              clip_timing = {
+                  item["file"]: item for item in timing_data.get("clips", [])
+              }
+
               videos = []
+              duration_s = 0.0
               for path in sorted(scenario_files):
                   camera = path.stem.removeprefix(prefix)
+                  timing = clip_timing.get(path.name, {})
+                  sim_time_s = float(timing.get("sim_time_s", 0.0))
+                  duration_s = max(duration_s, sim_time_s)
                   videos.append(
                       {
                           "camera": camera,
                           "file": path.name,
                           "bytes": path.stat().st_size,
+                          "sim_time_s": sim_time_s,
+                          "real_time_factor": float(
+                              timing.get("real_time_factor", 1.0)
+                          ),
                       }
                   )
 
@@ -134,7 +151,8 @@ jobs:
                   {
                       "scenario": scenario,
                       "model": cfg["model"],
-                      "duration_s": cfg["duration_s"],
+                      "duration_s": duration_s,
+                      "realtime_playback": True,
                       "cameras": [video["camera"] for video in videos],
                       "videos": videos,
                       "primary_video": cfg["primary_video"],
@@ -146,6 +164,7 @@ jobs:
               "git_sha": "${{ github.sha }}",
               "git_ref": tag,
               "release_cameras": ["overview", "follow"],
+              "realtime_playback": True,
               "fps": 30,
               "width": 1280,
               "height": 720,

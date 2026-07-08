@@ -19,6 +19,7 @@ Dependencies (not required for core FRET algorithms)::
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -78,12 +79,28 @@ _EGL_APT_HINT = (
 
 
 @dataclass(frozen=True)
+class ShowcaseTiming:
+    """Simulation vs render timing for real-time post-processing."""
+
+    sim_time_s: float
+    render_duration_s: float
+
+    @property
+    def real_time_factor(self) -> float:
+        """Playback speedup needed so video duration matches ``sim_time_s``."""
+        if self.sim_time_s <= 0.0:
+            return 1.0
+        return self.render_duration_s / self.sim_time_s
+
+
+@dataclass(frozen=True)
 class RenderResult:
     """One rendered showcase clip."""
 
     camera: str
     path: Path
     frame_mean: float
+    timing: ShowcaseTiming
 
 
 def _project_root() -> Path:
@@ -204,6 +221,112 @@ def resolve_scenario_duration(
     except (TypeError, ValueError):
         return default_s
     return duration if duration > 0.0 else default_s
+
+
+def resolve_scenario_simulation_dt(
+    scenario: str,
+    *,
+    default_s: float = 0.05,
+) -> float:
+    """Return scenario ``simulation_dt`` when present (Dubins race)."""
+    _ensure_fret_importable()
+    from fret.sitl_config import load_scenario_parameters
+
+    try:
+        params = load_scenario_parameters(_scenario_config_path(scenario))
+    except (FileNotFoundError, OSError, ValueError):
+        return default_s
+    raw = params.get("simulation_dt", default_s)
+    try:
+        dt = float(raw)
+    except (TypeError, ValueError):
+        return default_s
+    return dt if dt > 0.0 else default_s
+
+
+def estimate_ppp_path_duration_s(
+    waypoints: list[npt.NDArray[np.float64]],
+    *,
+    max_joint_velocity: npt.NDArray[np.float64] | None = None,
+) -> float:
+    """Estimate prismatic transit time using per-axis velocity limits."""
+    if len(waypoints) < 2:
+        return 0.0
+    max_vel = (
+        np.asarray(max_joint_velocity, dtype=np.float64)
+        if max_joint_velocity is not None
+        else np.array([3.0, 3.0, 1.5], dtype=np.float64)
+    )
+    total = 0.0
+    for idx in range(len(waypoints) - 1):
+        delta = np.abs(waypoints[idx + 1] - waypoints[idx])
+        axis_times = delta / np.maximum(max_vel, 1e-6)
+        total += float(np.max(axis_times))
+    return total
+
+
+def apply_realtime_video_speedup(
+    video_path: Path,
+    *,
+    timing: ShowcaseTiming,
+    label: str,
+) -> None:
+    """Accelerate a showcase MP4 so on-screen motion matches simulation time."""
+    rtf = timing.real_time_factor
+    print(
+        f"[showcase] {label}: sim_time={timing.sim_time_s:.3f}s, "
+        f"render_duration={timing.render_duration_s:.3f}s, "
+        f"real_time_factor={rtf:.4f}"
+    )
+    if abs(rtf - 1.0) < 0.02:
+        print(f"[showcase] {label}: already real-time (skip ffmpeg)")
+        return
+
+    tmp_path = video_path.with_name(f"{video_path.stem}_rtf{video_path.suffix}")
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(video_path),
+        "-filter:v",
+        f"setpts=PTS/{rtf:.8f}",
+        "-an",
+        str(tmp_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "ffmpeg is required for real-time showcase post-processing. "
+            "Install with: sudo apt install ffmpeg"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"ffmpeg real-time speedup failed for {video_path}:\n{exc.stderr}"
+        ) from exc
+
+    tmp_path.replace(video_path)
+    print(
+        f"[showcase] {label}: wrote real-time video "
+        f"({timing.sim_time_s:.3f}s playback)"
+    )
+
+
+def postprocess_showcase_results(
+    results: list[RenderResult],
+    *,
+    enabled: bool = True,
+) -> list[RenderResult]:
+    """Apply ffmpeg speedup to each rendered clip when enabled."""
+    if not enabled:
+        return results
+    for result in results:
+        apply_realtime_video_speedup(
+            result.path,
+            timing=result.timing,
+            label=f"{result.path.stem}",
+        )
+    return results
 
 
 def plan_ppp_warehouse_path(
@@ -411,24 +534,27 @@ def build_showcase_trajectory(
     path_waypoints: list[npt.NDArray[np.float64]],
     *,
     scenario: str,
-    duration_s: float,
+    duration_s: float | None,
     fps: int,
     collision_backend: str | None,
     use_tracking: bool,
     start: npt.NDArray[np.float64] | None = None,
-) -> npt.NDArray[np.float64]:
+) -> tuple[npt.NDArray[np.float64], float]:
     """Build joint samples for a showcase clip.
 
     Release renders use joint-space interpolation over the dense planned path
     (``--no-tracking``), matching the headless demo validated in cloud-agent
     setup.  Controller tracking remains available for executed-motion previews.
+
+    Returns:
+        Trajectory array ``(n_frames, 3)`` and simulated motion time [s].
     """
     if collision_backend is not None and use_tracking:
         dense = build_pruned_dense_waypoints(
             path_waypoints,
             scenario=scenario,
         )
-        trajectory = simulate_tracked_trajectory(
+        trajectory, sim_time_s = simulate_tracked_trajectory(
             dense,
             duration_s=duration_s,
             fps=fps,
@@ -441,22 +567,26 @@ def build_showcase_trajectory(
                 path_waypoints,
                 scenario=scenario,
             )
+        sim_time_s = estimate_ppp_path_duration_s(interpolate_path)
+        render_duration_s = (
+            sim_time_s if duration_s is None else float(duration_s)
+        )
         trajectory = interpolate_waypoints(
             interpolate_path,
-            duration_s,
+            render_duration_s,
             fps,
         )
     _assert_showcase_trajectory_moves(trajectory)
-    return trajectory
+    return trajectory, sim_time_s
 
 
 def simulate_tracked_trajectory(
     waypoints: list[npt.NDArray[np.float64]],
     *,
-    duration_s: float,
+    duration_s: float | None,
     fps: int,
     start: npt.NDArray[np.float64] | None = None,
-) -> npt.NDArray[np.float64]:
+) -> tuple[npt.NDArray[np.float64], float]:
     """Simulate PPP P-control tracking and sample frames for rendering.
 
     Follows the same per-axis velocity law as ``PPPControllerNode`` and
@@ -475,7 +605,7 @@ def simulate_tracked_trajectory(
         start: Optional initial joint configuration.
 
     Returns:
-        Array of shape ``(n_frames, 3)`` with tracked joint positions.
+        Tuple of trajectory ``(n_frames, 3)`` and simulated motion time [s].
     """
     _ensure_fret_importable()
     from fret.control.controller_ppp import PPPControllerNode
@@ -493,10 +623,10 @@ def simulate_tracked_trajectory(
         "ppp", "ppp_warehouse", initial_positions=q0
     )
     dt = 1.0 / float(ctrl.update_rate)
-    n_frames = max(2, int(round(duration_s * fps)))
-    history: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
     convergence_m = 0.004
     max_inner_steps = 50
+
+    history: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
 
     for q_ref in waypoints:
         for _ in range(max_inner_steps):
@@ -526,8 +656,16 @@ def simulate_tracked_trajectory(
         bridge.step(q_dot, dt)
         history.append(bridge.get_positions().copy())
 
-    return _resample_joint_history(
-        np.asarray(history, dtype=np.float64), n_frames
+    sim_time_s = max(0.0, (len(history) - 1) * dt)
+    render_duration_s = (
+        sim_time_s if duration_s is None else float(duration_s)
+    )
+    n_frames = max(2, int(round(render_duration_s * fps)))
+    return (
+        _resample_joint_history(
+            np.asarray(history, dtype=np.float64), n_frames
+        ),
+        sim_time_s,
     )
 
 
@@ -652,10 +790,14 @@ def _resample_pose_history(
 def simulate_dubins_race_poses(
     scenario: str = "dubins_race",
     *,
-    duration_s: float,
+    duration_s: float | None,
     fps: int,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Run the SC-v11 race and resample agent poses for video export."""
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], float]:
+    """Run the SC-v11 race and resample agent poses for video export.
+
+    Returns:
+        RRT* poses, SST poses, and simulated race duration [s].
+    """
     _ensure_fret_importable()
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
 
@@ -667,10 +809,25 @@ def simulate_dubins_race_poses(
 
     rrt_hist = np.asarray(result.rrt_pose_history, dtype=np.float64)
     sst_hist = np.asarray(result.sst_pose_history, dtype=np.float64)
-    n_frames = max(2, int(round(duration_s * fps)))
+    sim_dt = resolve_scenario_simulation_dt(scenario)
+    if (
+        result.rrt_time_to_goal_s is not None
+        and result.sst_time_to_goal_s is not None
+    ):
+        sim_time_s = float(
+            max(result.rrt_time_to_goal_s, result.sst_time_to_goal_s)
+        )
+    else:
+        sim_time_s = float(max(0, len(rrt_hist) - 1)) * sim_dt
+
+    render_duration_s = (
+        sim_time_s if duration_s is None else float(duration_s)
+    )
+    n_frames = max(2, int(round(render_duration_s * fps)))
     return (
         _resample_pose_history(rrt_hist, n_frames),
         _resample_pose_history(sst_hist, n_frames),
+        sim_time_s,
     )
 
 
@@ -695,10 +852,11 @@ def render_dubins_race_showcase_videos(
     scenario: str = "dubins_race",
     cameras: list[str] | None = None,
     output_names: dict[str, str] | None = None,
-    duration_s: float = 35.0,
+    duration_s: float | None = None,
     fps: int = 30,
     width: int = 1280,
     height: int = 720,
+    realtime_postprocess: bool = True,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -710,12 +868,17 @@ def render_dubins_race_showcase_videos(
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
 
-    rrt_poses, sst_poses = simulate_dubins_race_poses(
+    rrt_poses, sst_poses, sim_time_s = simulate_dubins_race_poses(
         scenario,
         duration_s=duration_s,
         fps=fps,
     )
     _assert_dubins_race_moves(rrt_poses, sst_poses)
+    render_duration_s = float(len(rrt_poses)) / float(fps)
+    timing = ShowcaseTiming(
+        sim_time_s=sim_time_s,
+        render_duration_s=render_duration_s,
+    )
 
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
@@ -771,9 +934,17 @@ def render_dubins_race_showcase_videos(
                 f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
             )
         results.append(
-            RenderResult(camera=camera, path=paths[camera], frame_mean=mean)
+            RenderResult(
+                camera=camera,
+                path=paths[camera],
+                frame_mean=mean,
+                timing=timing,
+            )
         )
-    return results
+    return postprocess_showcase_results(
+        results,
+        enabled=realtime_postprocess,
+    )
 
 
 def _open_video_writer(path: Path, fps: int) -> object:
@@ -805,7 +976,7 @@ def render_video(
     output_path: Path,
     *,
     scenario: str = "ppp_warehouse",
-    duration_s: float = 30.0,
+    duration_s: float | None = None,
     fps: int = 30,
     width: int = 1280,
     height: int = 720,
@@ -814,6 +985,7 @@ def render_video(
     collision_backend: str | None = "mujoco",
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
+    realtime_postprocess: bool = True,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -844,6 +1016,7 @@ def render_video(
         collision_backend=collision_backend,
         planner_algorithm=planner_algorithm,
         use_tracking=use_tracking,
+        realtime_postprocess=realtime_postprocess,
     )
     return results[0]
 
@@ -855,7 +1028,7 @@ def render_showcase_videos(
     scenario: str = "ppp_warehouse",
     cameras: list[str] | None = None,
     output_names: dict[str, str] | None = None,
-    duration_s: float = 30.0,
+    duration_s: float | None = None,
     fps: int = 30,
     width: int = 1280,
     height: int = 720,
@@ -863,6 +1036,7 @@ def render_showcase_videos(
     collision_backend: str | None = None,
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
+    realtime_postprocess: bool = True,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -895,6 +1069,7 @@ def render_showcase_videos(
             fps=fps,
             width=width,
             height=height,
+            realtime_postprocess=realtime_postprocess,
         )
 
     mujoco, _iio = _require_mujoco()
@@ -913,7 +1088,7 @@ def render_showcase_videos(
         planner_algorithm=planner_algorithm,
         waypoints=waypoints,
     )
-    trajectory = build_showcase_trajectory(
+    trajectory, sim_time_s = build_showcase_trajectory(
         path_waypoints,
         scenario=scenario,
         duration_s=duration_s,
@@ -921,6 +1096,11 @@ def render_showcase_videos(
         collision_backend=collision_backend,
         use_tracking=use_tracking,
         start=path_waypoints[0],
+    )
+    render_duration_s = float(len(trajectory)) / float(fps)
+    timing = ShowcaseTiming(
+        sim_time_s=sim_time_s,
+        render_duration_s=render_duration_s,
     )
 
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
@@ -968,10 +1148,43 @@ def render_showcase_videos(
                 f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
             )
         results.append(
-            RenderResult(camera=camera, path=paths[camera], frame_mean=mean)
+            RenderResult(
+                camera=camera,
+                path=paths[camera],
+                frame_mean=mean,
+                timing=timing,
+            )
         )
 
-    return results
+    return postprocess_showcase_results(
+        results,
+        enabled=realtime_postprocess,
+    )
+
+
+def write_showcase_timing_json(
+    results: list[RenderResult],
+    output_path: Path,
+) -> None:
+    """Persist per-clip timing metadata for release workflows."""
+    import json
+
+    payload = {
+        "clips": [
+            {
+                "camera": result.camera,
+                "file": result.path.name,
+                "sim_time_s": result.timing.sim_time_s,
+                "render_duration_s": result.timing.render_duration_s,
+                "real_time_factor": result.timing.real_time_factor,
+            }
+            for result in results
+        ]
+    }
+    output_path.write_text(
+        json.dumps(payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1013,8 +1226,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help=(
-            "Clip duration in seconds (default: scenario YAML duration, "
-            "else 30)"
+            "Optional clip stretch duration in seconds.  Omit to render the "
+            "full simulated motion at real-time speed (default)."
         ),
     )
     parser.add_argument(
@@ -1067,6 +1280,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use joint interpolation instead of controller tracking",
     )
+    parser.add_argument(
+        "--timing-json",
+        type=Path,
+        default=None,
+        help="Write per-clip sim/render timing JSON (for release CI)",
+    )
     return parser
 
 
@@ -1074,13 +1293,10 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     args = build_parser().parse_args(argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
-    duration_s = (
-        args.duration
-        if args.duration is not None
-        else resolve_scenario_duration(args.scenario)
-    )
+    duration_s = args.duration
 
     use_tracking = not args.no_tracking
+    realtime_postprocess = not args.no_realtime_postprocess
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
@@ -1096,13 +1312,18 @@ def main(argv: list[str] | None = None) -> int:
             collision_backend=args.collision_backend,
             planner_algorithm=args.planner_algorithm,
             use_tracking=use_tracking,
+            realtime_postprocess=realtime_postprocess,
         )
         for result in results:
+            timing = result.timing
             print(
                 f"Wrote {result.path} "
                 f"(camera={result.camera}, mean={result.frame_mean:.1f}, "
-                f"{duration_s:.1f}s @ {args.fps} fps)"
+                f"sim={timing.sim_time_s:.1f}s, "
+                f"rtf={timing.real_time_factor:.3f})"
             )
+        if args.timing_json is not None:
+            write_showcase_timing_json(results, args.timing_json)
         return 0
 
     cameras = args.cameras or ["overview"]
@@ -1122,9 +1343,12 @@ def main(argv: list[str] | None = None) -> int:
             collision_backend=args.collision_backend,
             planner_algorithm=args.planner_algorithm,
             use_tracking=use_tracking,
+            realtime_postprocess=realtime_postprocess,
         )
+        timing = result.timing
         print(
-            f"Wrote {result.path} ({duration_s:.1f}s @ {args.fps} fps, "
+            f"Wrote {result.path} (sim={timing.sim_time_s:.1f}s, "
+            f"rtf={timing.real_time_factor:.3f}, "
             f"mean={result.frame_mean:.1f})"
         )
         return 0
@@ -1141,11 +1365,15 @@ def main(argv: list[str] | None = None) -> int:
         collision_backend=args.collision_backend,
         planner_algorithm=args.planner_algorithm,
         use_tracking=use_tracking,
+        realtime_postprocess=realtime_postprocess,
     )
     for result in results:
+        timing = result.timing
         print(
             f"Wrote {result.path} "
-            f"(camera={result.camera}, mean={result.frame_mean:.1f})"
+            f"(camera={result.camera}, mean={result.frame_mean:.1f}, "
+            f"sim={timing.sim_time_s:.1f}s, "
+            f"rtf={timing.real_time_factor:.3f})"
         )
     return 0
 
