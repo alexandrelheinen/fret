@@ -1,7 +1,7 @@
 name: Release
 
-# Renders PPP warehouse MuJoCo showcase MP4s (multi-POV) on version tags,
-# verifies pixels are non-blank, uploads to Cloudflare R2, and keeps artifacts.
+# Renders PPP + Dubins MuJoCo showcase MP4s (overview + follow POV each) on
+# version tags, verifies pixels are non-blank, uploads to Cloudflare R2.
 
 on:
   push:
@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Tag label for R2 path (e.g. v0.2). Used for manual runs."
+        description: "Tag label for R2 path (e.g. v1.1.0). Used for manual runs."
         required: true
-        default: "v0.2"
+        default: "v1.1.0"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ concurrency:
 jobs:
   showcase-video:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -51,7 +51,7 @@ jobs:
           python3 -m pip install --break-system-packages --upgrade pip
           python3 -m pip install --break-system-packages -e ".[sim]" awscli
 
-      - name: Render PPP warehouse showcase clips (all POVs)
+      - name: Render PPP warehouse showcase clips
         run: |
           ./scripts/video.sh \
             --model ppp \
@@ -61,11 +61,25 @@ jobs:
             --planner-algorithm rrt_star \
             --no-tracking \
             --output-dir showcase_renders \
-            --duration 60 \
+            --duration 45 \
             --fps 30 \
             --width 1280 \
             --height 720
-          ls -la showcase_renders/
+
+      - name: Render Dubins race showcase clips
+        run: |
+          ./scripts/video.sh \
+            --model dubins \
+            --scenario dubins_race \
+            --all-cameras \
+            --output-dir showcase_renders \
+            --duration 25 \
+            --fps 30 \
+            --width 1280 \
+            --height 720
+
+      - name: List rendered showcase files
+        run: ls -la showcase_renders/
 
       - name: Write release metadata
         run: |
@@ -85,14 +99,45 @@ jobs:
           if not renders:
               raise SystemExit("No showcase MP4 files were produced")
 
-          videos = []
-          for path in renders:
-              camera = path.stem.removeprefix("ppp_warehouse_")
-              videos.append(
+          expected = {
+              "ppp_warehouse": {
+                  "model": "ppp",
+                  "duration_s": 45,
+                  "primary_video": "ppp_warehouse_overview.mp4",
+              },
+              "dubins_race": {
+                  "model": "dubins",
+                  "duration_s": 25,
+                  "primary_video": "dubins_race_overview.mp4",
+              },
+          }
+
+          showcases = []
+          for scenario, cfg in expected.items():
+              prefix = f"{scenario}_"
+              scenario_files = [p for p in renders if p.name.startswith(prefix)]
+              if not scenario_files:
+                  raise SystemExit(f"Missing showcase clips for {scenario}")
+
+              videos = []
+              for path in sorted(scenario_files):
+                  camera = path.stem.removeprefix(prefix)
+                  videos.append(
+                      {
+                          "camera": camera,
+                          "file": path.name,
+                          "bytes": path.stat().st_size,
+                      }
+                  )
+
+              showcases.append(
                   {
-                      "camera": camera,
-                      "file": path.name,
-                      "bytes": path.stat().st_size,
+                      "scenario": scenario,
+                      "model": cfg["model"],
+                      "duration_s": cfg["duration_s"],
+                      "cameras": [video["camera"] for video in videos],
+                      "videos": videos,
+                      "primary_video": cfg["primary_video"],
                   }
               )
 
@@ -100,20 +145,22 @@ jobs:
               "repo": "${{ github.repository }}",
               "git_sha": "${{ github.sha }}",
               "git_ref": tag,
-              "scenario": "ppp_warehouse",
-              "model": "ppp",
-              "collision_backend": "mujoco",
-              "duration_s": 60,
+              "release_cameras": ["overview", "follow"],
               "fps": 30,
               "width": 1280,
               "height": 720,
-              "cameras": [video["camera"] for video in videos],
-              "videos": videos,
-              "primary_video": "ppp_warehouse_overview.mp4",
-              "rendered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "showcases": showcases,
+              "primary_videos": {
+                  item["scenario"]: item["primary_video"] for item in showcases
+              },
+              "rendered_at": datetime.now(timezone.utc).strftime(
+                  "%Y-%m-%dT%H:%M:%SZ"
+              ),
               "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
           }
-          Path("meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+          Path("meta.json").write_text(
+              json.dumps(meta, indent=2) + "\n", encoding="utf-8"
+          )
           print(json.dumps(meta, indent=2))
           PY
         env:
@@ -122,7 +169,7 @@ jobs:
       - name: Upload GitHub artifacts (backup)
         uses: actions/upload-artifact@v6
         with:
-          name: ppp-warehouse-showcase-${{ github.ref_name }}
+          name: showcase-videos-${{ github.ref_name }}
           path: |
             showcase_renders/
             meta.json
@@ -156,9 +203,17 @@ jobs:
             "s3://${R2_BUCKET}/releases/${TAG}/meta.json" \
             --endpoint-url "${R2_ENDPOINT}" \
             --content-type application/json
+          aws s3 cp meta.json \
+            "s3://${R2_BUCKET}/latest/meta.json" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --content-type application/json
 
-          # Backward-compatible primary pointer for README / download script.
+          # Backward-compatible primary pointers for README / download script.
           aws s3 cp showcase_renders/ppp_warehouse_overview.mp4 \
             "s3://${R2_BUCKET}/latest/ppp_warehouse.mp4" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --content-type video/mp4
+          aws s3 cp showcase_renders/dubins_race_overview.mp4 \
+            "s3://${R2_BUCKET}/latest/dubins_race.mp4" \
             --endpoint-url "${R2_ENDPOINT}" \
             --content-type video/mp4

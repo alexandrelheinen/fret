@@ -164,18 +164,21 @@ the live MuJoCo window (orbit, pan, zoom).
 
 ## Option C — No local rendering
 
-When you only need to **see** the PPP warehouse scene — not interact with it —
+When you only need to **see** a release showcase — not interact with it —
 skip GL entirely.
 
 ### Download CI / release MP4 (WSL-friendly)
 
-Release CI renders showcase videos and uploads them to Cloudflare R2. See
+Release CI renders two POV clips per scenario (PPP warehouse + Dubins race:
+overview and follow) and uploads them to Cloudflare R2. See
 [tutorial.md § Download from R2](tutorial.md#download-from-r2-wsl-friendly--no-mujoco-rendering-needed).
 
 ```bash
 cp .env.example .env    # fill R2_* values once; .env is gitignored
 sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
+./scripts/download_showcase.sh --scenario dubins_race
+./scripts/download_showcase.sh --all
 ```
 
 Default output: `artifacts/r2/ppp_warehouse_latest.mp4`. Open the file in any

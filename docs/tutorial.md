@@ -82,9 +82,15 @@ Options:
 
 Underlying script: `scripts/render_mujoco.py`
 
-Release CI builds the same asset on version tags (`v*.*.*`) via
+Release CI builds showcase MP4s on version tags (`v*.*.*`) via
 `.github/workflows/release.yml`, uploads to Cloudflare R2, and keeps a
-GitHub Actions artifact backup.
+GitHub Actions artifact backup. Each release scenario exports two POVs:
+**overview** (oblique whole-scene) and **follow** (chase camera).
+
+| Scenario | Model | Release duration |
+|---|---|---|
+| `ppp_warehouse` | PPP | 45 s |
+| `dubins_race` | Dubins | 25 s |
 
 ### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
 
@@ -95,10 +101,12 @@ token used for CI (never commit secrets to git):
 cp .env.example .env    # fill R2_* values once; .env is gitignored
 sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
-./scripts/download_showcase.sh --tag v0.2.0
+./scripts/download_showcase.sh --tag v1.1.0 --all
+./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ```
 
 Default output: `artifacts/r2/ppp_warehouse_latest.mp4` (also gitignored).
+Use `--all` to fetch every release POV (both scenarios × overview + follow).
 
 ---
 

@@ -85,6 +85,7 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] Dual-agent race orchestration
 - [x] Column forest world (varied heights)
 - [x] Pure Pursuit tracking integration
+- [x] Release workflow + R2 upload (overview + follow POVs per scenario)
 - [ ] Tag `v1.1.0`
 
 ---

@@ -68,13 +68,14 @@ pip install -e ".[sim]"
 ./scripts/video.sh --collision-backend mujoco --planner-algorithm rrt_star -o /tmp/fret_ppp_warehouse.mp4
 ```
 
-**Release showcase (v1.0.0+):** after tagging, CI uploads multi-POV warehouse clips to
-Cloudflare R2. Download locally:
+**Release showcase (v1.0.0+):** after tagging, CI uploads two POV clips per scenario
+(overview + follow) for PPP warehouse and Dubins race to Cloudflare R2. Download locally:
 
 ```bash
-./scripts/download_showcase.sh --tag v1.0.0 --all
-# or latest overview:
+./scripts/download_showcase.sh --tag v1.1.0 --all
+# or latest PPP overview:
 ./scripts/download_showcase.sh --latest
+./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ```
 
 ---
