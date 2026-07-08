@@ -107,7 +107,12 @@ Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
 
 The MJCF models a **gate-style Cartesian gantry** (procedural primitives) inside an
 **AWS RoboMaker warehouse** shell (MIT-0 meshes for shelves, box clusters, floor,
-and wall). Collision boxes are unchanged for planning and perception alignment.
+and wall). Four corner legs, two parallel overhead rails, X bridge, Y trolley, and
+descending Z column at `Z = 3 m` (1:5 preview scale). Joint names and identity
+FK match `PPPKinematics`. Collision boxes are unchanged for planning and
+perception alignment.
 
 For asset provenance and regeneration, see
-`src/fret/mjcf/assets/aws_warehouse/README.md`.
+`src/fret/mjcf/assets/aws_warehouse/README.md`. For photorealistic meshes and
+third-party asset options, see
+[tutorial.md § Visual assets](../tutorial.md#visual-assets-and-realism).

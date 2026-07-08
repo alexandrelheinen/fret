@@ -12,8 +12,8 @@ for commercial use.
 Used in:
 
 - [docs/robots/ppp.md](../../robots/ppp.md)
-- [docs/mujoco_for_dummies.md](../../mujoco_for_dummies.md)
+- [docs/tutorial.md](../../tutorial.md)
 
 FRET's MuJoCo scene (`src/fret/mjcf/ppp_warehouse.xml`) reproduces this
 topology with procedural geoms because no equivalent public MJCF mesh kit was
-found (see mujoco_for_dummies.md § Visual assets and realism).
+found (see tutorial.md § Visual assets and realism).
