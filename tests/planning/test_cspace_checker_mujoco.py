@@ -47,3 +47,24 @@ def test_mujoco_detects_shelf_penetration(mujoco_available: None) -> None:
     q = np.array([9.0, 3.56, 1.0])
     assert checker.is_collision_free(q) is False
     assert checker.clearance(q) < 0.0
+
+
+def test_mujoco_include_cargo_flag(mujoco_available: None) -> None:
+    """Cargo geom is optional in MuJoCo contact checks (FR-GSP-02)."""
+    kin = Kinematics("ppp")
+    checker_ee = make_cspace_checker(
+        kin,
+        build_box_obstacle_occupancy([]),
+        collision_backend="mujoco",
+        include_cargo=False,
+    )
+    checker_cargo = make_cspace_checker(
+        kin,
+        build_box_obstacle_occupancy([]),
+        collision_backend="mujoco",
+        include_cargo=True,
+    )
+    assert isinstance(checker_ee, MujocoPPPCollisionChecker)
+    assert checker_ee.include_cargo is False
+    assert checker_cargo.include_cargo is True
+    assert len(checker_cargo._cargo_geom_ids) > 0

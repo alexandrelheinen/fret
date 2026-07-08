@@ -27,7 +27,7 @@ Full specification: **[docs/releases.md](docs/releases.md)**
 
 | Layer | Technology |
 |---|---|
-| Planning | ARCO (SST, KDTree, pruner) |
+| Planning | ARCO (RRT*, SST, KDTree, pruner) |
 | Middleware | ROS 2 Jazzy |
 | Visual simulation | MuJoCo |
 | Engineering SITL | Gazebo Harmonic (v1.2+) |
@@ -65,7 +65,16 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
 ```bash
 pip install -e ".[sim]"
-./scripts/video.sh -o /tmp/fret_ppp_warehouse.mp4
+./scripts/video.sh --collision-backend mujoco --planner-algorithm rrt_star -o /tmp/fret_ppp_warehouse.mp4
+```
+
+**Release showcase (v1.0.0+):** after tagging, CI uploads multi-POV warehouse clips to
+Cloudflare R2. Download locally:
+
+```bash
+./scripts/download_showcase.sh --tag v1.0.0 --all
+# or latest overview:
+./scripts/download_showcase.sh --latest
 ```
 
 ---
@@ -222,7 +231,10 @@ ROS nodes in `fret.ros` handle simulator I/O only.
 | v1.0 MuJoCo bridge (T10-03) | ✅ Done |
 | v1.0 scenario launch (T10-06) | ✅ Done |
 | v1.0 E2E acceptance V10-2…5 | ✅ Done |
+| v1.0 ROS SITL smoke V10-1 | ✅ Done |
 | v1.0 release video CI (V10-6) | ✅ Done |
+| v1.0 cargo-inclusive transit planning (FR-GSP-02) | ✅ Done |
+| v1.0.0 git tag + R2 showcase | 🔲 Pending tag |
 | v1.1 – v1.3 | 🔲 Specified |
 
 ---

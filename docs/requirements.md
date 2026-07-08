@@ -120,9 +120,9 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 | Parameter | Value |
 |---|---|
 | Joints | 3 prismatic (x, y, z) |
-| Workspace | [0,60] × [0,20] × [0,6] m |
+| Workspace | [0,60] × [0,20] × [0,6] m (full); 12×4×3 m MJCF preview |
 | Cargo | 0.5 m box, magnetic weld |
-| Planner | ARCO SST |
+| Planner | ARCO RRT* (MuJoCo collision) |
 
 ### v1.1 — Dubins
 

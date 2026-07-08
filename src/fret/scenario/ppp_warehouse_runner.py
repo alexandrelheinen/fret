@@ -19,7 +19,12 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.controller_ppp import PPPControllerNode
-from fret.control.grasp_magnet import GraspConfig, GraspState, MagneticGraspFSM
+from fret.control.grasp_magnet import (
+    GraspConfig,
+    GraspState,
+    MagneticGraspFSM,
+    parse_grasp_config,
+)
 from fret.control.kinematics import Kinematics
 from fret.interfaces import (
     OccupancyUpdatePayload,
@@ -71,27 +76,7 @@ class PPPWarehouseRunResult:
 
 def _parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
     """Build ``GraspConfig`` from scenario ``grasp`` parameters."""
-    capture_radius = float(grasp.get("capture_radius", 0.3))
-    goal_radius = float(grasp.get("goal_radius", 0.5))
-
-    weld_raw = grasp.get("weld_offset", [0.0, 0.0, 0.25])
-    if isinstance(weld_raw, (int, float)):
-        weld_offset = np.array([0.0, 0.0, float(weld_raw)], dtype=np.float64)
-    else:
-        weld_offset = np.asarray(weld_raw, dtype=np.float64).reshape(3)
-
-    half_raw = grasp.get("box_half_extent", 0.25)
-    if isinstance(half_raw, (int, float)):
-        box_half = np.full(3, float(half_raw), dtype=np.float64)
-    else:
-        box_half = np.asarray(half_raw, dtype=np.float64).reshape(3)
-
-    return GraspConfig(
-        capture_radius=capture_radius,
-        goal_radius=goal_radius,
-        weld_offset=weld_offset,
-        box_half_extent=box_half,
-    )
+    return parse_grasp_config(grasp)
 
 
 def _build_occupancy_adapter(
@@ -248,6 +233,7 @@ class PPPWarehouseRunner:
         goal = np.asarray(params["goal_configuration"], dtype=np.float64)
         timeout = float(params.get("planning_timeout", _PLANNING_TIMEOUT_S))
         grasp_cfg = _parse_grasp_config(dict(params.get("grasp", {})))
+        plan_include_cargo = bool(params.get("plan_include_cargo", True))
 
         occ_adapter, box_occ = _build_occupancy_adapter(self._obstacle_path)
         preview_bounds = load_preview_workspace_bounds(self._obstacle_path)
@@ -261,6 +247,8 @@ class PPPWarehouseRunner:
             occupancy=box_occ,
             collision_backend=collision_backend,  # type: ignore[arg-type]
             planner_algorithm=planner_algorithm,  # type: ignore[arg-type]
+            include_cargo=plan_include_cargo,
+            grasp_config=grasp_cfg,
             scenario=scenario_id,
             workspace_bounds=preview_bounds,
         )
@@ -292,7 +280,7 @@ class PPPWarehouseRunner:
             kin,
             box_occ,
             plan_result.path,
-            include_cargo=False,
+            include_cargo=plan_include_cargo,
             grasp_config=grasp_cfg,
             collision_backend=collision_backend,
             scenario=scenario_id,

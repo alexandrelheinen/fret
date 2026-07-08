@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -69,6 +70,34 @@ class GraspConfig:
             )
         if np.any(self.box_half_extent <= 0.0):
             raise ValueError("box_half_extent components must be positive")
+
+
+def parse_grasp_config(grasp: dict[str, Any] | None) -> GraspConfig:
+    """Build ``GraspConfig`` from scenario ``grasp`` parameters."""
+    params = dict(grasp) if grasp is not None else {}
+    capture_radius = float(
+        params.get("capture_radius", _DEFAULT_CAPTURE_RADIUS)
+    )
+    goal_radius = float(params.get("goal_radius", _DEFAULT_GOAL_RADIUS))
+
+    weld_raw = params.get("weld_offset", _DEFAULT_WELD_OFFSET.tolist())
+    if isinstance(weld_raw, (int, float)):
+        weld_offset = np.array([0.0, 0.0, float(weld_raw)], dtype=np.float64)
+    else:
+        weld_offset = np.asarray(weld_raw, dtype=np.float64).reshape(3)
+
+    half_raw = params.get("box_half_extent", 0.25)
+    if isinstance(half_raw, (int, float)):
+        box_half = np.full(3, float(half_raw), dtype=np.float64)
+    else:
+        box_half = np.asarray(half_raw, dtype=np.float64).reshape(3)
+
+    return GraspConfig(
+        capture_radius=capture_radius,
+        goal_radius=goal_radius,
+        weld_offset=weld_offset,
+        box_half_extent=box_half,
+    )
 
 
 class MagneticGraspFSM:

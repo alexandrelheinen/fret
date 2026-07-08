@@ -180,6 +180,7 @@ def plan_ppp_warehouse_path(
     """
     _ensure_fret_importable()
     from fret.interfaces import PlanningRequest, PlanningStatus
+    from fret.control.grasp_magnet import parse_grasp_config
     from fret.planning.planner_node import PlannerNode
     from fret.planning.ppp_obstacles import load_preview_workspace_bounds
     from fret.scenario.ppp_warehouse_runner import _build_occupancy_adapter
@@ -194,6 +195,8 @@ def plan_ppp_warehouse_path(
     resolved_collision = str(
         params.get("collision_backend", collision_backend)
     )
+    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+    plan_include_cargo = bool(params.get("plan_include_cargo", True))
 
     planner = PlannerNode(
         model="ppp",
@@ -201,6 +204,8 @@ def plan_ppp_warehouse_path(
         occupancy=box_occ,
         collision_backend=resolved_collision,  # type: ignore[arg-type]
         planner_algorithm=resolved_planner,  # type: ignore[arg-type]
+        include_cargo=plan_include_cargo,
+        grasp_config=grasp_cfg,
         scenario=str(params.get("scenario_id", scenario)),
         workspace_bounds=preview_bounds,
         mjcf_path=resolved_mjcf,
@@ -278,22 +283,32 @@ def resolve_showcase_waypoints(
 
 def build_pruned_dense_waypoints(
     path: list[npt.NDArray[np.float64]],
+    *,
+    scenario: str = "ppp_warehouse",
 ) -> list[npt.NDArray[np.float64]]:
     """Prune and densify a planner path for controller tracking."""
     _ensure_fret_importable()
+    from fret.control.grasp_magnet import parse_grasp_config
     from fret.control.kinematics import Kinematics
     from fret.planning.cspace_checker import make_cspace_checker
     from fret.planning.planner_node import _CSpaceOccupancy
     from fret.planning.ppp_obstacles import build_box_obstacle_occupancy
     from fret.planning.trajectory_generator import TrajectoryGenerator
+    from fret.sitl_config import load_scenario_parameters
+
+    params = load_scenario_parameters(_scenario_config_path(scenario))
+    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+    plan_include_cargo = bool(params.get("plan_include_cargo", True))
 
     kin = Kinematics("ppp")
     occ = build_box_obstacle_occupancy([])
     checker = make_cspace_checker(
         kin,
         occ,
+        include_cargo=plan_include_cargo,
+        grasp_config=grasp_cfg,
         collision_backend="mujoco",
-        scenario="ppp_warehouse",
+        scenario=scenario,
     )
     traj_gen = TrajectoryGenerator(kin)
     traj_gen.set_collision_context(
@@ -593,7 +608,10 @@ def render_showcase_videos(
         waypoints=waypoints,
     )
     if collision_backend is not None and use_tracking:
-        dense = build_pruned_dense_waypoints(path_waypoints)
+        dense = build_pruned_dense_waypoints(
+            path_waypoints,
+            scenario=scenario,
+        )
         trajectory = simulate_tracked_trajectory(
             dense,
             duration_s=duration_s,

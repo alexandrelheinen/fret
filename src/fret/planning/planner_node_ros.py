@@ -75,6 +75,11 @@ class PlannerRosNode:  # pragma: no cover
         self.declare_parameter("start_configuration", [])  # type: ignore[attr-defined]
         self.declare_parameter("collision_backend", "analytic")  # type: ignore[attr-defined]
         self.declare_parameter("planner_algorithm", "rrt_star")  # type: ignore[attr-defined]
+        self.declare_parameter("plan_include_cargo", False)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.capture_radius", 0.3)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.goal_radius", 0.5)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.weld_offset", [0.0, 0.0, 0.0])  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.box_half_extent", 0.25)  # type: ignore[attr-defined]
 
         self._model = str(
             self.get_parameter("model").get_parameter_value().string_value  # type: ignore[attr-defined]
@@ -113,6 +118,12 @@ class PlannerRosNode:  # pragma: no cover
             .get_parameter_value()
             .string_value
         )
+        self._plan_include_cargo = bool(
+            self.get_parameter("plan_include_cargo")  # type: ignore[attr-defined]
+            .get_parameter_value()
+            .bool_value
+        )
+        self._grasp_config = self._read_grasp_config()
 
         # ------------------------------------------------------------------
         # Publisher — TRANSIENT_LOCAL so late-joining controller receives it
@@ -175,6 +186,35 @@ class PlannerRosNode:  # pragma: no cover
                 self._joint_states_callback,
                 be_qos,
             )
+
+    def _read_grasp_config(self) -> Any:
+        """Read PPP grasp geometry from ROS parameters."""
+        from fret.control.grasp_magnet import parse_grasp_config
+
+        return parse_grasp_config(
+            {
+                "capture_radius": self.get_parameter(  # type: ignore[attr-defined]
+                    "grasp.capture_radius"
+                )
+                .get_parameter_value()
+                .double_value,
+                "goal_radius": self.get_parameter(  # type: ignore[attr-defined]
+                    "grasp.goal_radius"
+                )
+                .get_parameter_value()
+                .double_value,
+                "weld_offset": list(
+                    self.get_parameter("grasp.weld_offset")  # type: ignore[attr-defined]
+                    .get_parameter_value()
+                    .double_array_value
+                ),
+                "box_half_extent": self.get_parameter(  # type: ignore[attr-defined]
+                    "grasp.box_half_extent"
+                )
+                .get_parameter_value()
+                .double_value,
+            }
+        )
 
     # ------------------------------------------------------------------
     # Callbacks
@@ -296,6 +336,10 @@ class PlannerRosNode:  # pragma: no cover
             occupancy_adapter=self._occ_adapter,
             collision_backend=self._collision_backend,  # type: ignore[arg-type]
             planner_algorithm=self._planner_algorithm,  # type: ignore[arg-type]
+            include_cargo=self._plan_include_cargo,
+            grasp_config=(
+                self._grasp_config if self._model == "ppp" else None
+            ),
             scenario=self._scenario_id,
         )
         request = PlanningRequest(

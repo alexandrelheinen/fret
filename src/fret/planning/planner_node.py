@@ -29,6 +29,7 @@ from typing import Any, Literal
 import numpy as np
 import numpy.typing as npt
 
+from fret.control.grasp_magnet import GraspConfig
 from fret.interfaces import (
     ErrorCode,
     PlanningRequest,
@@ -90,6 +91,8 @@ class PlannerNode:
             occupancy model.
         collision_backend: PPP collision backend (``analytic`` or ``mujoco``).
         planner_algorithm: ARCO planner (``rrt_star`` or ``sst``).
+        include_cargo: When True, PPP planning includes welded cargo (FR-GSP-02).
+        grasp_config: Cargo geometry for PPP cargo-inclusive checks.
         scenario: Scenario stem for MJCF resolution (MuJoCo backend).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
     """
@@ -102,6 +105,8 @@ class PlannerNode:
         occupancy: Any | None = None,
         collision_backend: CollisionBackend = "analytic",
         planner_algorithm: PlannerAlgorithm = "rrt_star",
+        include_cargo: bool = False,
+        grasp_config: GraspConfig | None = None,
         scenario: str = "ppp_warehouse",
         mjcf_path: str | pathlib.Path | None = None,
         workspace_bounds: (
@@ -121,6 +126,8 @@ class PlannerNode:
         self._traj_gen = TrajectoryGenerator(self._kin)
         self._collision_backend = collision_backend
         self._planner_algorithm = planner_algorithm
+        self._include_cargo = include_cargo
+        self._grasp_config = grasp_config
         self._scenario = scenario
         self._mjcf_path = mjcf_path
         self._workspace_bounds = workspace_bounds
@@ -166,6 +173,8 @@ class PlannerNode:
             checker = make_cspace_checker(
                 self._kin,
                 occ,
+                include_cargo=self._include_cargo,
+                grasp_config=self._grasp_config,
                 collision_backend=self._collision_backend,
                 scenario=self._scenario,
                 mjcf_path=self._mjcf_path,

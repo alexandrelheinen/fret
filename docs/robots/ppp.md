@@ -90,7 +90,9 @@ FRET v1.0 PPP scenarios derive obstacle layouts from ARCO:
 - `arco/map/ppp.yml`
 - `arco/simulator/scenes/ppp.py`
 
-Planning uses ARCO `SSTPlanner` with `KDTreeOccupancy` in 3-D C-space.
+Planning uses ARCO `RRTPlanner` with MuJoCo MJCF contact checks (or analytic
+PPP envelopes). Transit planning includes the welded cargo box when
+``plan_include_cargo:=true`` (FR-GSP-02).
 
 ---
 
