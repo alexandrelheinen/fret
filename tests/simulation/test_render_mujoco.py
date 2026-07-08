@@ -99,3 +99,25 @@ def test_build_showcase_waypoints_mujoco_backend() -> None:
     assert len(waypoints) >= 4
     assert waypoints[0][0] == pytest.approx(2.0)
     assert waypoints[-1][0] == pytest.approx(10.5)
+
+
+def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
+    """Tracked showcase clips must traverse X/Y, not stall in the pick segment."""
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    path = rm.build_showcase_waypoints(
+        "ppp_warehouse",
+        collision_backend="mujoco",
+        mjcf_path=mjcf,
+    )
+    dense = rm.build_pruned_dense_waypoints(path)
+    traj = rm.simulate_tracked_trajectory(
+        dense,
+        duration_s=30.0,
+        fps=30,
+        start=path[0],
+    )
+    assert traj.shape == (900, 3)
+    assert traj[:, 0].max() > 8.0
+    assert traj[:, 1].max() > 2.0

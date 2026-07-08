@@ -292,16 +292,22 @@ def build_pruned_dense_waypoints(
     from fret.control.kinematics import Kinematics
     from fret.planning.cspace_checker import make_cspace_checker
     from fret.planning.planner_node import _CSpaceOccupancy
-    from fret.planning.ppp_obstacles import build_box_obstacle_occupancy
+    from fret.planning.ppp_obstacles import (
+        build_box_obstacle_occupancy,
+        load_ppp_warehouse_preview_obstacles,
+        load_preview_workspace_bounds,
+    )
     from fret.planning.trajectory_generator import TrajectoryGenerator
     from fret.sitl_config import load_scenario_parameters
 
     params = load_scenario_parameters(_scenario_config_path(scenario))
     grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
     plan_include_cargo = bool(params.get("plan_include_cargo", True))
+    preview_bounds = load_preview_workspace_bounds(None)
+    boxes = load_ppp_warehouse_preview_obstacles(None)
 
     kin = Kinematics("ppp")
-    occ = build_box_obstacle_occupancy([])
+    occ = build_box_obstacle_occupancy(boxes)
     checker = make_cspace_checker(
         kin,
         occ,
@@ -309,6 +315,8 @@ def build_pruned_dense_waypoints(
         grasp_config=grasp_cfg,
         collision_backend="mujoco",
         scenario=scenario,
+        workspace_bounds=preview_bounds,
+        mjcf_path=resolve_mjcf_path("ppp", scenario, None),
     )
     traj_gen = TrajectoryGenerator(kin)
     traj_gen.set_collision_context(
@@ -317,6 +325,25 @@ def build_pruned_dense_waypoints(
     )
     traj = traj_gen.process(path)
     return [np.asarray(pt.positions, dtype=np.float64) for pt in traj.points]
+
+
+def _resample_joint_history(
+    history: npt.NDArray[np.float64],
+    n_frames: int,
+) -> npt.NDArray[np.float64]:
+    """Uniformly resample a joint-space execution log to ``n_frames`` poses."""
+    if history.shape[0] == 0:
+        raise ValueError("history must contain at least one sample")
+    if history.shape[0] == 1:
+        return np.repeat(history, n_frames, axis=0)
+    indices = np.linspace(0, history.shape[0] - 1, n_frames)
+    resampled = np.zeros((n_frames, history.shape[1]), dtype=np.float64)
+    for i, idx in enumerate(indices):
+        lo = int(np.floor(idx))
+        hi = min(lo + 1, history.shape[0] - 1)
+        alpha = float(idx - lo)
+        resampled[i] = (1.0 - alpha) * history[lo] + alpha * history[hi]
+    return np.clip(resampled, _PPP_LIMITS[:, 0], _PPP_LIMITS[:, 1])
 
 
 def simulate_tracked_trajectory(
@@ -331,6 +358,11 @@ def simulate_tracked_trajectory(
     Follows the same per-axis velocity law as ``PPPControllerNode`` and
     ``PPPWarehouseRunner`` so release videos show executed motion rather
     than idealized joint interpolation.
+
+    The full dense waypoint sequence is tracked to completion, then
+    resampled to the requested frame count.  Sampling on simulation clock
+    alone would stall the gantry in early vertical approach segments for
+    the full clip duration.
 
     Args:
         waypoints: Dense joint references from pruning + interpolation.
@@ -358,16 +390,11 @@ def simulate_tracked_trajectory(
     )
     dt = 1.0 / float(ctrl.update_rate)
     n_frames = max(2, int(round(duration_s * fps)))
-    frame_interval = duration_s / (n_frames - 1)
-    next_frame_t = 0.0
-    sim_t = 0.0
-    frames: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
-    wp_idx = 0
+    history: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
     convergence_m = 0.004
     max_inner_steps = 50
 
-    while len(frames) < n_frames and wp_idx < len(waypoints):
-        q_ref = waypoints[wp_idx]
+    for q_ref in waypoints:
         for _ in range(max_inner_steps):
             q = bridge.get_positions()
             joint_error = q_ref - q
@@ -377,30 +404,25 @@ def simulate_tracked_trajectory(
                 ctrl._max_joint_velocity,
             )
             bridge.step(q_dot, dt)
-            sim_t += dt
-            if sim_t + 1e-9 >= next_frame_t and len(frames) < n_frames:
-                frames.append(bridge.get_positions().copy())
-                next_frame_t += frame_interval
+            history.append(bridge.get_positions().copy())
             if float(np.linalg.norm(joint_error)) <= convergence_m:
                 break
-        wp_idx += 1
 
-    while len(frames) < n_frames:
+    q_ref = waypoints[-1]
+    for _ in range(max_inner_steps):
         q = bridge.get_positions()
-        q_ref = waypoints[-1]
         joint_error = q_ref - q
+        if float(np.linalg.norm(joint_error)) <= convergence_m:
+            break
         q_dot = np.clip(
             ctrl._kp * joint_error,
             -ctrl._max_joint_velocity,
             ctrl._max_joint_velocity,
         )
         bridge.step(q_dot, dt)
-        sim_t += dt
-        if sim_t + 1e-9 >= next_frame_t:
-            frames.append(bridge.get_positions().copy())
-            next_frame_t += frame_interval
+        history.append(bridge.get_positions().copy())
 
-    return np.asarray(frames[:n_frames], dtype=np.float64)
+    return _resample_joint_history(np.asarray(history, dtype=np.float64), n_frames)
 
 
 def interpolate_waypoints(
