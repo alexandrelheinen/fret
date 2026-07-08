@@ -63,6 +63,8 @@ Colors match `arco.config.palette.layer_rgb("rrt"|"sst", "vehicle")`.
 | `src/fret/config/controllers/dubins.yml` | Pure Pursuit / vehicle gains |
 | `src/fret/scenario/dubins_race_runner.py` | Pure-Python E2E orchestrator |
 
+Visual asset benchmark (vehicle + warehouse mesh picks): [docs/assets/dubins/README.md](../assets/dubins/README.md).
+
 Regenerate AWS warehouse meshes when needed:
 
 ```bash

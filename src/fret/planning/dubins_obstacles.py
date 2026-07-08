@@ -6,6 +6,7 @@ builds an ARCO ``KDTreeOccupancy`` map sampled from axis-aligned box surfaces.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import yaml
-from arco.mapping import KDTreeOccupancy
+from arco.mapping.occupancy import Occupancy
 
 from fret.planning.ppp_obstacles import BoxObstacle
 from fret.sitl_config import resolve_package_file
@@ -192,20 +193,22 @@ def structure_footprint_points(
 
 def build_race_occupancy(
     world: DubinsRaceWorld,
-) -> KDTreeOccupancy:
-    """Build a shared KDTree occupancy map for both race agents.
+) -> RectStructureOccupancy:
+    """Build a shared analytic occupancy map for both race agents.
 
     Args:
         world: Parsed dubins race world.
 
     Returns:
-        ARCO occupancy with clearance = vehicle radius + margin.
+        Rectangle occupancy with ``clearance = vehicle_radius + margin``.
     """
-    clearance = world.vehicle_radius + world.clearance_margin
-    points = structure_footprint_points(world.structures)
-    if not points:
-        raise ValueError("Dubins race world produced an empty occupancy cloud")
-    return KDTreeOccupancy(points, clearance=clearance)
+    if not world.structures:
+        raise ValueError("Dubins race world produced an empty structure list")
+    return RectStructureOccupancy(
+        world.structures,
+        vehicle_radius=world.vehicle_radius,
+        clearance_margin=world.clearance_margin,
+    )
 
 
 def load_workspace_bounds(
@@ -229,3 +232,128 @@ def circle_rect_clearance(
     closest_x = min(max(x, rect.x - rect.hx), rect.x + rect.hx)
     closest_y = min(max(y, rect.y - rect.hy), rect.y + rect.hy)
     return float(np.hypot(x - closest_x, y - closest_y) - vehicle_radius)
+
+
+def _point_rect_surface_distance(
+    x: float,
+    y: float,
+    rect: RectObstacle,
+) -> tuple[float, npt.NDArray[np.float64]]:
+    """Return distance from ``(x, y)`` to the rectangle surface and closest point."""
+    closest_x = min(max(x, rect.x - rect.hx), rect.x + rect.hx)
+    closest_y = min(max(y, rect.y - rect.hy), rect.y + rect.hy)
+    closest = np.array([closest_x, closest_y], dtype=np.float64)
+    return float(np.linalg.norm([x - closest_x, y - closest_y])), closest
+
+
+class RectStructureOccupancy(Occupancy):
+    """Analytic axis-aligned box occupancy for Dubins race planning.
+
+    Uses true rectangle geometry instead of sparse perimeter samples so
+    clearance matches the vehicle footprint radius used in MJCF visuals.
+    """
+
+    def __init__(
+        self,
+        structures: tuple[RectObstacle, ...],
+        *,
+        vehicle_radius: float,
+        clearance_margin: float,
+    ) -> None:
+        super().__init__()
+        if vehicle_radius <= 0.0:
+            raise ValueError("vehicle_radius must be positive")
+        if clearance_margin < 0.0:
+            raise ValueError("clearance_margin must be non-negative")
+        self._structures = structures
+        self._vehicle_radius = float(vehicle_radius)
+        self._clearance_margin = float(clearance_margin)
+        self.clearance = self._vehicle_radius + self._clearance_margin
+
+    @property
+    def vehicle_radius(self) -> float:
+        """Planning footprint radius [m]."""
+        return self._vehicle_radius
+
+    @property
+    def clearance_margin(self) -> float:
+        """Extra surface clearance beyond the vehicle radius [m]."""
+        return self._clearance_margin
+
+    def nearest_obstacle(
+        self, point: npt.NDArray[np.float64]
+    ) -> tuple[float, npt.NDArray[np.float64]]:
+        """Return distance to the nearest structure surface and that point."""
+        x, y = float(point[0]), float(point[1])
+        if not self._structures:
+            return float("inf"), np.array([x, y], dtype=np.float64)
+        best_dist = float("inf")
+        best_pt = np.array([x, y], dtype=np.float64)
+        for rect in self._structures:
+            dist, closest = _point_rect_surface_distance(x, y, rect)
+            if dist < best_dist:
+                best_dist = dist
+                best_pt = closest
+        return best_dist, best_pt
+
+    def is_occupied(self, point: npt.NDArray[np.float64]) -> bool:
+        """Return True when the vehicle centre is closer than ``clearance``."""
+        dist, _ = self.nearest_obstacle(point)
+        return dist < self.clearance
+
+    def query_distances(
+        self, points: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Return surface distances for a batch of planar query points."""
+        pts = np.atleast_2d(np.asarray(points, dtype=np.float64))
+        if pts.size == 0:
+            return np.empty((0,), dtype=np.float64)
+        if not self._structures:
+            return np.full(pts.shape[0], np.inf, dtype=np.float64)
+
+        x = pts[:, 0][:, np.newaxis]
+        y = pts[:, 1][:, np.newaxis]
+        best = np.full(pts.shape[0], np.inf, dtype=np.float64)
+        for rect in self._structures:
+            closest_x = np.clip(x, rect.x - rect.hx, rect.x + rect.hx)
+            closest_y = np.clip(y, rect.y - rect.hy, rect.y + rect.hy)
+            dist = np.hypot(x - closest_x, y - closest_y).ravel()
+            best = np.minimum(best, dist)
+        return best
+
+
+def vehicle_body_clearance(
+    x: float,
+    y: float,
+    theta: float,
+    structures: tuple[RectObstacle, ...],
+    *,
+    vehicle_radius: float,
+    half_length: float = 0.36,
+    half_width: float = 0.22,
+) -> float:
+    """Minimum oriented-body clearance over centre and corner samples [m]."""
+    offsets = [
+        (0.0, 0.0),
+        (half_length, half_width),
+        (half_length, -half_width),
+        (-half_length, half_width),
+        (-half_length, -half_width),
+    ]
+    cos_t = math.cos(theta)
+    sin_t = math.sin(theta)
+    clearances = []
+    for ox, oy in offsets:
+        px = x + cos_t * ox - sin_t * oy
+        py = y + sin_t * ox + cos_t * oy
+        sample_radius = vehicle_radius if ox == 0.0 and oy == 0.0 else 0.05
+        if not structures:
+            clearances.append(float("inf"))
+            continue
+        clearances.append(
+            min(
+                circle_rect_clearance(px, py, sample_radius, rect)
+                for rect in structures
+            )
+        )
+    return float(min(clearances))

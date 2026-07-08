@@ -21,15 +21,16 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 from arco.control.tracking import TrackingLoop
-from arco.mapping import KDTreeOccupancy
 from arco.planning.continuous import RRTPlanner, SSTPlanner, TrajectoryPruner
 from arco.simulator.sim.tracking import VehicleConfig, build_vehicle_sim
 
 from fret.planning.dubins_obstacles import (
     DubinsRaceWorld,
+    RectStructureOccupancy,
     build_race_occupancy,
     default_obstacle_file,
     load_dubins_race_world,
+    vehicle_body_clearance,
 )
 from fret.sitl_config import load_scenario_parameters
 
@@ -73,6 +74,7 @@ class DubinsRaceRunResult:
     winner: AgentName | None
     both_reached_goal: bool
     max_cross_track_error_m: float
+    min_obstacle_clearance_m: float
     rrt_pose_history: tuple[tuple[float, float, float], ...] = ()
     sst_pose_history: tuple[tuple[float, float, float], ...] = ()
 
@@ -83,7 +85,7 @@ class DubinsRaceSimulation:
 
     world: DubinsRaceWorld
     vehicle_cfg: VehicleConfig
-    occupancy: KDTreeOccupancy
+    occupancy: RectStructureOccupancy
     dt: float
     rrt_vehicle: Any
     sst_vehicle: Any
@@ -171,6 +173,18 @@ class DubinsRaceSimulation:
             winner=winner,
             both_reached_goal=both,
             max_cross_track_error_m=self.max_cross_track_error_m,
+            min_obstacle_clearance_m=min(
+                _min_pose_history_clearance(
+                    tuple(self.rrt_pose_history),
+                    self.world.structures,
+                    vehicle_radius=self.world.vehicle_radius,
+                ),
+                _min_pose_history_clearance(
+                    tuple(self.sst_pose_history),
+                    self.world.structures,
+                    vehicle_radius=self.world.vehicle_radius,
+                ),
+            ),
             rrt_pose_history=tuple(self.rrt_pose_history),
             sst_pose_history=tuple(self.sst_pose_history),
         )
@@ -244,7 +258,7 @@ def _spawn_positions(
 
 def _plan_path(
     planner_kind: AgentName,
-    occupancy: KDTreeOccupancy,
+    occupancy: RectStructureOccupancy,
     bounds: list[tuple[float, float]],
     start_xy: tuple[float, float],
     goal_xy: npt.NDArray[np.float64],
@@ -319,6 +333,28 @@ def _path_to_tuples(
     path: list[npt.NDArray[np.float64]],
 ) -> list[tuple[float, float]]:
     return [(float(p[0]), float(p[1])) for p in path]
+
+
+def _min_pose_history_clearance(
+    poses: tuple[tuple[float, float, float], ...],
+    structures: tuple[Any, ...],
+    *,
+    vehicle_radius: float,
+) -> float:
+    if not poses:
+        return float("inf")
+    return float(
+        min(
+            vehicle_body_clearance(
+                pose[0],
+                pose[1],
+                pose[2],
+                structures,
+                vehicle_radius=vehicle_radius,
+            )
+            for pose in poses
+        )
+    )
 
 
 def _distance_to_goal(
@@ -462,6 +498,7 @@ class DubinsRaceRunner:
                 winner=None,
                 both_reached_goal=False,
                 max_cross_track_error_m=0.0,
+                min_obstacle_clearance_m=0.0,
             )
 
         bridge = None
@@ -500,5 +537,6 @@ class DubinsRaceRunner:
                 winner=result.winner,
                 both_reached_goal=result.both_reached_goal,
                 max_cross_track_error_m=result.max_cross_track_error_m,
+                min_obstacle_clearance_m=result.min_obstacle_clearance_m,
             )
         return result
