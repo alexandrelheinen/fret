@@ -54,9 +54,12 @@ def _build_rclpy_stub() -> ModuleType:
             self.create_publisher = MagicMock(return_value=MagicMock())
             self.create_subscription = MagicMock(return_value=MagicMock())
 
-        def declare_parameter(self, name: str, value: object) -> None:
+        def declare_parameter(
+            self, name: str, value: object, descriptor: object = None
+        ) -> None:
             # Only store the default if not already present (caller may have
-            # pre-populated with a test-specific value).
+            # pre-populated with a test-specific value).  ``descriptor`` mirrors
+            # the real rclpy signature and is ignored by the stub.
             self._params.setdefault(name, value)
 
         def get_parameter(self, name: str) -> MagicMock:
@@ -78,6 +81,9 @@ def _build_rclpy_stub() -> ModuleType:
                 pv.double_value = 0.0
                 pv.integer_value = 0
             param.get_parameter_value.return_value = pv
+            # ``.value`` returns the native stored value (used for dynamically
+            # typed parameters such as grasp.weld_offset).
+            param.value = value
             return param
 
     class _FakeQoSProfile:
@@ -105,6 +111,8 @@ def _install_ros_msg_stubs() -> None:
         ("trajectory_msgs.msg", ["JointTrajectory", "JointTrajectoryPoint"]),
         ("builtin_interfaces", ["Duration"]),
         ("builtin_interfaces.msg", ["Duration"]),
+        ("rcl_interfaces", ["ParameterDescriptor"]),
+        ("rcl_interfaces.msg", ["ParameterDescriptor"]),
     ]:
         if pkg in sys.modules:
             continue

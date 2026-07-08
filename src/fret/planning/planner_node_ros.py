@@ -39,6 +39,8 @@ Satisfies requirements FR-PLN-01 through FR-PLN-07 at the ROS level.
 
 from __future__ import annotations
 
+from typing import Any
+
 # Nanoseconds per second — used when splitting a float timestamp into
 # (sec, nanosec) fields required by builtin_interfaces/Duration.
 _NS_PER_SEC: int = 1_000_000_000
@@ -57,6 +59,7 @@ class PlannerRosNode:  # pragma: no cover
 
     def __init__(self, model: str = "scara") -> None:
         import rclpy.node
+        from rcl_interfaces.msg import ParameterDescriptor
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
         from sensor_msgs.msg import JointState
         from trajectory_msgs.msg import JointTrajectory
@@ -72,13 +75,28 @@ class PlannerRosNode:  # pragma: no cover
             "goal_configuration", [0.3272, 0.4712, 0.05]
         )
         self.declare_parameter("planning_timeout", 10.0)  # type: ignore[attr-defined]
-        self.declare_parameter("start_configuration", [])  # type: ignore[attr-defined]
+        # An empty-list default would be inferred as BYTE_ARRAY by rclpy and
+        # then reject the DOUBLE_ARRAY override from the scenario YAML, so use
+        # a dynamically typed descriptor to keep the "empty = use /joint_states"
+        # default while accepting a float[] override.
+        self.declare_parameter(  # type: ignore[attr-defined]
+            "start_configuration",
+            [],
+            ParameterDescriptor(dynamic_typing=True),
+        )
         self.declare_parameter("collision_backend", "analytic")  # type: ignore[attr-defined]
         self.declare_parameter("planner_algorithm", "rrt_star")  # type: ignore[attr-defined]
         self.declare_parameter("plan_include_cargo", False)  # type: ignore[attr-defined]
         self.declare_parameter("grasp.capture_radius", 0.3)  # type: ignore[attr-defined]
         self.declare_parameter("grasp.goal_radius", 0.5)  # type: ignore[attr-defined]
-        self.declare_parameter("grasp.weld_offset", [0.0, 0.0, 0.0])  # type: ignore[attr-defined]
+        # weld_offset may be given as a scalar (interpreted as a Z offset) or a
+        # 3-vector in scenario YAML; parse_grasp_config accepts both, so declare
+        # it with dynamic typing to avoid a DOUBLE/DOUBLE_ARRAY type clash.
+        self.declare_parameter(  # type: ignore[attr-defined]
+            "grasp.weld_offset",
+            [0.0, 0.0, 0.0],
+            ParameterDescriptor(dynamic_typing=True),
+        )
         self.declare_parameter("grasp.box_half_extent", 0.25)  # type: ignore[attr-defined]
 
         self._model = str(
@@ -203,11 +221,11 @@ class PlannerRosNode:  # pragma: no cover
                 )
                 .get_parameter_value()
                 .double_value,
-                "weld_offset": list(
-                    self.get_parameter("grasp.weld_offset")  # type: ignore[attr-defined]
-                    .get_parameter_value()
-                    .double_array_value
-                ),
+                # .value returns the native scalar or list; parse_grasp_config
+                # normalizes both to a 3-vector.
+                "weld_offset": self.get_parameter(  # type: ignore[attr-defined]
+                    "grasp.weld_offset"
+                ).value,
                 "box_half_extent": self.get_parameter(  # type: ignore[attr-defined]
                     "grasp.box_half_extent"
                 )
