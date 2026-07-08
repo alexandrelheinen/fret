@@ -15,7 +15,6 @@ _PPP_WAREHOUSE_SCENARIO = "ppp_warehouse"
 _DUBINS_RACE_SCENARIO = "dubins_race"
 _PPP_MODEL = "ppp"
 _DUBINS_MODEL = "dubins"
-_MUJOCO_BACKEND = "mujoco"
 
 
 def controller_config_relative(model: str) -> str:
@@ -53,21 +52,6 @@ def perception_config_relative(scenario: str) -> str:
 def mujoco_sim_config_relative() -> str:
     """Return package-relative MuJoCo bridge YAML path."""
     return "config/simulation/mujoco.yml"
-
-
-def uses_mujoco_backend(backend: str) -> bool:
-    """Return ``True`` when the SITL backend is MuJoCo."""
-    return backend == _MUJOCO_BACKEND
-
-
-def is_ppp_warehouse_launch(model: str, scenario: str) -> bool:
-    """Return ``True`` for the v1.0 PPP warehouse product launch tuple."""
-    return model == _PPP_MODEL and scenario == _PPP_WAREHOUSE_SCENARIO
-
-
-def is_dubins_race_launch(model: str, scenario: str) -> bool:
-    """Return ``True`` for the v1.1 Dubins race product launch tuple."""
-    return model == _DUBINS_MODEL and scenario == _DUBINS_RACE_SCENARIO
 
 
 def package_source_root() -> pathlib.Path:

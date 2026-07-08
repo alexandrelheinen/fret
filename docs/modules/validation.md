@@ -44,13 +44,15 @@ Defines pass/fail gates for simulation scenarios. Each gate evaluates a
 
 ## Configuration
 
-Quality gate thresholds are in `src/fret/config/benchmark.yaml`:
+Quality gates are constructed in tests and scenario reports as
+``QualityGate`` instances (threshold, operator, units). There is no separate
+YAML loader — defaults live beside the tests that exercise them.
 
-```yaml
-max_ee_error_mm: 5.0
-min_clearance_m: 0.02
-max_planning_s: 30.0
-min_command_hz: 45.0
+Example gate definitions used in ``tests/test_quality_gates.py``:
+
+```python
+QualityGate(name="success_rate", threshold=0.9, operator=">=")
+QualityGate(name="latency", threshold=10.0, operator="<=")
 ```
 
 ---

@@ -222,6 +222,4 @@ def circle_rect_clearance(
     """Signed clearance between a circular vehicle footprint and a rectangle."""
     closest_x = min(max(x, rect.x - rect.hx), rect.x + rect.hx)
     closest_y = min(max(y, rect.y - rect.hy), rect.y + rect.hy)
-    return float(
-        np.hypot(x - closest_x, y - closest_y) - vehicle_radius
-    )
+    return float(np.hypot(x - closest_x, y - closest_y) - vehicle_radius)

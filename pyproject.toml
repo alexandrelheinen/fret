@@ -61,7 +61,7 @@ skip_glob = ["build/*", "install/*", "log/*"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
-exclude = ["build/", "install/", "log/", "src/fret.egg-info/", "src/fret/mesh/"]
+exclude = ["build/", "install/", "log/", "src/fret.egg-info/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

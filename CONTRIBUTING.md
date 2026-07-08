@@ -59,7 +59,6 @@ The specification stack is in place:
 | 4 — Implementation | Filled algorithms and ROS nodes | Full CI suite, SITL smoke tests |
 
 Project status and roadmap: [docs/releases.md](docs/releases.md),
-[docs/roadmap.md](docs/roadmap.md).
 [docs/roadmap.md](docs/roadmap.md). User-facing usage: [README.md](README.md),
 [docs/simulation.md](docs/simulation.md).
 

@@ -25,8 +25,7 @@ echo "=== Type check (mypy) ==="
 if python3 -m mypy src/ \
     --ignore-missing-imports \
     --strict \
-    --exclude 'src/fret\.egg-info' \
-    --exclude 'src/fret/mesh'; then
+    --exclude 'src/fret\.egg-info'; then
     ok "mypy: PASSED"
     exit 0
 else

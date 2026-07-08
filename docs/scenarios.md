@@ -54,7 +54,7 @@ create multiple corridors — only proper planning avoids traps.
 | Planner | ARCO RRT* (agent 1) + SST (agent 2) |
 
 **Pass criteria:** See [releases.md § v1.1](releases.md#v11--dubins-dual-robot-race).
-Implementation guide: [v1.1-dubins-race.md](v1.1-dubins-race.md).
+Robot details: [robots/dubins.md](robots/dubins.md).
 
 ---
 
