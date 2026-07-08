@@ -12,12 +12,12 @@
     model: "dubins"
     backend: "mujoco"
 
-    start_configuration: [2.0, 1.7, 0.785]
-    goal_configuration: [22.0, 14.0, 0.0]
+    start_configuration: [6.0, 6.0, 0.785]
+    goal_configuration: [74.0, 74.0, 0.0]
 
-    planning_timeout: 20.0
+    planning_timeout: 30.0
     duration: 35.0
-    race_timeout: 90.0
+    race_timeout: 300.0
     simulation_dt: 0.05
 
     obstacle_file: "worlds/dubins_race_obstacles.yml"
