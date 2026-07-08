@@ -31,9 +31,15 @@ def test_resolve_mjcf_override() -> None:
     assert resolved == explicit
 
 
+def test_resolve_mjcf_dubins_race() -> None:
+    path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
+    assert path.name == "dubins_race.xml"
+    assert path.is_file()
+
+
 def test_resolve_mjcf_unsupported_raises() -> None:
     with pytest.raises(ValueError, match="Unsupported"):
-        rm.resolve_mjcf_path("dubins", "dubins_race", None)
+        rm.resolve_mjcf_path("unknown", "missing", None)
 
 
 def test_interpolate_waypoints_shape() -> None:
@@ -146,5 +152,26 @@ def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
     assert traj[:, 1].max() > 2.0
 
 
+def test_list_showcase_cameras_dubins_race() -> None:
+    path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
+    cameras = rm.list_showcase_cameras(path, scenario="dubins_race")
+    assert cameras == ["overview", "topdown", "follow", "finish"]
+
+
+def test_simulate_dubins_race_poses_covers_transit() -> None:
+    """Release dubins clip must traverse the warehouse floor."""
+    pytest.importorskip("arco")
+    rrt, sst = rm.simulate_dubins_race_poses(
+        "dubins_race",
+        duration_s=20.0,
+        fps=10,
+    )
+    assert rrt.shape[0] == 200
+    assert sst.shape[0] == 200
+    assert rrt[:, 0].max() > 8.0
+    assert sst[:, 0].max() > 8.0
+
+
 def test_resolve_scenario_duration_reads_yaml() -> None:
     assert rm.resolve_scenario_duration("ppp_warehouse") == pytest.approx(60.0)
+    assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(35.0)

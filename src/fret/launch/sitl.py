@@ -8,6 +8,7 @@ Usage::
     ros2 launch fret sitl.py model:=scara scenario:=straight_line
     ros2 launch fret sitl.py model:=scara scenario:=arc
     ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
 
 Arguments:
     model (str, default: scara)
@@ -26,6 +27,7 @@ Scenario behaviour:
         The injector publishes a circular arc trajectory in Cartesian space
         once; the controller tracks it.
     ppp_warehouse — v1.0 PPP warehouse pick-and-place with ``backend:=mujoco``.
+    dubins_race — v1.1 dual-agent Dubins race with ``backend:=mujoco``.
     static_reach (and others) — standard SITL with ``planner_node`` and
         ``scene_acquisition_node``.  The planner auto-triggers at startup
         and publishes the resulting trajectory; the controller executes it.
@@ -45,6 +47,7 @@ from launch.substitutions import (
     LaunchConfiguration,
     OrSubstitution,
     PathJoinSubstitution,
+    PythonExpression,
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -76,12 +79,40 @@ def generate_launch_description() -> LaunchDescription:
     is_ppp_warehouse = EqualsSubstitution(
         LaunchConfiguration("scenario"), "ppp_warehouse"
     )
+    is_dubins_model = EqualsSubstitution(
+        LaunchConfiguration("model"), "dubins"
+    )
+    is_dubins_race = EqualsSubstitution(
+        LaunchConfiguration("scenario"), "dubins_race"
+    )
 
     is_straight_line = EqualsSubstitution(
         LaunchConfiguration("scenario"), "straight_line"
     )
     is_arc = EqualsSubstitution(LaunchConfiguration("scenario"), "arc")
     is_injector_scenario = OrSubstitution(is_straight_line, is_arc)
+    skip_standard_pipeline = OrSubstitution(
+        is_injector_scenario,
+        is_dubins_race,
+    )
+    is_standard_mujoco = PythonExpression(
+        [
+            "'",
+            LaunchConfiguration("backend"),
+            "' == 'mujoco' and '",
+            LaunchConfiguration("scenario"),
+            "' != 'dubins_race'",
+        ]
+    )
+    is_dubins_mujoco = PythonExpression(
+        [
+            "'",
+            LaunchConfiguration("backend"),
+            "' == 'mujoco' and '",
+            LaunchConfiguration("scenario"),
+            "' == 'dubins_race'",
+        ]
+    )
 
     scenario_config = PathJoinSubstitution(
         [
@@ -121,7 +152,19 @@ def generate_launch_description() -> LaunchDescription:
             "model": LaunchConfiguration("model"),
             "scenario": LaunchConfiguration("scenario"),
         }.items(),
-        condition=IfCondition(is_mujoco),
+        condition=IfCondition(is_standard_mujoco),
+    )
+
+    dubins_race_node = Node(
+        package="fret",
+        executable="dubins_race_node",
+        name="dubins_race_node",
+        output="screen",
+        parameters=[
+            {"scenario": LaunchConfiguration("scenario")},
+            scenario_config,
+        ],
+        condition=IfCondition(is_dubins_mujoco),
     )
 
     straight_line_injector = Node(
@@ -157,7 +200,7 @@ def generate_launch_description() -> LaunchDescription:
             {"model": LaunchConfiguration("model")},
             scenario_config,
         ],
-        condition=UnlessCondition(is_injector_scenario),
+        condition=UnlessCondition(skip_standard_pipeline),
     )
 
     scene_acquisition_node = Node(
@@ -166,12 +209,13 @@ def generate_launch_description() -> LaunchDescription:
         name="scene_acquisition_node",
         output="screen",
         parameters=[{"model": LaunchConfiguration("model")}],
-        condition=UnlessCondition(is_injector_scenario),
+        condition=UnlessCondition(skip_standard_pipeline),
     )
 
     skip_default_perception = OrSubstitution(
         is_injector_scenario,
         is_ppp_warehouse,
+        is_dubins_race,
     )
 
     perception_bridge_default = Node(
@@ -214,7 +258,9 @@ def generate_launch_description() -> LaunchDescription:
         remappings=[
             ("/joint_commands", "/joint_group_velocity_controller/commands")
         ],
-        condition=UnlessCondition(is_ppp_model),
+        condition=UnlessCondition(
+            OrSubstitution(is_ppp_model, is_dubins_model)
+        ),
     )
 
     controller_ppp = Node(
@@ -236,6 +282,7 @@ def generate_launch_description() -> LaunchDescription:
             backend_arg,
             sim_launch,
             mujoco_launch,
+            dubins_race_node,
             straight_line_injector,
             arc_injector,
             scene_acquisition_node,

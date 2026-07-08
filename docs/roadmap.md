@@ -77,7 +77,7 @@ Validated on SCARA (RRP, 3-DOF):
 
 ---
 
-## Phase 3 — v1.1 Dubins race 🔲
+## Phase 3 — v1.1 Dubins race ✅
 
 **Robot:** Dubins mobile × 2. **Scenario:** SC-v11 column forest race.
 

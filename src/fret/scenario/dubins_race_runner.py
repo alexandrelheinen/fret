@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 import pathlib
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 import numpy as np
@@ -26,6 +26,7 @@ from arco.planning.continuous import RRTPlanner, SSTPlanner, TrajectoryPruner
 from arco.simulator.sim.tracking import VehicleConfig, build_vehicle_sim
 
 from fret.planning.dubins_obstacles import (
+    DubinsRaceWorld,
     build_race_occupancy,
     default_obstacle_file,
     load_dubins_race_world,
@@ -80,6 +81,107 @@ class DubinsRaceRunResult:
     winner: AgentName | None
     both_reached_goal: bool
     max_cross_track_error_m: float
+    rrt_pose_history: tuple[tuple[float, float, float], ...] = ()
+    sst_pose_history: tuple[tuple[float, float, float], ...] = ()
+
+
+@dataclass
+class DubinsRaceSimulation:
+    """Incremental dual-agent race simulation for ROS and video rendering."""
+
+    world: DubinsRaceWorld
+    vehicle_cfg: VehicleConfig
+    occupancy: KDTreeOccupancy
+    dt: float
+    rrt_vehicle: Any
+    sst_vehicle: Any
+    rrt_loop: TrackingLoop
+    sst_loop: TrackingLoop
+    rrt_path: list[tuple[float, float]]
+    sst_path: list[tuple[float, float]]
+    goal_radius: float
+    rrt_finish: float | None = None
+    sst_finish: float | None = None
+    sim_time_s: float = 0.0
+    max_cross_track_error_m: float = 0.0
+    rrt_pose_history: list[tuple[float, float, float]] = field(
+        default_factory=list
+    )
+    sst_pose_history: list[tuple[float, float, float]] = field(
+        default_factory=list
+    )
+
+    @property
+    def finished(self) -> bool:
+        """Return True when both agents reached the goal."""
+        return self.rrt_finish is not None and self.sst_finish is not None
+
+    def step(self) -> bool:
+        """Advance one simulation tick. Returns ``True`` when the race ends."""
+        if self.finished:
+            return True
+
+        if self.rrt_finish is None:
+            metrics = self.rrt_loop.step(self.rrt_path, self.dt)
+            self.max_cross_track_error_m = max(
+                self.max_cross_track_error_m,
+                abs(float(metrics["cross_track_error"])),
+            )
+            if (
+                _distance_to_goal(self.rrt_vehicle.pose, self.world.goal_xy)
+                <= self.goal_radius
+            ):
+                self.rrt_finish = self.sim_time_s
+
+        if self.sst_finish is None:
+            metrics = self.sst_loop.step(self.sst_path, self.dt)
+            self.max_cross_track_error_m = max(
+                self.max_cross_track_error_m,
+                abs(float(metrics["cross_track_error"])),
+            )
+            if (
+                _distance_to_goal(self.sst_vehicle.pose, self.world.goal_xy)
+                <= self.goal_radius
+            ):
+                self.sst_finish = self.sim_time_s
+
+        self.rrt_pose_history.append(self.rrt_vehicle.pose)
+        self.sst_pose_history.append(self.sst_vehicle.pose)
+        self.sim_time_s += self.dt
+        return self.finished
+
+    def to_result(
+        self,
+        rrt_plan: AgentPlanResult,
+        sst_plan: AgentPlanResult,
+        *,
+        race_duration_s: float,
+    ) -> DubinsRaceRunResult:
+        """Build a :class:`DubinsRaceRunResult` from the current session."""
+        both = self.finished
+        winner: AgentName | None = None
+        if (
+            both
+            and self.rrt_finish is not None
+            and self.sst_finish is not None
+        ):
+            if self.rrt_finish < self.sst_finish:
+                winner = "rrt_star"
+            elif self.sst_finish < self.rrt_finish:
+                winner = "sst"
+
+        return DubinsRaceRunResult(
+            rrt_plan=rrt_plan,
+            sst_plan=sst_plan,
+            rrt_time_to_goal_s=self.rrt_finish,
+            sst_time_to_goal_s=self.sst_finish,
+            race_duration_s=race_duration_s,
+            winner=winner,
+            both_reached_goal=both,
+            max_cross_track_error_m=self.max_cross_track_error_m,
+            rrt_pose_history=tuple(self.rrt_pose_history),
+            sst_pose_history=tuple(self.sst_pose_history),
+        )
 
 
 def _polyline_length(path: list[npt.NDArray[np.float64]]) -> float:
@@ -275,14 +377,19 @@ class DubinsRaceRunner:
         """Load flat scenario parameters from YAML."""
         return load_scenario_parameters(self._scenario_path)
 
-    def run(self) -> DubinsRaceRunResult:
-        """Execute dual planning, simultaneous tracking, and race metrics."""
+    def prepare_simulation(
+        self,
+    ) -> tuple[AgentPlanResult, AgentPlanResult, DubinsRaceSimulation | None]:
+        """Plan paths and optionally build an incremental race session.
+
+        Returns:
+            ``(rrt_plan, sst_plan, session)`` where ``session`` is ``None`` if
+            either planner failed.
+        """
         params = self.load_parameters()
         ctrl = _load_controller_params(self._controller_config_path)
         vehicle_cfg = _vehicle_config(ctrl)
         dt = float(params.get("simulation_dt", 0.05))
-        race_timeout = float(params.get("race_timeout", 90.0))
-        max_steps = int(race_timeout / dt)
 
         world = load_dubins_race_world(
             self._obstacle_path or default_obstacle_file()
@@ -315,23 +422,11 @@ class DubinsRaceRunner:
             world.goal_xy,
             world.planner,
         )
-
-        empty_result = DubinsRaceRunResult(
-            rrt_plan=rrt_plan,
-            sst_plan=sst_plan,
-            rrt_time_to_goal_s=None,
-            sst_time_to_goal_s=None,
-            race_duration_s=0.0,
-            winner=None,
-            both_reached_goal=False,
-            max_cross_track_error_m=0.0,
-        )
         if not rrt_plan.path_found or not sst_plan.path_found:
-            return empty_result
+            return rrt_plan, sst_plan, None
 
         rrt_path = _path_to_tuples(rrt_plan.path)
         sst_path = _path_to_tuples(sst_plan.path)
-
         rrt_vehicle, rrt_loop = build_vehicle_sim(
             rrt_path, vehicle_cfg, occupancy=occupancy
         )
@@ -339,72 +434,80 @@ class DubinsRaceRunner:
             sst_path, vehicle_cfg, occupancy=occupancy
         )
 
+        session = DubinsRaceSimulation(
+            world=world,
+            vehicle_cfg=vehicle_cfg,
+            occupancy=occupancy,
+            dt=dt,
+            rrt_vehicle=rrt_vehicle,
+            sst_vehicle=sst_vehicle,
+            rrt_loop=rrt_loop,
+            sst_loop=sst_loop,
+            rrt_path=rrt_path,
+            sst_path=sst_path,
+            goal_radius=vehicle_cfg.goal_radius,
+            rrt_pose_history=[rrt_vehicle.pose],
+            sst_pose_history=[sst_vehicle.pose],
+        )
+        return rrt_plan, sst_plan, session
+
+    def run(self, *, record_poses: bool = False) -> DubinsRaceRunResult:
+        """Execute dual planning, simultaneous tracking, and race metrics."""
+        params = self.load_parameters()
+        race_timeout = float(params.get("race_timeout", 90.0))
+        max_steps = int(
+            race_timeout / float(params.get("simulation_dt", 0.05))
+        )
+
+        rrt_plan, sst_plan, session = self.prepare_simulation()
+        if session is None:
+            return DubinsRaceRunResult(
+                rrt_plan=rrt_plan,
+                sst_plan=sst_plan,
+                rrt_time_to_goal_s=None,
+                sst_time_to_goal_s=None,
+                race_duration_s=0.0,
+                winner=None,
+                both_reached_goal=False,
+                max_cross_track_error_m=0.0,
+            )
+
         bridge = None
         if self._sync_mujoco and _make_dubins_race_bridge_core is not None:
             bridge = _make_dubins_race_bridge_core(
                 initial_rrt=np.array(
-                    [rrt_vehicle.x, rrt_vehicle.y, rrt_vehicle.heading],
+                    session.rrt_vehicle.pose,
                     dtype=np.float64,
                 ),
                 initial_sst=np.array(
-                    [sst_vehicle.x, sst_vehicle.y, sst_vehicle.heading],
+                    session.sst_vehicle.pose,
                     dtype=np.float64,
                 ),
             )
 
-        rrt_finish: float | None = None
-        sst_finish: float | None = None
-        max_cte = 0.0
         t0 = time.monotonic()
-
-        for step_idx in range(max_steps):
-            sim_t = step_idx * dt
-
-            if rrt_finish is None:
-                metrics = rrt_loop.step(rrt_path, dt)
-                max_cte = max(
-                    max_cte, abs(float(metrics["cross_track_error"]))
-                )
-                if (
-                    _distance_to_goal(rrt_vehicle.pose, world.goal_xy)
-                    <= vehicle_cfg.goal_radius
-                ):
-                    rrt_finish = sim_t
-
-            if sst_finish is None:
-                metrics = sst_loop.step(sst_path, dt)
-                max_cte = max(
-                    max_cte, abs(float(metrics["cross_track_error"]))
-                )
-                if (
-                    _distance_to_goal(sst_vehicle.pose, world.goal_xy)
-                    <= vehicle_cfg.goal_radius
-                ):
-                    sst_finish = sim_t
-
+        for _ in range(max_steps):
+            session.step()
             if bridge is not None:
-                bridge.set_rrt_pose(rrt_vehicle.pose)
-                bridge.set_sst_pose(sst_vehicle.pose)
-
-            if rrt_finish is not None and sst_finish is not None:
+                bridge.set_rrt_pose(session.rrt_vehicle.pose)
+                bridge.set_sst_pose(session.sst_vehicle.pose)
+            if session.finished:
                 break
 
-        race_duration = time.monotonic() - t0
-        both = rrt_finish is not None and sst_finish is not None
-        winner: AgentName | None = None
-        if both and rrt_finish is not None and sst_finish is not None:
-            if rrt_finish < sst_finish:
-                winner = "rrt_star"
-            elif sst_finish < rrt_finish:
-                winner = "sst"
-
-        return DubinsRaceRunResult(
-            rrt_plan=rrt_plan,
-            sst_plan=sst_plan,
-            rrt_time_to_goal_s=rrt_finish,
-            sst_time_to_goal_s=sst_finish,
-            race_duration_s=race_duration,
-            winner=winner,
-            both_reached_goal=both,
-            max_cross_track_error_m=max_cte,
+        result = session.to_result(
+            rrt_plan,
+            sst_plan,
+            race_duration_s=time.monotonic() - t0,
         )
+        if not record_poses:
+            return DubinsRaceRunResult(
+                rrt_plan=result.rrt_plan,
+                sst_plan=result.sst_plan,
+                rrt_time_to_goal_s=result.rrt_time_to_goal_s,
+                sst_time_to_goal_s=result.sst_time_to_goal_s,
+                race_duration_s=result.race_duration_s,
+                winner=result.winner,
+                both_reached_goal=result.both_reached_goal,
+                max_cross_track_error_m=result.max_cross_track_error_m,
+            )
+        return result

@@ -1,6 +1,6 @@
 [project]
 name = "fret"
-version = "1.0.0"
+version = "1.1.0"
 description = "Full-stack Robotic Effector Trajectories Framework"
 requires-python = ">=3.12"
 dependencies = [
@@ -33,6 +33,7 @@ scene_acquisition_node = "fret.scene.acquisition_node:main"
 planner_node = "fret.planning.planner_node_ros:main"
 perception_bridge = "fret.ros.perception_bridge:main"
 mujoco_bridge = "fret.ros.mujoco_bridge:main"
+dubins_race_node = "fret.ros.dubins_race_node:main"
 
 [build-system]
 requires = ["setuptools>=71", "wheel"]

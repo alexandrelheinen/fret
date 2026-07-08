@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.ros.dubins_race_node import main
+
+main()

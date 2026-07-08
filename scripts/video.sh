@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render a headless MuJoCo MP4 for FRET showcase scenarios (v1.0 PPP).
+# Render a headless MuJoCo MP4 for FRET showcase scenarios (PPP v1.0, Dubins v1.1).
 #
 # Thin wrapper around scripts/render_mujoco.py.  Requires optional deps:
 #   pip install mujoco imageio imageio-ffmpeg
