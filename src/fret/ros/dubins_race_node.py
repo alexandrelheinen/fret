@@ -189,19 +189,26 @@ class DubinsRaceRosNode:  # pragma: no cover
 def main(args: list[str] | None = None) -> None:  # pragma: no cover
     """Entry point for the ``dubins_race_node`` executable."""
     import rclpy
+    import rclpy.node
+
+    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):  # type: ignore[misc]
+        def __init__(self) -> None:
+            DubinsRaceRosNode.__init__(self)
 
     rclpy.init(args=args)
-    node: DubinsRaceRosNode | None = None
+    node: _ConcreteDubinsRaceNode | None = None
     try:
-        node = DubinsRaceRosNode()
+        node = _ConcreteDubinsRaceNode()
         rclpy.spin(node)
     except Exception:
         if node is not None:
-            node.get_logger().exception("Dubins race node failed during startup")  # type: ignore[attr-defined]
+            node.get_logger().exception(
+                "Dubins race node failed during startup"
+            )
         raise
     finally:
         if node is not None:
-            node.destroy_node()  # type: ignore[attr-defined]
+            node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
 
