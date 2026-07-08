@@ -19,6 +19,7 @@ Dependencies (not required for core FRET algorithms)::
 from __future__ import annotations
 
 import argparse
+import math
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -950,6 +951,71 @@ def _assert_dubins_race_moves(
         )
 
 
+_DUBINS_CAR_WIDTH_M: float = 0.72
+_DUBINS_FOLLOW_FOVY_DEG: float = 50.0
+_DUBINS_FOLLOW_FILL: float = 0.15
+
+
+def _dubins_follow_distance(
+    half_width: int,
+    height: int,
+    *,
+    fovy_deg: float = _DUBINS_FOLLOW_FOVY_DEG,
+    car_width: float = _DUBINS_CAR_WIDTH_M,
+    fill: float = _DUBINS_FOLLOW_FILL,
+) -> float:
+    """Return tracking distance so the car spans ``fill`` of a half-panel."""
+    half_fov_rad = math.radians(fovy_deg) / 2.0
+    hfov_rad = 2.0 * math.atan(math.tan(half_fov_rad) * half_width / height)
+    return (car_width / 2.0) / (fill * math.tan(hfov_rad / 2.0))
+
+
+def _make_dubins_tracking_camera(
+    mujoco: object,
+    model: object,
+    body_name: str,
+    yaw_rad: float,
+    distance: float,
+) -> object:
+    """Build a third-person camera locked on a race car body."""
+    cam = mujoco.MjvCamera()
+    cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+    cam.trackbodyid = mujoco.mj_name2id(
+        model,
+        mujoco.mjtObj.mjOBJ_BODY,
+        body_name,
+    )
+    if int(cam.trackbodyid) < 0:
+        raise ValueError(f"Body not found in MJCF: {body_name}")
+    cam.distance = float(distance)
+    cam.elevation = -18.0
+    cam.azimuth = math.degrees(float(yaw_rad)) + 180.0
+    return cam
+
+
+def _apply_dubins_poses(
+    mujoco: object,
+    model: object,
+    data: object,
+    rrt_q: npt.NDArray[np.float64],
+    sst_q: npt.NDArray[np.float64],
+) -> None:
+    """Write both Dubins race agents into MuJoCo joint state."""
+    for values, joint_names in (
+        (rrt_q, _DUBINS_JOINT_NAMES[0]),
+        (sst_q, _DUBINS_JOINT_NAMES[1]),
+    ):
+        for idx, joint_name in enumerate(joint_names):
+            _set_joint_position(
+                mujoco,
+                model,
+                data,
+                joint_name,
+                float(values[idx]),
+            )
+    mujoco.mj_forward(model, data)
+
+
 def render_dubins_race_showcase_videos(
     mjcf_path: Path,
     output_dir: Path,
@@ -988,9 +1054,18 @@ def render_dubins_race_showcase_videos(
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, height=height, width=width)
+    split_follow = "follow" in camera_names
+    half_width = max(2, width // 2)
+    follow_distance = _dubins_follow_distance(half_width, height)
+    follow_renderer_left: object | None = None
+    follow_renderer_right: object | None = None
+    if split_follow:
+        follow_renderer_left = mujoco.Renderer(model, height=height, width=half_width)
+        follow_renderer_right = mujoco.Renderer(model, height=height, width=half_width)
 
     for camera in camera_names:
-        _assert_camera_exists(mujoco, model, camera)
+        if camera != "follow":
+            _assert_camera_exists(mujoco, model, camera)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     names = output_names or {
@@ -1006,22 +1081,37 @@ def render_dubins_race_showcase_videos(
 
     try:
         for rrt_q, sst_q in zip(rrt_poses, sst_poses, strict=True):
-            for values, joint_names in (
-                (rrt_q, _DUBINS_JOINT_NAMES[0]),
-                (sst_q, _DUBINS_JOINT_NAMES[1]),
-            ):
-                for idx, joint_name in enumerate(joint_names):
-                    _set_joint_position(
+            _apply_dubins_poses(mujoco, model, data, rrt_q, sst_q)
+            for camera in camera_names:
+                if camera == "follow":
+                    assert follow_renderer_left is not None
+                    assert follow_renderer_right is not None
+                    cam_rrt = _make_dubins_tracking_camera(
                         mujoco,
                         model,
-                        data,
-                        joint_name,
-                        float(values[idx]),
+                        "car_rrt",
+                        float(rrt_q[2]),
+                        follow_distance,
                     )
-            mujoco.mj_forward(model, data)
-            for camera in camera_names:
-                renderer.update_scene(data, camera=camera)
-                frame = renderer.render()
+                    cam_sst = _make_dubins_tracking_camera(
+                        mujoco,
+                        model,
+                        "car_sst",
+                        float(sst_q[2]),
+                        follow_distance,
+                    )
+                    follow_renderer_left.update_scene(data, camera=cam_rrt)
+                    follow_renderer_right.update_scene(data, camera=cam_sst)
+                    frame = np.concatenate(
+                        [
+                            follow_renderer_left.render(),
+                            follow_renderer_right.render(),
+                        ],
+                        axis=1,
+                    )
+                else:
+                    renderer.update_scene(data, camera=camera)
+                    frame = renderer.render()
                 writers[camera].append_data(frame)
                 if camera not in first_frames:
                     first_frames[camera] = frame.copy()
@@ -1029,6 +1119,10 @@ def render_dubins_race_showcase_videos(
         for writer in writers.values():
             writer.close()
         renderer.close()
+        if follow_renderer_left is not None:
+            follow_renderer_left.close()
+        if follow_renderer_right is not None:
+            follow_renderer_right.close()
 
     results: list[RenderResult] = []
     for camera in camera_names:
