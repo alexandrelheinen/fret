@@ -137,8 +137,14 @@ def load_dubins_race_world(
     vehicle_radius = float(vehicle.get("radius", 0.42))
     clearance_margin = float(vehicle.get("clearance_margin", 0.28))
 
+    structure_entries = data.get("structures")
+    if structure_entries is None:
+        structure_entries = data.get("columns", [])
+    if not isinstance(structure_entries, list):
+        structure_entries = []
+
     structures: list[RectObstacle] = []
-    for entry in data.get("structures", data.get("columns", [])):
+    for entry in structure_entries:
         structures.append(_parse_rect(entry))
 
     for dead_end in data.get("dead_ends", []):
