@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 _OBSTACLE_GEOM_PREFIXES: tuple[str, ...] = ("obs_", "rack_")
+_CARGO_GEOM_NAMES: frozenset[str] = frozenset({"cargo_box"})
 _FREE_CLEARANCE_M: float = 0.01
 _COLLISION_CLEARANCE_M: float = -0.01
 
@@ -67,7 +68,11 @@ class MujocoPPPCollisionChecker:
         self._dof = kinematics.dof
         self._mujoco, self._model, self._data = self._load_runtime()
         self._qpos_adrs = self._resolve_qpos_addresses()
-        self._robot_geom_ids, self._obstacle_geom_ids = self._classify_geoms()
+        (
+            self._base_robot_geom_ids,
+            self._cargo_geom_ids,
+            self._obstacle_geom_ids,
+        ) = self._classify_geoms()
 
     @property
     def include_cargo(self) -> bool:
@@ -107,10 +112,13 @@ class MujocoPPPCollisionChecker:
             adrs.append(adr)
         return adrs
 
-    def _classify_geoms(self) -> tuple[set[int], set[int]]:
+    def _classify_geoms(
+        self,
+    ) -> tuple[set[int], set[int], set[int]]:
         mujoco = self._mujoco
         model = self._model
         robot_ids: set[int] = set()
+        cargo_ids: set[int] = set()
         obstacle_ids: set[int] = set()
         for gid in range(model.ngeom):
             if int(model.geom_contype[gid]) == 0:
@@ -121,13 +129,21 @@ class MujocoPPPCollisionChecker:
                 continue
             if name.startswith(_OBSTACLE_GEOM_PREFIXES):
                 obstacle_ids.add(gid)
+            elif name in _CARGO_GEOM_NAMES:
+                cargo_ids.add(gid)
             elif name == "goal_zone":
                 continue
             else:
                 robot_ids.add(gid)
         if not obstacle_ids:
             raise ValueError("MJCF contains no obstacle collision geoms")
-        return robot_ids, obstacle_ids
+        return robot_ids, cargo_ids, obstacle_ids
+
+    def _active_robot_geom_ids(self) -> set[int]:
+        """Robot geoms used for collision queries (cargo optional, FR-GSP-02)."""
+        if self._config.include_cargo:
+            return self._base_robot_geom_ids | self._cargo_geom_ids
+        return set(self._base_robot_geom_ids)
 
     def _set_configuration(
         self, configuration: npt.NDArray[np.float64]
@@ -141,13 +157,12 @@ class MujocoPPPCollisionChecker:
         model = self._model
         data = self._data
         mujoco.mj_collision(model, data)
+        robot_ids = self._active_robot_geom_ids()
         for i in range(int(data.ncon)):
             con = data.contact[i]
             g1, g2 = int(con.geom1), int(con.geom2)
-            if (
-                g1 in self._robot_geom_ids and g2 in self._obstacle_geom_ids
-            ) or (
-                g2 in self._robot_geom_ids and g1 in self._obstacle_geom_ids
+            if (g1 in robot_ids and g2 in self._obstacle_geom_ids) or (
+                g2 in robot_ids and g1 in self._obstacle_geom_ids
             ):
                 return True
         return False

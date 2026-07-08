@@ -22,7 +22,7 @@
 v0.9  ✅  Bootstrap SCARA pipeline (MS-1–5, pure-Python CI)
   │
   ▼
-v1.0  🔲  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
+v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
   │
   ▼
 v1.1  🔲  Dubins dual-robot race A→B through column forest
@@ -61,17 +61,18 @@ Validated on SCARA (RRP, 3-DOF):
 
 ---
 
-## Phase 2 — v1.0 PPP warehouse 🔲 *Current*
+## Phase 2 — v1.0 PPP warehouse ✅ *Complete*
 
 **Robot:** PPP gantry (3 prismatic). **Scenario:** SC-v10 magnetic box transport.
 
-- [ ] PPP kinematics and joint-space controller
-- [ ] Magnetic grasp FSM (weld / release)
-- [ ] PPP C-space collision checker (EE + cargo envelope)
-- [ ] MuJoCo MJCF: gantry + warehouse obstacles
-- [ ] MuJoCo backend adapter (`backend:=mujoco`)
-- [ ] Scenario `ppp_warehouse.yml` + launch
-- [ ] Headless MP4 render for README / article
+- [x] PPP kinematics and joint-space controller
+- [x] Magnetic grasp FSM (weld / release)
+- [x] PPP C-space collision checker (EE + cargo envelope, MuJoCo contacts)
+- [x] MuJoCo MJCF: gantry + warehouse obstacles
+- [x] MuJoCo backend adapter (`backend:=mujoco`)
+- [x] Scenario `ppp_warehouse.yml` + launch
+- [x] Headless MP4 render for README / article (RRT* + prune + tracking)
+- [x] V10-1 ROS SITL smoke test
 - [ ] Tag `v1.0.0`
 
 ---

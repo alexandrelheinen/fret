@@ -71,6 +71,7 @@ def test_load_ppp_warehouse_scenario() -> None:
     assert params["goal_configuration"] == [10.5, 2.8, 2.65]
     assert params["collision_backend"] == "mujoco"
     assert params["planner_algorithm"] == "rrt_star"
+    assert params["plan_include_cargo"] is True
     assert params["planning_timeout"] == 30.0
 
 

@@ -25,10 +25,11 @@ using magnetic grasp.
 
 | Parameter | Value |
 |---|---|
-| Workspace | 60 × 20 × 6 m |
-| Obstacles | Static boxes (ARCO `ppp.yml` layout) |
+| Workspace | 12 × 4 × 3 m (1:5 MJCF preview; full ARCO layout in `ppp_warehouse_obstacles.yml`) |
+| Obstacles | Static boxes + shelf racks (ARCO `ppp.yml` preview layout) |
 | Grasp | Magnetic weld |
-| Planner | ARCO SST |
+| Planner | ARCO RRT* (MuJoCo collision contacts) |
+| Collision | `collision_backend:=mujoco`, `plan_include_cargo:=true` |
 | Timeout | 30 s |
 
 **Pass criteria:** See [releases.md § v1.0](releases.md#v10--ppp-gantry-warehouse-pick-and-place).

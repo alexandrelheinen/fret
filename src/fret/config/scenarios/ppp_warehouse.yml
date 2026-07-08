@@ -24,6 +24,7 @@
     # Collision checking: analytic (AABB + occupancy) or mujoco (MJCF contacts).
     collision_backend: mujoco
     planner_algorithm: rrt_star
+    plan_include_cargo: true
 
     grasp:
       capture_radius: 0.3

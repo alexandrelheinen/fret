@@ -198,6 +198,7 @@ def _new_node(
         "start_configuration": start_cfg if start_cfg is not None else [],
         "collision_backend": "analytic",
         "planner_algorithm": "rrt_star",
+        "plan_include_cargo": False,
     }
 
     mock_trigger = MagicMock()
@@ -376,6 +377,8 @@ class TestTriggerPlanning:
         inst._planning_timeout = 10.0  # type: ignore[attr-defined]
         inst._collision_backend = "analytic"  # type: ignore[attr-defined]
         inst._planner_algorithm = "rrt_star"  # type: ignore[attr-defined]
+        inst._plan_include_cargo = False  # type: ignore[attr-defined]
+        inst._grasp_config = None  # type: ignore[attr-defined]
         inst._start_cfg = [0.0, 0.0, 0.0]  # type: ignore[attr-defined]
         inst._planned = False  # type: ignore[attr-defined]
         inst._occ_adapter = OccupancyAdapter()  # type: ignore[attr-defined]

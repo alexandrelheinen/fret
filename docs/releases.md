@@ -23,7 +23,7 @@ robot class, one showcase scenario, and one article-ready visual demo.
 
 **Platform stack (all releases):**
 
-- **Planning:** ARCO (SST, KDTree occupancy, trajectory pruner)
+- **Planning:** ARCO (RRT*, SST, KDTree occupancy, trajectory pruner)
 - **Middleware:** ROS 2 Jazzy
 - **Engineering SITL:** Gazebo Harmonic (where applicable)
 - **Showcase visuals:** MuJoCo
@@ -89,7 +89,7 @@ boxes and width-crossing barriers create detours (see ARCO PPP scene for referen
 | # | Criterion |
 |---|---|
 | V10-1 | `ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco` runs without error |
-| V10-2 | ARCO SST finds collision-free path within 30 s (EE + welded box) |
+| V10-2 | ARCO RRT* finds collision-free path within 30 s (EE + welded box, MuJoCo contacts) |
 | V10-3 | Gantry tracks trajectory; EE position error ≤ 10 mm in MuJoCo |
 | V10-4 | Cargo box picked at start zone, released at goal zone |
 | V10-5 | No collision between welded box and static obstacles along executed path |
