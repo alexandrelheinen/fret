@@ -253,12 +253,14 @@ class PPPWarehouseRunner:
         preview_bounds = load_preview_workspace_bounds(self._obstacle_path)
         kin = Kinematics("ppp")
         collision_backend = str(params.get("collision_backend", "analytic"))
+        planner_algorithm = str(params.get("planner_algorithm", "rrt_star"))
         scenario_id = str(params.get("scenario_id", "ppp_warehouse"))
         planner = PlannerNode(
             model="ppp",
             occupancy_adapter=occ_adapter,
             occupancy=box_occ,
             collision_backend=collision_backend,  # type: ignore[arg-type]
+            planner_algorithm=planner_algorithm,  # type: ignore[arg-type]
             scenario=scenario_id,
             workspace_bounds=preview_bounds,
         )

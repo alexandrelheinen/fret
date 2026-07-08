@@ -58,6 +58,7 @@ jobs:
             --scenario ppp_warehouse \
             --all-cameras \
             --collision-backend mujoco \
+            --planner-algorithm rrt_star \
             --output-dir showcase_renders \
             --duration 30 \
             --fps 30 \

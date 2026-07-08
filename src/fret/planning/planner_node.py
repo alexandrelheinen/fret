@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pathlib
 import time
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -43,9 +43,12 @@ from fret.planning.cspace_checker import (
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
+PlannerAlgorithm = Literal["sst", "rrt_star"]
+
 try:
-    from arco.planning import SSTPlanner
+    from arco.planning import RRTPlanner, SSTPlanner
 except ImportError:
+    RRTPlanner = None
     SSTPlanner = None
 
 
@@ -86,6 +89,7 @@ class PlannerNode:
         occupancy_adapter: Pre-constructed adapter providing the live
             occupancy model.
         collision_backend: PPP collision backend (``analytic`` or ``mujoco``).
+        planner_algorithm: ARCO planner (``rrt_star`` or ``sst``).
         scenario: Scenario stem for MJCF resolution (MuJoCo backend).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
     """
@@ -97,6 +101,7 @@ class PlannerNode:
         *,
         occupancy: Any | None = None,
         collision_backend: CollisionBackend = "analytic",
+        planner_algorithm: PlannerAlgorithm = "rrt_star",
         scenario: str = "ppp_warehouse",
         mjcf_path: str | pathlib.Path | None = None,
         workspace_bounds: (
@@ -115,6 +120,7 @@ class PlannerNode:
         self._occ_direct = occupancy
         self._traj_gen = TrajectoryGenerator(self._kin)
         self._collision_backend = collision_backend
+        self._planner_algorithm = planner_algorithm
         self._scenario = scenario
         self._mjcf_path = mjcf_path
         self._workspace_bounds = workspace_bounds
@@ -229,8 +235,8 @@ class PlannerNode:
     ) -> list[npt.NDArray[np.float64]]:
         """Return a collision-free joint-space path from start to goal.
 
-        Uses ARCO SST when available.  Falls back to a straight
-        joint-space path (two waypoints) when ARCO is absent.
+        Uses ARCO RRT* (default) or SST when available.  Falls back to a
+        straight joint-space path (two waypoints) when ARCO is absent.
 
         Args:
             start: Start configuration, shape ``(DOF,)``.
@@ -242,10 +248,13 @@ class PlannerNode:
             List of at least 2 joint configurations.
 
         Raises:
-            TimeoutError: If ARCO SST exceeds the timeout.
+            TimeoutError: If ARCO exceeds the timeout.
             RuntimeError: If no path exists.
         """
-        if SSTPlanner is not None and checker is not None:  # pragma: no cover
+        if checker is not None and (
+            (self._planner_algorithm == "rrt_star" and RRTPlanner is not None)
+            or (self._planner_algorithm == "sst" and SSTPlanner is not None)
+        ):  # pragma: no cover
             if self._workspace_bounds is not None:
                 (x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi) = (
                     self._workspace_bounds
@@ -258,21 +267,42 @@ class PlannerNode:
             else:
                 limits = self._kin.joint_limits  # shape (DOF, 2)
                 bounds = [(float(lo), float(hi)) for lo, hi in limits]
-            sst = SSTPlanner(
-                occupancy=_CSpaceOccupancy(checker),
-                bounds=bounds,
-                max_sample_count=8000,
-                step_size=0.25,
-                goal_tolerance=0.1,
-                witness_radius=0.15,
-                goal_bias=0.15,
+            occ = _CSpaceOccupancy(checker)
+            start_q = np.asarray(start, dtype=np.float64)
+            goal_q = np.asarray(goal, dtype=np.float64)
+            if self._planner_algorithm == "rrt_star":
+                planner = RRTPlanner(
+                    occupancy=occ,
+                    bounds=bounds,
+                    max_sample_count=8000,
+                    step_size=0.25,
+                    goal_tolerance=0.1,
+                    collision_check_count=12,
+                    goal_bias=0.15,
+                )
+                planner_name = "RRTPlanner"
+            else:
+                planner = SSTPlanner(
+                    occupancy=occ,
+                    bounds=bounds,
+                    max_sample_count=8000,
+                    step_size=0.25,
+                    goal_tolerance=0.1,
+                    witness_radius=0.15,
+                    goal_bias=0.15,
+                )
+                planner_name = "SSTPlanner"
+            t0 = time.monotonic()
+            result: list[npt.NDArray[np.float64]] | None = planner.plan(
+                start_q,
+                goal_q,
             )
-            result: list[npt.NDArray[np.float64]] | None = sst.plan(
-                np.asarray(start, dtype=np.float64),
-                np.asarray(goal, dtype=np.float64),
-            )
+            if time.monotonic() - t0 > timeout:
+                raise TimeoutError(f"{planner_name} exceeded timeout")
             if result is None:
-                raise RuntimeError("SSTPlanner found no collision-free path")
+                raise RuntimeError(
+                    f"{planner_name} found no collision-free path"
+                )
             return result
 
         # Fallback: straight joint-space path (valid in an empty world).

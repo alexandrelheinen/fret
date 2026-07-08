@@ -100,7 +100,7 @@ def _install_ros_msg_stubs() -> None:
     """Inject minimal ROS message stubs into sys.modules (idempotent)."""
     for pkg, names in [
         ("sensor_msgs", ["JointState"]),
-        ("sensor_msgs.msg", ["JointState"]),
+        ("sensor_msgs.msg", ["JointState", "PointCloud2"]),
         ("trajectory_msgs", ["JointTrajectory", "JointTrajectoryPoint"]),
         ("trajectory_msgs.msg", ["JointTrajectory", "JointTrajectoryPoint"]),
         ("builtin_interfaces", ["Duration"]),
@@ -196,6 +196,8 @@ def _new_node(
         ),
         "planning_timeout": planning_timeout,
         "start_configuration": start_cfg if start_cfg is not None else [],
+        "collision_backend": "analytic",
+        "planner_algorithm": "rrt_star",
     }
 
     mock_trigger = MagicMock()
@@ -372,6 +374,8 @@ class TestTriggerPlanning:
         inst._scenario_id = "test"  # type: ignore[attr-defined]
         inst._goal_cfg = [0.3272, 0.4712, 0.05]  # type: ignore[attr-defined]
         inst._planning_timeout = 10.0  # type: ignore[attr-defined]
+        inst._collision_backend = "analytic"  # type: ignore[attr-defined]
+        inst._planner_algorithm = "rrt_star"  # type: ignore[attr-defined]
         inst._start_cfg = [0.0, 0.0, 0.0]  # type: ignore[attr-defined]
         inst._planned = False  # type: ignore[attr-defined]
         inst._occ_adapter = OccupancyAdapter()  # type: ignore[attr-defined]

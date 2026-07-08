@@ -38,9 +38,9 @@ def test_first_box_matches_arco_barrier() -> None:
     assert first.z_max == 2.5
 
 
-def test_load_ppp_warehouse_preview_has_three_boxes() -> None:
+def test_load_ppp_warehouse_preview_has_five_boxes() -> None:
     boxes = load_ppp_warehouse_preview_obstacles()
-    assert len(boxes) == 3
+    assert len(boxes) == 5
 
 
 def test_preview_obstacle_file_exists() -> None:

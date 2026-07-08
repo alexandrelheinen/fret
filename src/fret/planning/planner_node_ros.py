@@ -73,6 +73,8 @@ class PlannerRosNode:  # pragma: no cover
         )
         self.declare_parameter("planning_timeout", 10.0)  # type: ignore[attr-defined]
         self.declare_parameter("start_configuration", [])  # type: ignore[attr-defined]
+        self.declare_parameter("collision_backend", "analytic")  # type: ignore[attr-defined]
+        self.declare_parameter("planner_algorithm", "rrt_star")  # type: ignore[attr-defined]
 
         self._model = str(
             self.get_parameter("model").get_parameter_value().string_value  # type: ignore[attr-defined]
@@ -100,6 +102,16 @@ class PlannerRosNode:  # pragma: no cover
             )
             .get_parameter_value()
             .double_array_value
+        )
+        self._collision_backend = str(
+            self.get_parameter("collision_backend")  # type: ignore[attr-defined]
+            .get_parameter_value()
+            .string_value
+        )
+        self._planner_algorithm = str(
+            self.get_parameter("planner_algorithm")  # type: ignore[attr-defined]
+            .get_parameter_value()
+            .string_value
         )
 
         # ------------------------------------------------------------------
@@ -280,7 +292,11 @@ class PlannerRosNode:  # pragma: no cover
         )
 
         core = PlannerNode(
-            model=self._model, occupancy_adapter=self._occ_adapter
+            model=self._model,
+            occupancy_adapter=self._occ_adapter,
+            collision_backend=self._collision_backend,  # type: ignore[arg-type]
+            planner_algorithm=self._planner_algorithm,  # type: ignore[arg-type]
+            scenario=self._scenario_id,
         )
         request = PlanningRequest(
             start_configuration=start,

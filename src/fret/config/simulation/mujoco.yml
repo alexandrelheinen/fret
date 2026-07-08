@@ -8,4 +8,4 @@
     scenario: ppp_warehouse
     update_rate: 50.0
     initial_joint_positions: [0.0, 0.0, 0.0]
-    collision_backend: analytic
+    collision_backend: mujoco

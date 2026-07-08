@@ -13,7 +13,7 @@ from fret.planning.cspace_checker_mujoco import (
     MujocoPPPCollisionChecker,
 )
 from fret.planning.cspace_checker_ppp import PPPCheckerConfig, PPPcSpaceChecker
-from fret.planning.planner_node import PlannerNode
+from fret.planning.planner_node import PlannerAlgorithm, PlannerNode
 from fret.planning.ppp_obstacles import (
     BoxObstacle,
     BoxObstacleOccupancy,
@@ -47,6 +47,7 @@ __all__ = [
     "PPPcSpaceChecker",
     "PPPCheckerConfig",
     "PlannerNode",
+    "PlannerAlgorithm",
     "TrajectoryGenerator",
     "TrajectoryConverter",
     "TrajectoryResult",

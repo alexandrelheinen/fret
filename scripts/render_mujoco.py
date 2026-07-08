@@ -160,7 +160,8 @@ def _scenario_config_path(scenario: str) -> Path:
 def plan_ppp_warehouse_path(
     scenario: str = "ppp_warehouse",
     *,
-    collision_backend: str = "analytic",
+    collision_backend: str = "mujoco",
+    planner_algorithm: str = "rrt_star",
     mjcf_path: Path | None = None,
 ) -> list[npt.NDArray[np.float64]]:
     """Plan a collision-free PPP warehouse transit path.
@@ -168,6 +169,7 @@ def plan_ppp_warehouse_path(
     Args:
         scenario: Scenario stem (``ppp_warehouse``).
         collision_backend: ``analytic`` or ``mujoco``.
+        planner_algorithm: ARCO planner stem (``rrt_star`` or ``sst``).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
 
     Returns:
@@ -188,12 +190,17 @@ def plan_ppp_warehouse_path(
     occ_adapter, box_occ = _build_occupancy_adapter(None)
     preview_bounds = load_preview_workspace_bounds(None)
     resolved_mjcf = mjcf_path or resolve_mjcf_path("ppp", scenario, None)
+    resolved_planner = str(params.get("planner_algorithm", planner_algorithm))
+    resolved_collision = str(
+        params.get("collision_backend", collision_backend)
+    )
 
     planner = PlannerNode(
         model="ppp",
         occupancy_adapter=occ_adapter,
         occupancy=box_occ,
-        collision_backend=collision_backend,  # type: ignore[arg-type]
+        collision_backend=resolved_collision,  # type: ignore[arg-type]
+        planner_algorithm=resolved_planner,  # type: ignore[arg-type]
         scenario=str(params.get("scenario_id", scenario)),
         workspace_bounds=preview_bounds,
         mjcf_path=resolved_mjcf,
@@ -219,7 +226,8 @@ def plan_ppp_warehouse_path(
 def build_showcase_waypoints(
     scenario: str = "ppp_warehouse",
     *,
-    collision_backend: str = "analytic",
+    collision_backend: str = "mujoco",
+    planner_algorithm: str = "rrt_star",
     mjcf_path: Path | None = None,
     pick_depth_z: float = 0.95,
 ) -> list[npt.NDArray[np.float64]]:
@@ -231,6 +239,7 @@ def build_showcase_waypoints(
     transit = plan_ppp_warehouse_path(
         scenario,
         collision_backend=collision_backend,
+        planner_algorithm=planner_algorithm,
         mjcf_path=mjcf_path,
     )
     start, goal = transit[0], transit[-1]
@@ -251,6 +260,7 @@ def resolve_showcase_waypoints(
     mjcf_path: Path,
     *,
     collision_backend: str | None,
+    planner_algorithm: str = "rrt_star",
     waypoints: list[npt.NDArray[np.float64]] | None,
 ) -> list[npt.NDArray[np.float64]]:
     """Return explicit, planned, or legacy showcase waypoints."""
@@ -260,9 +270,122 @@ def resolve_showcase_waypoints(
         return build_showcase_waypoints(
             scenario,
             collision_backend=collision_backend,
+            planner_algorithm=planner_algorithm,
             mjcf_path=mjcf_path,
         )
     return list(_PPP_WAREHOUSE_WAYPOINTS)
+
+
+def build_pruned_dense_waypoints(
+    path: list[npt.NDArray[np.float64]],
+) -> list[npt.NDArray[np.float64]]:
+    """Prune and densify a planner path for controller tracking."""
+    _ensure_fret_importable()
+    from fret.control.kinematics import Kinematics
+    from fret.planning.cspace_checker import make_cspace_checker
+    from fret.planning.planner_node import _CSpaceOccupancy
+    from fret.planning.ppp_obstacles import build_box_obstacle_occupancy
+    from fret.planning.trajectory_generator import TrajectoryGenerator
+
+    kin = Kinematics("ppp")
+    occ = build_box_obstacle_occupancy([])
+    checker = make_cspace_checker(
+        kin,
+        occ,
+        collision_backend="mujoco",
+        scenario="ppp_warehouse",
+    )
+    traj_gen = TrajectoryGenerator(kin)
+    traj_gen.set_collision_context(
+        _CSpaceOccupancy(checker),
+        np.full(kin.dof, 0.1, dtype=np.float64),
+    )
+    traj = traj_gen.process(path)
+    return [np.asarray(pt.positions, dtype=np.float64) for pt in traj.points]
+
+
+def simulate_tracked_trajectory(
+    waypoints: list[npt.NDArray[np.float64]],
+    *,
+    duration_s: float,
+    fps: int,
+    start: npt.NDArray[np.float64] | None = None,
+) -> npt.NDArray[np.float64]:
+    """Simulate PPP P-control tracking and sample frames for rendering.
+
+    Follows the same per-axis velocity law as ``PPPControllerNode`` and
+    ``PPPWarehouseRunner`` so release videos show executed motion rather
+    than idealized joint interpolation.
+
+    Args:
+        waypoints: Dense joint references from pruning + interpolation.
+        duration_s: Target clip duration in seconds.
+        fps: Output frame rate.
+        start: Optional initial joint configuration.
+
+    Returns:
+        Array of shape ``(n_frames, 3)`` with tracked joint positions.
+    """
+    _ensure_fret_importable()
+    from fret.control.controller_ppp import PPPControllerNode
+    from fret.ros.mujoco_bridge import make_mujoco_bridge_core
+
+    ctrl = PPPControllerNode(
+        str(_project_root() / "src/fret/config/controllers/ppp.yml")
+    )
+    q0 = (
+        np.asarray(start, dtype=np.float64)
+        if start is not None
+        else waypoints[0].copy()
+    )
+    bridge = make_mujoco_bridge_core(
+        "ppp", "ppp_warehouse", initial_positions=q0
+    )
+    dt = 1.0 / float(ctrl.update_rate)
+    n_frames = max(2, int(round(duration_s * fps)))
+    frame_interval = duration_s / (n_frames - 1)
+    next_frame_t = 0.0
+    sim_t = 0.0
+    frames: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
+    wp_idx = 0
+    convergence_m = 0.004
+    max_inner_steps = 50
+
+    while len(frames) < n_frames and wp_idx < len(waypoints):
+        q_ref = waypoints[wp_idx]
+        for _ in range(max_inner_steps):
+            q = bridge.get_positions()
+            joint_error = q_ref - q
+            q_dot = np.clip(
+                ctrl._kp * joint_error,
+                -ctrl._max_joint_velocity,
+                ctrl._max_joint_velocity,
+            )
+            bridge.step(q_dot, dt)
+            sim_t += dt
+            if sim_t + 1e-9 >= next_frame_t and len(frames) < n_frames:
+                frames.append(bridge.get_positions().copy())
+                next_frame_t += frame_interval
+            if float(np.linalg.norm(joint_error)) <= convergence_m:
+                break
+        wp_idx += 1
+
+    while len(frames) < n_frames:
+        q = bridge.get_positions()
+        q_ref = waypoints[-1]
+        joint_error = q_ref - q
+        q_dot = np.clip(
+            ctrl._kp * joint_error,
+            -ctrl._max_joint_velocity,
+            ctrl._max_joint_velocity,
+        )
+        bridge.step(q_dot, dt)
+        sim_t += dt
+        if sim_t + 1e-9 >= next_frame_t:
+            frames.append(bridge.get_positions().copy())
+            next_frame_t += frame_interval
+
+    return np.asarray(frames[:n_frames], dtype=np.float64)
 
 
 def interpolate_waypoints(
@@ -380,7 +503,9 @@ def render_video(
     height: int = 720,
     camera: str = "overview",
     waypoints: list[npt.NDArray[np.float64]] | None = None,
-    collision_backend: str | None = None,
+    collision_backend: str | None = "mujoco",
+    planner_algorithm: str = "rrt_star",
+    use_tracking: bool = True,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -409,6 +534,8 @@ def render_video(
         height=height,
         waypoints=waypoints,
         collision_backend=collision_backend,
+        planner_algorithm=planner_algorithm,
+        use_tracking=use_tracking,
     )
     return results[0]
 
@@ -426,6 +553,8 @@ def render_showcase_videos(
     height: int = 720,
     waypoints: list[npt.NDArray[np.float64]] | None = None,
     collision_backend: str | None = None,
+    planner_algorithm: str = "rrt_star",
+    use_tracking: bool = True,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -448,8 +577,10 @@ def render_showcase_videos(
         One :class:`RenderResult` per exported camera.
     """
     mujoco, _iio = _require_mujoco()
-    camera_names = cameras if cameras is not None else list_showcase_cameras(
-        mjcf_path, scenario=scenario
+    camera_names = (
+        cameras
+        if cameras is not None
+        else list_showcase_cameras(mjcf_path, scenario=scenario)
     )
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
@@ -458,9 +589,19 @@ def render_showcase_videos(
         scenario,
         mjcf_path,
         collision_backend=collision_backend,
+        planner_algorithm=planner_algorithm,
         waypoints=waypoints,
     )
-    trajectory = interpolate_waypoints(path_waypoints, duration_s, fps)
+    if collision_backend is not None and use_tracking:
+        dense = build_pruned_dense_waypoints(path_waypoints)
+        trajectory = simulate_tracked_trajectory(
+            dense,
+            duration_s=duration_s,
+            fps=fps,
+            start=path_waypoints[0],
+        )
+    else:
+        trajectory = interpolate_waypoints(path_waypoints, duration_s, fps)
 
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
@@ -471,13 +612,13 @@ def render_showcase_videos(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     names = output_names or {
-        camera: showcase_output_name(scenario, camera) for camera in camera_names
+        camera: showcase_output_name(scenario, camera)
+        for camera in camera_names
     }
-    paths = {
-        camera: output_dir / names[camera] for camera in camera_names
-    }
+    paths = {camera: output_dir / names[camera] for camera in camera_names}
     writers = {
-        camera: _open_video_writer(paths[camera], fps) for camera in camera_names
+        camera: _open_video_writer(paths[camera], fps)
+        for camera in camera_names
     }
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
 
@@ -506,7 +647,9 @@ def render_showcase_videos(
             raise RuntimeError(
                 f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
             )
-        results.append(RenderResult(camera=camera, path=paths[camera], frame_mean=mean))
+        results.append(
+            RenderResult(camera=camera, path=paths[camera], frame_mean=mean)
+        )
 
     return results
 
@@ -584,11 +727,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--collision-backend",
         choices=("analytic", "mujoco"),
-        default=None,
+        default="mujoco",
         help=(
             "Plan showcase motion with FRET collision checking "
-            "(analytic or mujoco); default uses legacy hardcoded path"
+            "(analytic or mujoco); omit for legacy hardcoded path"
         ),
+    )
+    parser.add_argument(
+        "--planner-algorithm",
+        choices=("rrt_star", "sst"),
+        default="rrt_star",
+        help="ARCO planner for showcase path planning (default: rrt_star)",
+    )
+    parser.add_argument(
+        "--no-tracking",
+        action="store_true",
+        help="Use joint interpolation instead of controller tracking",
     )
     return parser
 
@@ -597,6 +751,8 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     args = build_parser().parse_args(argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
+
+    use_tracking = not args.no_tracking
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
@@ -610,6 +766,8 @@ def main(argv: list[str] | None = None) -> int:
             width=args.width,
             height=args.height,
             collision_backend=args.collision_backend,
+            planner_algorithm=args.planner_algorithm,
+            use_tracking=use_tracking,
         )
         for result in results:
             print(
@@ -634,6 +792,8 @@ def main(argv: list[str] | None = None) -> int:
             height=args.height,
             camera=cameras[0],
             collision_backend=args.collision_backend,
+            planner_algorithm=args.planner_algorithm,
+            use_tracking=use_tracking,
         )
         print(
             f"Wrote {result.path} ({args.duration:.1f}s @ {args.fps} fps, "
@@ -651,6 +811,8 @@ def main(argv: list[str] | None = None) -> int:
         width=args.width,
         height=args.height,
         collision_backend=args.collision_backend,
+        planner_algorithm=args.planner_algorithm,
+        use_tracking=use_tracking,
     )
     for result in results:
         print(

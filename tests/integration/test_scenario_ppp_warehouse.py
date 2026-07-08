@@ -4,7 +4,7 @@ Validates releases.md acceptance criteria V10-2 – V10-5 in a deterministic,
 ROS-free environment using ``PPPWarehouseRunner``.
 
 Acceptance criteria checked:
-  V10-2: ARCO SST (or fallback) finds a collision-free path within 30 s.
+  V10-2: ARCO RRT* finds a collision-free path within 30 s (MuJoCo contacts).
   V10-3: Gantry tracks trajectory; EE position error ≤ 10 mm.
   V10-4: Cargo welded at start zone, released at goal zone.
   V10-5: Planned path is collision-free (EE and welded cargo envelope).
