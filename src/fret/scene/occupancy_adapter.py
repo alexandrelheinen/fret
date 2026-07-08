@@ -81,7 +81,10 @@ class OccupancyAdapter:
         Args:
             payload: Latest obstacle geometry in the ``world`` frame.
         """
-        if KDTreeOccupancy is not None:  # pragma: no cover
+        # ARCO's KDTreeOccupancy requires at least one obstacle point, so an
+        # empty payload (obstacle-free scene) falls back to _SimpleOccupancy,
+        # which reports infinite clearance everywhere.
+        if KDTreeOccupancy is not None and len(payload.obstacle_points) > 0:
             # Use a 5 cm clearance radius — matches the 6 cm column width
             # with a small buffer while keeping most of the workspace reachable.
             self._occupancy = KDTreeOccupancy(
