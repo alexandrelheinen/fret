@@ -43,6 +43,7 @@ from launch.actions import (
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
+    AndSubstitution,
     EqualsSubstitution,
     LaunchConfiguration,
     OrSubstitution,
@@ -104,15 +105,7 @@ def generate_launch_description() -> LaunchDescription:
             "' != 'dubins_race'",
         ]
     )
-    is_dubins_mujoco = PythonExpression(
-        [
-            "'",
-            LaunchConfiguration("backend"),
-            "' == 'mujoco' and '",
-            LaunchConfiguration("scenario"),
-            "' == 'dubins_race'",
-        ]
-    )
+    is_dubins_mujoco = AndSubstitution(is_mujoco, is_dubins_race)
 
     scenario_config = PathJoinSubstitution(
         [
@@ -160,10 +153,7 @@ def generate_launch_description() -> LaunchDescription:
         executable="dubins_race_node",
         name="dubins_race_node",
         output="screen",
-        parameters=[
-            {"scenario": LaunchConfiguration("scenario")},
-            scenario_config,
-        ],
+        parameters=[{"scenario": LaunchConfiguration("scenario")}],
         condition=IfCondition(is_dubins_mujoco),
     )
 

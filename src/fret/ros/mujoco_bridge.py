@@ -378,18 +378,24 @@ class DubinsRaceBridgeCore:
         except ImportError:
             return
 
-        self._mujoco = mujoco
-        self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
-        self._data = mujoco.MjData(self._model)
-        for name in _RRT_JOINT_NAMES + _SST_JOINT_NAMES:
-            joint_id = mujoco.mj_name2id(
-                self._model,
-                mujoco.mjtObj.mjOBJ_JOINT,
-                name,
-            )
-            if joint_id < 0:
-                raise ValueError(f"Joint not found in MJCF: {name}")
-            self._joint_adrs[name] = int(self._model.jnt_qposadr[joint_id])
+        try:
+            self._mujoco = mujoco
+            self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
+            self._data = mujoco.MjData(self._model)
+            for name in _RRT_JOINT_NAMES + _SST_JOINT_NAMES:
+                joint_id = mujoco.mj_name2id(
+                    self._model,
+                    mujoco.mjtObj.mjOBJ_JOINT,
+                    name,
+                )
+                if joint_id < 0:
+                    raise ValueError(f"Joint not found in MJCF: {name}")
+                self._joint_adrs[name] = int(self._model.jnt_qposadr[joint_id])
+        except Exception:
+            self._mujoco = None
+            self._model = None
+            self._data = None
+            self._joint_adrs = {}
 
     def _write_mujoco_state(self) -> None:
         if self._model is None or self._data is None or self._mujoco is None:
