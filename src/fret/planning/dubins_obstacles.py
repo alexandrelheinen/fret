@@ -16,11 +16,10 @@ import numpy.typing as npt
 import yaml
 from arco.mapping import KDTreeOccupancy
 
-_DEFAULT_OBSTACLE_FILE = (
-    Path(__file__).resolve().parents[1]
-    / "config"
-    / "worlds"
-    / "dubins_race_obstacles.yml"
+from fret.sitl_config import resolve_package_file
+
+_DEFAULT_OBSTACLE_FILE = resolve_package_file(
+    "config", "worlds", "dubins_race_obstacles.yml"
 )
 
 

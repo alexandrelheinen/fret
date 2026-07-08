@@ -70,6 +70,69 @@ def is_dubins_race_launch(model: str, scenario: str) -> bool:
     return model == _DUBINS_MODEL and scenario == _DUBINS_RACE_SCENARIO
 
 
+def package_source_root() -> pathlib.Path:
+    """Return the on-disk ``fret`` Python package root (dev / editable installs)."""
+    return pathlib.Path(__file__).resolve().parent
+
+
+def package_share_root() -> pathlib.Path:
+    """Return the installed ROS share directory for ``fret`` when available."""
+    try:
+        from ament_index_python.packages import get_package_share_directory
+
+        return pathlib.Path(get_package_share_directory("fret"))
+    except Exception:
+        return package_source_root()
+
+
+def resolve_package_file(*parts: str) -> pathlib.Path:
+    """Resolve a file under ``share/fret`` or the source package tree.
+
+    Args:
+        *parts: Path segments relative to the package root, e.g.
+            ``("config", "scenarios", "dubins_race.yml")``.
+
+    Returns:
+        First existing match in share, then source tree.
+
+    Raises:
+        FileNotFoundError: If the file cannot be located.
+    """
+    seen: set[pathlib.Path] = set()
+    for root in (package_share_root(), package_source_root()):
+        if root in seen:
+            continue
+        seen.add(root)
+        candidate = root.joinpath(*parts)
+        if candidate.is_file():
+            return candidate
+    joined = "/".join(parts)
+    raise FileNotFoundError(f"Package file not found: {joined}")
+
+
+def scenario_config_path(stem: str) -> pathlib.Path:
+    """Return ``config/scenarios/<stem>.yml`` from share or source."""
+    return resolve_package_file("config", "scenarios", f"{stem}.yml")
+
+
+def controller_config_path(model: str) -> pathlib.Path:
+    """Return the controller YAML for a robot model."""
+    rel = controller_config_relative(model)
+    return resolve_package_file(*rel.split("/"))
+
+
+def mjcf_path(model: str, scenario: str) -> pathlib.Path:
+    """Return the MJCF scene file for a model/scenario pair."""
+    if model == _PPP_MODEL and scenario in {_PPP_WAREHOUSE_SCENARIO, "ppp"}:
+        return resolve_package_file("mjcf", "ppp_warehouse.xml")
+    if model == _DUBINS_MODEL and scenario in {_DUBINS_RACE_SCENARIO, "dubins"}:
+        return resolve_package_file("mjcf", "dubins_race.xml")
+    raise ValueError(
+        f"Unsupported model/scenario combination: model={model!r}, "
+        f"scenario={scenario!r}"
+    )
+
+
 def load_scenario_parameters(path: str | pathlib.Path) -> dict[str, Any]:
     """Load ``ros__parameters`` from a scenario YAML file.
 

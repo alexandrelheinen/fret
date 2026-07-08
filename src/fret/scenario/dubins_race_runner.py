@@ -41,18 +41,10 @@ try:
 except ImportError:  # pragma: no cover
     _make_dubins_race_bridge_core = cast(Any, None)
 
-_DEFAULT_SCENARIO = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "config"
-    / "scenarios"
-    / "dubins_race.yml"
-)
-_DEFAULT_CONTROLLER = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "config"
-    / "controllers"
-    / "dubins.yml"
-)
+from fret.sitl_config import controller_config_path, scenario_config_path
+
+_DEFAULT_SCENARIO = scenario_config_path("dubins_race")
+_DEFAULT_CONTROLLER = controller_config_path("dubins")
 
 AgentName = Literal["rrt_star", "sst"]
 
