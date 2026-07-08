@@ -213,8 +213,7 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     skip_default_perception = OrSubstitution(
-        is_injector_scenario,
-        is_ppp_warehouse,
+        OrSubstitution(is_injector_scenario, is_ppp_warehouse),
         is_dubins_race,
     )
 
