@@ -28,6 +28,9 @@ v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
 v1.1  🔲  Dubins dual-robot race A→B through column forest
   │
   ▼
+v1.1+ 🔲  MuJoCo physics SITL — actuators, contacts, controller tuning
+  │
+  ▼
 v1.2  🔲  RRP/SCARA — reproduce ARCO rrp + rr scenarios in FRET
   │
   ▼
@@ -87,6 +90,32 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] Pure Pursuit tracking integration
 - [x] Release workflow + R2 upload (overview + follow POVs per scenario)
 - [ ] Tag `v1.1.0`
+
+---
+
+## Phase 3.5 — MuJoCo physics & contact validation 🔲
+
+**Prerequisite for v1.2.** Today MuJoCo is the **visual** backend: poses are
+written into MJCF joint coordinates (`mj_forward`) while motion is integrated in
+pure Python (PPP joint velocity, ARCO Dubins vehicle). Collision **checking**
+uses MJCF geometry for PPP planning; Dubins uses analytic/KD-tree occupancy.
+**Contact forces and dynamics are not applied** during showcase or SITL runs.
+
+**Goal:** Drive robots through MuJoCo actuators (`mj_step`), resolve contacts
+(columns, obstacles, inter-agent), and compare executed motion against the
+existing controller outputs so gains can be tuned against real physics.
+
+- [ ] PPP gantry: apply prismatic actuator forces/torques from `PPPControllerNode`
+      commands; validate pick-and-place contacts with cargo weld in MJCF
+- [ ] Dubins race: wheel/body actuation from Pure Pursuit outputs; column and
+      floor contact response; optional inter-agent blocking
+- [ ] Shared harness: sim-time vs wall-time metrics, contact logging, regression
+      clips when physics diverges from kinematic mirror
+- [ ] Document controller tuning workflow (kinematic baseline → physics SITL)
+- [ ] Tag `v1.1.1` (optional patch) once physics SITL is CI-green for PPP + Dubins
+
+Full acceptance criteria: [releases.md](releases.md) (section TBD before v1.2
+kickoff).
 
 ---
 
