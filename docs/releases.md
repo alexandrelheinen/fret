@@ -4,7 +4,7 @@
 > to this document.
 >
 > **Related:** [roadmap.md](roadmap.md) · [requirements.md](requirements.md) ·
-> [scenarios.md](scenarios.md) · [architecture.md](architecture.md)
+> [scenarios.md](scenarios.md) · [README § Architecture](../README.md#architecture)
 
 ---
 
@@ -115,18 +115,19 @@ boxes and width-crossing barriers create detours (see ARCO PPP scene for referen
 
 ### Goal
 
-Two **Dubins vehicles** race from **A → B** through a world of **columns with varied
-heights**, reproducing the ARCO `vehicle` race format (RRT* vs SST or dual-agent race).
+Two **Dubins vehicles** race from **A → B** through a world of **rectangular
+structures** (posts, walls, and dead-end alcoves), reproducing the ARCO `vehicle`
+race format (RRT* vs SST).
 
 ### Environment
 
 | Element | Description |
 |---|---|
-| Floor | Bounded 2-D plane (≈ 50 m × 50 m) |
-| Columns | Circular or rectangular posts, **varied height** for visual depth in MuJoCo |
-| Start A | Lower-left region |
-| Goal B | Upper-right region |
-| Walls | Optional maze walls (ARCO `vehicle.yml` style) |
+| Floor | 80 m × 80 m warehouse plane |
+| Structures | Rectangular posts/walls; U-shaped dead-end alcoves with single entrances |
+| Start A | Lower-left region (6, 6) |
+| Goal B | Upper-right region (74, 74) |
+| Visual | Varied structure heights for depth in MuJoCo |
 
 ### Robots
 

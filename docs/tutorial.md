@@ -1,4 +1,4 @@
-# MuJoCo Tutorial — FRET v1.0 Visual Guide
+# MuJoCo Tutorial — FRET Visual Guide (v1.0 PPP · v1.1 Dubins)
 
 > **One-stop tutorial** for seeing the PPP warehouse gantry in MuJoCo.
 > FRET uses **MuJoCo only** for 3D visualization. RViz and Gazebo GUIs are

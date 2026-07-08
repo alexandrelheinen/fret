@@ -25,7 +25,7 @@ v0.9  ✅  Bootstrap SCARA pipeline (MS-1–5, pure-Python CI)
 v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
   │
   ▼
-v1.1  🔲  Dubins dual-robot race A→B through column forest
+v1.1  ✅  Dubins dual-robot race A→B through structure forest
   │
   ▼
 v1.1+ 🔲  MuJoCo physics SITL — actuators, contacts, controller tuning
@@ -80,13 +80,13 @@ Validated on SCARA (RRP, 3-DOF):
 
 ---
 
-## Phase 3 — v1.1 Dubins race ✅
+## Phase 3 — v1.1 Dubins race ✅ *Complete*
 
-**Robot:** Dubins mobile × 2. **Scenario:** SC-v11 column forest race.
+**Robot:** Dubins mobile × 2. **Scenario:** SC-v11 structure forest race.
 
 - [x] SE(2) planning adapter (ARCO DubinsVehicle)
 - [x] Dual-agent race orchestration
-- [x] Column forest world (varied heights)
+- [x] Rectangular structure forest + dead-end alcoves
 - [x] Pure Pursuit tracking integration
 - [x] Release workflow + R2 upload (overview + follow POVs per scenario)
 - [ ] Tag `v1.1.0`

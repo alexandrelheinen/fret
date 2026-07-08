@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>fret</name>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <description>
-    Full-stack Robotic Effector Trajectories (FRET) — a ROS 2 workspace for
-    C-space manipulation planning and Jacobian-based trajectory tracking.
+    Full-stack Robotic Effector Trajectories (FRET) — ROS 2 framework for
+    C-space manipulation and mobile-agent planning with MuJoCo showcase scenes.
   </description>
   <maintainer email="maintainer@example.com">FRET Maintainers</maintainer>
   <license>Apache-2.0</license>
