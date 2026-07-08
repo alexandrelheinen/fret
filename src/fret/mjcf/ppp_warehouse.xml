@@ -97,7 +97,6 @@
         <geom name="x_bridge" type="box" pos="0 2 -0.05" size="0.16 1.96 0.08" material="gantry"/>
         <geom name="x_bridge_rail_l" type="box" pos="0 0.28 -0.02" size="0.08 0.12 0.04" material="rail"/>
         <geom name="x_bridge_rail_r" type="box" pos="0 3.72 -0.02" size="0.08 0.12 0.04" material="rail"/>
-        <geom name="chain_x" type="box" pos="0 2 0.06" size="3.8 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
 
         <body name="y_carriage" pos="0 0 0">
           <joint name="joint_y" type="slide" axis="0 1 0" range="0 4" damping="80"/>
