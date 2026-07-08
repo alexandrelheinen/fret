@@ -83,3 +83,18 @@ def test_showcase_output_name() -> None:
     assert rm.showcase_output_name("ppp_warehouse", "aisle") == (
         "ppp_warehouse_aisle.mp4"
     )
+
+
+def test_build_showcase_waypoints_mujoco_backend() -> None:
+    """Release renders plan via MuJoCo collision checking."""
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    waypoints = rm.build_showcase_waypoints(
+        "ppp_warehouse",
+        collision_backend="mujoco",
+        mjcf_path=mjcf,
+    )
+    assert len(waypoints) >= 4
+    assert waypoints[0][0] == pytest.approx(2.0)
+    assert waypoints[-1][0] == pytest.approx(10.5)

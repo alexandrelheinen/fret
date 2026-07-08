@@ -3,13 +3,16 @@
 Re-exports the public API of the planning sub-package.
 """
 
-from fret.planning.cspace_checker import CSpaceChecker, CollisionBackend, make_cspace_checker
+from fret.planning.cspace_checker import (
+    CollisionBackend,
+    CSpaceChecker,
+    make_cspace_checker,
+)
 from fret.planning.cspace_checker_mujoco import (
     MujocoCheckerConfig,
     MujocoPPPCollisionChecker,
 )
 from fret.planning.cspace_checker_ppp import PPPCheckerConfig, PPPcSpaceChecker
-from fret.planning.ppp_robot_envelope import ppp_body_envelopes, ppp_envelope_sample_points
 from fret.planning.planner_node import PlannerNode
 from fret.planning.ppp_obstacles import (
     BoxObstacle,
@@ -18,6 +21,10 @@ from fret.planning.ppp_obstacles import (
     load_ppp_warehouse_obstacles,
     load_ppp_warehouse_preview_obstacles,
     preview_obstacle_file,
+)
+from fret.planning.ppp_robot_envelope import (
+    ppp_body_envelopes,
+    ppp_envelope_sample_points,
 )
 from fret.planning.replanning_manager import (
     ManagerState,

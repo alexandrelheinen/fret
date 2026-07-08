@@ -49,8 +49,7 @@ jobs:
             libgl1-mesa-dri \
             libosmesa6
           python3 -m pip install --break-system-packages --upgrade pip
-          python3 -m pip install --break-system-packages \
-            awscli mujoco imageio imageio-ffmpeg
+          python3 -m pip install --break-system-packages -e ".[sim]" awscli
 
       - name: Render PPP warehouse showcase clips (all POVs)
         run: |
@@ -58,6 +57,7 @@ jobs:
             --model ppp \
             --scenario ppp_warehouse \
             --all-cameras \
+            --collision-backend mujoco \
             --output-dir showcase_renders \
             --duration 30 \
             --fps 30 \
@@ -100,6 +100,7 @@ jobs:
               "git_ref": tag,
               "scenario": "ppp_warehouse",
               "model": "ppp",
+              "collision_backend": "mujoco",
               "duration_s": 30,
               "fps": 30,
               "width": 1280,

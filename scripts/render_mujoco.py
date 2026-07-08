@@ -38,6 +38,7 @@ _PPP_LIMITS = np.array(
 )
 
 # Pick-and-place preview path in joint space (x, y, z) [m].
+# Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
     np.array([2.0, 1.0, 0.95]),
@@ -45,8 +46,8 @@ _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([4.5, 1.0, 2.2]),
     np.array([6.0, 2.6, 2.2]),
     np.array([9.5, 3.2, 2.2]),
-    np.array([10.5, 3.2, 0.95]),
-    np.array([10.5, 3.2, 2.4]),
+    np.array([10.5, 2.8, 0.95]),
+    np.array([10.5, 2.8, 2.65]),
 ]
 
 # Default release export order (must match MJCF camera names).
@@ -142,6 +143,126 @@ def list_showcase_cameras(
 def showcase_output_name(scenario: str, camera: str) -> str:
     """Build the canonical showcase MP4 filename for a scenario/camera pair."""
     return f"{scenario}_{camera}.mp4"
+
+
+def _ensure_fret_importable() -> None:
+    """Add ``src/`` to ``sys.path`` so the renderer can call the planner."""
+    src = _project_root() / "src"
+    src_str = str(src)
+    if src_str not in sys.path:
+        sys.path.insert(0, src_str)
+
+
+def _scenario_config_path(scenario: str) -> Path:
+    return _project_root() / "src/fret/config/scenarios" / f"{scenario}.yml"
+
+
+def plan_ppp_warehouse_path(
+    scenario: str = "ppp_warehouse",
+    *,
+    collision_backend: str = "analytic",
+    mjcf_path: Path | None = None,
+) -> list[npt.NDArray[np.float64]]:
+    """Plan a collision-free PPP warehouse transit path.
+
+    Args:
+        scenario: Scenario stem (``ppp_warehouse``).
+        collision_backend: ``analytic`` or ``mujoco``.
+        mjcf_path: Optional MJCF override for MuJoCo collision checks.
+
+    Returns:
+        Planner waypoints in joint space.
+
+    Raises:
+        RuntimeError: If planning does not succeed.
+    """
+    _ensure_fret_importable()
+    from fret.interfaces import PlanningRequest, PlanningStatus
+    from fret.planning.planner_node import PlannerNode
+    from fret.planning.ppp_obstacles import load_preview_workspace_bounds
+    from fret.scenario.ppp_warehouse_runner import _build_occupancy_adapter
+    from fret.sitl_config import load_scenario_parameters
+
+    scenario_path = _scenario_config_path(scenario)
+    params = load_scenario_parameters(scenario_path)
+    occ_adapter, box_occ = _build_occupancy_adapter(None)
+    preview_bounds = load_preview_workspace_bounds(None)
+    resolved_mjcf = mjcf_path or resolve_mjcf_path("ppp", scenario, None)
+
+    planner = PlannerNode(
+        model="ppp",
+        occupancy_adapter=occ_adapter,
+        occupancy=box_occ,
+        collision_backend=collision_backend,  # type: ignore[arg-type]
+        scenario=str(params.get("scenario_id", scenario)),
+        workspace_bounds=preview_bounds,
+        mjcf_path=resolved_mjcf,
+    )
+
+    start = np.asarray(params["start_configuration"], dtype=np.float64)
+    goal = np.asarray(params["goal_configuration"], dtype=np.float64)
+    req = PlanningRequest(
+        start_configuration=start.copy(),
+        goal_configuration=goal.copy(),
+        planning_timeout=float(params.get("planning_timeout", 30.0)),
+        scenario_id=str(params.get("scenario_id", scenario)),
+    )
+    result = planner.plan(req)
+    if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
+        raise RuntimeError(
+            "Showcase planning failed: "
+            f"status={result.status}, error={result.error_code}"
+        )
+    return [np.asarray(q, dtype=np.float64) for q in result.path]
+
+
+def build_showcase_waypoints(
+    scenario: str = "ppp_warehouse",
+    *,
+    collision_backend: str = "analytic",
+    mjcf_path: Path | None = None,
+    pick_depth_z: float = 0.95,
+) -> list[npt.NDArray[np.float64]]:
+    """Build a pick-transit-place path using the planning stack.
+
+    Inserts vertical pick/place approach segments at the scenario
+    start and goal while using a planned collision-free transit path.
+    """
+    transit = plan_ppp_warehouse_path(
+        scenario,
+        collision_backend=collision_backend,
+        mjcf_path=mjcf_path,
+    )
+    start, goal = transit[0], transit[-1]
+    cruise_z = float(max(start[2], goal[2]))
+    waypoints: list[npt.NDArray[np.float64]] = [start.copy()]
+    if start[2] > pick_depth_z + 0.05:
+        waypoints.append(np.array([start[0], start[1], pick_depth_z]))
+        waypoints.append(np.array([start[0], start[1], cruise_z]))
+    waypoints.extend(q.copy() for q in transit[1:])
+    if goal[2] > pick_depth_z + 0.05:
+        waypoints.append(np.array([goal[0], goal[1], pick_depth_z]))
+    waypoints.append(goal.copy())
+    return waypoints
+
+
+def resolve_showcase_waypoints(
+    scenario: str,
+    mjcf_path: Path,
+    *,
+    collision_backend: str | None,
+    waypoints: list[npt.NDArray[np.float64]] | None,
+) -> list[npt.NDArray[np.float64]]:
+    """Return explicit, planned, or legacy showcase waypoints."""
+    if waypoints is not None:
+        return waypoints
+    if collision_backend is not None:
+        return build_showcase_waypoints(
+            scenario,
+            collision_backend=collision_backend,
+            mjcf_path=mjcf_path,
+        )
+    return list(_PPP_WAREHOUSE_WAYPOINTS)
 
 
 def interpolate_waypoints(
@@ -259,6 +380,7 @@ def render_video(
     height: int = 720,
     camera: str = "overview",
     waypoints: list[npt.NDArray[np.float64]] | None = None,
+    collision_backend: str | None = None,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -286,6 +408,7 @@ def render_video(
         width=width,
         height=height,
         waypoints=waypoints,
+        collision_backend=collision_backend,
     )
     return results[0]
 
@@ -302,6 +425,7 @@ def render_showcase_videos(
     width: int = 1280,
     height: int = 720,
     waypoints: list[npt.NDArray[np.float64]] | None = None,
+    collision_backend: str | None = None,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -330,8 +454,11 @@ def render_showcase_videos(
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
 
-    path_waypoints = (
-        waypoints if waypoints is not None else _PPP_WAREHOUSE_WAYPOINTS
+    path_waypoints = resolve_showcase_waypoints(
+        scenario,
+        mjcf_path,
+        collision_backend=collision_backend,
+        waypoints=waypoints,
     )
     trajectory = interpolate_waypoints(path_waypoints, duration_s, fps)
 
@@ -454,6 +581,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Export every showcase camera defined in the MJCF",
     )
+    parser.add_argument(
+        "--collision-backend",
+        choices=("analytic", "mujoco"),
+        default=None,
+        help=(
+            "Plan showcase motion with FRET collision checking "
+            "(analytic or mujoco); default uses legacy hardcoded path"
+        ),
+    )
     return parser
 
 
@@ -473,6 +609,7 @@ def main(argv: list[str] | None = None) -> int:
             fps=args.fps,
             width=args.width,
             height=args.height,
+            collision_backend=args.collision_backend,
         )
         for result in results:
             print(
@@ -496,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
             width=args.width,
             height=args.height,
             camera=cameras[0],
+            collision_backend=args.collision_backend,
         )
         print(
             f"Wrote {result.path} ({args.duration:.1f}s @ {args.fps} fps, "
@@ -512,6 +650,7 @@ def main(argv: list[str] | None = None) -> int:
         fps=args.fps,
         width=args.width,
         height=args.height,
+        collision_backend=args.collision_backend,
     )
     for result in results:
         print(

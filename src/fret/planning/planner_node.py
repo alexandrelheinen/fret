@@ -36,8 +36,8 @@ from fret.interfaces import (
     PlanningStatus,
 )
 from fret.planning.cspace_checker import (
-    CSpaceChecker,
     CollisionBackend,
+    CSpaceChecker,
     make_cspace_checker,
 )
 from fret.planning.trajectory_generator import TrajectoryGenerator
@@ -246,8 +246,18 @@ class PlannerNode:
             RuntimeError: If no path exists.
         """
         if SSTPlanner is not None and checker is not None:  # pragma: no cover
-            limits = self._kin.joint_limits  # shape (DOF, 2)
-            bounds = [(float(lo), float(hi)) for lo, hi in limits]
+            if self._workspace_bounds is not None:
+                (x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi) = (
+                    self._workspace_bounds
+                )
+                bounds = [
+                    (x_lo, x_hi),
+                    (y_lo, y_hi),
+                    (z_lo, z_hi),
+                ]
+            else:
+                limits = self._kin.joint_limits  # shape (DOF, 2)
+                bounds = [(float(lo), float(hi)) for lo, hi in limits]
             sst = SSTPlanner(
                 occupancy=_CSpaceOccupancy(checker),
                 bounds=bounds,
@@ -255,7 +265,7 @@ class PlannerNode:
                 step_size=0.25,
                 goal_tolerance=0.1,
                 witness_radius=0.15,
-                goal_bias=0.10,
+                goal_bias=0.15,
             )
             result: list[npt.NDArray[np.float64]] | None = sst.plan(
                 np.asarray(start, dtype=np.float64),
