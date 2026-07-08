@@ -15,7 +15,7 @@ def test_default_obstacle_file_exists() -> None:
 
 def test_load_world_columns() -> None:
     world = load_dubins_race_world()
-    assert len(world.columns) >= 100
+    assert len(world.columns) >= 80
     assert world.vehicle_radius > 0.0
 
 

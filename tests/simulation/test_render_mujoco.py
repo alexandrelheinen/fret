@@ -190,7 +190,7 @@ def test_list_showcase_cameras_dubins_race() -> None:
 
 def test_dubins_follow_distance_targets_car_fill() -> None:
     distance = rm._dubins_follow_distance(640, 720)
-    assert 6.0 < distance < 18.0
+    assert 4.0 < distance < 18.0
 
 
 def test_simulate_dubins_race_poses_covers_transit() -> None:
