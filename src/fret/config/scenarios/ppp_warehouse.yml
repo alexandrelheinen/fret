@@ -27,7 +27,7 @@
     plan_include_cargo: true
 
     grasp:
-      capture_radius: 0.3
+      capture_radius: 0.45
       goal_radius: 0.5
       weld_offset: 0.0
       box_half_extent: 0.25
