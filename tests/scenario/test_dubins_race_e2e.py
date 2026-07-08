@@ -32,7 +32,7 @@ def test_obstacle_file_exists() -> None:
 
 def test_world_has_column_forest() -> None:
     world = load_dubins_race_world()
-    assert len(world.columns) >= 12
+    assert len(world.columns) >= 100
 
 
 def test_dual_agents_plan_and_finish_race() -> None:
@@ -53,9 +53,19 @@ def test_dual_agents_plan_and_finish_race() -> None:
 
 
 def test_agents_can_take_different_path_lengths() -> None:
-    """Multiple routes exist when path lengths differ between planners."""
+    """RRT* and SST must diverge through the column forest (not one corridor)."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
-    result = runner.run()
+    result = runner.run(record_poses=True)
     assert result.rrt_plan.path_found and result.sst_plan.path_found
-    delta = abs(result.rrt_plan.path_length_m - result.sst_plan.path_length_m)
-    assert delta >= 0.0
+
+    rrt_path = result.rrt_plan.path
+    sst_path = result.sst_plan.path
+    assert len(rrt_path) >= 3
+    assert len(sst_path) >= 3
+
+    mid_rrt = rrt_path[len(rrt_path) // 2][:2]
+    mid_sst = sst_path[len(sst_path) // 2][:2]
+    mid_separation = float(
+        (mid_rrt[0] - mid_sst[0]) ** 2 + (mid_rrt[1] - mid_sst[1]) ** 2
+    ) ** 0.5
+    assert mid_separation >= 5.0
