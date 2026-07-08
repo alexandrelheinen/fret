@@ -112,13 +112,14 @@ def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
         mjcf_path=mjcf,
     )
     dense = rm.build_pruned_dense_waypoints(path)
-    traj = rm.simulate_tracked_trajectory(
+    traj, sim_time_s = rm.simulate_tracked_trajectory(
         dense,
-        duration_s=30.0,
+        duration_s=None,
         fps=30,
         start=path[0],
     )
-    assert traj.shape == (900, 3)
+    assert traj.shape[0] >= 2
+    assert sim_time_s > 0.0
     assert traj[:, 0].max() > 8.0
     assert traj[:, 1].max() > 2.0
 
@@ -133,15 +134,16 @@ def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
         collision_backend="mujoco",
         mjcf_path=mjcf,
     )
-    traj = rm.build_showcase_trajectory(
+    traj, sim_time_s = rm.build_showcase_trajectory(
         path,
         scenario="ppp_warehouse",
-        duration_s=60.0,
+        duration_s=None,
         fps=30,
         collision_backend="mujoco",
         use_tracking=False,
     )
-    assert traj.shape == (1800, 3)
+    assert traj.shape[0] >= 2
+    assert sim_time_s > 0.0
     assert traj[:, 0].max() > 8.0
     assert traj[:, 1].max() > 2.0
 
@@ -155,15 +157,21 @@ def test_list_showcase_cameras_dubins_race() -> None:
 def test_simulate_dubins_race_poses_covers_transit() -> None:
     """Release dubins clip must traverse the warehouse floor."""
     pytest.importorskip("arco")
-    rrt, sst = rm.simulate_dubins_race_poses(
+    rrt, sst, sim_time_s = rm.simulate_dubins_race_poses(
         "dubins_race",
-        duration_s=20.0,
+        duration_s=None,
         fps=10,
     )
-    assert rrt.shape[0] == 200
-    assert sst.shape[0] == 200
+    assert rrt.shape[0] >= 2
+    assert sst.shape[0] >= 2
+    assert sim_time_s > 5.0
     assert rrt[:, 0].max() > 8.0
     assert sst[:, 0].max() > 8.0
+
+
+def test_showcase_timing_real_time_factor() -> None:
+    timing = rm.ShowcaseTiming(sim_time_s=10.0, render_duration_s=25.0)
+    assert timing.real_time_factor == pytest.approx(2.5)
 
 
 def test_resolve_scenario_duration_reads_yaml() -> None:

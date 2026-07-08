@@ -89,8 +89,8 @@ GitHub Actions artifact backup. Each release scenario exports two POVs:
 
 | Scenario | Model | Release duration |
 |---|---|---|
-| `ppp_warehouse` | PPP | 45 s |
-| `dubins_race` | Dubins | 25 s |
+| `ppp_warehouse` | PPP | full simulation (real-time post-process) |
+| `dubins_race` | Dubins | full simulation (real-time post-process) |
 
 ### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
 
