@@ -20,12 +20,14 @@ from __future__ import annotations
 import os
 import pathlib
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.kinematics_ppp import PPPKinematics
+if TYPE_CHECKING:
+    from fret.control.grasp_magnet import MagneticGraspFSM
+    from fret.control.kinematics_ppp import PPPKinematics
 
 # MJCF preview scale (1:5) limits for ppp_warehouse.xml.
 _PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
@@ -1078,8 +1080,8 @@ class MuJoCoBridgeNode:
         self._latest_cmd = np.zeros(
             self._core.get_positions().shape, dtype=np.float64
         )
-        self._ppp_grasp = None
-        self._ppp_kin = None
+        self._ppp_grasp: MagneticGraspFSM | None = None
+        self._ppp_kin: PPPKinematics | None = None
         self._ppp_box_anchor: npt.NDArray[np.float64] | None = None
         self._ppp_goal: npt.NDArray[np.float64] | None = None
         self._ppp_grasp_captured = False

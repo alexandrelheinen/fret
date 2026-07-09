@@ -46,10 +46,10 @@ from fret.planning.ppp_obstacles import (
 )
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.ros.mujoco_bridge import (
-    cargo_weld_config_from_bridge_yaml,
-    make_mujoco_bridge_core,
     _load_merged_bridge_config,
     _resolve_config_path,
+    cargo_weld_config_from_bridge_yaml,
+    make_mujoco_bridge_core,
 )
 from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import controller_config_path, scenario_config_path
