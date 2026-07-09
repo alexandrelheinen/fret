@@ -221,3 +221,90 @@ from FSM, ignore equality weld. Showcase scripts (`render_mujoco.py`) default to
 kinematic mode until `--physics-mode` is passed (T12-07).
 
 ---
+
+## 4. Contact logging and regression test contract
+
+### Contact log format (T12-05)
+
+When `contact_log_enabled: true`, the bridge appends one JSON object per line
+(JSONL) after each control tick that reports `data.ncon > 0`.
+
+**Default path:** `/tmp/fret_physics/<scenario_id>/contacts.jsonl`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sim_time` | float | MuJoCo simulation time [s] |
+| `wall_time` | float | Unix timestamp [s] |
+| `geom1` | string | First geom name |
+| `geom2` | string | Second geom name |
+| `force_norm` | float | Contact force magnitude [N] |
+| `pos` | [float×3] | Contact position in world frame [m] |
+
+Example line:
+
+```json
+{"sim_time": 12.04, "wall_time": 1710000000.12, "geom1": "cargo_box", "geom2": "obs_a", "force_norm": 42.3, "pos": [4.01, 1.18, 0.52]}
+```
+
+CI uploads this file as artifact `physics-contacts-<scenario_id>` (V12-5).
+
+### Sim-time metrics file
+
+Written once at scenario shutdown to `metrics_path` (default:
+`/tmp/fret_physics/<scenario_id>/metrics.json`):
+
+```json
+{
+  "scenario_id": "ppp_warehouse",
+  "physics_mode": true,
+  "sim_time_final": 58.2,
+  "wall_time_elapsed": 61.4,
+  "max_tracking_error_m": 0.008,
+  "contact_event_count": 127,
+  "max_contact_force_n": 156.0,
+  "penetration_violations": 0
+}
+```
+
+`penetration_violations` counts timesteps where any contact distance <
+`-0.001` m (1 mm tolerance).
+
+### Regression test files (T12-06, V12-7)
+
+| Test file | Scenario | Minimum assertions |
+| --- | --- | --- |
+| `tests/integration/test_mujoco_physics_ppp.py` | SC-v10 + `physics_mode` | SITL completes; weld engage/release; `max_tracking_error_m ≤ 0.010`; `penetration_violations == 0`; contact log exists |
+| `tests/integration/test_mujoco_physics_dubins.py` | SC-v11 + `physics_mode` | Both agents reach goal; `penetration_violations == 0`; column contacts logged (`force_norm > 0`); optional inter-agent test |
+
+Tests run under `launch_testing` in `.github/workflows/integration.yml` when
+physics implementation lands. Until then, mark `@pytest.mark.xfail` with reason
+`T12-01 not implemented`.
+
+### Kinematic vs physics regression clip (T12-07)
+
+Showcase scripts accept `--physics-mode` (off by default):
+
+```bash
+./scripts/video.sh --model ppp --scenario ppp_warehouse … --physics-mode
+```
+
+Post-run comparison (manual or CI optional job):
+
+| Metric | Threshold | Action if exceeded |
+| --- | --- | --- |
+| Path length ratio (physics / kinematic) | ≤ 1.15 | Review actuator gains |
+| Goal position error | ≤ FR-CTL-02 limit | Fail V12-2 / V12-3 |
+| MP4 frame SSIM | ≥ 0.85 | Warning only (visual regression) |
+
+Store side-by-side clips under `/tmp/fret_physics/<scenario_id>/regression/`.
+
+### Smoke extension
+
+`scripts/tests/smoke.sh` gains a physics stanza (after T12-01):
+
+```bash
+timeout 30 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
+timeout 30 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
+```
+
+Exit 0 within timeout satisfies V12-1 launch criterion.
