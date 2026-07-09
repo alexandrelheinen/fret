@@ -86,7 +86,11 @@ python3 -c "from fret.scenario import DubinsRaceRunner; print(DubinsRaceRunner()
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 # Headless showcase video
-./scripts/video.sh --model dubins --scenario dubins_race --all-cameras -o /tmp/dubins
+```bash
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
+  --output-dir /tmp/dubins --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration
+```
 
 # Download CI/R2 release clips
 ./scripts/download_showcase.sh --scenario dubins_race --camera overview

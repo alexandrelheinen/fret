@@ -7,9 +7,12 @@ without requiring a ROS runtime.  Intended for README / article assets
 
 Example::
 
-    python3 scripts/render_mujoco.py --scenario ppp_warehouse -o /tmp/v10.mp4
-    ./scripts/video.sh --model ppp --duration 30
-    ./scripts/video.sh --all-cameras --output-dir /tmp/showcase
+    python3 scripts/render_mujoco.py --model ppp --scenario ppp_warehouse \\
+        --camera overview -o /tmp/v10.mp4 --fps 30 --width 1280 --height 720 \\
+        --collision-backend mujoco --planner-algorithm rrt_star --full-duration
+    ./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \\
+        --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \\
+        --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 
 Dependencies (not required for core FRET algorithms)::
 
@@ -1663,6 +1666,18 @@ def write_showcase_timing_json(
     )
 
 
+def _die_missing(
+    parser: argparse.ArgumentParser, missing: list[str], *, argv: list[str]
+) -> None:
+    """Print a concise error and usage when required CLI args are absent."""
+    if not argv:
+        print("missing arguments", file=sys.stderr)
+    else:
+        print(f"missing arguments: {', '.join(missing)}", file=sys.stderr)
+    parser.print_help()
+    raise SystemExit(2)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -1670,13 +1685,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model",
-        default="ppp",
-        help="Robot model name (default: ppp)",
+        required=True,
+        help="Robot model name (e.g. ppp, dubins)",
     )
     parser.add_argument(
         "--scenario",
-        default="ppp_warehouse",
-        help="Scenario stem (default: ppp_warehouse)",
+        required=True,
+        help="Scenario stem (e.g. ppp_warehouse, dubins_race)",
     )
     parser.add_argument(
         "-o",
@@ -1688,48 +1703,50 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("/tmp/fret_showcase"),
-        help="Output directory for --all-cameras (default: /tmp/fret_showcase)",
+        default=None,
+        help="Output directory for --all-cameras or multi --camera",
     )
     parser.add_argument(
         "--mjcf",
         type=Path,
         default=None,
-        help="Override MJCF path (default: resolved from model/scenario)",
+        help="Override MJCF path (optional)",
     )
-    parser.add_argument(
+    duration_group = parser.add_mutually_exclusive_group(required=True)
+    duration_group.add_argument(
         "--duration",
         type=float,
-        default=None,
-        help=(
-            "Optional clip stretch duration in seconds.  Omit to render the "
-            "full simulated motion at real-time speed (default)."
-        ),
+        help="Clip stretch duration in seconds",
+    )
+    duration_group.add_argument(
+        "--full-duration",
+        action="store_true",
+        help="Render the full simulated motion at real-time speed",
     )
     parser.add_argument(
         "--fps",
         type=int,
-        default=30,
-        help="Frame rate (default: 30)",
+        required=True,
+        help="Frame rate",
     )
     parser.add_argument(
         "--width",
         type=int,
-        default=1280,
-        help="Frame width (default: 1280)",
+        required=True,
+        help="Frame width in pixels",
     )
     parser.add_argument(
         "--height",
         type=int,
-        default=720,
-        help="Frame height (default: 720)",
+        required=True,
+        help="Frame height in pixels",
     )
     parser.add_argument(
         "--camera",
         action="append",
         dest="cameras",
         metavar="NAME",
-        help="MJCF camera name (repeatable; default: overview)",
+        help="MJCF camera name (repeatable; required for single-camera mode)",
     )
     parser.add_argument(
         "--all-cameras",
@@ -1739,17 +1756,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--collision-backend",
         choices=("analytic", "mujoco"),
-        default="mujoco",
-        help=(
-            "Plan showcase motion with FRET collision checking "
-            "(analytic or mujoco); omit for legacy hardcoded path"
-        ),
+        required=True,
+        help="Plan showcase motion with FRET collision checking",
     )
     parser.add_argument(
         "--planner-algorithm",
         choices=("rrt_star", "sst"),
-        default="rrt_star",
-        help="ARCO planner for showcase path planning (default: rrt_star)",
+        required=True,
+        help="ARCO planner for showcase path planning",
     )
     parser.add_argument(
         "--no-tracking",
@@ -1770,11 +1784,56 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_render_cli(
+    parser: argparse.ArgumentParser, argv: list[str]
+) -> argparse.Namespace:
+    """Parse argv and fail with help when required flag combinations are missing."""
+    if not argv:
+        _die_missing(
+            parser,
+            [
+                "--model",
+                "--scenario",
+                "--fps",
+                "--width",
+                "--height",
+                "--collision-backend",
+                "--planner-algorithm",
+                "(--duration or --full-duration)",
+                "(-o/--output and --camera) or (--all-cameras and --output-dir)",
+            ],
+            argv=argv,
+        )
+
+    args = parser.parse_args(argv)
+    missing: list[str] = []
+
+    if args.all_cameras:
+        if args.output_dir is None:
+            missing.append("--output-dir")
+        if args.output is not None:
+            parser.error("--output cannot be used with --all-cameras")
+    elif args.cameras and len(args.cameras) > 1:
+        if args.output_dir is None:
+            missing.append("--output-dir")
+    elif args.output is None:
+        missing.append("-o/--output")
+    elif not args.cameras:
+        missing.append("--camera")
+
+    if missing:
+        _die_missing(parser, missing, argv=argv)
+
+    return args
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    cli_argv = list(sys.argv[1:] if argv is None else argv)
+    args = _validate_render_cli(parser, cli_argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
-    duration_s = args.duration
+    duration_s = None if args.full_duration else args.duration
 
     use_tracking = not args.no_tracking
     realtime_postprocess = not args.no_realtime_postprocess
@@ -1807,11 +1866,11 @@ def main(argv: list[str] | None = None) -> int:
             write_showcase_timing_json(results, args.timing_json)
         return 0
 
-    cameras = args.cameras or ["overview"]
+    cameras = args.cameras
+    assert cameras is not None
     if len(cameras) == 1:
-        output = args.output or Path(
-            f"/tmp/{showcase_output_name(args.scenario, cameras[0])}"
-        )
+        output = args.output
+        assert output is not None
         result = render_video(
             mjcf_path,
             output,
@@ -1834,6 +1893,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    assert args.output_dir is not None
     results = render_showcase_videos(
         mjcf_path,
         args.output_dir,

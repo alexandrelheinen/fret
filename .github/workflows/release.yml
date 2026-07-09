@@ -61,6 +61,7 @@ jobs:
             --collision-backend mujoco \
             --planner-algorithm rrt_star \
             --no-tracking \
+            --full-duration \
             --output-dir showcase_renders \
             --timing-json showcase_renders/ppp_timing.json \
             --fps 30 \
@@ -73,6 +74,9 @@ jobs:
             --model dubins \
             --scenario dubins_race \
             --all-cameras \
+            --collision-backend mujoco \
+            --planner-algorithm sst \
+            --full-duration \
             --output-dir showcase_renders \
             --timing-json showcase_renders/dubins_timing.json \
             --fps 30 \

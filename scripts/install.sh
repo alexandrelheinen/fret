@@ -148,4 +148,4 @@ info "For a session-based ROS environment: source /opt/ros/${ROS_DISTRO}/setup.b
 info "Recommended project ROS source path: ./src"
 info "Recommended build output paths: ./build ./install ./log"
 info "Verify with: ros2 --version"
-info "Optional checks: gz sim, python3 scripts/view_mujoco.py --dry-run"
+info "Optional checks: python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse --duration 30 --fps 60 --camera overview --dry-run"

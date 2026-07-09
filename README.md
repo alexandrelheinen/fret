@@ -263,19 +263,20 @@ python3 -m pytest tests/scenario/test_dubins_race_e2e.py -v
 
 ### 2. MuJoCo interactive viewer
 
-Live 3D window for the PPP warehouse gantry (no ROS):
+Live 3D window (no ROS). All parameters are required — bare `./scripts/view.sh`
+prints `missing arguments` and `--help`.
 
 ```bash
 pip install -e ".[sim]"
-./scripts/view.sh                          # PPP warehouse
-./scripts/view.sh --scenario dubins_race   # Dubins race world (static pose)
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
 ```
 
-Headless check (CI-friendly):
+Headless MJCF check (CI-friendly):
 
 ```bash
-python3 scripts/view_mujoco.py --dry-run
-python3 scripts/view_mujoco.py --scenario dubins_race --dry-run
+python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview --dry-run
 ```
 
 ### 3. Headless showcase videos
@@ -293,8 +294,10 @@ export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl   # headless Linux / CI
   --scenario ppp_warehouse \
   --collision-backend mujoco \
   --planner-algorithm rrt_star \
+  --full-duration \
   --all-cameras \
-  --output-dir /tmp/fret_ppp
+  --output-dir /tmp/fret_ppp \
+  --fps 30 --width 1280 --height 720
 ```
 
 **Dubins race** — dual-agent RRT* vs SST with overview + split-screen follow:
@@ -303,15 +306,23 @@ export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl   # headless Linux / CI
 ./scripts/video.sh \
   --model dubins \
   --scenario dubins_race \
+  --collision-backend mujoco \
+  --planner-algorithm sst \
+  --full-duration \
   --all-cameras \
-  --output-dir /tmp/fret_dubins
+  --output-dir /tmp/fret_dubins \
+  --fps 30 --width 1280 --height 720
 ```
 
 Single-camera Python API:
 
 ```bash
-python3 scripts/render_mujoco.py --scenario ppp_warehouse -o /tmp/ppp.mp4
-python3 scripts/render_mujoco.py --scenario dubins_race --camera overview -o /tmp/dubins.mp4
+python3 scripts/render_mujoco.py --model ppp --scenario ppp_warehouse \
+  --camera overview -o /tmp/ppp.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
+python3 scripts/render_mujoco.py --model dubins --scenario dubins_race \
+  --camera overview -o /tmp/dubins.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
 Visual walkthrough: [docs/tutorial.md](docs/tutorial.md) · WSL notes: [docs/wsl.md](docs/wsl.md)

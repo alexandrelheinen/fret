@@ -35,7 +35,8 @@ src/fret/
 - Launch files live in `src/fret/launch/` and use the `.py` extension.
 - Launch files must be Python-based (not XML) for programmatic flexibility.
 - Use descriptive names: `mujoco.py` (MuJoCo bridge), `sitl.py` (SITL orchestration), `hardware.py` (hardware nodes).
-- Visual inspection uses MuJoCo only: `scripts/view.sh` (interactive) and `scripts/video.sh` (MP4).
+- Visual inspection uses MuJoCo only: `scripts/view.sh` and `scripts/video.sh`
+  (all showcase flags required — see [mujoco.md](mujoco.md#required-flags)).
 - Launch files should support command-line arguments for model selection and configuration.
 
 ### C++ Files

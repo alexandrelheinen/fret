@@ -27,10 +27,10 @@ working GPU inside WSL.
 | Goal | Command | Needs OpenGL in WSL? |
 |---|---|---|
 | Algorithm dev / unit tests | `pytest tests/ -v --ignore=tests/integration` | No |
-| MJCF load check (no window) | `python3 scripts/view_mujoco.py --dry-run` | No |
+| MJCF load check (no window) | `python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse --duration 30 --fps 60 --camera overview --dry-run` | No |
 | Full ROS SITL | `ros2 launch fret sitl.py …` | No (sim I/O only) |
-| **Interactive 3D viewer** | `./scripts/view.sh` | **Yes** |
-| **Local MP4 export** | `./scripts/video.sh -o demo.mp4` | **Yes** (EGL/GL) |
+| **Interactive 3D viewer** | `./scripts/view.sh --model … --scenario … --duration … --fps … --camera …` | **Yes** |
+| **Local MP4 export** | `./scripts/video.sh` (all flags required) | **Yes** (EGL/GL) |
 | **Watch a showcase MP4** | `./scripts/download_showcase.sh` | **No** |
 
 Keep all **development** in WSL. Treat visualization as a separate concern with
@@ -103,20 +103,26 @@ cd ~/Workspace/fret   # or your clone path
 pip install -e ".[sim]"
 
 # No window — confirms MJCF + Python path
-python3 scripts/view_mujoco.py --dry-run
+python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview --dry-run
 
-# Interactive viewer
-./scripts/view.sh
+# Interactive viewer (all flags required)
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
 
-# Headless MP4
-./scripts/video.sh -o /tmp/demo.mp4
+# Headless MP4 (all flags required)
+./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+  -o /tmp/demo.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 ```
 
 If the viewer works but MP4 export fails, try EGL explicitly:
 
 ```bash
 export MUJOCO_GL=egl
-./scripts/video.sh -o /tmp/demo.mp4
+./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+  -o /tmp/demo.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 ```
 
 ### Troubleshooting (WSL2)
@@ -127,7 +133,7 @@ export MUJOCO_GL=egl
 | Black / empty viewer | Update Windows GPU driver; reinstall Mesa packages above |
 | `MuJoCo is required` | `pip install -e ".[sim]"` or `pip install mujoco` |
 | `eglQueryString` / EGL init error | Install apt packages in step 2 |
-| Viewer OK, MP4 fails | `export MUJOCO_GL=egl` then retry `./scripts/video.sh` |
+| Viewer OK, MP4 fails | `export MUJOCO_GL=egl` then retry `./scripts/video.sh` with full flags |
 | `mujoco.viewer is unavailable` | `pip install -U mujoco` |
 
 Spend roughly one focused session on driver and apt fixes. If the viewer still
@@ -150,8 +156,10 @@ py -3.12 -m venv .venv-win
 .\.venv-win\Scripts\activate
 pip install mujoco numpy
 
-python scripts\view_mujoco.py
-python scripts\view_mujoco.py --duration 45
+python scripts\view_mujoco.py --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
+python scripts\view_mujoco.py --model ppp --scenario ppp_warehouse \
+  --duration 45 --fps 60 --camera overview
 ```
 
 Alternatively, clone the repo under `C:\dev\fret` if you prefer a Windows-local
@@ -187,7 +195,7 @@ Windows video player.
 ### Local MP4 when EGL works
 
 If Option A partially works (EGL but no stable viewer), `./scripts/video.sh`
-may still produce an MP4 you can open on Windows.
+(with all required flags) may still produce an MP4 you can open on Windows.
 
 ---
 
@@ -195,14 +203,14 @@ may still produce an MP4 you can open on Windows.
 
 ```
 Daily dev (WSL)     →  pytest, colcon, ros2 launch fret sitl.py …
-Quick visual check  →  ./scripts/video.sh  OR  ./scripts/download_showcase.sh
-Interactive explore →  ./scripts/view.sh (WSLg)  OR  Windows venv (Option B)
+Quick visual check  →  ./scripts/video.sh (full flags)  OR  ./scripts/download_showcase.sh
+Interactive explore →  ./scripts/view.sh (full flags, WSLg)  OR  Windows venv (Option B)
 ```
 
 1. **Develop algorithms** — `pytest tests/ -v --ignore=tests/integration`
 2. **Validate E2E** — integration tests and SITL in WSL
 3. **Preview visually** — viewer or MP4 using the options above
-4. **Export for demos** — `./scripts/video.sh` locally or rely on CI artifacts
+4. **Export for demos** — `./scripts/video.sh` with explicit flags, or CI artifacts
 
 ---
 

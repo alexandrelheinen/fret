@@ -27,29 +27,27 @@ pip install imageio imageio-ffmpeg   # MP4 export only
 
 ## 1. Interactive 3D viewer (easiest)
 
-Opens a **live MuJoCo window** with the PPP gantry moving through the
-warehouse preview scene. No ROS required.
+Opens a **live MuJoCo window**. No ROS required. **All parameters are required**
+— invoking `./scripts/view.sh` with no arguments prints `missing arguments` and
+the full `--help` text.
 
 ```bash
 git clone https://github.com/alexandrelheinen/fret.git && cd fret
 pip install -e ".[sim]"
-./scripts/view.sh
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
 ```
 
 ### Useful options
 
 ```bash
-# Dubins race world (static pose preview)
-./scripts/view.sh --scenario dubins_race
-
-# Longer animation cycle (45 s per loop)
-./scripts/view.sh --duration 45
-
-# Play once and exit
-./scripts/view.sh --no-loop
+# Play once and exit (still requires all base flags)
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 45 --fps 60 --camera overview --no-loop
 
 # CI / headless check (no window)
-python3 scripts/view_mujoco.py --dry-run
+python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview --dry-run
 ```
 
 **Controls (MuJoCo viewer):**
@@ -68,22 +66,25 @@ python3 scripts/view_mujoco.py --dry-run
 
 ## 2. Headless MP4 video
 
-Renders a shareable `.mp4` without opening a window — ideal for README,
-articles, and release tags.
+Renders a shareable `.mp4` without opening a window. **All parameters are
+required** — bare `./scripts/video.sh` prints `missing arguments` and `--help`.
 
 ```bash
 pip install -e ".[sim]"
-./scripts/video.sh -o /tmp/fret_ppp_warehouse.mp4
+./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+  -o /tmp/fret_ppp_warehouse.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 ```
 
-Options:
+Release-style multi-camera export:
 
 ```bash
-./scripts/video.sh --model dubins --scenario dubins_race --all-cameras -o out.mp4
-./scripts/video.sh --duration 30 --fps 30 --width 1920 --height 1080 -o out.mp4
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
+  --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
-Underlying script: `scripts/render_mujoco.py`
+Underlying script: `scripts/render_mujoco.py` (same required flags).
 
 Release CI builds showcase MP4s on version tags (`v*.*.*`) via
 `.github/workflows/release.yml`, uploads to Cloudflare R2, and keeps a
@@ -136,9 +137,9 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ### Typical workflow
 
 1. **Develop algorithms** — `pytest tests/ -v --ignore=tests/integration`
-2. **Preview visually** — `./scripts/view.sh`
+2. **Preview visually** — `./scripts/view.sh --model … --scenario … …`
 3. **Validate E2E** — `pytest tests/integration/test_scenario_ppp_warehouse.py -v`
-4. **Export video** — `./scripts/video.sh -o demo.mp4`
+4. **Export video** — `./scripts/video.sh --model … --scenario … …`
 5. **Run SITL** — `ros2 launch fret sitl.py …`
 
 ---

@@ -451,7 +451,7 @@ When contributing ROS 2 components, also update build metadata:
 2. Optional mesh generator in `src/fret/mesh/<model>.py`
 3. `CMakeLists.txt` install rules
 4. MuJoCo preview: add MJCF under `src/fret/mjcf/` when applicable
-5. Smoke test: `python3 scripts/view_mujoco.py --dry-run` (MuJoCo models)
+5. Smoke test: `python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse --duration 30 --fps 60 --camera overview --dry-run`
 
 ### Adding configuration
 

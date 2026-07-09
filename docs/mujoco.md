@@ -196,11 +196,48 @@ Scenario parameter: `collision_backend: mujoco` in scenario YAML.
 | `scripts/video.sh` | CI/release wrapper (`MUJOCO_GL=egl`) |
 | `scripts/download_showcase.sh` | Fetch R2 release artifacts |
 
+**CLI policy:** `view.sh`, `video.sh`, and their Python backends require **explicit
+arguments** — no implicit model/scenario/render defaults. Zero-arg invocation
+prints `missing arguments` and `--help`.
+
+### Required flags
+
+**`view.sh` / `view_mujoco.py`**
+
+| Flag | Description |
+|---|---|
+| `--model` | Robot model (`ppp`, `dubins`, …) |
+| `--scenario` | Scenario stem |
+| `--duration` | Animation cycle length [s] |
+| `--fps` | Playback frame rate |
+| `--camera` | MJCF camera name |
+
+Optional: `--dry-run`, `--no-loop`, `--mjcf`.
+
+**`video.sh` / `render_mujoco.py`**
+
+| Flag | Description |
+|---|---|
+| `--model`, `--scenario` | Robot + scenario |
+| `--fps`, `--width`, `--height` | Render settings |
+| `--collision-backend` | `mujoco` or `analytic` |
+| `--planner-algorithm` | `rrt_star` or `sst` |
+| `--duration` or `--full-duration` | Clip length or full sim time |
+
+Output (one mode required):
+
+- Single camera: `-o/--output` + `--camera`
+- All showcase cameras: `--all-cameras` + `--output-dir`
+
+Optional: `--no-tracking`, `--timing-json`, `--no-realtime-postprocess`, `--mjcf`.
+
 Headless Linux / CI:
 
 ```bash
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
-./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras
+./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \
+  --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 ```
 
 WSL2 display notes: [wsl.md](wsl.md).

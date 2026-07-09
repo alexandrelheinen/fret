@@ -6,6 +6,7 @@ and MJCF path resolution without a MuJoCo runtime.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,7 +14,8 @@ import numpy as np
 import pytest
 
 # render_mujoco.py lives under scripts/, not src/
-_SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SCRIPTS = _REPO_ROOT / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 
 import render_mujoco as rm  # noqa: E402
@@ -319,6 +321,7 @@ _RELEASE_PPP_CLI: list[str] = [
     "showcase_renders",
     "--timing-json",
     "showcase_renders/ppp_timing.json",
+    "--full-duration",
     "--fps",
     "30",
     "--width",
@@ -333,10 +336,15 @@ _RELEASE_DUBINS_CLI: list[str] = [
     "--scenario",
     "dubins_race",
     "--all-cameras",
+    "--collision-backend",
+    "mujoco",
+    "--planner-algorithm",
+    "sst",
     "--output-dir",
     "showcase_renders",
     "--timing-json",
     "showcase_renders/dubins_timing.json",
+    "--full-duration",
     "--fps",
     "30",
     "--width",
@@ -358,12 +366,28 @@ def test_release_workflow_cli_args_parse() -> None:
     assert ppp_args.no_tracking is True
     assert ppp_args.timing_json == Path("showcase_renders/ppp_timing.json")
     assert ppp_args.no_realtime_postprocess is False
+    assert ppp_args.full_duration is True
 
     assert dubins_args.model == "dubins"
     assert dubins_args.scenario == "dubins_race"
     assert dubins_args.all_cameras is True
     assert dubins_args.timing_json == Path("showcase_renders/dubins_timing.json")
     assert dubins_args.no_realtime_postprocess is False
+    assert dubins_args.full_duration is True
+
+
+def test_render_cli_requires_explicit_args() -> None:
+    """Invoking render_mujoco without args must fail with help."""
+    result = subprocess.run(
+        [sys.executable, str(_REPO_ROOT / "scripts" / "render_mujoco.py")],
+        cwd=_REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "missing arguments" in result.stderr
+    assert "usage:" in result.stdout.lower() or "usage:" in result.stderr.lower()
 
 
 def test_main_accepts_release_ppp_cli(monkeypatch: pytest.MonkeyPatch) -> None:

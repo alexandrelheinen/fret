@@ -11,7 +11,7 @@
 | Mode | Requirements | Purpose |
 |---|---|---|
 | **Pure-Python** | Python 3.12+, numpy | Unit tests, algorithm validation |
-| **MuJoCo viewer** | `mujoco` | **Live 3D window** — `./scripts/view.sh` |
+| **MuJoCo viewer** | `mujoco` | **Live 3D window** — `./scripts/view.sh` (all flags required) |
 | **MuJoCo MP4** | `mujoco`, `imageio` | Headless showcase video |
 | **MuJoCo SITL** | `mujoco`, ROS 2 Jazzy | Full ROS pipeline via `sitl.py` |
 | **MuJoCo physics SITL** | `mujoco`, ROS 2 Jazzy | Actuator-driven `mj_step` (v1.2+) |
@@ -34,7 +34,8 @@ pytest tests/ -v --ignore=tests/integration
 
 ```bash
 pip install -e ".[sim]"
-./scripts/view.sh
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
 ```
 
 See [tutorial.md](tutorial.md) for controls and options.
@@ -57,7 +58,8 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
 ```bash
 # Visual preview (no ROS)
-./scripts/view.sh
+./scripts/view.sh --model ppp --scenario ppp_warehouse \
+  --duration 30 --fps 60 --camera overview
 
 # Full SITL pipeline
 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
@@ -80,9 +82,12 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ## v1.1 — Dubins race
 
 ```bash
-./scripts/view.sh --scenario dubins_race
+./scripts/view.sh --model dubins --scenario dubins_race \
+  --duration 30 --fps 60 --camera overview
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
-./scripts/video.sh --model dubins --scenario dubins_race --all-cameras
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
+  --output-dir /tmp/dubins --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
 ---
@@ -117,7 +122,9 @@ uses `./scripts/view.sh` once RRP MJCF is available (v1.3).
 
 ```bash
 # MuJoCo headless MP4
-./scripts/video.sh -o /tmp/fret.mp4
+./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+  -o /tmp/fret.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 
 # Magnetic grasp FSM demo (pure Python, no sim)
 python3 scripts/demo_grasp.py

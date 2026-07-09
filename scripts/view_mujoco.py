@@ -6,8 +6,10 @@ preview path.  No ROS runtime required.
 
 Example::
 
-    ./scripts/view.sh
-    python3 scripts/view_mujoco.py --scenario ppp_warehouse --duration 30
+    ./scripts/view.sh --model ppp --scenario ppp_warehouse \\
+        --duration 30 --fps 60 --camera overview
+    python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \\
+        --duration 30 --fps 60 --camera overview --dry-run
 
 Dependencies::
 
@@ -115,6 +117,18 @@ def run_interactive_viewer(
                 time.sleep(sleep_s)
 
 
+def _die_missing(
+    parser: argparse.ArgumentParser, missing: list[str], *, argv: list[str]
+) -> None:
+    """Print a concise error and usage when required CLI args are absent."""
+    if not argv:
+        print("missing arguments", file=sys.stderr)
+    else:
+        print(f"missing arguments: {', '.join(missing)}", file=sys.stderr)
+    parser.print_help()
+    raise SystemExit(2)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -122,36 +136,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model",
-        default="ppp",
-        help="Robot model name (default: ppp)",
+        required=True,
+        help="Robot model name (e.g. ppp, dubins)",
     )
     parser.add_argument(
         "--scenario",
-        default="ppp_warehouse",
-        help="Scenario stem (default: ppp_warehouse)",
+        required=True,
+        help="Scenario stem (e.g. ppp_warehouse, dubins_race)",
     )
     parser.add_argument(
         "--mjcf",
         type=Path,
         default=None,
-        help="Override MJCF path (default: resolved from model/scenario)",
+        help="Override MJCF path (optional)",
     )
     parser.add_argument(
         "--duration",
         type=float,
-        default=30.0,
-        help="Animation cycle duration in seconds (default: 30)",
+        required=True,
+        help="Animation cycle duration in seconds",
     )
     parser.add_argument(
         "--fps",
         type=int,
-        default=60,
-        help="Playback frame rate (default: 60)",
+        required=True,
+        help="Playback frame rate",
     )
     parser.add_argument(
         "--camera",
-        default="overview",
-        help="MJCF camera name (default: overview)",
+        required=True,
+        help="MJCF camera name (e.g. overview, follow)",
     )
     parser.add_argument(
         "--no-loop",
@@ -166,9 +180,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_view_cli(
+    parser: argparse.ArgumentParser, argv: list[str]
+) -> argparse.Namespace:
+    """Parse argv and fail with help when required flags are missing."""
+    if not argv:
+        _die_missing(
+            parser,
+            ["--model", "--scenario", "--duration", "--fps", "--camera"],
+            argv=argv,
+        )
+    return parser.parse_args(argv)
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    cli_argv = list(sys.argv[1:] if argv is None else argv)
+    args = _validate_view_cli(parser, cli_argv)
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
 
     if args.dry_run:

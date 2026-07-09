@@ -88,7 +88,9 @@ FAILED=0
 echo "=== ROS 2 launch smoke tests ==="
 
 # MuJoCo viewer dry-run (no ROS, no display required).
-run_smoke_test "mujoco_view_dry_run" -- python3 scripts/view_mujoco.py --dry-run \
+run_smoke_test "mujoco_view_dry_run" -- python3 scripts/view_mujoco.py \
+    --model ppp --scenario ppp_warehouse --duration 30 --fps 60 \
+    --camera overview --dry-run \
     || FAILED=1
 
 # Release workflow CLI must parse before tag builds render showcase MP4s.
