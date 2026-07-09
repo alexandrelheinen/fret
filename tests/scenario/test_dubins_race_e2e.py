@@ -25,7 +25,9 @@ _SCENARIO_PATH = (
     / "scenarios"
     / "dubins_race.yml"
 )
-_RACE_TIMEOUT_S = 120.0
+_RACE_SIM_TIMEOUT_S = 120.0
+# Wall clock includes dual planning (SST can take ~80s in CI) plus race simulation.
+_WALL_CLOCK_BUDGET_S = 240.0
 
 
 def test_obstacle_file_exists() -> None:
@@ -49,9 +51,9 @@ def test_dual_agents_plan_and_finish_race() -> None:
     assert result.both_reached_goal is True
     assert result.rrt_time_to_goal_s is not None
     assert result.sst_time_to_goal_s is not None
-    assert result.rrt_time_to_goal_s <= _RACE_TIMEOUT_S
-    assert result.sst_time_to_goal_s <= _RACE_TIMEOUT_S
-    assert elapsed <= _RACE_TIMEOUT_S + 30.0
+    assert result.rrt_time_to_goal_s <= _RACE_SIM_TIMEOUT_S
+    assert result.sst_time_to_goal_s <= _RACE_SIM_TIMEOUT_S
+    assert elapsed <= _WALL_CLOCK_BUDGET_S
     assert result.min_obstacle_clearance_m >= 0.0
 
 
