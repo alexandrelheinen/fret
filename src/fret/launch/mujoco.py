@@ -34,6 +34,11 @@ def generate_launch_description() -> LaunchDescription:
         default_value="ppp_warehouse",
         description="Scenario stem for MJCF resolution",
     )
+    physics_mode_arg = DeclareLaunchArgument(
+        "physics_mode",
+        default_value="false",
+        description="Enable MuJoCo physics SITL (mj_step + actuators)",
+    )
 
     mujoco_config = PathJoinSubstitution(
         [pkg_share, "config", "simulation", "mujoco.yml"]
@@ -49,6 +54,7 @@ def generate_launch_description() -> LaunchDescription:
             {
                 "model": LaunchConfiguration("model"),
                 "scenario": LaunchConfiguration("scenario"),
+                "physics_mode": LaunchConfiguration("physics_mode"),
             },
         ],
     )
@@ -57,6 +63,7 @@ def generate_launch_description() -> LaunchDescription:
         [
             model_arg,
             scenario_arg,
+            physics_mode_arg,
             mujoco_bridge_node,
         ]
     )

@@ -182,4 +182,13 @@
     <camera name="follow" pos="18 14 8" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
     <camera name="finish" pos="74 58 10" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
   </worldbody>
+
+  <actuator>
+    <velocity name="act_rrt_x" joint="rrt_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_rrt_y" joint="rrt_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_rrt_yaw" joint="rrt_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
+    <velocity name="act_sst_x" joint="sst_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_sst_y" joint="sst_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_sst_yaw" joint="sst_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
+  </actuator>
 </mujoco>

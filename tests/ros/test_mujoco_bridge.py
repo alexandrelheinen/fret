@@ -16,6 +16,7 @@ from fret.ros.mujoco_bridge import (
     integrate_joint_velocities,
     make_dubins_race_bridge_core,
     make_mujoco_bridge_core,
+    physics_config_from_bridge_yaml,
     resolve_mjcf_path,
 )
 
@@ -149,4 +150,105 @@ def test_load_mujoco_config_defaults() -> None:
     assert cfg["scenario"] == "ppp_warehouse"
     assert cfg["update_rate"] == 50.0
     assert cfg["initial_joint_positions"] == [0.0, 0.0, 0.0]
+    assert cfg["physics_mode"] is False
+    assert cfg["substeps_per_tick"] == 25
+    assert "actuators" in cfg
     assert pathlib.Path(config_path).is_file()
+
+
+def test_physics_config_from_yaml_kinematic_default() -> None:
+    """Kinematic mode should not require actuator runtime binding."""
+    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+
+    cfg = _load_bridge_config(_resolve_config_path(None))
+    physics = physics_config_from_bridge_yaml(cfg, "ppp")
+    assert physics.physics_mode is False
+    assert physics.actuators is None
+
+
+def test_physics_config_from_yaml_physics_mode() -> None:
+    """Physics mode should load the PPP actuator table."""
+    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+
+    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
+    assert physics.physics_mode is True
+    assert physics.actuators is not None
+    assert physics.actuators.names == (
+        "act_joint_x",
+        "act_joint_y",
+        "act_joint_z",
+    )
+
+
+@pytest.mark.skipif(
+    not make_mujoco_bridge_core("ppp", "ppp_warehouse").has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
+def test_bridge_core_step_physics_advances_position() -> None:
+    """Physics mode should integrate joint motion via mj_step."""
+    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+
+    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
+    core = make_mujoco_bridge_core(
+        "ppp",
+        "ppp_warehouse",
+        physics_config=physics,
+    )
+    q0 = core.get_positions().copy()
+    q1 = core.step_physics(np.array([0.5, 0.0, 0.0]))
+    assert core.physics_mode is True
+    assert q1[0] > q0[0]
+
+
+@pytest.mark.skipif(
+    not make_mujoco_bridge_core("ppp", "ppp_warehouse").has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
+def test_set_positions_forbidden_in_physics_mode() -> None:
+    """Pose injection must fail while physics_mode is active (FR-SIM-07)."""
+    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+
+    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
+    core = make_mujoco_bridge_core(
+        "ppp",
+        "ppp_warehouse",
+        physics_config=physics,
+    )
+    with pytest.raises(RuntimeError, match="set_positions"):
+        core.set_positions(np.zeros(3))
+
+
+@pytest.mark.skipif(
+    not make_dubins_race_bridge_core().has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
+def test_dubins_bridge_step_physics_runs() -> None:
+    """Dual-agent physics step should execute without pose injection."""
+    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+
+    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([6.0, 6.0, 0.0]),
+        initial_sst=np.array([6.0, 6.4, 0.0]),
+        physics_config=physics,
+    )
+    result = core.step_physics(np.array([0.4, 0.0, 0.0, 0.4, 0.0, 0.0]))
+    assert result.shape == (6,)
+    np.testing.assert_allclose(
+        core.get_joint_velocities(),
+        [0.4, 0.0, 0.0, 0.4, 0.0, 0.0],
+    )
+    with pytest.raises(RuntimeError, match="set_rrt_pose"):
+        core.set_rrt_pose((0.0, 0.0, 0.0))

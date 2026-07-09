@@ -73,6 +73,11 @@ def generate_launch_description() -> LaunchDescription:
         default_value="gazebo",
         description="Simulator backend: gazebo | mujoco",
     )
+    physics_mode_arg = DeclareLaunchArgument(
+        "physics_mode",
+        default_value="false",
+        description="Enable MuJoCo physics SITL (mj_step + actuators)",
+    )
 
     is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
     is_gazebo = UnlessCondition(is_mujoco)
@@ -144,6 +149,7 @@ def generate_launch_description() -> LaunchDescription:
         launch_arguments={
             "model": LaunchConfiguration("model"),
             "scenario": LaunchConfiguration("scenario"),
+            "physics_mode": LaunchConfiguration("physics_mode"),
         }.items(),
         condition=IfCondition(is_standard_mujoco),
     )
@@ -153,7 +159,10 @@ def generate_launch_description() -> LaunchDescription:
         executable="dubins_race_node",
         name="dubins_race_node",
         output="screen",
-        parameters=[{"scenario": LaunchConfiguration("scenario")}],
+        parameters=[
+            {"scenario": LaunchConfiguration("scenario")},
+            {"physics_mode": LaunchConfiguration("physics_mode")},
+        ],
         condition=IfCondition(is_dubins_mujoco),
     )
 
@@ -269,6 +278,7 @@ def generate_launch_description() -> LaunchDescription:
             model_arg,
             scenario_arg,
             backend_arg,
+            physics_mode_arg,
             sim_launch,
             mujoco_launch,
             dubins_race_node,

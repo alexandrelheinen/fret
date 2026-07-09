@@ -150,6 +150,61 @@ class DubinsRaceSimulation:
         self.sim_time_s += self.dt
         return self.finished
 
+    def step_physics(self, bridge: Any) -> bool:
+        """Advance one physics SITL tick via MuJoCo actuators (v1.2).
+
+        Computes world-frame velocity commands from Pure Pursuit, drives
+        ``bridge.step_physics``, then syncs vehicle poses from simulated
+        ``qpos`` for the next tracking iteration.
+
+        Args:
+            bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
+                configured with ``physics_mode=True``.
+
+        Returns:
+            ``True`` when both agents reached the goal.
+        """
+        if self.finished:
+            return True
+
+        rrt_cmd, rrt_metrics = _agent_world_velocity_command(
+            self.rrt_loop,
+            self.rrt_path,
+            agent_finished=self.rrt_finish is not None,
+        )
+        sst_cmd, sst_metrics = _agent_world_velocity_command(
+            self.sst_loop,
+            self.sst_path,
+            agent_finished=self.sst_finish is not None,
+        )
+        commands = np.array([*rrt_cmd, *sst_cmd], dtype=np.float64)
+        bridge.step_physics(commands)
+        _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
+        _sync_vehicle_pose(self.sst_vehicle, bridge.get_sst_pose())
+
+        self.max_cross_track_error_m = max(
+            self.max_cross_track_error_m,
+            abs(float(rrt_metrics["cross_track_error"])),
+            abs(float(sst_metrics["cross_track_error"])),
+        )
+
+        if self.rrt_finish is None and (
+            _distance_to_goal(self.rrt_vehicle.pose, self.world.goal_xy)
+            <= self.goal_radius
+        ):
+            self.rrt_finish = self.sim_time_s
+
+        if self.sst_finish is None and (
+            _distance_to_goal(self.sst_vehicle.pose, self.world.goal_xy)
+            <= self.goal_radius
+        ):
+            self.sst_finish = self.sim_time_s
+
+        self.rrt_pose_history.append(self.rrt_vehicle.pose)
+        self.sst_pose_history.append(self.sst_vehicle.pose)
+        self.sim_time_s += self.dt
+        return self.finished
+
     def to_result(
         self,
         rrt_plan: AgentPlanResult,
@@ -413,6 +468,53 @@ def _min_pose_history_clearance(
             for pose in poses
         )
     )
+
+
+def _agent_world_velocity_command(
+    loop: TrackingLoop,
+    path: list[tuple[float, float]],
+    *,
+    agent_finished: bool,
+) -> tuple[tuple[float, float, float], dict[str, Any]]:
+    """Return world ``(v_x, v_y, omega)`` without integrating the vehicle."""
+    if agent_finished:
+        return (0.0, 0.0, 0.0), {
+            "cross_track_error": 0.0,
+            "heading_error": 0.0,
+            "pose": loop.vehicle.pose,
+            "speed": 0.0,
+            "turn_rate": 0.0,
+            "curvature": 0.0,
+            "repulsion_turn_rate": 0.0,
+        }
+
+    pose = loop.vehicle.pose
+    speed_ref = loop.cruise_speed / (
+        1.0 + loop.curvature_gain * abs(loop.controller.curvature)
+    )
+    speed_cmd, turn_rate_cmd = loop.controller.track(pose, path, speed_ref)
+    x, y, theta = pose
+    repulsion = loop._repulsion_turn_rate(x, y, theta)
+    turn_rate_cmd += repulsion
+    vx = speed_cmd * math.cos(theta)
+    vy = speed_cmd * math.sin(theta)
+    metrics: dict[str, Any] = {
+        "cross_track_error": loop.controller.cross_track_error,
+        "heading_error": loop.controller.heading_error,
+        "pose": pose,
+        "speed": speed_cmd,
+        "turn_rate": turn_rate_cmd,
+        "curvature": loop.controller.curvature,
+        "repulsion_turn_rate": repulsion,
+    }
+    return (vx, vy, turn_rate_cmd), metrics
+
+
+def _sync_vehicle_pose(vehicle: Any, pose: npt.NDArray[np.float64]) -> None:
+    """Copy simulated ``(x, y, heading)`` into a Dubins vehicle model."""
+    vehicle.x = float(pose[0])
+    vehicle.y = float(pose[1])
+    vehicle.heading = float(pose[2])
 
 
 def _distance_to_goal(
