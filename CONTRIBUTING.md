@@ -54,7 +54,7 @@ The specification stack is in place:
 | Level | Specification artifacts | Validation artifacts |
 | --- | --- | --- |
 | 1 — Functional | [docs/requirements.md](docs/requirements.md) (`FR-*`), [docs/scenarios.md](docs/scenarios.md) (`SC-*`) | Scenario pass criteria, integration tests |
-| 2 — Architecture | [README.md § Architecture](../README.md#architecture), [docs/interfaces.md](docs/interfaces.md) | `tests/integration/`, `.github/workflows/integration.yml` |
+| 2 — Architecture | [README.md § Architecture](../README.md#architecture), [docs/interfaces.md](docs/interfaces.md) | `tests/integration/`, `.github/workflows/tests.yml` (integration job) |
 | 3 — Module API | Typed stubs under `src/fret/` | `tests/` mirroring `src/fret/` |
 | 4 — Implementation | Filled algorithms and ROS nodes | Full CI suite, SITL smoke tests |
 
@@ -207,7 +207,7 @@ exists and has a matching `SC-*` scenario or test.
 | Side | Artifact | FRET location |
 | --- | --- | --- |
 | **Specify** | Layer decomposition, data flows, typed contracts, QoS, FSMs | [README.md § Architecture](../README.md#architecture), [docs/interfaces.md](docs/interfaces.md) |
-| **Verify** | Inter-node contract tests | `tests/integration/`, `.github/workflows/integration.yml` |
+| **Verify** | Inter-node contract tests | `tests/integration/`, `.github/workflows/tests.yml` (integration job) |
 
 **Rule:** No Level 3 work on a new module boundary until
 [docs/interfaces.md](docs/interfaces.md) defines the typed interface.
@@ -352,6 +352,7 @@ bash scripts/check/pre_push.sh
 bash scripts/check/formatting.sh
 bash scripts/check/types.sh
 bash scripts/tests/unit.sh
+bash scripts/tests/unit_shard.sh control  # CI shard: control | planning | scene | simulation
 bash scripts/tests/smoke.sh          # requires ROS + xvfb
 bash scripts/tests/integration.sh    # requires ROS + xvfb
 ```
@@ -362,8 +363,7 @@ bash scripts/tests/integration.sh    # requires ROS + xvfb
 | --- | --- | --- |
 | `formatting.yml` | PR | Black, isort, clang-format |
 | `type_check.yml` | PR | mypy strict on `src/` |
-| `tests.yml` | PR | pytest, smoke tests |
-| `integration.yml` | PR | `launch_testing` integration scenarios |
+| `tests.yml` | PR | Parallel jobs: unit shards (4×), coverage gate, smoke, integration |
 
 ### Coverage and style
 
