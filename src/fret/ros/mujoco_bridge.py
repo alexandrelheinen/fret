@@ -1,20 +1,25 @@
-"""MuJoCo backend adapter for FRET simulator I/O (v1.0).
+"""MuJoCo backend adapter for FRET simulator I/O (v1.0 + v1.2 physics).
 
 Level-3 ``MuJoCoBridgeCore`` integrates joint velocity commands against an
 MJCF scene without requiring a live ROS context.  When the optional
 ``mujoco`` package is installed the core also keeps an ``MjModel`` /
 ``MjData`` pair in sync for forward kinematics and future rendering hooks.
 
+In **physics mode** (v1.2), velocity commands drive MuJoCo actuators and
+``mj_step`` advances the simulation; joint state is read from ``qpos`` /
+``qvel`` (FR-SIM-07).
+
 Level-4 ``MuJoCoBridgeNode`` subscribes to ``/joint_commands`` and publishes
 ``/joint_states`` at the configured rate (default 50 Hz).
 
-Satisfies requirements FR-SIM-01 and FR-SIM-02.
+Satisfies requirements FR-SIM-01, FR-SIM-02, and FR-SIM-09.
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -54,6 +59,154 @@ _SST_JOINT_NAMES: list[str] = [
 ]
 
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
+_DEFAULT_MJCF_TIMESTEP_S: float = 0.002
+_DEFAULT_SUBSTEPS_PER_TICK: int = 25
+
+
+@dataclass(frozen=True)
+class ActuatorTable:
+    """Runtime actuator gain table loaded from ``simulation/mujoco.yml``."""
+
+    names: tuple[str, ...]
+    kv: tuple[float, ...]
+    forcerange: tuple[tuple[float, float], ...]
+
+
+@dataclass(frozen=True)
+class PhysicsBridgeConfig:
+    """Physics SITL settings for MuJoCo bridge cores (v1.2)."""
+
+    physics_mode: bool
+    substeps_per_tick: int
+    actuators: ActuatorTable | None
+
+
+def _parse_bool(value: Any) -> bool:
+    """Parse ROS / YAML boolean parameters."""
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "1", "yes", "on"}
+
+
+def _require_actuator_table(cfg: dict[str, Any], model: str) -> ActuatorTable:
+    """Load and validate the actuator table for ``model``."""
+    actuators = cfg.get("actuators")
+    if not isinstance(actuators, dict):
+        raise ValueError("physics_mode requires 'actuators' in mujoco.yml")
+
+    section = actuators.get(model)
+    if not isinstance(section, dict):
+        raise ValueError(
+            f"physics_mode requires actuators.{model} in mujoco.yml"
+        )
+
+    names_raw = section.get("names")
+    kv_raw = section.get("kv")
+    force_raw = section.get("forcerange")
+    if not isinstance(names_raw, list) or not names_raw:
+        raise ValueError(f"actuators.{model}.names must be a non-empty list")
+    if not isinstance(kv_raw, list) or len(kv_raw) != len(names_raw):
+        raise ValueError(
+            f"actuators.{model}.kv must match names length "
+            f"({len(names_raw)})"
+        )
+    if not isinstance(force_raw, list) or len(force_raw) != len(names_raw):
+        raise ValueError(
+            f"actuators.{model}.forcerange must match names length "
+            f"({len(names_raw)})"
+        )
+
+    forcerange: list[tuple[float, float]] = []
+    for entry in force_raw:
+        if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+            raise ValueError(
+                f"actuators.{model}.forcerange entries must be [min, max]"
+            )
+        forcerange.append((float(entry[0]), float(entry[1])))
+
+    return ActuatorTable(
+        names=tuple(str(name) for name in names_raw),
+        kv=tuple(float(v) for v in kv_raw),
+        forcerange=tuple(forcerange),
+    )
+
+
+def physics_config_from_bridge_yaml(
+    cfg: dict[str, Any],
+    model: str,
+    *,
+    physics_mode: bool | None = None,
+) -> PhysicsBridgeConfig:
+    """Build :class:`PhysicsBridgeConfig` from bridge YAML parameters."""
+    mode = (
+        _parse_bool(physics_mode)
+        if physics_mode is not None
+        else _parse_bool(cfg.get("physics_mode", False))
+    )
+    substeps = int(cfg.get("substeps_per_tick", _DEFAULT_SUBSTEPS_PER_TICK))
+    if substeps <= 0:
+        raise ValueError("substeps_per_tick must be positive")
+
+    actuators = _require_actuator_table(cfg, model) if mode else None
+    return PhysicsBridgeConfig(
+        physics_mode=mode,
+        substeps_per_tick=substeps,
+        actuators=actuators,
+    )
+
+
+def _bind_joint_addresses(
+    model: Any,
+    mujoco: Any,
+    joint_names: list[str],
+) -> tuple[list[int], list[int]]:
+    """Return ``(qpos_adrs, qvel_adrs)`` for ordered joint names."""
+    qpos_adrs: list[int] = []
+    qvel_adrs: list[int] = []
+    for name in joint_names:
+        joint_id = mujoco.mj_name2id(
+            model,
+            mujoco.mjtObj.mjOBJ_JOINT,
+            name,
+        )
+        if joint_id < 0:
+            raise ValueError(f"Joint not found in MJCF: {name}")
+        qpos_adrs.append(int(model.jnt_qposadr[joint_id]))
+        qvel_adrs.append(int(model.jnt_dofadr[joint_id]))
+    return qpos_adrs, qvel_adrs
+
+
+def _bind_actuator_ids(
+    model: Any,
+    mujoco: Any,
+    actuator_names: tuple[str, ...],
+) -> list[int]:
+    """Return MuJoCo actuator ids in command order."""
+    actuator_ids: list[int] = []
+    for name in actuator_names:
+        act_id = mujoco.mj_name2id(
+            model,
+            mujoco.mjtObj.mjOBJ_ACTUATOR,
+            name,
+        )
+        if act_id < 0:
+            raise ValueError(f"Actuator not found in MJCF: {name}")
+        actuator_ids.append(int(act_id))
+    return actuator_ids
+
+
+def _apply_actuator_gains(model: Any, table: ActuatorTable) -> None:
+    """Apply YAML actuator gains to an ``MjModel``."""
+    if model.nu != len(table.names):
+        raise ValueError(
+            f"MJCF has {model.nu} actuators; expected {len(table.names)}"
+        )
+    for idx, (kv, (fmin, fmax)) in enumerate(
+        zip(table.kv, table.forcerange, strict=True)
+    ):
+        model.actuator_gainprm[idx, 0] = float(kv)
+        model.actuator_forcerange[idx, 0] = float(fmin)
+        model.actuator_forcerange[idx, 1] = float(fmax)
 
 
 def _project_root() -> pathlib.Path:
@@ -123,6 +276,7 @@ def make_mujoco_bridge_core(
     *,
     mjcf_path: str | pathlib.Path | None = None,
     initial_positions: npt.NDArray[np.float64] | None = None,
+    physics_config: PhysicsBridgeConfig | None = None,
 ) -> MuJoCoBridgeCore:
     """Build a model-appropriate MuJoCo bridge core (FR-SYS-01).
 
@@ -131,6 +285,7 @@ def make_mujoco_bridge_core(
         scenario: Scenario stem used for MJCF resolution.
         mjcf_path: Optional explicit MJCF path override.
         initial_positions: Optional initial joint configuration.
+        physics_config: Optional physics SITL settings (v1.2).
 
     Returns:
         Configured ``MuJoCoBridgeCore`` instance.
@@ -149,12 +304,15 @@ def make_mujoco_bridge_core(
         if q0.shape != (kin.dof,):
             raise ValueError(f"initial_positions must have shape ({kin.dof},)")
 
-        return MuJoCoBridgeCore(
+        core = MuJoCoBridgeCore(
             mjcf_path=resolved,
             joint_names=kin.joint_names,
             limits=_PPP_MJCF_LIMITS,
             initial_positions=q0,
         )
+        if physics_config is not None:
+            core.configure_physics(physics_config)
+        return core
 
     if model == "dubins":
         raise ValueError(
@@ -193,12 +351,40 @@ class MuJoCoBridgeCore:
             self._limits[:, 1],
         )
         self._velocities = np.zeros_like(self._positions)
+        self._physics_mode = False
+        self._substeps_per_tick = _DEFAULT_SUBSTEPS_PER_TICK
+        self._actuator_ids: list[int] = []
         self._mujoco: Any | None = None
         self._model: Any | None = None
         self._data: Any | None = None
         self._qpos_adrs: list[int] = []
+        self._qvel_adrs: list[int] = []
         self._load_mujoco_optional()
-        self._write_mujoco_state()
+        self._seed_mujoco_state()
+
+    @property
+    def physics_mode(self) -> bool:
+        """Return ``True`` when actuator-driven ``mj_step`` is active."""
+        return self._physics_mode
+
+    def configure_physics(self, config: PhysicsBridgeConfig) -> None:
+        """Enable or disable physics SITL mode (v1.2)."""
+        self._physics_mode = bool(config.physics_mode)
+        self._substeps_per_tick = int(config.substeps_per_tick)
+        if not self._physics_mode:
+            return
+        if self._model is None or self._mujoco is None:
+            raise RuntimeError(
+                "physics_mode requires the optional mujoco package"
+            )
+        if config.actuators is None:
+            raise ValueError("physics_mode requires actuator configuration")
+        self._actuator_ids = _bind_actuator_ids(
+            self._model,
+            self._mujoco,
+            config.actuators.names,
+        )
+        _apply_actuator_gains(self._model, config.actuators)
 
     @property
     def joint_names(self) -> list[str]:
@@ -233,7 +419,14 @@ class MuJoCoBridgeCore:
 
         Args:
             positions: Joint configuration, shape ``(DOF,)``.
+
+        Raises:
+            RuntimeError: When ``physics_mode`` is active (FR-SIM-07).
         """
+        if self._physics_mode:
+            raise RuntimeError(
+                "set_positions() is forbidden while physics_mode is active"
+            )
         q = np.asarray(positions, dtype=np.float64)
         if q.shape != self._positions.shape:
             raise ValueError(
@@ -241,6 +434,53 @@ class MuJoCoBridgeCore:
             )
         self._positions = np.clip(q, self._limits[:, 0], self._limits[:, 1])
         self._write_mujoco_state()
+
+    def step_physics(
+        self,
+        velocities: npt.NDArray[np.float64],
+        *,
+        substeps: int | None = None,
+    ) -> npt.NDArray[np.float64]:
+        """Advance the MuJoCo simulation with velocity actuator commands.
+
+        Args:
+            velocities: Target joint velocities, shape ``(DOF,)``.
+            substeps: Optional override for ``mj_step`` count per tick.
+
+        Returns:
+            Simulated joint positions read from ``qpos``.
+
+        Raises:
+            RuntimeError: When MuJoCo is unavailable or physics is disabled.
+        """
+        if not self._physics_mode:
+            raise RuntimeError("step_physics() requires physics_mode=True")
+        if self._model is None or self._data is None or self._mujoco is None:
+            raise RuntimeError("step_physics() requires the mujoco package")
+
+        v = np.asarray(velocities, dtype=np.float64)
+        if v.shape != self._positions.shape:
+            raise ValueError(
+                f"Expected velocity shape {self._positions.shape}, got {v.shape}"
+            )
+        if len(self._actuator_ids) != v.shape[0]:
+            raise RuntimeError("Actuator count does not match DOF")
+
+        self._velocities = v.copy()
+        for idx, act_id in enumerate(self._actuator_ids):
+            self._data.ctrl[act_id] = float(v[idx])
+
+        step_count = (
+            self._substeps_per_tick if substeps is None else int(substeps)
+        )
+        if step_count <= 0:
+            raise ValueError("substeps must be positive")
+
+        for _ in range(step_count):
+            self._mujoco.mj_step(self._model, self._data)
+
+        self._read_state_from_mujoco()
+        return self._positions.copy()
 
     def step(
         self,
@@ -256,6 +496,8 @@ class MuJoCoBridgeCore:
         Returns:
             Updated joint positions after integration.
         """
+        if self._physics_mode:
+            return self.step_physics(velocities)
         v = np.asarray(velocities, dtype=np.float64)
         if v.shape != self._positions.shape:
             raise ValueError(
@@ -280,21 +522,44 @@ class MuJoCoBridgeCore:
         self._mujoco = mujoco
         self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
         self._data = mujoco.MjData(self._model)
-        adrs: list[int] = []
-        for name in self._joint_names:
-            joint_id = mujoco.mj_name2id(
-                self._model,
-                mujoco.mjtObj.mjOBJ_JOINT,
-                name,
-            )
-            if joint_id < 0:
-                raise ValueError(f"Joint not found in MJCF: {name}")
-            adrs.append(int(self._model.jnt_qposadr[joint_id]))
-        self._qpos_adrs = adrs
+        self._qpos_adrs, self._qvel_adrs = _bind_joint_addresses(
+            self._model,
+            mujoco,
+            self._joint_names,
+        )
+
+    def _seed_mujoco_state(self) -> None:
+        """Write initial ``qpos`` once at construction (before physics mode)."""
+        if self._model is None or self._data is None or self._mujoco is None:
+            return
+        for idx, adr in enumerate(self._qpos_adrs):
+            self._data.qpos[adr] = float(self._positions[idx])
+        self._mujoco.mj_forward(self._model, self._data)
+
+    def _read_state_from_mujoco(self) -> None:
+        if self._model is None or self._data is None:
+            return
+        positions = np.empty(len(self._qpos_adrs), dtype=np.float64)
+        velocities = np.empty(len(self._qvel_adrs), dtype=np.float64)
+        for idx, (qpos_adr, qvel_adr) in enumerate(
+            zip(self._qpos_adrs, self._qvel_adrs, strict=True)
+        ):
+            positions[idx] = float(self._data.qpos[qpos_adr])
+            velocities[idx] = float(self._data.qvel[qvel_adr])
+        self._positions = np.clip(
+            positions,
+            self._limits[:, 0],
+            self._limits[:, 1],
+        )
+        self._velocities = velocities
 
     def _write_mujoco_state(self) -> None:
         if self._model is None or self._data is None or self._mujoco is None:
             return
+        if self._physics_mode:
+            raise RuntimeError(
+                "pose injection is forbidden while physics_mode is active"
+            )
         for idx, adr in enumerate(self._qpos_adrs):
             self._data.qpos[adr] = float(self._positions[idx])
         self._mujoco.mj_forward(self._model, self._data)
@@ -303,9 +568,14 @@ class MuJoCoBridgeCore:
 class DubinsRaceBridgeCore:
     """MuJoCo state mirror for the dual-agent Dubins race scene.
 
-    Writes RRT* and SST vehicle poses into ``dubins_race.xml`` joint
-    coordinates without integrating dynamics (poses come from ARCO tracking).
+    In kinematic mode, writes RRT* and SST vehicle poses into
+    ``dubins_race.xml`` joint coordinates without integrating dynamics.
+
+    In physics mode (v1.2), six velocity actuators are driven via
+    :meth:`step_physics` and poses are read from simulated ``qpos``.
     """
+
+    _JOINT_NAMES: tuple[str, ...] = tuple(_RRT_JOINT_NAMES + _SST_JOINT_NAMES)
 
     def __init__(
         self,
@@ -313,6 +583,7 @@ class DubinsRaceBridgeCore:
         mjcf_path: str | pathlib.Path | None = None,
         initial_rrt: npt.NDArray[np.float64] | None = None,
         initial_sst: npt.NDArray[np.float64] | None = None,
+        physics_config: PhysicsBridgeConfig | None = None,
     ) -> None:
         resolved = resolve_mjcf_path("dubins", "dubins_race", mjcf_path)
         self._mjcf_path = resolved
@@ -339,8 +610,39 @@ class DubinsRaceBridgeCore:
         self._model: Any | None = None
         self._data: Any | None = None
         self._joint_adrs: dict[str, int] = {}
+        self._qvel_adrs: dict[str, int] = {}
+        self._physics_mode = False
+        self._substeps_per_tick = _DEFAULT_SUBSTEPS_PER_TICK
+        self._actuator_ids: list[int] = []
+        self._velocities = np.zeros(6, dtype=np.float64)
         self._load_mujoco_optional()
-        self._write_mujoco_state()
+        self._seed_mujoco_state()
+        if physics_config is not None:
+            self.configure_physics(physics_config)
+
+    @property
+    def physics_mode(self) -> bool:
+        """Return ``True`` when actuator-driven ``mj_step`` is active."""
+        return self._physics_mode
+
+    def configure_physics(self, config: PhysicsBridgeConfig) -> None:
+        """Enable or disable physics SITL mode (v1.2)."""
+        self._physics_mode = bool(config.physics_mode)
+        self._substeps_per_tick = int(config.substeps_per_tick)
+        if not self._physics_mode:
+            return
+        if self._model is None or self._mujoco is None:
+            raise RuntimeError(
+                "physics_mode requires the optional mujoco package"
+            )
+        if config.actuators is None:
+            raise ValueError("physics_mode requires actuator configuration")
+        self._actuator_ids = _bind_actuator_ids(
+            self._model,
+            self._mujoco,
+            config.actuators.names,
+        )
+        _apply_actuator_gains(self._model, config.actuators)
 
     @property
     def mjcf_path(self) -> pathlib.Path:
@@ -354,12 +656,20 @@ class DubinsRaceBridgeCore:
 
     def set_rrt_pose(self, pose: tuple[float, float, float]) -> None:
         """Update RRT* agent pose ``(x, y, heading)``."""
+        if self._physics_mode:
+            raise RuntimeError(
+                "set_rrt_pose() is forbidden while physics_mode is active"
+            )
         self._rrt = np.array(pose, dtype=np.float64)
         self._rrt = np.clip(self._rrt, self._limits[:, 0], self._limits[:, 1])
         self._write_mujoco_state()
 
     def set_sst_pose(self, pose: tuple[float, float, float]) -> None:
         """Update SST agent pose ``(x, y, heading)``."""
+        if self._physics_mode:
+            raise RuntimeError(
+                "set_sst_pose() is forbidden while physics_mode is active"
+            )
         self._sst = np.array(pose, dtype=np.float64)
         self._sst = np.clip(self._sst, self._limits[:, 0], self._limits[:, 1])
         self._write_mujoco_state()
@@ -372,6 +682,42 @@ class DubinsRaceBridgeCore:
         """Return SST pose copy."""
         return self._sst.copy()
 
+    def get_joint_velocities(self) -> npt.NDArray[np.float64]:
+        """Return the most recent six-DOF velocity commands."""
+        return self._velocities.copy()
+
+    def step_physics(
+        self,
+        velocities: npt.NDArray[np.float64],
+        *,
+        substeps: int | None = None,
+    ) -> npt.NDArray[np.float64]:
+        """Advance both agents with six velocity actuator commands."""
+        if not self._physics_mode:
+            raise RuntimeError("step_physics() requires physics_mode=True")
+        if self._model is None or self._data is None or self._mujoco is None:
+            raise RuntimeError("step_physics() requires the mujoco package")
+
+        v = np.asarray(velocities, dtype=np.float64).reshape(6)
+        if len(self._actuator_ids) != 6:
+            raise RuntimeError("Dubins race MJCF must expose six actuators")
+
+        self._velocities = v.copy()
+        for idx, act_id in enumerate(self._actuator_ids):
+            self._data.ctrl[act_id] = float(v[idx])
+
+        step_count = (
+            self._substeps_per_tick if substeps is None else int(substeps)
+        )
+        if step_count <= 0:
+            raise ValueError("substeps must be positive")
+
+        for _ in range(step_count):
+            self._mujoco.mj_step(self._model, self._data)
+
+        self._read_state_from_mujoco()
+        return np.concatenate([self._rrt, self._sst]).astype(np.float64)
+
     def _load_mujoco_optional(self) -> None:
         try:
             import mujoco
@@ -382,24 +728,59 @@ class DubinsRaceBridgeCore:
             self._mujoco = mujoco
             self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
             self._data = mujoco.MjData(self._model)
-            for name in _RRT_JOINT_NAMES + _SST_JOINT_NAMES:
-                joint_id = mujoco.mj_name2id(
-                    self._model,
-                    mujoco.mjtObj.mjOBJ_JOINT,
-                    name,
-                )
-                if joint_id < 0:
-                    raise ValueError(f"Joint not found in MJCF: {name}")
-                self._joint_adrs[name] = int(self._model.jnt_qposadr[joint_id])
+            qpos_adrs, qvel_adrs = _bind_joint_addresses(
+                self._model,
+                mujoco,
+                list(self._JOINT_NAMES),
+            )
+            for name, adr in zip(self._JOINT_NAMES, qpos_adrs, strict=True):
+                self._joint_adrs[name] = adr
+            for name, adr in zip(self._JOINT_NAMES, qvel_adrs, strict=True):
+                self._qvel_adrs[name] = adr
         except Exception:
             self._mujoco = None
             self._model = None
             self._data = None
             self._joint_adrs = {}
+            self._qvel_adrs = {}
+
+    def _seed_mujoco_state(self) -> None:
+        """Write initial agent poses once at construction."""
+        if self._model is None or self._data is None or self._mujoco is None:
+            return
+        mapping = {
+            "rrt_joint_x": float(self._rrt[0]),
+            "rrt_joint_y": float(self._rrt[1]),
+            "rrt_joint_yaw": float(self._rrt[2]),
+            "sst_joint_x": float(self._sst[0]),
+            "sst_joint_y": float(self._sst[1]),
+            "sst_joint_yaw": float(self._sst[2]),
+        }
+        for name, value in mapping.items():
+            adr = self._joint_adrs.get(name)
+            if adr is not None:
+                self._data.qpos[adr] = value
+        self._mujoco.mj_forward(self._model, self._data)
+
+    def _read_state_from_mujoco(self) -> None:
+        if self._data is None:
+            return
+        rrt = np.empty(3, dtype=np.float64)
+        sst = np.empty(3, dtype=np.float64)
+        for idx, name in enumerate(_RRT_JOINT_NAMES):
+            rrt[idx] = float(self._data.qpos[self._joint_adrs[name]])
+        for idx, name in enumerate(_SST_JOINT_NAMES):
+            sst[idx] = float(self._data.qpos[self._joint_adrs[name]])
+        self._rrt = np.clip(rrt, self._limits[:, 0], self._limits[:, 1])
+        self._sst = np.clip(sst, self._limits[:, 0], self._limits[:, 1])
 
     def _write_mujoco_state(self) -> None:
         if self._model is None or self._data is None or self._mujoco is None:
             return
+        if self._physics_mode:
+            raise RuntimeError(
+                "pose injection is forbidden while physics_mode is active"
+            )
         mapping = {
             "rrt_joint_x": float(self._rrt[0]),
             "rrt_joint_y": float(self._rrt[1]),
@@ -420,12 +801,14 @@ def make_dubins_race_bridge_core(
     mjcf_path: str | pathlib.Path | None = None,
     initial_rrt: npt.NDArray[np.float64] | None = None,
     initial_sst: npt.NDArray[np.float64] | None = None,
+    physics_config: PhysicsBridgeConfig | None = None,
 ) -> DubinsRaceBridgeCore:
     """Build a dual-agent MuJoCo bridge for SC-v11."""
     return DubinsRaceBridgeCore(
         mjcf_path=mjcf_path,
         initial_rrt=initial_rrt,
         initial_sst=initial_sst,
+        physics_config=physics_config,
     )
 
 
@@ -511,6 +894,14 @@ class MuJoCoBridgeNode:
             "initial_joint_positions",
             list(cfg.get("initial_joint_positions", [0.0, 0.0, 0.0])),
         )
+        self._node.declare_parameter(
+            "physics_mode",
+            _parse_bool(cfg.get("physics_mode", False)),
+        )
+        self._node.declare_parameter(
+            "substeps_per_tick",
+            int(cfg.get("substeps_per_tick", _DEFAULT_SUBSTEPS_PER_TICK)),
+        )
 
         model_name = str(
             self._node.get_parameter("model")
@@ -534,11 +925,26 @@ class MuJoCoBridgeNode:
         )
         q0 = np.asarray(initial, dtype=np.float64)
 
+        physics_mode = _parse_bool(
+            self._node.get_parameter("physics_mode").value
+        )
+        cfg_for_physics = dict(cfg)
+        cfg_for_physics["physics_mode"] = physics_mode
+        cfg_for_physics["substeps_per_tick"] = int(
+            self._node.get_parameter("substeps_per_tick").value
+        )
+        physics_config = physics_config_from_bridge_yaml(
+            cfg_for_physics,
+            model_name,
+            physics_mode=physics_mode,
+        )
+
         self._core = make_mujoco_bridge_core(
             model_name,
             scenario_name,
             mjcf_path=mjcf_path,
             initial_positions=q0,
+            physics_config=physics_config,
         )
         self._latest_cmd = np.zeros(
             self._core.get_positions().shape, dtype=np.float64
@@ -568,6 +974,7 @@ class MuJoCoBridgeNode:
             f"model={model_name}, scenario={scenario_name}, "
             f"mjcf={self._core.mjcf_path.name}, "
             f"rate={self._update_rate} Hz, "
+            f"physics_mode={self._core.physics_mode}, "
             f"mujoco_runtime={self._core.has_mujoco_runtime}"
         )
 
@@ -616,11 +1023,14 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
 
 __all__ = [
+    "ActuatorTable",
     "DubinsRaceBridgeCore",
     "MuJoCoBridgeCore",
     "MuJoCoBridgeNode",
+    "PhysicsBridgeConfig",
     "integrate_joint_velocities",
     "make_dubins_race_bridge_core",
     "make_mujoco_bridge_core",
+    "physics_config_from_bridge_yaml",
     "resolve_mjcf_path",
 ]
