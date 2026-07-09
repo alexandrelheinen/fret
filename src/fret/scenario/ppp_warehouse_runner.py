@@ -157,9 +157,9 @@ def _track_carrot_path(
 ) -> float:
     """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
     from fret.control.path_tracking import (
+        _subsample_path,
         densify_polyline,
         simulate_joint_carrot_tracking,
-        _subsample_path,
     )
 
     dense = densify_polyline(

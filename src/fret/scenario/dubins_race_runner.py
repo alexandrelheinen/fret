@@ -289,9 +289,7 @@ def _postprocess_vehicle_path(
         pipeline = PlanningPipeline(pruner=pruner, optimizer=optimizer)
         result = pipeline.run_from_path(dense)
         if result.trajectory and len(result.trajectory) >= 2:
-            return [
-                np.asarray(p, dtype=np.float64) for p in result.trajectory
-            ]
+            return [np.asarray(p, dtype=np.float64) for p in result.trajectory]
     except Exception:
         pass
 
