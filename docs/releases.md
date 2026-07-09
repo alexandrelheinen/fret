@@ -220,7 +220,8 @@ simulation foundation required for v1.3+ arm releases.
 - Regression clips when physics path diverges from kinematic baseline
 - CI smoke tests with `physics_mode:=true` for PPP and Dubins
 
-Full integration spec: [mujoco.md](mujoco.md).
+Full integration spec: [mujoco.md](mujoco.md) ·
+[v1.2 implementation spec](mujoco_physics_v1.2.md).
 
 ### Scenario IDs
 
@@ -254,7 +255,7 @@ Physics validation runs against existing release scenarios:
 | T12-05 | Contact logging harness + metrics |
 | T12-06 | Physics integration tests (PPP + Dubins) |
 | T12-07 | Update showcase scripts to support physics mode (optional flag) |
-| T12-08 | Document tuning workflow in [mujoco.md](mujoco.md) |
+| T12-08 | Document tuning workflow in [mujoco.md](mujoco.md) and [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) |
 
 ---
 
