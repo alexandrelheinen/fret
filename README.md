@@ -370,6 +370,8 @@ bash scripts/check/pre_push.sh
 
 | Topic | Document |
 |---|---|
+| **v1.2 physics implementation spec** | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
+| Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |
 | PPP gantry | [docs/robots/ppp.md](docs/robots/ppp.md) |
