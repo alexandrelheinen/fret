@@ -491,7 +491,7 @@ bash scripts/check/pre_push.sh
 | `tests.yml` | Parallel: unit shards (4×), coverage gate, smoke, integration |
 | `formatting.yml` | Black, isort, clang-format |
 | `type_check.yml` | mypy strict |
-| `release.yml` | Showcase MP4 on version tags (PPP + Dubins) |
+| `release.yml` | Parallel showcase renders (PPP + Dubins) + R2 publish on version tags |
 
 ---
 

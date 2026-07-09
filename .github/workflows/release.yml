@@ -22,35 +22,22 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-jobs:
-  showcase-video:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  MUJOCO_GL: egl
+  PYOPENGL_PLATFORM: egl
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      MUJOCO_GL: egl
-      PYOPENGL_PLATFORM: egl
-      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+jobs:
+  render-ppp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install EGL/Mesa and Python render deps
-        run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            ffmpeg \
-            libegl1 \
-            libegl-mesa0 \
-            libgles2 \
-            libgl1 \
-            libgl1-mesa-dri \
-            libosmesa6
-          python3 -m pip install --break-system-packages --upgrade pip
-          python3 -m pip install --break-system-packages -e ".[sim]" awscli
+      - name: Install render dependencies
+        uses: ./.github/actions/release-render-setup
 
       - name: Render PPP warehouse showcase clips
         run: |
@@ -67,6 +54,24 @@ jobs:
             --width 1280 \
             --height 720
 
+      - name: Upload PPP showcase artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: showcase-ppp
+          path: showcase_renders/
+          if-no-files-found: error
+
+  render-dubins:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install render dependencies
+        uses: ./.github/actions/release-render-setup
+
       - name: Render Dubins race showcase clips
         run: |
           ./scripts/video.sh \
@@ -82,111 +87,47 @@ jobs:
             --width 1280 \
             --height 720
 
+      - name: Upload Dubins showcase artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: showcase-dubins
+          path: showcase_renders/
+          if-no-files-found: error
+
+  publish:
+    needs: [render-ppp, render-dubins]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download showcase renders
+        uses: actions/download-artifact@v4
+        with:
+          pattern: showcase-*
+          merge-multiple: true
+          path: .
+
       - name: List rendered showcase files
         run: ls -la showcase_renders/
 
       - name: Write release metadata
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ github.event.inputs.release_tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-          python3 - <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          tag = os.environ["TAG"]
-          renders = sorted(Path("showcase_renders").glob("*.mp4"))
-          if not renders:
-              raise SystemExit("No showcase MP4 files were produced")
-
-          expected = {
-              "ppp_warehouse": {
-                  "model": "ppp",
-                  "timing_file": "ppp_timing.json",
-                  "primary_video": "ppp_warehouse_overview.mp4",
-              },
-              "dubins_race": {
-                  "model": "dubins",
-                  "timing_file": "dubins_timing.json",
-                  "primary_video": "dubins_race_overview.mp4",
-              },
-          }
-
-          showcases = []
-          for scenario, cfg in expected.items():
-              prefix = f"{scenario}_"
-              scenario_files = [p for p in renders if p.name.startswith(prefix)]
-              if not scenario_files:
-                  raise SystemExit(f"Missing showcase clips for {scenario}")
-
-              timing_path = Path("showcase_renders") / cfg["timing_file"]
-              if not timing_path.is_file():
-                  raise SystemExit(f"Missing timing metadata: {timing_path}")
-              timing_data = json.loads(timing_path.read_text(encoding="utf-8"))
-              clip_timing = {
-                  item["file"]: item for item in timing_data.get("clips", [])
-              }
-
-              videos = []
-              duration_s = 0.0
-              for path in sorted(scenario_files):
-                  camera = path.stem.removeprefix(prefix)
-                  timing = clip_timing.get(path.name, {})
-                  sim_time_s = float(timing.get("sim_time_s", 0.0))
-                  duration_s = max(duration_s, sim_time_s)
-                  videos.append(
-                      {
-                          "camera": camera,
-                          "file": path.name,
-                          "bytes": path.stat().st_size,
-                          "sim_time_s": sim_time_s,
-                          "real_time_factor": float(
-                              timing.get("real_time_factor", 1.0)
-                          ),
-                      }
-                  )
-
-              showcases.append(
-                  {
-                      "scenario": scenario,
-                      "model": cfg["model"],
-                      "duration_s": duration_s,
-                      "realtime_playback": True,
-                      "cameras": [video["camera"] for video in videos],
-                      "videos": videos,
-                      "primary_video": cfg["primary_video"],
-                  }
-              )
-
-          meta = {
-              "repo": "${{ github.repository }}",
-              "git_sha": "${{ github.sha }}",
-              "git_ref": tag,
-              "release_cameras": ["overview", "follow"],
-              "realtime_playback": True,
-              "fps": 30,
-              "width": 1280,
-              "height": 720,
-              "showcases": showcases,
-              "primary_videos": {
-                  item["scenario"]: item["primary_video"] for item in showcases
-              },
-              "rendered_at": datetime.now(timezone.utc).strftime(
-                  "%Y-%m-%dT%H:%M:%SZ"
-              ),
-              "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-          }
-          Path("meta.json").write_text(
-              json.dumps(meta, indent=2) + "\n", encoding="utf-8"
-          )
-          print(json.dumps(meta, indent=2))
-          PY
         env:
           TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
+          WORKFLOW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 scripts/release/write_showcase_meta.py \
+            --renders-dir showcase_renders \
+            --output meta.json \
+            --tag "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --git-sha "${{ github.sha }}" \
+            --workflow-run "${WORKFLOW_RUN}"
 
       - name: Upload GitHub artifacts (backup)
         uses: actions/upload-artifact@v6
@@ -208,6 +149,8 @@ jobs:
           else
             TAG="${{ github.ref_name }}"
           fi
+
+          python3 -m pip install --break-system-packages awscli
 
           for mp4 in showcase_renders/*.mp4; do
             base="$(basename "${mp4}")"
