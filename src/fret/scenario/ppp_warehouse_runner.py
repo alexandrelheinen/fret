@@ -77,6 +77,8 @@ class PPPWarehouseRunResult:
     max_contact_force_n: float = 0.0
     penetration_violations: int = 0
     physics_metrics_path: pathlib.Path | None = None
+    qpos_history: tuple[tuple[float, ...], ...] = ()
+    sim_duration_s: float = 0.0
 
 
 def _parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
@@ -426,6 +428,7 @@ class PPPWarehouseRunner:
         *,
         physics_mode: bool = False,
         contact_log_enabled: bool = False,
+        record_positions: bool = False,
     ) -> PPPWarehouseRunResult:
         """Execute planning, tracking, grasp, and collision validation."""
         bundle = load_scenario_bundle(self._scenario_path)
@@ -574,6 +577,14 @@ class PPPWarehouseRunner:
         grasp_captured = False
         grasp_released = False
         controller_faulted = False
+        qpos_history: list[tuple[float, ...]] = []
+        sim_duration_s = 0.0
+
+        def _record_tick() -> None:
+            if record_positions and bridge.has_mujoco_runtime:
+                qpos_history.append(
+                    tuple(float(v) for v in bridge.snapshot_qpos())
+                )
 
         def _grasp_tick(q: npt.NDArray[np.float64]) -> None:
             nonlocal grasp_captured, grasp_released
@@ -591,6 +602,7 @@ class PPPWarehouseRunner:
                     grasp_captured=grasp_captured,
                 ),
             )
+            _record_tick()
 
         rate_hz = ctrl.update_rate
         dt = 1.0 / rate_hz
@@ -633,8 +645,10 @@ class PPPWarehouseRunner:
                     ctrl._max_joint_velocity,
                 )
                 bridge.step(q_dot, dt)
+                _record_tick()
 
         _grasp_tick(bridge.get_positions())
+        sim_duration_s = float(len(qpos_history)) * dt if qpos_history else 0.0
 
         if grasp_captured:
             cargo_free = _path_is_collision_free(
@@ -679,4 +693,6 @@ class PPPWarehouseRunner:
             max_contact_force_n=max_contact_force_n,
             penetration_violations=penetration_violations,
             physics_metrics_path=physics_metrics_path,
+            qpos_history=tuple(qpos_history),
+            sim_duration_s=sim_duration_s,
         )

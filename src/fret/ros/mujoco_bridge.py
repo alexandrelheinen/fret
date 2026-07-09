@@ -570,6 +570,12 @@ class MuJoCoBridgeCore:
         """Return a copy of the most recent joint velocities."""
         return self._velocities.copy()
 
+    def snapshot_qpos(self) -> npt.NDArray[np.float64]:
+        """Return a copy of the full MuJoCo ``qpos`` vector for render replay."""
+        if self._data is None:
+            raise RuntimeError("snapshot_qpos() requires the mujoco package")
+        return np.array(self._data.qpos, dtype=np.float64, copy=True)
+
     def set_positions(self, positions: npt.NDArray[np.float64]) -> None:
         """Set joint positions directly (clipped to limits).
 

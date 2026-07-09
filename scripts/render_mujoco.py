@@ -980,6 +980,56 @@ def _resample_pose_history(
     )
 
 
+def _resample_qpos_history(
+    history: npt.NDArray[np.float64],
+    n_frames: int,
+) -> npt.NDArray[np.float64]:
+    """Uniformly resample full ``qpos`` logs to ``n_frames`` samples."""
+    if history.shape[0] == 0:
+        raise ValueError("history must contain at least one sample")
+    if history.shape[0] == 1:
+        return np.repeat(history, n_frames, axis=0)
+    indices = np.linspace(0, history.shape[0] - 1, n_frames)
+    resampled = np.zeros((n_frames, history.shape[1]), dtype=np.float64)
+    for i, idx in enumerate(indices):
+        lo = int(np.floor(idx))
+        hi = min(lo + 1, history.shape[0] - 1)
+        alpha = float(idx - lo)
+        resampled[i] = (1.0 - alpha) * history[lo] + alpha * history[hi]
+    return resampled
+
+
+def simulate_ppp_warehouse_qpos(
+    *,
+    duration_s: float | None,
+    fps: int,
+) -> tuple[npt.NDArray[np.float64], float]:
+    """Run PPP warehouse physics SITL and resample ``qpos`` for video export."""
+    _ensure_fret_importable()
+    from fret.scenario.ppp_warehouse_runner import PPPWarehouseRunner
+
+    result = PPPWarehouseRunner().run(
+        physics_mode=True,
+        record_positions=True,
+    )
+    if not result.qpos_history:
+        raise RuntimeError("PPP physics simulation produced no qpos history")
+
+    history = np.asarray(result.qpos_history, dtype=np.float64)
+    sim_time_s = (
+        result.sim_duration_s
+        if result.sim_duration_s > 0.0
+        else float(max(0, history.shape[0] - 1)) * (1.0 / 50.0)
+    )
+    nominal_s = resolve_scenario_duration("ppp_warehouse")
+    if duration_s is None:
+        render_duration_s = min(sim_time_s, nominal_s)
+    else:
+        render_duration_s = float(duration_s)
+    n_frames = max(2, int(round(render_duration_s * fps)))
+    return _resample_qpos_history(history, n_frames), sim_time_s
+
+
 def simulate_dubins_race_poses(
     scenario: str = "dubins_race",
     *,
@@ -1129,6 +1179,28 @@ def _make_dubins_tracking_camera(
     return cam
 
 
+def _apply_qpos_snapshot(
+    mujoco: object,
+    model: object,
+    data: object,
+    qpos: npt.NDArray[np.float64],
+) -> None:
+    """Replay a physics-logged MuJoCo configuration (no pose injection)."""
+    snapshot = np.asarray(qpos, dtype=np.float64).reshape(-1)
+    if snapshot.shape[0] != data.qpos.shape[0]:
+        raise ValueError(
+            f"qpos snapshot length {snapshot.shape[0]} != model nq {data.qpos.shape[0]}"
+        )
+    data.qpos[:] = snapshot
+    mujoco.mj_forward(model, data)
+
+
+def _init_ppp_physics_visuals(mujoco: object, model: object) -> None:
+    """Hide kinematic mocap cargo; physics body ``cargo_box`` carries the load."""
+    _set_geom_alpha(mujoco, model, "cargo_box", 1.0)
+    _set_geom_alpha(mujoco, model, "cargo_floor_box", 0.0)
+
+
 def _apply_dubins_poses(
     mujoco: object,
     model: object,
@@ -1164,7 +1236,7 @@ def render_dubins_race_showcase_videos(
     width: int = 1280,
     height: int = 720,
     realtime_postprocess: bool = True,
-    physics_mode: bool = False,
+    physics_mode: bool = True,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -1475,7 +1547,7 @@ def render_video(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
-    physics_mode: bool = False,
+    physics_mode: bool = True,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -1528,7 +1600,7 @@ def render_showcase_videos(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
-    physics_mode: bool = False,
+    physics_mode: bool = True,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -1573,6 +1645,72 @@ def render_showcase_videos(
     )
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
+
+    if physics_mode:
+        qpos_trajectory, sim_time_s = simulate_ppp_warehouse_qpos(
+            duration_s=duration_s,
+            fps=fps,
+        )
+        render_duration_s = float(len(qpos_trajectory)) / float(fps)
+        timing = ShowcaseTiming(
+            sim_time_s=sim_time_s,
+            render_duration_s=render_duration_s,
+        )
+
+        model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+        data = mujoco.MjData(model)
+        renderer = mujoco.Renderer(model, height=height, width=width)
+        _init_ppp_physics_visuals(mujoco, model)
+
+        for camera in camera_names:
+            _assert_camera_exists(mujoco, model, camera)
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        names = output_names or {
+            camera: showcase_output_name(scenario, camera)
+            for camera in camera_names
+        }
+        paths = {camera: output_dir / names[camera] for camera in camera_names}
+        writers = {
+            camera: _open_video_writer(paths[camera], fps)
+            for camera in camera_names
+        }
+        first_frames: dict[str, npt.NDArray[np.uint8]] = {}
+
+        try:
+            for qpos in qpos_trajectory:
+                _apply_qpos_snapshot(mujoco, model, data, qpos)
+                for camera in camera_names:
+                    renderer.update_scene(data, camera=camera)
+                    frame = renderer.render()
+                    writers[camera].append_data(frame)
+                    if camera not in first_frames:
+                        first_frames[camera] = frame.copy()
+        finally:
+            for writer in writers.values():
+                writer.close()
+            renderer.close()
+
+        results: list[RenderResult] = []
+        for camera in camera_names:
+            frame = first_frames[camera]
+            mean = _frame_mean(frame)
+            if mean <= 1.0:
+                raise RuntimeError(
+                    f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+                )
+            results.append(
+                RenderResult(
+                    camera=camera,
+                    path=paths[camera],
+                    frame_mean=mean,
+                    timing=timing,
+                )
+            )
+        return postprocess_showcase_results(
+            results,
+            enabled=realtime_postprocess,
+        )
 
     path_waypoints = resolve_showcase_waypoints(
         scenario,
@@ -1835,7 +1973,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--physics-mode",
         action="store_true",
-        help="Drive MuJoCo via mj_step actuators (v1.2 physics SITL)",
+        help="Drive MuJoCo via mj_step actuators (default; v1.2 physics SITL)",
+    )
+    parser.add_argument(
+        "--kinematic-mode",
+        action="store_true",
+        help="Legacy pose-teleport rendering (v1.0–v1.1 mirror path)",
     )
     parser.add_argument(
         "--timing-json",
@@ -1904,7 +2047,7 @@ def main(argv: list[str] | None = None) -> int:
 
     use_tracking = not args.no_tracking
     realtime_postprocess = not args.no_realtime_postprocess
-    physics_mode = bool(args.physics_mode)
+    physics_mode = not args.kinematic_mode or bool(args.physics_mode)
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)

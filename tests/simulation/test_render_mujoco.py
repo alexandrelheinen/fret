@@ -298,6 +298,26 @@ def test_ppp_cargo_freejoint_follows_welded_ee() -> None:
     assert cargo_pos[2] == pytest.approx(ee[2] + rm._PPP_CARGO_EE_OFFSET_Z)
 
 
+def test_resample_qpos_history_preserves_length() -> None:
+    history = np.array([[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]], dtype=np.float64)
+    resampled = rm._resample_qpos_history(history, 5)
+    assert resampled.shape == (5, 2)
+    assert resampled[0, 0] == pytest.approx(0.0)
+    assert resampled[-1, 0] == pytest.approx(4.0)
+
+
+def test_simulate_ppp_warehouse_qpos_records_physics() -> None:
+    """PPP showcase physics path must log full qpos from SITL runner."""
+    pytest.importorskip("mujoco")
+    pytest.importorskip("arco")
+    qpos_traj, sim_time_s = rm.simulate_ppp_warehouse_qpos(duration_s=2.0, fps=5)
+    assert qpos_traj.ndim == 2
+    assert qpos_traj.shape[0] >= 2
+    assert qpos_traj.shape[1] >= 10
+    assert sim_time_s > 0.0
+    assert qpos_traj[:, 0].max() > qpos_traj[:, 0].min()
+
+
 def test_dubins_follow_distance_targets_car_fill() -> None:
     distance = rm._dubins_follow_distance(640, 720)
     assert 4.0 < distance < 18.0
@@ -362,7 +382,6 @@ _RELEASE_PPP_CLI: list[str] = [
     "mujoco",
     "--planner-algorithm",
     "rrt_star",
-    "--no-tracking",
     "--output-dir",
     "showcase_renders",
     "--timing-json",
@@ -374,6 +393,12 @@ _RELEASE_PPP_CLI: list[str] = [
     "1280",
     "--height",
     "720",
+]
+
+_RELEASE_PPP_KINEMATIC_CLI: list[str] = [
+    *_RELEASE_PPP_CLI,
+    "--kinematic-mode",
+    "--no-tracking",
 ]
 
 _RELEASE_DUBINS_CLI: list[str] = [
@@ -409,7 +434,13 @@ def test_release_workflow_cli_args_parse() -> None:
     assert ppp_args.model == "ppp"
     assert ppp_args.scenario == "ppp_warehouse"
     assert ppp_args.all_cameras is True
-    assert ppp_args.no_tracking is True
+    assert ppp_args.no_tracking is False
+    assert ppp_args.kinematic_mode is False
+    assert not ppp_args.kinematic_mode  # release uses default physics path
+
+    kinematic_args = parser.parse_args(_RELEASE_PPP_KINEMATIC_CLI)
+    assert kinematic_args.kinematic_mode is True
+    assert kinematic_args.no_tracking is True
     assert ppp_args.timing_json == Path("showcase_renders/ppp_timing.json")
     assert ppp_args.no_realtime_postprocess is False
     assert ppp_args.full_duration is True
