@@ -75,7 +75,7 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] Scenario `ppp_warehouse.yml` + launch
 - [x] Headless MP4 render for README / article (RRT* + prune + tracking)
 - [x] V10-1 ROS SITL smoke test
-- [ ] Tag `v1.0.0`
+- [x] Tag `v1.0.0`
 
 ---
 
@@ -88,7 +88,7 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] Rectangular structure forest + dead-end alcoves
 - [x] Pure Pursuit tracking integration
 - [x] Release workflow + R2 upload (overview + follow POVs per scenario)
-- [ ] Tag `v1.1.0`
+- [x] Tag `v1.1.0`
 
 ---
 
