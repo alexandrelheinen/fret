@@ -1,0 +1,20 @@
+name: Release render setup
+description: Install EGL/Mesa, ffmpeg, and Python sim deps for headless MuJoCo renders.
+
+runs:
+  using: composite
+  steps:
+    - name: Install EGL/Mesa and Python render deps
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          ffmpeg \
+          libegl1 \
+          libegl-mesa0 \
+          libgles2 \
+          libgl1 \
+          libgl1-mesa-dri \
+          libosmesa6
+        python3 -m pip install --break-system-packages --upgrade pip
+        python3 -m pip install --break-system-packages -e ".[sim]"
