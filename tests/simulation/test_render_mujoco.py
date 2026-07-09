@@ -348,11 +348,13 @@ def test_make_dubins_overview_camera_targets_midpoint() -> None:
 
 def test_simulate_dubins_race_poses_covers_transit() -> None:
     """Release dubins clip must traverse the warehouse floor."""
+    pytest.importorskip("mujoco")
     pytest.importorskip("arco")
     rrt, sst, sim_time_s = rm.simulate_dubins_race_poses(
         "dubins_race",
         duration_s=None,
         fps=10,
+        physics_mode=True,
     )
     assert rrt.shape[0] >= 2
     assert sst.shape[0] >= 2
