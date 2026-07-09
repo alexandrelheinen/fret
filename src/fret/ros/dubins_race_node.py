@@ -68,8 +68,9 @@ class DubinsRaceRosNode:  # pragma: no cover
             .string_value
         )
         self._physics_mode = _parse_bool(
-            self.get_parameter("physics_mode")  # type: ignore[attr-defined]
-            .value
+            self.get_parameter(
+                "physics_mode"
+            ).value  # type: ignore[attr-defined]
         )
         self._ready = False
         self._runner: Any = None
@@ -103,7 +104,7 @@ class DubinsRaceRosNode:  # pragma: no cover
             resolve_obstacle_file,
         )
         from fret.ros.mujoco_bridge import (
-            _load_bridge_config,
+            _load_merged_bridge_config,
             _resolve_config_path,
             make_dubins_race_bridge_core,
             physics_config_from_bridge_yaml,
@@ -142,7 +143,7 @@ class DubinsRaceRosNode:  # pragma: no cover
             raise RuntimeError(msg)
 
         self._session = session
-        bridge_cfg = _load_bridge_config(_resolve_config_path(None))
+        bridge_cfg = _load_merged_bridge_config(_resolve_config_path(None))
         physics_config = physics_config_from_bridge_yaml(
             bridge_cfg,
             "dubins",

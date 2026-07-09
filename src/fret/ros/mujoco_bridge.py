@@ -840,6 +840,15 @@ def _load_bridge_config(config_path: str) -> dict[str, Any]:
     return {}
 
 
+def _load_merged_bridge_config(config_path: str) -> dict[str, Any]:
+    """Load bridge YAML plus optional ``mujoco_physics.yml`` companion tables."""
+    cfg = dict(_load_bridge_config(config_path))
+    physics_path = pathlib.Path(config_path).with_name("mujoco_physics.yml")
+    if physics_path.is_file():
+        cfg.update(_load_bridge_config(str(physics_path)))
+    return cfg
+
+
 class MuJoCoBridgeNode:
     """ROS 2 node bridging MuJoCo joint I/O to the FRET graph.
 
@@ -878,7 +887,7 @@ class MuJoCoBridgeNode:
         self._node: rclpy.node.Node = _Node("mujoco_bridge_node")
 
         resolved = _resolve_config_path(config_path)
-        cfg = _load_bridge_config(resolved)
+        cfg = _load_merged_bridge_config(resolved)
 
         self._node.declare_parameter(
             "model", model or str(cfg.get("model", "ppp"))
