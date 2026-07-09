@@ -176,7 +176,10 @@ def simulate_joint_carrot_tracking(
         history.append(tracker.q.copy())
         if on_step is not None:
             on_step(tracker.q)
-        if at_path_end and float(np.linalg.norm(tracker.q - nav[-1])) < goal_tolerance:
+        if (
+            at_path_end
+            and float(np.linalg.norm(tracker.q - nav[-1])) < goal_tolerance
+        ):
             break
 
     return history, max_err_m
