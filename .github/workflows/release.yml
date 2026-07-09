@@ -60,7 +60,6 @@ jobs:
             --all-cameras \
             --collision-backend mujoco \
             --planner-algorithm rrt_star \
-            --no-tracking \
             --full-duration \
             --output-dir showcase_renders \
             --timing-json showcase_renders/ppp_timing.json \
