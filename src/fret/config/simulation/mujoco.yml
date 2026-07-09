@@ -1,6 +1,7 @@
 # MuJoCo simulation bridge configuration (v1.0 + v1.2 physics).
 #
-# Consumed by: MuJoCoBridgeNode, DubinsRaceRosNode (ros/mujoco_bridge.py)
+# Consumed as a ROS 2 parameter file by MuJoCoBridgeNode (launch/mujoco.py).
+# Nested actuator tables live in mujoco_physics.yml (Python-only load).
 
 /**:
   ros__parameters:
@@ -18,30 +19,3 @@
     contact_log_enabled: false
     contact_log_path: ""
     metrics_path: ""
-
-    actuators:
-      ppp:
-        names: [act_joint_x, act_joint_y, act_joint_z]
-        kv: [120.0, 120.0, 180.0]
-        forcerange: [[-5000, 5000], [-5000, 5000], [-8000, 8000]]
-      dubins:
-        names:
-          - act_rrt_x
-          - act_rrt_y
-          - act_rrt_yaw
-          - act_sst_x
-          - act_sst_y
-          - act_sst_yaw
-        kv: [80.0, 80.0, 40.0, 80.0, 80.0, 40.0]
-        forcerange:
-          - [-2000, 2000]
-          - [-2000, 2000]
-          - [-500, 500]
-          - [-2000, 2000]
-          - [-2000, 2000]
-          - [-500, 500]
-
-    cargo_weld:
-      equality_name: cargo_weld
-      body_parent: z_hoist
-      body_child: cargo

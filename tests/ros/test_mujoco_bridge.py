@@ -141,6 +141,7 @@ def test_load_mujoco_config_defaults() -> None:
     """Default mujoco.yml should load PPP parameters."""
     from fret.ros.mujoco_bridge import (
         _load_bridge_config,
+        _load_merged_bridge_config,
         _resolve_config_path,
     )
 
@@ -152,15 +153,19 @@ def test_load_mujoco_config_defaults() -> None:
     assert cfg["initial_joint_positions"] == [0.0, 0.0, 0.0]
     assert cfg["physics_mode"] is False
     assert cfg["substeps_per_tick"] == 25
-    assert "actuators" in cfg
+    merged = _load_merged_bridge_config(config_path)
+    assert "actuators" in merged
     assert pathlib.Path(config_path).is_file()
 
 
 def test_physics_config_from_yaml_kinematic_default() -> None:
     """Kinematic mode should not require actuator runtime binding."""
-    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
 
-    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
     physics = physics_config_from_bridge_yaml(cfg, "ppp")
     assert physics.physics_mode is False
     assert physics.actuators is None
@@ -168,9 +173,12 @@ def test_physics_config_from_yaml_kinematic_default() -> None:
 
 def test_physics_config_from_yaml_physics_mode() -> None:
     """Physics mode should load the PPP actuator table."""
-    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
 
-    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
@@ -189,9 +197,12 @@ def test_physics_config_from_yaml_physics_mode() -> None:
 )
 def test_bridge_core_step_physics_advances_position() -> None:
     """Physics mode should integrate joint motion via mj_step."""
-    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
 
-    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
@@ -212,9 +223,12 @@ def test_bridge_core_step_physics_advances_position() -> None:
 )
 def test_set_positions_forbidden_in_physics_mode() -> None:
     """Pose injection must fail while physics_mode is active (FR-SIM-07)."""
-    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
 
-    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
@@ -233,9 +247,12 @@ def test_set_positions_forbidden_in_physics_mode() -> None:
 )
 def test_dubins_bridge_step_physics_runs() -> None:
     """Dual-agent physics step should execute without pose injection."""
-    from fret.ros.mujoco_bridge import _load_bridge_config, _resolve_config_path
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
 
-    cfg = _load_bridge_config(_resolve_config_path(None))
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
