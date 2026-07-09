@@ -1,9 +1,8 @@
-# FretSim — Simulation Tutorial
+# FretSim — Simulation Guide
 
-> **Start here for visuals:** [tutorial.md](tutorial.md) —
-> consolidated MuJoCo guide (interactive viewer + MP4 + SITL).
->
-> **Release focus:** v1.0 PPP warehouse in MuJoCo. See [releases.md](releases.md).
+> **MuJoCo integration spec:** [mujoco.md](mujoco.md)  
+> **Visual tutorial:** [tutorial.md](tutorial.md)  
+> **Release focus:** v1.0 PPP · v1.1 Dubins · v1.2 physics SITL. See [releases.md](releases.md).
 
 ---
 
@@ -14,10 +13,10 @@
 | **Pure-Python** | Python 3.12+, numpy | Unit tests, algorithm validation |
 | **MuJoCo viewer** | `mujoco` | **Live 3D window** — `./scripts/view.sh` |
 | **MuJoCo MP4** | `mujoco`, `imageio` | Headless showcase video |
-| **MuJoCo SITL** | `mujoco`, ROS 2 Jazzy | Full ROS pipeline (`backend:=mujoco`) |
-| **Gazebo SITL** | Gazebo Harmonic, ROS 2 Jazzy | Headless physics backend (SCARA regression) |
+| **MuJoCo SITL** | `mujoco`, ROS 2 Jazzy | Full ROS pipeline via `sitl.py` |
+| **MuJoCo physics SITL** | `mujoco`, ROS 2 Jazzy | Actuator-driven `mj_step` (v1.2+) |
 
-FRET uses **MuJoCo only** for 3D visualization. RViz and Gazebo GUIs are not used.
+MuJoCo is FRET's sole simulation engine — physics, contacts, rendering, and SITL.
 
 ---
 
@@ -61,7 +60,7 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 ./scripts/view.sh
 
 # Full SITL pipeline
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ```
 
 **Deliverables:**
@@ -78,23 +77,47 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 
 ---
 
-## Regression — bootstrap SCARA (headless Gazebo)
+## v1.1 — Dubins race
 
 ```bash
-ros2 launch fret sim.py model:=scara
-ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=gazebo
+./scripts/view.sh --scenario dubins_race
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras
 ```
 
-These validate the MS-1–5 pipeline. Use MuJoCo (`./scripts/view.sh`) for any
-visual inspection.
+---
+
+## v1.2 — Physics SITL (planned)
+
+Enable actuator-driven simulation with contact dynamics:
+
+```bash
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
+```
+
+See [mujoco.md § Physics SITL](mujoco.md#physics-sitl-v12-target) for architecture
+and tuning workflow.
+
+---
+
+## Regression — bootstrap SCARA (pure-Python)
+
+```bash
+python3 -m pytest tests/integration/test_scenario_pillar_avoidance.py -v
+python3 -m pytest tests/scene/ tests/planning/ -q
+```
+
+These validate the MS-1–5 pipeline without ROS or MuJoCo physics. Visual inspection
+uses `./scripts/view.sh` once RRP MJCF is available (v1.3).
 
 ---
 
 ## Recording
 
 ```bash
-# MuJoCo headless MP4 (v1.0 CI target)
-./scripts/video.sh -o /tmp/v10.mp4
+# MuJoCo headless MP4
+./scripts/video.sh -o /tmp/fret.mp4
 
 # Magnetic grasp FSM demo (pure Python, no sim)
 python3 scripts/demo_grasp.py
@@ -122,5 +145,5 @@ ros2 bag record /joint_states /joint_commands /joint_trajectory
 
 - Interactive viewer requires a desktop display (or X11 forwarding). On WSL2,
   see [wsl.md](wsl.md).
-- Gazebo SITL runs headless; it is a physics backend, not a visual viewer.
-- Full v1.0 acceptance criteria: see [releases.md](releases.md).
+- v1.0–v1.1 SITL uses kinematic mirroring; full physics arrives in v1.2.
+- Full acceptance criteria: see [releases.md](releases.md).

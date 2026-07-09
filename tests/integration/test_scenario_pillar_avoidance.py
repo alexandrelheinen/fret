@@ -1,6 +1,6 @@
 """Integration test: Milestone 5 pillar-avoidance scenario (pure-Python).
 
-Runs the complete MS-5 pipeline without ROS or Gazebo:
+Runs the complete MS-5 pipeline without ROS or MuJoCo:
 
   1. Sample cylinder surfaces for pillar_a and pillar_b.
   2. Build a ``WorkspaceOccupancyBuilder`` to verify pillar occupancy.

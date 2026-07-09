@@ -1,8 +1,8 @@
 """Scene acquisition: PointCloud2 → world-frame obstacle payload.
 
-Subscribes to ``/world_state`` (``sensor_msgs/PointCloud2``) published by
-Gazebo, extracts XYZ obstacle geometry expressed in the ``world`` frame,
-and exposes the result as an ``OccupancyUpdatePayload`` ready for the
+Subscribes to ``/obstacle_cloud`` (``sensor_msgs/PointCloud2``) published by
+the perception bridge, extracts XYZ obstacle geometry expressed in the ``world``
+frame, and exposes the result as an ``OccupancyUpdatePayload`` ready for the
 planning layer.
 
 The incoming cloud is assumed to already be in the ``world`` frame (as
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class SceneAcquisition:
-    """Subscribe to Gazebo point cloud and deliver world-frame obstacle payloads.
+    """Subscribe to obstacle point cloud and deliver world-frame obstacle payloads.
 
     Args:
         node: The ROS 2 node that owns the subscription.  The subscription

@@ -4,11 +4,11 @@ This is the main entry point for ``fretsim``.
 
 Usage::
 
+    ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
     ros2 launch fret sitl.py model:=scara scenario:=static_reach
     ros2 launch fret sitl.py model:=scara scenario:=straight_line
     ros2 launch fret sitl.py model:=scara scenario:=arc
-    ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
-    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
 
 Arguments:
     model (str, default: scara)
@@ -16,8 +16,8 @@ Arguments:
     scenario (str, default: static_reach)
         Scenario YAML stem (e.g. ``static_reach``).  Must match a file under
         ``fret/config/scenarios/<scenario>.yml``.
-    backend (str, default: gazebo)
-        Simulator backend: ``gazebo`` (SCARA regression) or ``mujoco`` (v1.0 PPP).
+    physics_mode (str, default: false)
+        When ``true``, MuJoCo advances with ``mj_step`` and actuators (v1.2+).
 
 Scenario behaviour:
     straight_line — Milestone 1.  Launches the ``straight_line_injector``
@@ -26,8 +26,8 @@ Scenario behaviour:
     arc — Launches the ``arc_injector`` node instead of ``planner_node``.
         The injector publishes a circular arc trajectory in Cartesian space
         once; the controller tracks it.
-    ppp_warehouse — v1.0 PPP warehouse pick-and-place with ``backend:=mujoco``.
-    dubins_race — v1.1 dual-agent Dubins race with ``backend:=mujoco``.
+    ppp_warehouse — v1.0 PPP warehouse pick-and-place (MuJoCo).
+    dubins_race — v1.1 dual-agent Dubins race (MuJoCo).
     static_reach (and others) — standard SITL with ``planner_node`` and
         ``scene_acquisition_node``.  The planner auto-triggers at startup
         and publishes the resulting trajectory; the controller executes it.

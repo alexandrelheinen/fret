@@ -20,8 +20,9 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 |---|---|---|
 | **v1.0** PPP | `KDTreeOccupancy`, `SSTPlanner`, `TrajectoryPruner` | `map/ppp.yml` |
 | **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, `DubinsPrimitive`, Pure Pursuit | `map/vehicle.yml` |
-| **v1.2** RRP | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
-| **v1.3** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
+| **v1.2** | *(physics upgrade — no new ARCO scenario)* | — |
+| **v1.3** RRP | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
+| **v1.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
 
 ---
 
@@ -35,7 +36,7 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 | Scene acquisition, TF | FRET |
 | Per-robot kinematics | FRET |
 | Magnetic grasp FSM | FRET (v1.0) |
-| ROS 2 I/O, sim backends | FRET |
+| ROS 2 I/O, MuJoCo simulation | FRET |
 
 ARCO never reads ROS topics. FRET never calls ARCO internals beyond the public API.
 
@@ -97,10 +98,10 @@ Reuse ARCO race infrastructure:
 
 ---
 
-## v1.2 RRP alignment
+## v1.3 RRP alignment
 
-Reproduce ARCO CI scenarios `rrp` and `rr` inside FRET `sitl.py` pipeline.
-FRET bootstrap SCARA (`scara.xacro`) maps to ARCO RRP topology.
+Reproduce ARCO CI scenarios `rrp` and `rr` inside FRET `sitl.py` pipeline on
+MuJoCo physics SITL. FRET bootstrap SCARA kinematics map to ARCO RRP topology.
 
 ---
 

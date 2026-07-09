@@ -103,7 +103,6 @@ PPP envelopes). Transit planning includes the welded cargo box when
 | `src/fret/mjcf/ppp_warehouse.xml` | MuJoCo overhead gantry + AWS warehouse meshes |
 | `src/fret/mjcf/assets/aws_warehouse/` | MIT-0 shelf/box visuals + floor/wall textures |
 | `scripts/import_aws_warehouse_assets.py` | Regenerate AWS mesh assets from upstream repo |
-| `src/fret/urdf/ppp.xacro` | Gazebo backend (optional; v1.2+) |
 | `scripts/view.sh` | MuJoCo interactive viewer (v1.0) |
 | `src/fret/config/scenarios/ppp_warehouse.yml` | SC-v10 scenario |
 

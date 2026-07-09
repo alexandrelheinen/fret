@@ -94,10 +94,7 @@ is within the voxel circumradius (`resolution × √3 / 2 ≈ 0.17 m` at 20 cm).
 ## Data Flow
 
 ```
-Gazebo (Ignition)
-    │  /obstacle_cloud (PointCloud2, 1 Hz)
-    ▼
-PerceptionBridgeNode  ──► /obstacle_cloud
+PerceptionBridgeNode  ──► /obstacle_cloud (PointCloud2, 1 Hz)
     │
     ▼
 SceneAcquisition

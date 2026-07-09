@@ -4,14 +4,14 @@
 **Source:** `src/fret/ros/`  
 **Tests:** `tests/scene/`, `tests/planning/`
 
-> v1.0 adds `mujoco_bridge.py` as the primary simulator I/O node. See [releases.md](../releases.md).
+> v1.0 adds `mujoco_bridge.py` as the simulator I/O node. See [releases.md](../releases.md)
+> and [mujoco.md](../mujoco.md).
 
 ---
 
 ## Responsibility
 
-The `fret.ros` package contains ROS 2 nodes bridging simulators (MuJoCo, Gazebo) to
-FRET algorithm layers.
+The `fret.ros` package contains ROS 2 nodes bridging **MuJoCo** to FRET algorithm layers.
 
 ---
 
@@ -19,15 +19,16 @@ FRET algorithm layers.
 
 ### `mujoco_bridge.py` — MuJoCoBridgeNode (v1.0)
 
-Primary simulator I/O for the PPP MuJoCo backend.  Subscribes to velocity
-commands and publishes joint state at 50 Hz.
+Simulator I/O for all MuJoCo-backed scenarios. Subscribes to velocity commands and
+publishes joint state at 50 Hz.
 
 | Symbol | Description |
 |---|---|
 | `MuJoCoBridgeCore` | Level-3 joint integration against MJCF limits |
 | `make_mujoco_bridge_core()` | Factory for model/scenario dispatch |
-| `integrate_joint_velocities()` | Clip + Euler integration helper |
-| `resolve_mjcf_path()` | Resolve `ppp_warehouse.xml` for PPP |
+| `integrate_joint_velocities()` | Kinematic-mode Euler step + limit clip |
+| `step_physics()` | **v1.2** — actuator commands + `mj_step` |
+| `resolve_mjcf_path()` | Resolve MJCF path for model/scenario |
 
 **Topics:**
 
@@ -47,7 +48,7 @@ commands and publishes joint state at 50 Hz.
 
 Reads obstacle definitions from `config/perception.yaml` and publishes a
 `sensor_msgs/PointCloud2` on `/obstacle_cloud` at 1 Hz. Subscribes to `/tf`
-to obtain Gazebo entity poses.
+to obtain entity poses when obstacles are frame-relative.
 
 Supported obstacle types (configured in `perception.yaml`):
 - `box` — samples surface points on all 6 faces
@@ -98,15 +99,14 @@ Arc parameters (from `config/scenarios/arc.yml`):
 These nodes are wired into `sitl.py` via scenario-conditional launch:
 
 ```python
-# sitl.py — backend routing (T10-06)
-if backend == "mujoco":
-    launch mujoco.py          # /joint_states publisher
-else:
-    launch sim.py             # Gazebo + ros2_control
+# sitl.py — MuJoCo SITL (T10-06)
+launch mujoco.py              # /joint_states publisher
 
 if scenario == "ppp_warehouse":
     perception_ppp_warehouse.yaml
     controller ppp.yml
+elif scenario == "dubins_race":
+    dubins race orchestration
 elif scenario == "straight_line":
     launch StraightLineInjector
 elif scenario == "arc":
@@ -123,6 +123,6 @@ else:
 |---|---|---|---|
 | `/obstacle_cloud` | `PointCloud2` | `PerceptionBridgeNode` | `SceneAcquisitionNode` |
 | `/joint_trajectory` | `JointTrajectory` | Injectors / `PlannerNodeRos` | `ControllerRosNode` |
-| `/joint_commands` | `Float64MultiArray` | `ControllerRosNode` | MuJoCo bridge / Gazebo |
-| `/joint_states` | `JointState` | MuJoCo bridge / Gazebo | `StateEstimator`, `ControllerRosNode` |
+| `/joint_commands` | `Float64MultiArray` | `ControllerRosNode` | `MuJoCoBridgeNode` |
+| `/joint_states` | `JointState` | `MuJoCoBridgeNode` | `StateEstimator`, `ControllerRosNode` |
 | `/controller_fault` | `Bool` | `ControllerRosNode` | Operator / monitoring |

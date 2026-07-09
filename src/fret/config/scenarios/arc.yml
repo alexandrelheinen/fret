@@ -15,7 +15,7 @@
 #
 # Pass criteria (Milestone 2/3):
 #   - fretsim --scenario arc starts without errors.
-#   - The SCARA EE traces a visible circular arc in Gazebo.
+#   - The SCARA EE traces a visible circular arc in simulation.
 #   - /joint_commands published at >= 45 Hz for full duration.
 #   - No fault published on /controller_fault.
 #

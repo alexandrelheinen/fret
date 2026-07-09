@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Import MIT-0 AWS RoboMaker warehouse meshes for FRET MuJoCo scenes.
 
-Converts selected Gazebo DAE visuals to OBJ (meters, bottom-corner origin)
+Converts selected upstream DAE visuals to OBJ (meters, bottom-corner origin)
 and copies floor/wall textures into ``src/fret/mjcf/assets/aws_warehouse/``.
 
 Source: https://github.com/aws-robotics/aws-robomaker-small-warehouse-world

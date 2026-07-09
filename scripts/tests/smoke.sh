@@ -101,14 +101,14 @@ else
     FAILED=1
 fi
 
-# v1.0 V10-1: PPP warehouse MuJoCo SITL (no Gazebo dependency).
+# v1.0 V10-1: PPP warehouse MuJoCo SITL.
 run_smoke_test "sitl_ppp_warehouse_mujoco" 30 -- \
     env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
     xvfb-run -a ros2 launch fret sitl.py \
     scenario:=ppp_warehouse model:=ppp backend:=mujoco \
     || FAILED=1
 
-# Gazebo-dependent launches — skip gracefully when ros_gz_sim is not installed.
+# Bootstrap SCARA launches — optional when legacy sim stack is installed.
 if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
     run_smoke_test "sim_launch" -- xvfb-run -a ros2 launch fret sim.py model:=scara \
         || FAILED=1
@@ -117,7 +117,7 @@ if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
     run_smoke_test "sitl_launch" -- xvfb-run -a ros2 launch fret sitl.py \
         || FAILED=1
 else
-    info "ros_gz_sim not found — skipping Gazebo-dependent smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
+    info "ros_gz_sim not found — skipping bootstrap SCARA smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
 fi
 
 echo "======================================"

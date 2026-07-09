@@ -1,11 +1,10 @@
 # MuJoCo Tutorial — FRET Visual Guide (v1.0 PPP · v1.1 Dubins)
 
-> **One-stop tutorial** for seeing the PPP warehouse gantry in MuJoCo.
-> FRET uses **MuJoCo only** for 3D visualization. RViz and Gazebo GUIs are
-> not part of this project.
+> **One-stop tutorial** for seeing FRET robots in MuJoCo.
+> MuJoCo is FRET's simulation engine for physics, contacts, rendering, and SITL.
 
-**Related:** [simulation.md](simulation.md) · [wsl.md](wsl.md) · [releases.md](releases.md) ·
-[robots/ppp.md](robots/ppp.md)
+**Related:** [mujoco.md](mujoco.md) · [simulation.md](simulation.md) · [wsl.md](wsl.md) ·
+[releases.md](releases.md) · [robots/ppp.md](robots/ppp.md)
 
 ---
 
@@ -40,6 +39,9 @@ pip install -e ".[sim]"
 ### Useful options
 
 ```bash
+# Dubins race world (static pose preview)
+./scripts/view.sh --scenario dubins_race
+
 # Longer animation cycle (45 s per loop)
 ./scripts/view.sh --duration 45
 
@@ -60,7 +62,7 @@ python3 scripts/view_mujoco.py --dry-run
 | Double-click | Select body |
 | Esc / close window | Quit |
 
-**Scene file:** `src/fret/mjcf/ppp_warehouse.xml`
+**Scene files:** `src/fret/mjcf/ppp_warehouse.xml`, `src/fret/mjcf/dubins_race.xml`
 
 ---
 
@@ -77,6 +79,7 @@ pip install -e ".[sim]"
 Options:
 
 ```bash
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras -o out.mp4
 ./scripts/video.sh --duration 30 --fps 30 --width 1920 --height 1080 -o out.mp4
 ```
 
@@ -112,23 +115,23 @@ Use `--all` to fetch every release POV (both scenarios × overview + follow).
 
 ## 3. Full ROS 2 SITL (planning + control + sim)
 
-Runs the complete v1.0 product pipeline with the MuJoCo backend adapter.
-This is **simulation I/O**, not a 3D window — pair it with the viewer
-above or record topics if needed.
+Runs the complete product pipeline with the MuJoCo bridge. Pair with the
+viewer above or record topics if needed.
 
 ```bash
 ./scripts/install.sh -y && ./scripts/setup.sh -y && ./scripts/build.sh
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
 | Component | Path |
 |---|---|
-| MJCF world | `src/fret/mjcf/ppp_warehouse.xml` |
+| MJCF worlds | `src/fret/mjcf/` |
 | MuJoCo bridge | `src/fret/ros/mujoco_bridge.py` |
 | Bridge config | `src/fret/config/simulation/mujoco.yml` |
-| Scenario | `src/fret/config/scenarios/ppp_warehouse.yml` |
+| Integration spec | [mujoco.md](mujoco.md) |
 
 ### Typical workflow
 
@@ -136,7 +139,7 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 2. **Preview visually** — `./scripts/view.sh`
 3. **Validate E2E** — `pytest tests/integration/test_scenario_ppp_warehouse.py -v`
 4. **Export video** — `./scripts/video.sh -o demo.mp4`
-5. **Run SITL** — `ros2 launch fret sitl.py … backend:=mujoco`
+5. **Run SITL** — `ros2 launch fret sitl.py …`
 
 ---
 
@@ -151,19 +154,16 @@ ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
 
 ---
 
-## 5. Gazebo (simulation engine only — no viewer)
+## 5. Physics SITL (v1.2)
 
-Gazebo Harmonic remains available as a **headless physics backend** for
-bootstrap SCARA regression tests (`backend:=gazebo`). It does **not**
-provide a FRET visualization window.
+From v1.2, MuJoCo advances the simulation with `mj_step` and actuator forces
+instead of kinematic pose mirroring. Enable with:
 
 ```bash
-# Headless Gazebo SITL (no 3D GUI)
-ros2 launch fret sitl.py scenario:=static_reach model:=scara backend:=gazebo
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
 ```
 
-For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
-`./scripts/video.sh`).
+Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 
 ---
 
@@ -176,6 +176,7 @@ For any visual inspection, always use MuJoCo (`./scripts/view.sh` or
 | `Joint not found` | Ensure `model:=ppp scenario:=ppp_warehouse` |
 | MP4 won't play | `pip install imageio-ffmpeg` |
 | SITL launch fails | Build workspace, source `install/setup.bash` |
+| Headless render fails | `export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl` |
 
 ---
 
@@ -208,8 +209,9 @@ scripts/video.sh             ← headless MP4 (local; needs working GL)
 scripts/download_showcase.sh ← download CI/R2 MP4 (no GL needed)
 scripts/render_mujoco.py
 .env.example                 ← R2 credential template (.env gitignored)
-src/fret/mjcf/ppp_warehouse.xml
+docs/mujoco.md               ← full integration specification
+src/fret/mjcf/               ← all MJCF scenes
 src/fret/ros/mujoco_bridge.py
 src/fret/launch/mujoco.py
-src/fret/launch/sitl.py      ← backend:=mujoco
+src/fret/launch/sitl.py
 ```

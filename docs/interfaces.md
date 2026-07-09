@@ -274,7 +274,7 @@ use exactly these profiles to ensure correct publisher/subscriber matching.
 | ARCO returns no path | `PlannerNode` inspects result | Action returns `ABORTED` | `error_code = NO_PATH_FOUND`; `/joint_trajectory` not published |
 | Post-processing exception | `PlannerNode` try/except around chain | Action returns `ABORTED` | `error_code = POST_PROCESS_FAILED` |
 | Tracking error threshold exceeded | `ControllerNode` error monitor | Transitions to HALTED | `/fault` published; commands zeroed |
-| Gazebo disconnect (no `/joint_states`) | `ControllerNode` message age check | Transitions to HALTED if last stamp > 0.5 s old | `/fault` published |
+| Simulator disconnect (no `/joint_states`) | `ControllerNode` message age check | Transitions to HALTED if last stamp > 0.5 s old | `/fault` published |
 
 ---
 

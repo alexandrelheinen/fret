@@ -4,8 +4,8 @@
 
 **FRET** (Full-stack Robotic Effector Trajectories) is a ROS 2 robotics library that
 connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning stack to
-MuJoCo (and, from v1.2, Gazebo) simulators. Algorithm code lives in pure Python; a thin
-ROS 2 layer handles topics, actions, and simulator I/O.
+MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
+topics, actions, and simulator I/O.
 
 **Current release: v1.1** — PPP warehouse pick-and-place **and** a dual-agent Dubins
 race through a rectangular structure forest with dead-end alcoves.
@@ -28,8 +28,9 @@ race through a rectangular structure forest with dead-end alcoves.
 Both scenarios ship with headless render scripts, pure-Python E2E tests (no ROS required
 for CI validation), and optional ROS 2 SITL launch files.
 
-**Coming next:** RRP/SCARA ARCO reproduction (v1.2), 6-DOF challenge (v1.3). See
-[docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
+**Coming next:** MuJoCo physics SITL (v1.2), RRP/SCARA ARCO reproduction (v1.3),
+6-DOF challenge (v1.4). See [docs/roadmap.md](docs/roadmap.md) and
+[docs/releases.md](docs/releases.md).
 
 ---
 
@@ -48,7 +49,7 @@ src/fret/
 │   ├── controllers/   # Per-model gains (ppp.yml, dubins.yml, …)
 │   └── worlds/        # Obstacle layouts for planning + MJCF sync
 ├── mjcf/              # MuJoCo scenes (primary visual backend)
-├── launch/            # sitl.py, sim.py, mujoco.py
+├── launch/            # sitl.py, mujoco.py
 └── scripts/           # CLI entry points (render, view, download showcase)
 ```
 
@@ -65,9 +66,9 @@ target.
 - **ROS 2** is the runtime middleware (topics, services, actions, parameters).
 - **ARCO** is a synchronous library inside planner nodes — not a separate ROS node.
 - **C-space** is the planning domain for manipulators; **SE(2)** for Dubins agents.
-- **MuJoCo** is the primary visual backend (v1.0+). Poses are written into MJCF
-  joints; showcase motion is integrated in pure Python unless physics SITL is enabled.
-- **Gazebo Harmonic** supports engineering SITL for arm releases (v1.2+).
+- **MuJoCo** is the simulation engine for physics, contacts, rendering, and SITL.
+  v1.0–v1.1 use kinematic mirroring for showcase motion; v1.2 enables full
+  actuator-driven physics (`mj_step`).
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
 
 ### Layer stack
@@ -86,7 +87,7 @@ target.
 └────────────────────────────────────────────────────────┘
                          ▼
 ┌────────────────────────────────────────────────────────┐
-│  SIMULATOR   MuJoCo (v1.0+) / Gazebo Harmonic (v1.2+)  │
+│  SIMULATOR   MuJoCo (physics, contacts, rendering)     │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -195,16 +196,16 @@ Launch selects kinematics, collision checker, MJCF, and controller config via
 `model:=` and `scenario:=`:
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
-ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
 | `model` | Release | Control strategy |
 |---|---|---|
 | `ppp` | v1.0 | Per-axis prismatic P-control |
 | `dubins` | v1.1 | ARCO Pure Pursuit + DubinsVehicle |
-| `rrp` / `scara` | v1.2 | Jacobian pseudoinverse (bootstrap exists) |
-| `six_dof` | v1.3 | Jacobian + numerical IK (planned) |
+| `rrp` / `scara` | v1.3 | Jacobian pseudoinverse (bootstrap exists) |
+| `six_dof` | v1.4 | Jacobian + numerical IK (planned) |
 
 Robot details: [docs/robots/README.md](docs/robots/README.md).
 
@@ -340,10 +341,10 @@ source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
 # PPP warehouse MuJoCo SITL
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 
 # Dubins dual-agent race
-ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
 Pre-push quality gate (matches CI):
@@ -362,7 +363,8 @@ bash scripts/check/pre_push.sh
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |
 | PPP gantry | [docs/robots/ppp.md](docs/robots/ppp.md) |
 | Dubins race | [docs/robots/dubins.md](docs/robots/dubins.md) |
-| MuJoCo / simulation | [docs/simulation.md](docs/simulation.md) |
+| MuJoCo integration | [docs/mujoco.md](docs/mujoco.md) |
+| Simulation guide | [docs/simulation.md](docs/simulation.md) |
 | ARCO integration | [docs/arco.md](docs/arco.md) |
 | Interface contracts | [docs/interfaces.md](docs/interfaces.md) |
 | Functional requirements | [docs/requirements.md](docs/requirements.md) |
@@ -372,7 +374,7 @@ bash scripts/check/pre_push.sh
 
 | Topic | Document |
 |---|---|
-| Release specification (v1.0–v1.3) | [docs/releases.md](docs/releases.md) |
+| Release specification (v1.0–v1.4) | [docs/releases.md](docs/releases.md) |
 | Roadmap & milestones | [docs/roadmap.md](docs/roadmap.md) |
 | Contributing & V-cycle | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Coding guidelines | [docs/guidelines.md](docs/guidelines.md) |

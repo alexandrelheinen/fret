@@ -21,7 +21,7 @@ described in [CONTRIBUTING.md](CONTRIBUTING.md), not code alone.
 ## Cursor Cloud specific instructions
 
 Durable, non-obvious notes for cloud agents. The base VM snapshot already has
-ROS 2 Jazzy Desktop + Gazebo Harmonic, headless-GL libraries, `xvfb`, and a
+ROS 2 Jazzy Desktop, headless-GL libraries, `xvfb`, and a
 complete C/C++ toolchain installed system-wide. The startup update script only
 refreshes Python deps (`pip install -e ".[dev,sim]"`, installed to `~/.local`;
 this also reinstalls the `arco` git dependency from its `main` branch, so it

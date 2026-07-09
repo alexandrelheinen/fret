@@ -5,8 +5,9 @@
 **Tests:** `tests/control/`
 
 > **Release roadmap:** v1.0 adds PPP prismatic control + magnetic grasp FSM;
-> v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 extends existing SCARA Jacobian stack;
-> v1.3 adds 6-DOF numerical IK. See [releases.md](../releases.md).
+> v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 enables MuJoCo physics actuators;
+> v1.3 extends existing SCARA Jacobian stack; v1.4 adds 6-DOF numerical IK.
+> See [releases.md](../releases.md).
 
 ---
 

@@ -1,32 +1,33 @@
-# FRET Release Specification (v1.0 → v1.3)
+# FRET Release Specification (v1.0 → v1.4)
 
 > **Authoritative product roadmap.** All requirements, scenarios, and milestones trace
 > to this document.
 >
 > **Related:** [roadmap.md](roadmap.md) · [requirements.md](requirements.md) ·
-> [scenarios.md](scenarios.md) · [README § Architecture](../README.md#architecture)
+> [mujoco.md](mujoco.md) · [scenarios.md](scenarios.md) ·
+> [README § Architecture](../README.md#architecture)
 
 ---
 
 ## Product vision
 
 FRET is a **ROS 2 full-stack robotics framework** that connects the **ARCO** motion-
-planning library to simulators and (eventually) hardware. Each minor release adds one
+planning library to simulation and (eventually) hardware. Each minor release adds one
 robot class, one showcase scenario, and one article-ready visual demo.
 
-| Release | Robot | Scenario | Visual backend |
+| Release | Robot | Scenario | Simulator |
 |---|---|---|---|
-| **v1.0** | PPP gantry (3 prismatic) | Pick-and-place box through warehouse obstacles | **MuJoCo** (primary) |
-| **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo + ARCO race renderer |
-| **v1.2** | RRP / SCARA (3-DOF) | Reproduce ARCO `rrp` / `rr` scenarios in FRET | Gazebo + MuJoCo |
-| **v1.3** | 6-DOF manipulator | Final challenge — full C-space planning + execution | Gazebo + MuJoCo |
+| **v1.0** | PPP gantry (3 prismatic) | Pick-and-place box through warehouse obstacles | MuJoCo |
+| **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo |
+| **v1.2** | PPP + Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
+| **v1.3** | RRP / SCARA (3-DOF) | Reproduce ARCO `rrp` / `rr` scenarios in FRET | MuJoCo |
+| **v1.4** | 6-DOF manipulator | Final challenge — full C-space planning + execution | MuJoCo |
 
 **Platform stack (all releases):**
 
 - **Planning:** ARCO (RRT*, SST, KDTree occupancy, trajectory pruner)
 - **Middleware:** ROS 2 Jazzy
-- **Engineering SITL:** Gazebo Harmonic (where applicable)
-- **Showcase visuals:** MuJoCo
+- **Simulation:** MuJoCo (physics, contacts, rendering, SITL)
 
 ---
 
@@ -35,7 +36,7 @@ robot class, one showcase scenario, and one article-ready visual demo.
 Before v1.0, the project validated the pipeline on a **3-DOF SCARA bootstrap robot**
 (MS-1–5): Jacobian control, C-space planning, occupancy bridge, pillar avoidance in
 pure-Python CI. That code remains as shared infrastructure; it is **not** a release
-target. v1.2 reuses and extends it for RRP.
+target. v1.3 reuses and extends it for RRP.
 
 ---
 
@@ -88,7 +89,7 @@ boxes and width-crossing barriers create detours (see ARCO PPP scene for referen
 
 | # | Criterion |
 |---|---|
-| V10-1 | `ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco` runs without error |
+| V10-1 | `ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp` runs without error |
 | V10-2 | ARCO RRT* finds collision-free path within 30 s (EE + welded box, MuJoCo contacts) |
 | V10-3 | Gantry tracks trajectory; EE position error ≤ 10 mm in MuJoCo |
 | V10-4 | Cargo box picked at start zone, released at goal zone |
@@ -105,7 +106,7 @@ boxes and width-crossing barriers create detours (see ARCO PPP scene for referen
 | T10-03 | MuJoCo backend adapter (`fret/ros/mujoco_bridge.py`) |
 | T10-04 | Magnetic grasp FSM (`fret/control/grasp_magnet.py`) |
 | T10-05 | PPP C-space checker (EE box + cargo envelope) |
-| T10-06 | Scenario YAML + launch (`sitl.py backend:=mujoco`) |
+| T10-06 | Scenario YAML + launch (`sitl.py`) |
 | T10-07 | Headless video render script + CI artifact |
 | T10-08 | Port/adapt ARCO `ppp.yml` obstacle layout |
 
@@ -158,20 +159,112 @@ race format (RRT* vs SST).
 | ID | Task |
 |---|---|
 | T11-01 | SE(2) kinematics + Dubins validity adapter |
-| T11-02 | Column forest world (MJCF + optional Gazebo SDF) |
+| T11-02 | Column forest world (MJCF) |
 | T11-03 | Dual-agent launch + race orchestration |
 | T11-04 | Integrate ARCO Pure Pursuit tracking loop |
 | T11-05 | Race metrics (time-to-goal, path length) |
 
 ---
 
-## v1.2 — RRP / SCARA (ARCO reproduction)
+## v1.2 — MuJoCo physics SITL
+
+### Goal
+
+Upgrade FRET from **kinematic mirroring** to **full MuJoCo physics** for all
+shipped scenarios (PPP v1.0, Dubins v1.1). Controller commands drive actuators;
+the simulation integrates dynamics and resolves contacts. Robots follow physical
+laws — no open-loop pose teleportation.
+
+This release does not add a new robot or showcase scenario. It hardens the
+simulation foundation required for v1.3+ arm releases.
+
+### Current limitation (v1.0–v1.1)
+
+| Aspect | Current behaviour |
+|---|---|
+| Motion integration | Pure Python (joint velocity / Dubins vehicle) |
+| MuJoCo role | Visual mirror: `qpos` write + `mj_forward` |
+| Contacts | Checked for planning (PPP); not applied as forces during execution |
+| `/joint_states` | Derived from integrated commands, not `mj_step` |
+
+### Target behaviour (v1.2)
+
+| Aspect | Target behaviour |
+|---|---|
+| Motion integration | `mj_step` at control rate (50 Hz) |
+| Actuators | `<actuator>` elements per joint / agent |
+| Contacts | Columns, floor, cargo weld, optional inter-agent blocking |
+| `/joint_states` | Read from simulated `qpos` / `qvel` |
+| Tuning | Documented workflow: kinematic baseline → physics gains |
+
+### Scope by robot
+
+#### PPP gantry
+
+- Map `PPPControllerNode` velocity commands to prismatic actuators
+- Cargo magnetic weld as MJCF equality constraint or bridge-managed weld
+- Validate pick, transport, and place with contact forces
+- EE tracking error ≤ 10 mm under physics mode
+
+#### Dubins race
+
+- Map Pure Pursuit outputs to agent body actuators (velocity + steering)
+- Column and floor contact response
+- Optional inter-agent contact / blocking
+- Both agents reach goal B without penetration through structures
+
+#### Shared infrastructure
+
+- `physics_mode` ROS parameter on `MuJoCoBridgeNode`
+- Contact force logging and sim-time metrics
+- Regression clips when physics path diverges from kinematic baseline
+- CI smoke tests with `physics_mode:=true` for PPP and Dubins
+
+Full integration spec: [mujoco.md](mujoco.md).
+
+### Scenario IDs
+
+Physics validation runs against existing release scenarios:
+
+| ID | Scenario | Model |
+|---|---|---|
+| SC-v10 | `ppp_warehouse.yml` | `ppp` |
+| SC-v11 | `dubins_race.yml` | `dubins` |
+
+### Acceptance criteria
+
+| # | Criterion |
+|---|---|
+| V12-1 | `physics_mode:=true` SITL launches for PPP and Dubins without error |
+| V12-2 | PPP pick-and-place completes with cargo weld contacts; no obstacle penetration |
+| V12-3 | Dubins agents reach B with column contact response; no ghosting through walls |
+| V12-4 | `/joint_states` timestamps match sim clock; no open-loop pose injection |
+| V12-5 | Contact log artifact produced in CI for both scenarios |
+| V12-6 | Controller tuning guide in [mujoco.md](mujoco.md) |
+| V12-7 | Physics regression tests in `tests/integration/` |
+
+### Implementation tasks
+
+| ID | Task |
+|---|---|
+| T12-01 | `step_physics()` in `MuJoCoBridgeCore` — `ctrl` → `mj_step` |
+| T12-02 | PPP MJCF actuators + gain config in `mujoco.yml` |
+| T12-03 | Dubins MJCF actuators + steering model |
+| T12-04 | Cargo weld physics (equality constraint or bridge FSM hook) |
+| T12-05 | Contact logging harness + metrics |
+| T12-06 | Physics integration tests (PPP + Dubins) |
+| T12-07 | Update showcase scripts to support physics mode (optional flag) |
+| T12-08 | Document tuning workflow in [mujoco.md](mujoco.md) |
+
+---
+
+## v1.3 — RRP / SCARA (ARCO reproduction)
 
 ### Goal
 
 Reproduce ARCO **`rrp`** and **`rr`** scenarios inside the FRET ROS 2 pipeline — the
 same pillar/slab obstacles, joint-space planning, and race-style execution that ARCO
-CI already validates.
+CI already validates. All execution runs on **MuJoCo physics SITL** (v1.2 foundation).
 
 ### Robots
 
@@ -180,27 +273,37 @@ CI already validates.
 | `rrp` | 3 (θ₁, θ₂, z) | `map/rrp.yml` |
 | `rr` | 2 (θ₁, θ₂) | `map/rr.yml` |
 
-Leverages existing FRET SCARA bootstrap (`src/fret/urdf/scara.xacro`, MS-1–5 code).
+Leverages existing FRET SCARA bootstrap (`src/fret/control/kinematics.py`, MS-1–5 code).
 
 ### Scenario IDs
 
 | ID | File | Description |
 |---|---|---|
-| SC-v12a | `rrp_pillars.yml` | 3-D pillars + slabs (ARCO rrp) |
-| SC-v12b | `rr_planar.yml` | 2-D planar arm (ARCO rr) |
+| SC-v13a | `rrp_pillars.yml` | 3-D pillars + slabs (ARCO rrp) |
+| SC-v13b | `rr_planar.yml` | 2-D planar arm (ARCO rr) |
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V12-1 | RRP scenario matches ARCO `rrp.yml` obstacle layout and pass/fail semantics |
-| V12-2 | EE tracking error ≤ 5 mm (RRP) on Gazebo and MuJoCo |
-| V12-3 | RR planar scenario passes in pure-Python CI |
-| V12-4 | Side-by-side video: ARCO arcosim vs FRET sitl (same scenario) |
+| V13-1 | RRP scenario matches ARCO `rrp.yml` obstacle layout and pass/fail semantics |
+| V13-2 | EE tracking error ≤ 5 mm (RRP) on MuJoCo physics SITL |
+| V13-3 | RR planar scenario passes in pure-Python CI |
+| V13-4 | Side-by-side video: ARCO arcosim vs FRET SITL (same scenario) |
+
+### Implementation tasks
+
+| ID | Task |
+|---|---|
+| T13-01 | MJCF model for RRP arm + pillar world |
+| T13-02 | Extend `mujoco_bridge` for revolute + prismatic actuators |
+| T13-03 | Port ARCO `rrp.yml` → `rrp_pillars.yml` |
+| T13-04 | Port ARCO `rr.yml` → `rr_planar.yml` |
+| T13-05 | MuJoCo physics SITL smoke + comparison video |
 
 ---
 
-## v1.3 — 6-DOF manipulator (final challenge)
+## v1.4 — 6-DOF manipulator (final challenge)
 
 ### Goal
 
@@ -211,26 +314,27 @@ and trajectory execution in a cluttered environment — the capstone release.
 
 | Item | Detail |
 |---|---|
-| Model | 6 revolute joints; URDF + MJCF |
+| Model | 6 revolute joints; MJCF (import from Menagerie or URDF) |
 | IK | Numerical IK (Jacobian pseudoinverse or analytic where available) |
 | Planning | ARCO SST in 6-D C-space |
-| Collision | Per-link FK + KDTree clearance |
+| Collision | Per-link FK + KDTree clearance; self-collision in MJCF |
 | Environment | Configurable obstacle field (tabletop or cell) |
+| Simulation | MuJoCo physics SITL from day one |
 
 ### Scenario ID
 
-**SC-v13** — `config/scenarios/six_dof_challenge.yml` *(to be created)*
+**SC-v14** — `config/scenarios/six_dof_challenge.yml` *(to be created)*
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V13-1 | Collision-free 6-D path planned within 60 s |
-| V13-2 | EE reaches goal with ≤ 5 mm error |
-| V13-3 | Self-collision checking enabled |
-| V13-4 | Demo video + benchmark table (planning time, path length) |
+| V14-1 | Collision-free 6-D path planned within 60 s |
+| V14-2 | EE reaches goal with ≤ 5 mm error under physics SITL |
+| V14-3 | Self-collision checking enabled |
+| V14-4 | Demo video + benchmark table (planning time, path length) |
 
-*Detailed task breakdown will be written when v1.2 is complete.*
+*Detailed task breakdown will be written when v1.3 is complete.*
 
 ---
 
@@ -241,8 +345,9 @@ and trajectory execution in a cluttered environment — the capstone release.
 | `v0.9.0` | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done |
 | `v1.0.0` | PPP warehouse + magnetic grasp + MuJoCo video | T10-* |
 | `v1.1.0` | Dubins dual race | T11-* |
-| `v1.2.0` | RRP + RR ARCO reproduction | T12-* |
-| `v1.3.0` | 6-DOF challenge | T13-* |
+| `v1.2.0` | MuJoCo physics SITL (PPP + Dubins) | T12-* |
+| `v1.3.0` | RRP + RR ARCO reproduction | T13-* |
+| `v1.4.0` | 6-DOF challenge | T14-* |
 
 ---
 
@@ -256,4 +361,4 @@ The following documents and goals are **superseded** by this release spec:
 - Platform study 2026 Q3 dual-demo proposal
 
 Regression scenarios (SC-01 – SC-05) remain in CI for the bootstrap SCARA pipeline
-until v1.2 replaces them as the canonical arm tests.
+until v1.3 replaces them as the canonical arm tests.

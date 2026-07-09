@@ -16,13 +16,13 @@
 #   - EE tracking error < 5 mm at all times.
 #   - No fault published on /controller_fault.
 #
-# See docs/releases.md (bootstrap regression; v1.2 RRP target).
+# See docs/releases.md (bootstrap regression; v1.3 RRP target).
 
 /**:
   ros__parameters:
     scenario_id: "pillar_avoidance"
 
-    # Gazebo world file (relative to share/fret/).
+    # Legacy world file for bootstrap regression (relative to share/fret/).
     world_file: "worlds/pillar_scenario.sdf"
 
     # Start joint configuration [rad, rad, m] — arm at rest (fully extended).

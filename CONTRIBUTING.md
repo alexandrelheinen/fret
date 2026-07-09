@@ -60,7 +60,7 @@ The specification stack is in place:
 
 Project status and roadmap: [docs/releases.md](docs/releases.md),
 [docs/roadmap.md](docs/roadmap.md). User-facing usage: [README.md](README.md),
-[docs/simulation.md](docs/simulation.md).
+[docs/mujoco.md](docs/mujoco.md), [docs/simulation.md](docs/simulation.md).
 
 ---
 
@@ -309,7 +309,7 @@ steps) before pushing.
 ### Layer 3 — Human merge
 
 Every change is merged by a maintainer after reviewing CI results and, when
-relevant, physical or visual evidence (simulation plots, Gazebo behavior, bag
+relevant, physical or visual evidence (simulation plots, MuJoCo behavior, bag
 files). The agent does not decide when work is done.
 
 ---
@@ -427,7 +427,7 @@ Example:
 feat(planning): add pillar avoidance scenario SC-05
 
 Implement workspace occupancy integration for two-cylinder world.
-Validates FR-PLN-01 and FR-SCN-03 in Gazebo SITL.
+Validates FR-PLN-01 and FR-SCN-03 in MuJoCo SITL.
 
 Closes #42
 ```
@@ -518,7 +518,9 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | [docs/scenarios.md](docs/scenarios.md) | Level 1 — `SC-*` scenario validation |
 | [README.md § Architecture](../README.md#architecture) | Level 2 — system design |
 | [docs/interfaces.md](docs/interfaces.md) | Level 2 — typed contracts, QoS, FSMs |
-| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.3 |
+| [docs/mujoco.md](docs/mujoco.md) | Level 2 — MuJoCo simulation integration |
+| [docs/simulation.md](docs/simulation.md) | User guide — MuJoCo modes and quick start |
+| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.4 |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |
 
 ### Methodology (external)

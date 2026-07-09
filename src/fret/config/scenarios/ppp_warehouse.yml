@@ -5,7 +5,7 @@
 #   X [0, 12] m, Y [0, 5] m, Z [0, 3] m.
 #
 # Pass criteria (releases.md V10-1):
-#   ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp backend:=mujoco
+#   ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 #   starts all nodes without error.
 
 /**:

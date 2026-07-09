@@ -5,7 +5,7 @@
 **Tests:** `tests/planning/`
 
 > **All releases** use ARCO SST via this module. Collision checking adapts per robot
-> (PPP Cartesian envelope, RRP FK, 6-DOF per-link FK in v1.3). See [releases.md](../releases.md).
+> (PPP Cartesian envelope, RRP FK, 6-DOF per-link FK in v1.4). See [releases.md](../releases.md).
 
 ---
 

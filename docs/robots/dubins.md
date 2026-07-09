@@ -83,7 +83,7 @@ pytest tests/scenario/test_dubins_race_e2e.py -v
 python3 -c "from fret.scenario import DubinsRaceRunner; print(DubinsRaceRunner().run())"
 
 # MuJoCo SITL
-ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 # Headless showcase video
 ./scripts/video.sh --model dubins --scenario dubins_race --all-cameras -o /tmp/dubins

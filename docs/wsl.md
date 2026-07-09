@@ -28,7 +28,7 @@ working GPU inside WSL.
 |---|---|---|
 | Algorithm dev / unit tests | `pytest tests/ -v --ignore=tests/integration` | No |
 | MJCF load check (no window) | `python3 scripts/view_mujoco.py --dry-run` | No |
-| Full ROS SITL | `ros2 launch fret sitl.py … backend:=mujoco` | No (sim I/O only) |
+| Full ROS SITL | `ros2 launch fret sitl.py …` | No (sim I/O only) |
 | **Interactive 3D viewer** | `./scripts/view.sh` | **Yes** |
 | **Local MP4 export** | `./scripts/video.sh -o demo.mp4` | **Yes** (EGL/GL) |
 | **Watch a showcase MP4** | `./scripts/download_showcase.sh` | **No** |
@@ -194,7 +194,7 @@ may still produce an MP4 you can open on Windows.
 ## Suggested workflow
 
 ```
-Daily dev (WSL)     →  pytest, colcon, ros2 launch … backend:=mujoco
+Daily dev (WSL)     →  pytest, colcon, ros2 launch fret sitl.py …
 Quick visual check  →  ./scripts/video.sh  OR  ./scripts/download_showcase.sh
 Interactive explore →  ./scripts/view.sh (WSLg)  OR  Windows venv (Option B)
 ```

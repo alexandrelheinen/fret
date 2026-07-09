@@ -14,13 +14,12 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 
 **FR-SYS-02:** A scenario YAML fully specifies a reproducible run.
 
-**FR-SYS-03:** SITL backends:
+**FR-SYS-03:** Simulation and SITL backends:
 
 | Backend | Role | From |
 |---|---|---|
-| MuJoCo | Visual showcase (primary) | v1.0 |
-| Gazebo Harmonic | Engineering SITL | v1.2+ |
-| HITL | Hardware | post v1.3 |
+| MuJoCo | Physics, contacts, rendering, SITL | v1.0 |
+| HITL | Hardware | post v1.4 |
 
 **FR-SYS-04:** All runtime-significant values in ROS parameters or YAML.
 
@@ -46,7 +45,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 
 **FR-PLN-03:** Action feedback: iteration count, cost, elapsed time.
 
-**FR-PLN-04:** Planning timeout 30 s (60 s for v1.3 6-DOF) → `ABORTED / TIMEOUT`.
+**FR-PLN-04:** Planning timeout 30 s (60 s for v1.4 6-DOF) → `ABORTED / TIMEOUT`.
 
 **FR-PLN-05:** Failure → `ABORTED` with error code; no auto-retry.
 
@@ -66,8 +65,8 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 |---|---|---|
 | v1.0 | PPP gantry | ≤ 10 mm EE |
 | v1.1 | Dubins | ≤ 0.5 m pose (SE(2)) |
-| v1.2 | RRP | ≤ 5 mm EE |
-| v1.3 | 6-DOF | ≤ 5 mm EE |
+| v1.3 | RRP | ≤ 5 mm EE |
+| v1.4 | 6-DOF | ≤ 5 mm EE |
 
 **FR-CTL-03:** Velocity commands published to `/joint_commands`.
 
@@ -91,19 +90,36 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 
 ---
 
-## Simulation
+## Simulation (MuJoCo)
 
-**FR-SIM-01:** `backend:=mujoco` selectable at launch (v1.0 primary).
+**FR-SIM-01:** MuJoCo is the sole simulator for SITL, physics, contacts, and rendering.
 
 **FR-SIM-02:** Algorithm layers simulator-agnostic; I/O in `fret.ros` only.
 
 **FR-SIM-03:** MuJoCo headless MP4 render for CI and release artifacts.
 
-**FR-SIM-04:** Gazebo backend for arm scenarios (v1.2+).
+**FR-SIM-04:** MJCF assets under `src/fret/mjcf/` with joint names matching controller configs.
+
+**FR-SIM-05:** `MuJoCoBridgeNode` publishes `/joint_states` at 50 Hz from simulated state.
+
+**FR-SIM-06:** Kinematic mirror mode (v1.0–v1.1): integrate commands in Python, sync
+`qpos` + `mj_forward` for visuals and collision geometry.
+
+**FR-SIM-07:** Physics mode (v1.2+): controller commands drive actuators; advance with
+`mj_step`; `/joint_states` from simulated `qpos`/`qvel` — no pose teleportation.
+
+**FR-SIM-08:** Contact forces resolved by MuJoCo during physics mode; contact logging
+available for CI regression.
+
+**FR-SIM-09:** `physics_mode` selectable via ROS parameter or scenario YAML.
+
+**FR-SIM-10:** PPP collision checking via `CSpaceCheckerMujoco` (MJCF geometry + contacts).
+
+Full integration specification: [mujoco.md](mujoco.md).
 
 ---
 
-## Hardware (post v1.3)
+## Hardware (post v1.4)
 
 **FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
 
@@ -123,6 +139,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 | Workspace | [0,60] × [0,20] × [0,6] m (full); 12×4×3 m MJCF preview |
 | Cargo | 0.5 m box, magnetic weld |
 | Planner | ARCO RRT* (MuJoCo collision) |
+| Sim mode | Kinematic mirror |
 
 ### v1.1 — Dubins
 
@@ -132,22 +149,33 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 | Agents | 2 |
 | Planner | ARCO SST per agent |
 | Control | ARCO Pure Pursuit |
+| Sim mode | Kinematic mirror |
 
-### v1.2 — RRP
+### v1.2 — Physics SITL
+
+| Parameter | Value |
+|---|---|
+| Scope | PPP + Dubins scenarios |
+| Sim mode | MuJoCo `mj_step` + actuators |
+| Control rate | 50 Hz |
+
+### v1.3 — RRP
 
 | Parameter | Value |
 |---|---|
 | Joints | 2 revolute + 1 prismatic |
 | Planner | ARCO SST |
 | Control | Jacobian pseudoinverse |
+| Sim mode | Physics SITL |
 
-### v1.3 — 6-DOF
+### v1.4 — 6-DOF
 
 | Parameter | Value |
 |---|---|
 | Joints | 6 revolute |
 | Planner | ARCO SST |
 | Planning timeout | 60 s |
+| Sim mode | Physics SITL |
 
 ---
 
@@ -160,11 +188,12 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `GSP` (grasp), `SIM`, `HW`
 | FR-PLN-01–07 | v1.0+ | `tests/planning/`, SC-v10+ |
 | FR-CTL-01–06 | v1.0+ | `tests/control/` |
 | FR-GSP-01–04 | v1.0 | `tests/control/test_grasp_magnet.py` |
-| FR-SIM-01–03 | v1.0 | MuJoCo launch + MP4 artifact |
-| FR-SIM-04 | v1.2 | Gazebo sitl smoke |
-| FR-HW-01–03 | post v1.3 | — |
+| FR-SIM-01–06 | v1.0–v1.1 | MuJoCo launch + MP4 artifact |
+| FR-SIM-07–09 | v1.2 | Physics SITL smoke + integration tests |
+| FR-SIM-10 | v1.0 | `tests/planning/test_cspace_checker_mujoco.py` |
+| FR-HW-01–03 | post v1.4 | — |
 
 ### Regression (bootstrap SCARA)
 
-MS-1–5 scenarios (SC-01 – SC-05) remain in CI as regression tests until v1.2
+MS-1–5 scenarios (SC-01 – SC-05) remain in pure-Python CI as regression tests until v1.3
 supersedes them. They are **not** release acceptance criteria.
