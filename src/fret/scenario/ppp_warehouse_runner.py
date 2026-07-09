@@ -29,6 +29,7 @@ from fret.control.kinematics import Kinematics
 from fret.interfaces import (
     OccupancyUpdatePayload,
     PlanningRequest,
+    PlanningResult,
     PlanningStatus,
 )
 from fret.planning.cspace_checker import make_cspace_checker
@@ -58,6 +59,8 @@ _DEFAULT_CONTROLLER = (
 )
 _EE_ERROR_LIMIT_M: float = 0.010
 _PLANNING_TIMEOUT_S: float = 30.0
+# MJCF ``cargo`` body offset from the EE (see ppp_warehouse.xml).
+_PPP_CARGO_EE_OFFSET_Z: float = -0.34
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,75 @@ def _build_occupancy_adapter(
         )
     )
     return adapter, BoxObstacleOccupancy(boxes)
+
+
+def compute_ppp_cruise_z(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    max_obstacle_z: float,
+    cargo_half_z: float,
+) -> float:
+    """Return EE cruise height for welded-cargo transit around floor clutter."""
+    cargo_drop = float(cargo_half_z + abs(_PPP_CARGO_EE_OFFSET_Z))
+    nominal_cruise = float(max(start[2], goal[2], 2.2))
+    flyover_z = max_obstacle_z + cargo_drop + 0.05
+    if nominal_cruise >= flyover_z:
+        return max(1.5, max_obstacle_z + 0.35)
+    return nominal_cruise
+
+
+def stitch_ppp_operational_path(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    transit_path: list[npt.NDArray[np.float64]],
+    *,
+    pick_ee_z: float,
+    cruise_z: float,
+) -> list[npt.NDArray[np.float64]]:
+    """Insert pick/place vertical segments around a welded-cargo transit plan."""
+    if len(transit_path) < 2:
+        raise ValueError("Transit path must contain at least two waypoints")
+    waypoints: list[npt.NDArray[np.float64]] = [
+        np.asarray(start, dtype=np.float64).copy(),
+        np.array([start[0], start[1], pick_ee_z]),
+        np.array([start[0], start[1], cruise_z]),
+    ]
+    waypoints.extend(
+        np.asarray(q, dtype=np.float64) for q in transit_path[1:-1]
+    )
+    waypoints.extend(
+        [
+            np.array([goal[0], goal[1], cruise_z]),
+            np.array([goal[0], goal[1], pick_ee_z]),
+            np.asarray(goal, dtype=np.float64).copy(),
+        ]
+    )
+    return waypoints
+
+
+def _plan_ppp_transit_path(
+    planner: PlannerNode,
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    cruise_z: float,
+    timeout: float,
+    scenario_id: str,
+) -> PlanningResult:
+    """Plan horizontal transit with welded cargo at ``cruise_z``."""
+    transit_start = start.copy()
+    transit_goal = goal.copy()
+    transit_start[2] = float(cruise_z)
+    transit_goal[2] = float(cruise_z)
+    return planner.plan(
+        PlanningRequest(
+            start_configuration=transit_start,
+            goal_configuration=transit_goal,
+            planning_timeout=timeout,
+            scenario_id=scenario_id,
+        )
+    )
 
 
 def _trajectory_waypoints(
@@ -238,6 +310,7 @@ class PPPWarehouseRunner:
 
         occ_adapter, box_occ = _build_occupancy_adapter(self._obstacle_path)
         preview_bounds = load_preview_workspace_bounds(self._obstacle_path)
+        boxes = load_ppp_warehouse_preview_obstacles(self._obstacle_path)
         kin = Kinematics("ppp")
         collision_backend = str(params.get("collision_backend", "analytic"))
         planner_algorithm = str(params.get("planner_algorithm", "rrt_star"))
@@ -255,32 +328,51 @@ class PPPWarehouseRunner:
         )
         traj_gen = TrajectoryGenerator(kin)
 
-        req = PlanningRequest(
-            start_configuration=start.copy(),
-            goal_configuration=goal.copy(),
-            planning_timeout=timeout,
+        t0 = time.monotonic()
+        max_obs_z = max((box.z_max for box in boxes), default=1.2)
+        cruise_z = compute_ppp_cruise_z(
+            start,
+            goal,
+            max_obstacle_z=max_obs_z,
+            cargo_half_z=float(grasp_cfg.box_half_extent[2]),
+        )
+        pick_ee_z = (
+            float(grasp_cfg.box_half_extent[2]) - _PPP_CARGO_EE_OFFSET_Z
+        )
+        transit_result = _plan_ppp_transit_path(
+            planner,
+            start,
+            goal,
+            cruise_z=cruise_z,
+            timeout=timeout,
             scenario_id=str(params.get("scenario_id", "ppp_warehouse")),
         )
-        t0 = time.monotonic()
-        plan_result = planner.plan(req)
         planning_duration = time.monotonic() - t0
 
-        if plan_result.status != PlanningStatus.SUCCESS:
+        if transit_result.status != PlanningStatus.SUCCESS:
             return PPPWarehouseRunResult(
-                planning_status=plan_result.status,
+                planning_status=transit_result.status,
                 planning_duration_s=planning_duration,
                 max_tracking_error_m=0.0,
                 grasp_captured=False,
                 grasp_released=False,
                 path_collision_free=False,
                 controller_faulted=False,
-                n_path_waypoints=len(plan_result.path),
+                n_path_waypoints=len(transit_result.path),
             )
+
+        operational_path = stitch_ppp_operational_path(
+            start,
+            goal,
+            transit_result.path,
+            pick_ee_z=pick_ee_z,
+            cruise_z=cruise_z,
+        )
 
         path_collision_free = _path_is_collision_free(
             kin,
             box_occ,
-            plan_result.path,
+            transit_result.path,
             include_cargo=plan_include_cargo,
             grasp_config=grasp_cfg,
             collision_backend=collision_backend,
@@ -288,7 +380,7 @@ class PPPWarehouseRunner:
             workspace_bounds=preview_bounds,
         )
 
-        waypoints = _trajectory_waypoints(traj_gen, plan_result.path)
+        waypoints = _trajectory_waypoints(traj_gen, operational_path)
         ctrl = PPPControllerNode(str(self._controller_config_path))
 
         bridge = make_mujoco_bridge_core(
@@ -298,7 +390,14 @@ class PPPWarehouseRunner:
         )
 
         grasp = MagneticGraspFSM(grasp_cfg)
-        box_anchor = start + grasp_cfg.weld_offset
+        box_anchor = np.array(
+            [
+                start[0],
+                start[1],
+                float(grasp_cfg.box_half_extent[2]),
+            ],
+            dtype=np.float64,
+        )
         grasp.begin_transport()
 
         max_err_m = 0.0
@@ -359,19 +458,22 @@ class PPPWarehouseRunner:
             cargo_free = _path_is_collision_free(
                 kin,
                 box_occ,
-                plan_result.path,
+                transit_result.path,
                 include_cargo=True,
                 grasp_config=grasp_cfg,
+                collision_backend=collision_backend,
+                scenario=scenario_id,
+                workspace_bounds=preview_bounds,
             )
             path_collision_free = path_collision_free and cargo_free
 
         return PPPWarehouseRunResult(
-            planning_status=plan_result.status,
+            planning_status=transit_result.status,
             planning_duration_s=planning_duration,
             max_tracking_error_m=max_err_m,
             grasp_captured=grasp_captured,
             grasp_released=grasp_released,
             path_collision_free=path_collision_free,
             controller_faulted=controller_faulted,
-            n_path_waypoints=len(plan_result.path),
+            n_path_waypoints=len(operational_path),
         )

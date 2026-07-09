@@ -18,6 +18,7 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.grasp_magnet import GraspConfig
+from fret.planning.ppp_obstacles import PPP_DEFAULT_CONTACT_RADIUS_M
 from fret.ros.mujoco_bridge import resolve_mjcf_path
 
 if TYPE_CHECKING:
@@ -25,8 +26,10 @@ if TYPE_CHECKING:
 
 _OBSTACLE_GEOM_PREFIXES: tuple[str, ...] = ("obs_", "rack_")
 _CARGO_GEOM_NAMES: frozenset[str] = frozenset({"cargo_box"})
-_FREE_CLEARANCE_M: float = 0.01
-_COLLISION_CLEARANCE_M: float = -0.01
+_STATIC_ENV_GEOM_NAMES: frozenset[str] = frozenset({"floor"})
+_FREE_CLEARANCE_M: float = PPP_DEFAULT_CONTACT_RADIUS_M
+_COLLISION_CLEARANCE_M: float = -PPP_DEFAULT_CONTACT_RADIUS_M
+_GEOM_DISTANCE_MAX_M: float = 20.0
 
 
 @dataclass
@@ -35,6 +38,7 @@ class MujocoCheckerConfig:
 
     include_cargo: bool = False
     grasp_config: GraspConfig = field(default_factory=GraspConfig)
+    contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M
     mjcf_path: pathlib.Path | None = None
     scenario: str = "ppp_warehouse"
     workspace_bounds: (
@@ -131,7 +135,7 @@ class MujocoPPPCollisionChecker:
                 obstacle_ids.add(gid)
             elif name in _CARGO_GEOM_NAMES:
                 cargo_ids.add(gid)
-            elif name == "goal_zone":
+            elif name in _STATIC_ENV_GEOM_NAMES or name == "goal_zone":
                 continue
             else:
                 robot_ids.add(gid)
@@ -166,6 +170,28 @@ class MujocoPPPCollisionChecker:
             ):
                 return True
         return False
+
+    def _min_robot_obstacle_separation(self) -> float:
+        """Return minimum centre-to-surface separation over robot/obstacle geoms."""
+        mujoco = self._mujoco
+        fromto = np.zeros(6, dtype=np.float64)
+        min_sep = float("inf")
+        robot_ids = self._active_robot_geom_ids()
+        for robot_id in robot_ids:
+            for obstacle_id in self._obstacle_geom_ids:
+                dist = mujoco.mj_geomDistance(
+                    self._model,
+                    self._data,
+                    robot_id,
+                    obstacle_id,
+                    _GEOM_DISTANCE_MAX_M,
+                    fromto,
+                )
+                if dist >= 0.0:
+                    min_sep = min(min_sep, float(dist))
+        if min_sep == float("inf"):
+            return _FREE_CLEARANCE_M
+        return min_sep - self._config.contact_radius
 
     def is_collision_free(
         self, configuration: npt.NDArray[np.float64]
@@ -202,4 +228,4 @@ class MujocoPPPCollisionChecker:
         self._set_configuration(configuration)
         if self._has_robot_obstacle_contact():
             return _COLLISION_CLEARANCE_M
-        return _FREE_CLEARANCE_M
+        return self._min_robot_obstacle_separation()

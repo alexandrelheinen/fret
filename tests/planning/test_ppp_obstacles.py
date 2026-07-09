@@ -8,6 +8,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from fret.planning.ppp_obstacles import (
     BoxObstacle,
@@ -73,3 +74,11 @@ def test_box_obstacle_occupancy_outside_positive() -> None:
     box = BoxObstacle(10.0, 10.0, 0.0, 12.0, 12.0, 2.0)
     occ = BoxObstacleOccupancy([box])
     assert occ.clearance(np.array([1.0, 1.0, 4.0])) > 0.0
+
+
+def test_default_contact_radius_is_one_point_five_centimetres() -> None:
+    from fret.planning.ppp_obstacles import PPP_DEFAULT_CONTACT_RADIUS_M
+
+    occ = BoxObstacleOccupancy([])
+    assert occ._contact_radius == pytest.approx(PPP_DEFAULT_CONTACT_RADIUS_M)
+    assert PPP_DEFAULT_CONTACT_RADIUS_M == pytest.approx(0.015)
