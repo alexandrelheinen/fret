@@ -1323,6 +1323,25 @@ def _set_mocap_position(
     data.mocap_pos[mocap_id] = np.asarray(position, dtype=np.float64)
 
 
+def _set_cargo_freejoint_pose(
+    mujoco: object,
+    model: object,
+    data: object,
+    position: npt.NDArray[np.float64],
+) -> None:
+    """Write world-frame cargo centre into the top-level freejoint (T12-04)."""
+    joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "cargo_free")
+    if joint_id < 0:
+        raise ValueError("Cargo freejoint not found in MJCF: cargo_free")
+    adr = int(model.jnt_qposadr[joint_id])
+    pos = np.asarray(position, dtype=np.float64).reshape(3)
+    data.qpos[adr : adr + 3] = pos
+    data.qpos[adr + 3 : adr + 7] = np.array(
+        [1.0, 0.0, 0.0, 0.0],
+        dtype=np.float64,
+    )
+
+
 def _ppp_visual_cargo_center(
     ee_position: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
@@ -1386,6 +1405,12 @@ def _update_ppp_cargo_visuals(
     if grasp.is_welded and placed_floor_pos is None:
         _set_geom_alpha(mujoco, model, "cargo_box", 1.0)
         _set_geom_alpha(mujoco, model, "cargo_floor_box", 0.0)
+        _set_cargo_freejoint_pose(
+            mujoco,
+            model,
+            data,
+            grasp.cargo_position,
+        )
         _set_mocap_position(
             mujoco,
             model,
@@ -1406,6 +1431,7 @@ def _update_ppp_cargo_visuals(
         floor_pos = box_anchor
     _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
     _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
+    _set_cargo_freejoint_pose(mujoco, model, data, floor_pos)
     _set_mocap_position(mujoco, model, data, "cargo_floor", floor_pos)
     return grasp.is_welded, placed_floor_pos
 
@@ -1618,6 +1644,7 @@ def render_showcase_videos(
         ppp_grasp.begin_transport()
         _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
         _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
+        _set_cargo_freejoint_pose(mujoco, model, data, box_anchor)
         _set_mocap_position(mujoco, model, data, "cargo_floor", box_anchor)
         mujoco.mj_forward(model, data)
 
