@@ -26,6 +26,11 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.kinematics_ppp import PPPKinematics
+from fret.ros.mujoco_physics_log import (
+    ContactLogConfig,
+    PhysicsContactLogger,
+    contact_log_config_from_bridge_yaml,
+)
 
 if TYPE_CHECKING:
     from fret.control.grasp_magnet import MagneticGraspFSM
@@ -393,6 +398,7 @@ class MuJoCoBridgeCore:
         self._cargo_eq_id: int | None = None
         self._cargo_qpos_adr: int | None = None
         self._cargo_weld_active = False
+        self._contact_logger: PhysicsContactLogger | None = None
         self._load_mujoco_optional()
         self._seed_mujoco_state()
 
@@ -510,6 +516,32 @@ class MuJoCoBridgeCore:
         )
         self._mujoco.mj_forward(self._model, self._data)
 
+    def configure_contact_logging(self, config: ContactLogConfig) -> None:
+        """Enable JSONL contact logging for physics SITL ticks (T12-05)."""
+        if not config.enabled:
+            self._contact_logger = None
+            return
+        self._contact_logger = PhysicsContactLogger(config)
+
+    @property
+    def contact_logger(self) -> PhysicsContactLogger | None:
+        """Return the active contact logger, if any."""
+        return self._contact_logger
+
+    def finalize_physics_metrics(
+        self,
+        *,
+        max_tracking_error_m: float | None = None,
+    ) -> pathlib.Path | None:
+        """Flush contact logs and write shutdown metrics."""
+        if self._contact_logger is None:
+            return None
+        path = self._contact_logger.close(
+            max_tracking_error_m=max_tracking_error_m
+        )
+        self._contact_logger = None
+        return path
+
     @property
     def joint_names(self) -> list[str]:
         """Ordered joint names."""
@@ -602,6 +634,13 @@ class MuJoCoBridgeCore:
 
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
+
+        if self._contact_logger is not None:
+            self._contact_logger.record_tick(
+                self._model,
+                self._data,
+                self._mujoco,
+            )
 
         self._read_state_from_mujoco()
         return self._positions.copy()
@@ -739,6 +778,7 @@ class DubinsRaceBridgeCore:
         self._substeps_per_tick = _DEFAULT_SUBSTEPS_PER_TICK
         self._actuator_ids: list[int] = []
         self._velocities = np.zeros(6, dtype=np.float64)
+        self._contact_logger: PhysicsContactLogger | None = None
         self._load_mujoco_optional()
         self._seed_mujoco_state()
         if physics_config is not None:
@@ -767,6 +807,32 @@ class DubinsRaceBridgeCore:
             config.actuators.names,
         )
         _apply_actuator_gains(self._model, config.actuators)
+
+    def configure_contact_logging(self, config: ContactLogConfig) -> None:
+        """Enable JSONL contact logging for physics SITL ticks (T12-05)."""
+        if not config.enabled:
+            self._contact_logger = None
+            return
+        self._contact_logger = PhysicsContactLogger(config)
+
+    @property
+    def contact_logger(self) -> PhysicsContactLogger | None:
+        """Return the active contact logger, if any."""
+        return self._contact_logger
+
+    def finalize_physics_metrics(
+        self,
+        *,
+        max_tracking_error_m: float | None = None,
+    ) -> pathlib.Path | None:
+        """Flush contact logs and write shutdown metrics."""
+        if self._contact_logger is None:
+            return None
+        path = self._contact_logger.close(
+            max_tracking_error_m=max_tracking_error_m
+        )
+        self._contact_logger = None
+        return path
 
     @property
     def mjcf_path(self) -> pathlib.Path:
@@ -838,6 +904,13 @@ class DubinsRaceBridgeCore:
 
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
+
+        if self._contact_logger is not None:
+            self._contact_logger.record_tick(
+                self._model,
+                self._data,
+                self._mujoco,
+            )
 
         self._read_state_from_mujoco()
         return np.concatenate([self._rrt, self._sst]).astype(np.float64)
@@ -1239,11 +1312,14 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 __all__ = [
     "ActuatorTable",
     "CargoWeldConfig",
+    "ContactLogConfig",
     "DubinsRaceBridgeCore",
     "MuJoCoBridgeCore",
     "MuJoCoBridgeNode",
     "PhysicsBridgeConfig",
+    "PhysicsContactLogger",
     "cargo_weld_config_from_bridge_yaml",
+    "contact_log_config_from_bridge_yaml",
     "integrate_joint_velocities",
     "make_dubins_race_bridge_core",
     "make_mujoco_bridge_core",
