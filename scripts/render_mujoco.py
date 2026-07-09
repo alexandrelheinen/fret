@@ -985,6 +985,7 @@ def simulate_dubins_race_poses(
     *,
     duration_s: float | None,
     fps: int,
+    physics_mode: bool = False,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], float]:
     """Run the SC-v11 race and resample agent poses for video export.
 
@@ -994,8 +995,11 @@ def simulate_dubins_race_poses(
     _ensure_fret_importable()
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
 
-    result = DubinsRaceRunner().run(record_poses=True)
-    if not result.both_reached_goal:
+    result = DubinsRaceRunner().run(
+        record_poses=True,
+        physics_mode=physics_mode,
+    )
+    if not result.both_reached_goal and not physics_mode:
         raise RuntimeError(
             "Dubins race simulation failed before both agents reached goal"
         )
@@ -1160,6 +1164,7 @@ def render_dubins_race_showcase_videos(
     width: int = 1280,
     height: int = 720,
     realtime_postprocess: bool = True,
+    physics_mode: bool = False,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -1175,6 +1180,7 @@ def render_dubins_race_showcase_videos(
         scenario,
         duration_s=duration_s,
         fps=fps,
+        physics_mode=physics_mode,
     )
     _assert_dubins_race_moves(rrt_poses, sst_poses)
     render_duration_s = float(len(rrt_poses)) / float(fps)
@@ -1443,6 +1449,7 @@ def render_video(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
+    physics_mode: bool = False,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -1474,6 +1481,7 @@ def render_video(
         planner_algorithm=planner_algorithm,
         use_tracking=use_tracking,
         realtime_postprocess=realtime_postprocess,
+        physics_mode=physics_mode,
     )
     return results[0]
 
@@ -1494,6 +1502,7 @@ def render_showcase_videos(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
+    physics_mode: bool = False,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -1527,6 +1536,7 @@ def render_showcase_videos(
             width=width,
             height=height,
             realtime_postprocess=realtime_postprocess,
+            physics_mode=physics_mode,
         )
 
     mujoco, _iio = _require_mujoco()
@@ -1796,6 +1806,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use joint interpolation instead of controller tracking",
     )
     parser.add_argument(
+        "--physics-mode",
+        action="store_true",
+        help="Drive MuJoCo via mj_step actuators (v1.2 physics SITL)",
+    )
+    parser.add_argument(
         "--timing-json",
         type=Path,
         default=None,
@@ -1862,6 +1877,7 @@ def main(argv: list[str] | None = None) -> int:
 
     use_tracking = not args.no_tracking
     realtime_postprocess = not args.no_realtime_postprocess
+    physics_mode = bool(args.physics_mode)
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
@@ -1878,6 +1894,7 @@ def main(argv: list[str] | None = None) -> int:
             planner_algorithm=args.planner_algorithm,
             use_tracking=use_tracking,
             realtime_postprocess=realtime_postprocess,
+            physics_mode=physics_mode,
         )
         for result in results:
             timing = result.timing
@@ -1909,6 +1926,7 @@ def main(argv: list[str] | None = None) -> int:
             planner_algorithm=args.planner_algorithm,
             use_tracking=use_tracking,
             realtime_postprocess=realtime_postprocess,
+            physics_mode=physics_mode,
         )
         timing = result.timing
         print(
@@ -1932,6 +1950,7 @@ def main(argv: list[str] | None = None) -> int:
         planner_algorithm=args.planner_algorithm,
         use_tracking=use_tracking,
         realtime_postprocess=realtime_postprocess,
+        physics_mode=physics_mode,
     )
     for result in results:
         timing = result.timing

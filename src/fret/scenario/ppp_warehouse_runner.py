@@ -49,7 +49,9 @@ from fret.ros.mujoco_bridge import (
     _load_merged_bridge_config,
     _resolve_config_path,
     cargo_weld_config_from_bridge_yaml,
+    contact_log_config_from_bridge_yaml,
     make_mujoco_bridge_core,
+    physics_config_from_bridge_yaml,
 )
 from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import controller_config_path, scenario_config_path
@@ -70,6 +72,11 @@ class PPPWarehouseRunResult:
     path_collision_free: bool
     controller_faulted: bool
     n_path_waypoints: int
+    contact_log_path: pathlib.Path | None = None
+    contact_event_count: int = 0
+    max_contact_force_n: float = 0.0
+    penetration_violations: int = 0
+    physics_metrics_path: pathlib.Path | None = None
 
 
 def _parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
@@ -249,6 +256,70 @@ def _ppp_cargo_pose(
     return box_anchor
 
 
+def _track_carrot_path_physics(
+    waypoints: list[npt.NDArray[np.float64]],
+    bridge: Any,
+    *,
+    kp: float,
+    max_joint_velocity: npt.NDArray[np.float64],
+    max_joint_acc: float,
+    race_speed: float,
+    max_carrot_lag: float,
+    dt: float,
+    goal_tolerance: float,
+    on_step: Any | None = None,
+) -> float:
+    """Track waypoints with velocity actuators and ``mj_step`` (FR-SIM-07)."""
+    from arco.control import JointSpaceTracker
+
+    from fret.control.path_tracking import (
+        _subsample_path,
+        cumulative_arc_lengths,
+        densify_polyline,
+        sample_path_at_distance,
+    )
+
+    dense = densify_polyline(
+        [np.asarray(q, dtype=np.float64) for q in waypoints],
+        max_step=0.08,
+    )
+    if len(dense) > 600:
+        dense = _subsample_path(dense, 600)
+    nav = dense
+    arcs = cumulative_arc_lengths(nav)
+    max_acc = np.full(3, max_joint_acc, dtype=np.float64)
+    tracker = JointSpaceTracker(
+        max_vel=max_joint_velocity,
+        max_acc=max_acc,
+        proportional_gain=float(kp),
+    )
+    tracker.reset(bridge.get_positions())
+    carrot_dist = 0.0
+    carrot, _ = sample_path_at_distance(nav, arcs, carrot_dist)
+    max_err_m = 0.0
+    max_steps = int((arcs[-1] / max(race_speed * dt, 1e-6)) * 8.0) + 5_000
+
+    for _ in range(max_steps):
+        lag = float(np.linalg.norm(tracker.q - carrot))
+        if lag < max_carrot_lag:
+            carrot_dist = min(carrot_dist + race_speed * dt, arcs[-1])
+        carrot, at_path_end = sample_path_at_distance(nav, arcs, carrot_dist)
+        tracker.step(carrot, dt)
+        bridge.step(tracker.vel, dt)
+        tracker.q = bridge.get_positions()
+        path_err_m = float(np.linalg.norm(tracker.q - carrot))
+        max_err_m = max(max_err_m, path_err_m)
+        if on_step is not None:
+            on_step(tracker.q)
+        if (
+            at_path_end
+            and float(np.linalg.norm(tracker.q - nav[-1])) < goal_tolerance
+        ):
+            break
+
+    return max_err_m
+
+
 def _track_carrot_path(
     waypoints: list[npt.NDArray[np.float64]],
     bridge: Any,
@@ -262,8 +333,23 @@ def _track_carrot_path(
     fault_threshold_m: float,
     goal_tolerance: float,
     on_step: Any | None = None,
+    physics_mode: bool = False,
 ) -> float:
     """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
+    if physics_mode:
+        return _track_carrot_path_physics(
+            waypoints,
+            bridge,
+            kp=kp,
+            max_joint_velocity=max_joint_velocity,
+            max_joint_acc=max_joint_acc,
+            race_speed=race_speed,
+            max_carrot_lag=max_carrot_lag,
+            dt=dt,
+            goal_tolerance=goal_tolerance,
+            on_step=on_step,
+        )
+
     from fret.control.path_tracking import (
         _subsample_path,
         densify_polyline,
@@ -335,7 +421,12 @@ class PPPWarehouseRunner:
         """Load flat scenario parameters from YAML."""
         return load_scenario_bundle(self._scenario_path).parameters
 
-    def run(self) -> PPPWarehouseRunResult:
+    def run(
+        self,
+        *,
+        physics_mode: bool = False,
+        contact_log_enabled: bool = False,
+    ) -> PPPWarehouseRunResult:
         """Execute planning, tracking, grasp, and collision validation."""
         bundle = load_scenario_bundle(self._scenario_path)
         params = bundle.parameters
@@ -457,6 +548,26 @@ class PPPWarehouseRunner:
             dtype=np.float64,
         )
         _configure_ppp_cargo_bridge(bridge, box_anchor)
+        bridge_cfg = _load_merged_bridge_config(_resolve_config_path(None))
+        if physics_mode:
+            physics_cfg = dict(bridge_cfg)
+            physics_cfg["physics_mode"] = True
+            bridge.configure_physics(
+                physics_config_from_bridge_yaml(
+                    physics_cfg,
+                    "ppp",
+                    physics_mode=True,
+                )
+            )
+            if contact_log_enabled:
+                bridge.configure_contact_logging(
+                    contact_log_config_from_bridge_yaml(
+                        bridge_cfg,
+                        scenario_id,
+                        physics_mode=True,
+                        enabled=True,
+                    )
+                )
         grasp.begin_transport()
 
         max_err_m = 0.0
@@ -484,6 +595,8 @@ class PPPWarehouseRunner:
         rate_hz = ctrl.update_rate
         dt = 1.0 / rate_hz
         settle_steps = int(2.0 * rate_hz)
+        if physics_mode:
+            settle_steps = int(6.0 * rate_hz)
 
         _grasp_tick(start)
 
@@ -500,6 +613,7 @@ class PPPWarehouseRunner:
                 fault_threshold_m=ctrl.fault_threshold,
                 goal_tolerance=float(tracking_cfg["goal_tolerance"]),
                 on_step=_grasp_tick,
+                physics_mode=physics_mode,
             )
             if max_err_m > ee_error_limit_m:
                 controller_faulted = True
@@ -536,6 +650,21 @@ class PPPWarehouseRunner:
             )
             path_collision_free = path_collision_free and cargo_free
 
+        contact_log_path = None
+        contact_event_count = 0
+        max_contact_force_n = 0.0
+        penetration_violations = 0
+        physics_metrics_path = None
+        if bridge.contact_logger is not None:
+            logger = bridge.contact_logger
+            contact_log_path = logger.log_path
+            contact_event_count = logger.metrics.contact_event_count
+            max_contact_force_n = logger.metrics.max_contact_force_n
+            penetration_violations = logger.metrics.penetration_violations
+            physics_metrics_path = bridge.finalize_physics_metrics(
+                max_tracking_error_m=max_err_m,
+            )
+
         return PPPWarehouseRunResult(
             planning_status=transit_result.status,
             planning_duration_s=planning_duration,
@@ -545,4 +674,9 @@ class PPPWarehouseRunner:
             path_collision_free=path_collision_free,
             controller_faulted=controller_faulted,
             n_path_waypoints=len(operational_path),
+            contact_log_path=contact_log_path,
+            contact_event_count=contact_event_count,
+            max_contact_force_n=max_contact_force_n,
+            penetration_violations=penetration_violations,
+            physics_metrics_path=physics_metrics_path,
         )

@@ -248,13 +248,28 @@ WSL2 display notes: [wsl.md](wsl.md).
 ## Controller tuning workflow (v1.2)
 
 1. **Baseline** — run kinematic mirror; record tracking error and path fidelity.
-2. **Enable physics** — set `physics_mode:=true` (v1.2 parameter).
-3. **Tune actuators** — adjust `<actuator>` gains in MJCF or `mujoco.yml`.
-4. **Validate contacts** — log contact forces; confirm no interpenetration at goal.
-5. **Regression clip** — compare kinematic vs physics MP4; flag divergence > threshold.
+2. **Enable physics** — set `physics_mode:=true` (v1.2 parameter) or pass
+   `--physics-mode` to `./scripts/video.sh` for Dubins showcase clips.
+3. **Tune actuators** — adjust `kv` and force limits in
+   `config/simulation/mujoco_physics.yml` (see [config.md](config.md#simulation-physics-v12)).
+4. **Validate contacts** — enable `contact_log_enabled: true` in `mujoco.yml`;
+   inspect `/tmp/fret_physics/<scenario_id>/contacts.jsonl` and
+   `metrics.json` (penetration_violations, max_contact_force_n).
+5. **Regression clip** — compare kinematic vs physics MP4 under
+   `/tmp/fret_physics/<scenario_id>/regression/`; path-length ratio ≤ 1.15,
+   SSIM ≥ 0.85 (warning only).
 
-Shared harness (v1.2): sim-time vs wall-time metrics, contact logging, CI
-regression when physics diverges from kinematic baseline.
+Example physics showcase (Dubins):
+
+```bash
+export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
+  --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration \
+  --physics-mode
+```
+
+Physics integration tests: `tests/integration/test_mujoco_physics_*.py`.
 
 ---
 
@@ -285,7 +300,7 @@ Optional asset import tools: `trimesh`, `pycollada`.
 | PPP collision | `tests/planning/test_cspace_checker_mujoco.py` |
 | PPP E2E | `tests/integration/test_scenario_ppp_warehouse.py` |
 | Dubins E2E | `tests/scenario/test_dubins_race_e2e.py` |
-| Physics SITL (v1.2) | `tests/integration/test_mujoco_physics_*.py` *(planned)* |
+| Physics SITL (v1.2) | `tests/integration/test_mujoco_physics_*.py` |
 | SITL smoke | `scripts/tests/smoke.sh` — PPP + Dubins MuJoCo launch |
 
 ---

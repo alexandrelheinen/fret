@@ -82,6 +82,12 @@ class DubinsRaceRunResult:
     min_obstacle_clearance_m: float
     rrt_pose_history: tuple[tuple[float, float, float], ...] = ()
     sst_pose_history: tuple[tuple[float, float, float], ...] = ()
+    contact_log_path: pathlib.Path | None = None
+    contact_event_count: int = 0
+    max_contact_force_n: float = 0.0
+    penetration_violations: int = 0
+    physics_metrics_path: pathlib.Path | None = None
+    column_contacts_logged: bool = False
 
 
 @dataclass
@@ -650,7 +656,13 @@ class DubinsRaceRunner:
         )
         return rrt_plan, sst_plan, session
 
-    def run(self, *, record_poses: bool = False) -> DubinsRaceRunResult:
+    def run(
+        self,
+        *,
+        record_poses: bool = False,
+        physics_mode: bool = False,
+        contact_log_enabled: bool = False,
+    ) -> DubinsRaceRunResult:
         """Execute dual planning, simultaneous tracking, and race metrics."""
         params = self.load_parameters()
         race_timeout = float(params["race_timeout"])
@@ -671,7 +683,29 @@ class DubinsRaceRunner:
             )
 
         bridge = None
-        if self._sync_mujoco and _make_dubins_race_bridge_core is not None:
+        use_mujoco = self._sync_mujoco or physics_mode or contact_log_enabled
+        if use_mujoco and _make_dubins_race_bridge_core is not None:
+            physics_config = None
+            bridge_cfg: dict[str, Any] | None = None
+            if physics_mode or contact_log_enabled:
+                from fret.ros.mujoco_bridge import (
+                    _load_merged_bridge_config,
+                    _resolve_config_path,
+                    contact_log_config_from_bridge_yaml,
+                    physics_config_from_bridge_yaml,
+                )
+
+                bridge_cfg = _load_merged_bridge_config(
+                    _resolve_config_path(None)
+                )
+            if physics_mode:
+                cfg_physics = dict(bridge_cfg or {})
+                cfg_physics["physics_mode"] = True
+                physics_config = physics_config_from_bridge_yaml(
+                    cfg_physics,
+                    "dubins",
+                    physics_mode=True,
+                )
             bridge = _make_dubins_race_bridge_core(
                 initial_rrt=np.array(
                     session.rrt_vehicle.pose,
@@ -681,13 +715,27 @@ class DubinsRaceRunner:
                     session.sst_vehicle.pose,
                     dtype=np.float64,
                 ),
+                physics_config=physics_config,
             )
+            if contact_log_enabled and bridge_cfg is not None:
+                scenario_id = str(params.get("scenario_id", "dubins_race"))
+                bridge.configure_contact_logging(
+                    contact_log_config_from_bridge_yaml(
+                        bridge_cfg,
+                        scenario_id,
+                        physics_mode=True,
+                        enabled=True,
+                    )
+                )
 
         for _ in range(max_steps):
-            session.step()
-            if bridge is not None:
-                bridge.set_rrt_pose(session.rrt_vehicle.pose)
-                bridge.set_sst_pose(session.sst_vehicle.pose)
+            if physics_mode and bridge is not None:
+                session.step_physics(bridge)
+            else:
+                session.step()
+                if bridge is not None:
+                    bridge.set_rrt_pose(session.rrt_vehicle.pose)
+                    bridge.set_sst_pose(session.sst_vehicle.pose)
             if session.finished:
                 break
 
@@ -696,6 +744,22 @@ class DubinsRaceRunner:
             sst_plan,
             race_duration_s=session.sim_time_s,
         )
+        contact_log_path = None
+        contact_event_count = 0
+        max_contact_force_n = 0.0
+        penetration_violations = 0
+        physics_metrics_path = None
+        column_contacts_logged = False
+        if bridge is not None and bridge.contact_logger is not None:
+            logger = bridge.contact_logger
+            contact_log_path = logger.log_path
+            contact_event_count = logger.metrics.contact_event_count
+            max_contact_force_n = logger.metrics.max_contact_force_n
+            penetration_violations = logger.metrics.penetration_violations
+            physics_metrics_path = bridge.finalize_physics_metrics(
+                max_tracking_error_m=result.max_cross_track_error_m,
+            )
+            column_contacts_logged = logger.column_contacts_logged()
         if not record_poses:
             return DubinsRaceRunResult(
                 rrt_plan=result.rrt_plan,
@@ -707,5 +771,29 @@ class DubinsRaceRunner:
                 both_reached_goal=result.both_reached_goal,
                 max_cross_track_error_m=result.max_cross_track_error_m,
                 min_obstacle_clearance_m=result.min_obstacle_clearance_m,
+                contact_log_path=contact_log_path,
+                contact_event_count=contact_event_count,
+                max_contact_force_n=max_contact_force_n,
+                penetration_violations=penetration_violations,
+                physics_metrics_path=physics_metrics_path,
+                column_contacts_logged=column_contacts_logged,
             )
-        return result
+        return DubinsRaceRunResult(
+            rrt_plan=result.rrt_plan,
+            sst_plan=result.sst_plan,
+            rrt_time_to_goal_s=result.rrt_time_to_goal_s,
+            sst_time_to_goal_s=result.sst_time_to_goal_s,
+            race_duration_s=result.race_duration_s,
+            winner=result.winner,
+            both_reached_goal=result.both_reached_goal,
+            max_cross_track_error_m=result.max_cross_track_error_m,
+            min_obstacle_clearance_m=result.min_obstacle_clearance_m,
+            rrt_pose_history=result.rrt_pose_history,
+            sst_pose_history=result.sst_pose_history,
+            contact_log_path=contact_log_path,
+            contact_event_count=contact_event_count,
+            max_contact_force_n=max_contact_force_n,
+            penetration_violations=penetration_violations,
+            physics_metrics_path=physics_metrics_path,
+            column_contacts_logged=column_contacts_logged,
+        )

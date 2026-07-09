@@ -69,3 +69,11 @@ jobs:
 
       - name: Run integration tests
         run: bash scripts/tests/integration.sh
+
+      - name: Upload physics contact logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physics-contacts
+          path: /tmp/fret_physics/**/*
+          if-no-files-found: ignore
