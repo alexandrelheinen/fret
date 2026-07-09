@@ -246,7 +246,7 @@ def _point_rect_surface_distance(
     return float(np.linalg.norm([x - closest_x, y - closest_y])), closest
 
 
-class RectStructureOccupancy(Occupancy):
+class RectStructureOccupancy(Occupancy):  # type: ignore[misc]
     """Analytic axis-aligned box occupancy for Dubins race planning.
 
     Uses true rectangle geometry instead of sparse perimeter samples so
