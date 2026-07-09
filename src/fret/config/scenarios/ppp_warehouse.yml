@@ -13,6 +13,8 @@
     scenario_id: "ppp_warehouse"
     model: "ppp"
     backend: "mujoco"
+    planning_config: planning/ppp.yml
+    grasp_config: grasp/ppp_warehouse.yml
 
     # Pick pose above cargo, then place pose in goal zone (MJCF preview scale).
     start_configuration: [2.0, 1.0, 2.4]
@@ -25,12 +27,6 @@
     collision_backend: analytic
     planner_algorithm: rrt_star
     plan_include_cargo: true
-
-    grasp:
-      capture_radius: 0.45
-      goal_radius: 0.5
-      weld_offset: [0.0, 0.0, -0.34]
-      box_half_extent: 0.25
 
     recording:
       enabled: true

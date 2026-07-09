@@ -12,21 +12,13 @@ Provides FR-GSP-02 hooks via ``is_welded`` and ``cargo_corners``.
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-# Default scenario parameters (docs/scenarios.md, docs/robots/ppp.md).
-_DEFAULT_CAPTURE_RADIUS: float = 0.3
-_DEFAULT_GOAL_RADIUS: float = 0.5
-_DEFAULT_WELD_OFFSET: npt.NDArray[np.float64] = np.array(
-    [0.0, 0.0, 0.25], dtype=np.float64
-)
-_DEFAULT_BOX_HALF_EXTENT: npt.NDArray[np.float64] = np.array(
-    [0.25, 0.25, 0.25], dtype=np.float64
-)
+from fret.config_loader import require_key
 
 
 class GraspState(enum.IntEnum):
@@ -50,14 +42,10 @@ class GraspConfig:
         box_half_extent: Half-sizes of the axis-aligned cargo box [m].
     """
 
-    capture_radius: float = _DEFAULT_CAPTURE_RADIUS
-    goal_radius: float = _DEFAULT_GOAL_RADIUS
-    weld_offset: npt.NDArray[np.float64] = field(
-        default_factory=lambda: _DEFAULT_WELD_OFFSET.copy()
-    )
-    box_half_extent: npt.NDArray[np.float64] = field(
-        default_factory=lambda: _DEFAULT_BOX_HALF_EXTENT.copy()
-    )
+    capture_radius: float
+    goal_radius: float
+    weld_offset: npt.NDArray[np.float64]
+    box_half_extent: npt.NDArray[np.float64]
 
     def __post_init__(self) -> None:
         if self.capture_radius <= 0.0:
@@ -72,21 +60,19 @@ class GraspConfig:
             raise ValueError("box_half_extent components must be positive")
 
 
-def parse_grasp_config(grasp: dict[str, Any] | None) -> GraspConfig:
-    """Build ``GraspConfig`` from scenario ``grasp`` parameters."""
-    params = dict(grasp) if grasp is not None else {}
-    capture_radius = float(
-        params.get("capture_radius", _DEFAULT_CAPTURE_RADIUS)
-    )
-    goal_radius = float(params.get("goal_radius", _DEFAULT_GOAL_RADIUS))
+def parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
+    """Build ``GraspConfig`` from a grasp parameter mapping."""
+    context = "grasp config"
+    capture_radius = float(require_key(grasp, "capture_radius", context=context))
+    goal_radius = float(require_key(grasp, "goal_radius", context=context))
 
-    weld_raw = params.get("weld_offset", _DEFAULT_WELD_OFFSET.tolist())
+    weld_raw = require_key(grasp, "weld_offset", context=context)
     if isinstance(weld_raw, (int, float)):
         weld_offset = np.array([0.0, 0.0, float(weld_raw)], dtype=np.float64)
     else:
         weld_offset = np.asarray(weld_raw, dtype=np.float64).reshape(3)
 
-    half_raw = params.get("box_half_extent", 0.25)
+    half_raw = require_key(grasp, "box_half_extent", context=context)
     if isinstance(half_raw, (int, float)):
         box_half = np.full(3, float(half_raw), dtype=np.float64)
     else:
@@ -111,8 +97,8 @@ class MagneticGraspFSM:
         config: Grasp radii, weld offset, and cargo geometry.
     """
 
-    def __init__(self, config: GraspConfig | None = None) -> None:
-        self._config = config if config is not None else GraspConfig()
+    def __init__(self, config: GraspConfig) -> None:
+        self._config = config
         self._state: GraspState = GraspState.IDLE
         self._cargo_position: npt.NDArray[np.float64] = np.zeros(
             3, dtype=np.float64

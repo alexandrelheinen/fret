@@ -23,16 +23,16 @@ if TYPE_CHECKING:
     from fret.control.kinematics import Kinematics
 
 _PPP_DOF: int = 3
-_DEFAULT_KP: float = 1.5
-_DEFAULT_MAX_VEL: npt.NDArray[np.float64] = np.array(
-    [3.0, 3.0, 1.5], dtype=np.float64
+_REQUIRED_CONTROLLER_KEYS: tuple[str, ...] = (
+    "kp",
+    "max_joint_velocity",
+    "fault_threshold",
+    "update_rate",
+    "ticks_per_waypoint",
+    "max_joint_acc",
+    "race_speed",
+    "max_carrot_lag",
 )
-_DEFAULT_FAULT_THRESHOLD: float = 0.010
-_DEFAULT_RATE: float = 50.0
-_DEFAULT_TICKS_PER_WAYPOINT: int = 5
-_DEFAULT_MAX_ACC: float = 2.0
-_DEFAULT_RACE_SPEED: float = 0.9
-_DEFAULT_MAX_CARROT_LAG: float = 0.008
 
 
 class PPPControllerState(enum.IntEnum):
@@ -58,16 +58,6 @@ class PPPControllerNode:
 
     def __init__(self, config_path: str) -> None:
         self._state: _NodeState = _NodeState.IDLE
-        self._kp: float = _DEFAULT_KP
-        self._max_joint_velocity: npt.NDArray[np.float64] = (
-            _DEFAULT_MAX_VEL.copy()
-        )
-        self._fault_threshold: float = _DEFAULT_FAULT_THRESHOLD
-        self._update_rate: float = _DEFAULT_RATE
-        self._ticks_per_waypoint: int = _DEFAULT_TICKS_PER_WAYPOINT
-        self._max_joint_acc: float = _DEFAULT_MAX_ACC
-        self._race_speed: float = _DEFAULT_RACE_SPEED
-        self._max_carrot_lag: float = _DEFAULT_MAX_CARROT_LAG
         self._dof: int = _PPP_DOF
         self._current_command: npt.NDArray[np.float64] = np.zeros(
             self._dof, dtype=np.float64
@@ -108,52 +98,27 @@ class PPPControllerNode:
         return self._max_carrot_lag
 
     def _load_config(self, config_path: str) -> None:
+        from fret.config_loader import load_ros_parameters_yaml, require_keys
+
         path = pathlib.Path(config_path)
         if path.is_dir():
             path = path / "ppp.yml"
         if not path.is_file():
-            return
-        import yaml
+            raise FileNotFoundError(f"PPP controller config not found: {path}")
 
-        try:
-            with path.open() as fh:
-                data: Any = yaml.safe_load(fh)
-            if not isinstance(data, dict):
-                return
-            for section in data.values():
-                if not isinstance(section, dict):
-                    continue
-                params: dict[str, Any] = section.get("ros__parameters", {})
-                self._kp = float(params.get("kp", self._kp))
-                max_vel = params.get(
-                    "max_joint_velocity", self._max_joint_velocity
-                )
-                self._max_joint_velocity = np.asarray(
-                    max_vel, dtype=np.float64
-                )
-                if self._max_joint_velocity.shape != (self._dof,):
-                    raise ValueError("max_joint_velocity must have length 3")
-                self._fault_threshold = float(
-                    params.get("fault_threshold", self._fault_threshold)
-                )
-                self._update_rate = float(
-                    params.get("update_rate", self._update_rate)
-                )
-                self._ticks_per_waypoint = int(
-                    params.get("ticks_per_waypoint", self._ticks_per_waypoint)
-                )
-                self._max_joint_acc = float(
-                    params.get("max_joint_acc", self._max_joint_acc)
-                )
-                self._race_speed = float(
-                    params.get("race_speed", self._race_speed)
-                )
-                self._max_carrot_lag = float(
-                    params.get("max_carrot_lag", self._max_carrot_lag)
-                )
-                break
-        except (yaml.YAMLError, OSError, ValueError, KeyError):
-            return
+        params = load_ros_parameters_yaml(path)
+        require_keys(params, _REQUIRED_CONTROLLER_KEYS, context=str(path))
+        self._kp = float(params["kp"])
+        max_vel = params["max_joint_velocity"]
+        self._max_joint_velocity = np.asarray(max_vel, dtype=np.float64)
+        if self._max_joint_velocity.shape != (self._dof,):
+            raise ValueError("max_joint_velocity must have length 3")
+        self._fault_threshold = float(params["fault_threshold"])
+        self._update_rate = float(params["update_rate"])
+        self._ticks_per_waypoint = int(params["ticks_per_waypoint"])
+        self._max_joint_acc = float(params["max_joint_acc"])
+        self._race_speed = float(params["race_speed"])
+        self._max_carrot_lag = float(params["max_carrot_lag"])
 
     def set_trajectory(
         self, trajectory: list[npt.NDArray[np.float64]]

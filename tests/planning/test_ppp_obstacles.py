@@ -66,19 +66,20 @@ def test_is_ppp_kinematics() -> None:
 
 def test_box_obstacle_occupancy_inside_negative() -> None:
     box = BoxObstacle(10.0, 10.0, 0.0, 12.0, 12.0, 2.0)
-    occ = BoxObstacleOccupancy([box])
+    occ = BoxObstacleOccupancy([box], contact_radius=0.015)
     assert occ.clearance(np.array([11.0, 11.0, 1.0])) < 0.0
 
 
 def test_box_obstacle_occupancy_outside_positive() -> None:
     box = BoxObstacle(10.0, 10.0, 0.0, 12.0, 12.0, 2.0)
-    occ = BoxObstacleOccupancy([box])
+    occ = BoxObstacleOccupancy([box], contact_radius=0.015)
     assert occ.clearance(np.array([1.0, 1.0, 4.0])) > 0.0
 
 
-def test_default_contact_radius_is_one_point_five_centimetres() -> None:
-    from fret.planning.ppp_obstacles import PPP_DEFAULT_CONTACT_RADIUS_M
-
-    occ = BoxObstacleOccupancy([])
-    assert occ._contact_radius == pytest.approx(PPP_DEFAULT_CONTACT_RADIUS_M)
-    assert PPP_DEFAULT_CONTACT_RADIUS_M == pytest.approx(0.015)
+def test_contact_radius_loaded_from_planning_config(
+    ppp_planning_config: dict[str, object],
+) -> None:
+    contact_radius = float(ppp_planning_config["contact_radius"])
+    occ = BoxObstacleOccupancy([], contact_radius=contact_radius)
+    assert occ._contact_radius == pytest.approx(contact_radius)
+    assert contact_radius == pytest.approx(0.015)

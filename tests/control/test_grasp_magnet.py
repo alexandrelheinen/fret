@@ -48,7 +48,12 @@ def test_construction_defaults_to_idle() -> None:
 
 def test_invalid_capture_radius_raises() -> None:
     with pytest.raises(ValueError, match="capture_radius"):
-        GraspConfig(capture_radius=-0.1)
+        GraspConfig(
+            capture_radius=-0.1,
+            goal_radius=_GOAL_RADIUS,
+            weld_offset=_WELD_OFFSET,
+            box_half_extent=_BOX_HALF,
+        )
 
 
 def test_begin_transport_moves_to_approach() -> None:

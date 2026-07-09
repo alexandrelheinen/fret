@@ -25,6 +25,7 @@
 /**:
   ros__parameters:
     scenario_id: "straight_line"
+    planning_config: planning/scara.yml
 
     # Start joint configuration [q1, q2, q3] = [rad, rad, m]
     # FK([0.0, 0.40, 0.10]) ≈ (0.578, 0.107, 0.138) m in Cartesian space.

@@ -148,6 +148,7 @@ def make_cspace_checker(
     *,
     include_cargo: bool = False,
     grasp_config: Any | None = None,
+    contact_radius: float | None = None,
     collision_backend: CollisionBackend = "analytic",
     mjcf_path: str | pathlib.Path | None = None,
     scenario: str = "ppp_warehouse",
@@ -178,7 +179,6 @@ def make_cspace_checker(
     Returns:
         A checker exposing ``is_collision_free`` and ``clearance``.
     """
-    from fret.control.grasp_magnet import GraspConfig
     from fret.planning.cspace_checker_ppp import (
         PPPCheckerConfig,
         PPPcSpaceChecker,
@@ -186,9 +186,14 @@ def make_cspace_checker(
     from fret.planning.ppp_obstacles import is_ppp_kinematics
 
     if is_ppp_kinematics(kinematics.joint_names):
-        resolved_grasp = (
-            grasp_config if grasp_config is not None else GraspConfig()
-        )
+        if include_cargo and grasp_config is None:
+            raise ValueError(
+                "grasp_config is required when include_cargo is True for PPP"
+            )
+        if collision_backend == "mujoco" and contact_radius is None:
+            raise ValueError(
+                "contact_radius is required for the MuJoCo PPP collision backend"
+            )
         if collision_backend == "mujoco":
             from fret.planning.cspace_checker_mujoco import (
                 MujocoCheckerConfig,
@@ -197,7 +202,8 @@ def make_cspace_checker(
 
             mj_cfg = MujocoCheckerConfig(
                 include_cargo=include_cargo,
-                grasp_config=resolved_grasp,
+                grasp_config=grasp_config,
+                contact_radius=float(contact_radius),
                 mjcf_path=(
                     pathlib.Path(mjcf_path) if mjcf_path is not None else None
                 ),
@@ -208,7 +214,7 @@ def make_cspace_checker(
 
         cfg = PPPCheckerConfig(
             include_cargo=include_cargo,
-            grasp_config=resolved_grasp,
+            grasp_config=grasp_config,
             workspace_bounds=workspace_bounds,
         )
         return PPPcSpaceChecker(kinematics, occupancy, cfg)

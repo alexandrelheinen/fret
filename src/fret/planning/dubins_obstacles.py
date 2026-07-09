@@ -16,6 +16,7 @@ import numpy.typing as npt
 import yaml
 from arco.mapping.occupancy import Occupancy
 
+from fret.config_loader import require_key
 from fret.planning.ppp_obstacles import BoxObstacle
 from fret.sitl_config import resolve_package_file
 
@@ -79,17 +80,28 @@ def default_obstacle_file() -> Path:
 
 
 def _parse_rect(entry: dict[str, Any]) -> RectObstacle:
-    hx = float(entry.get("hx", entry.get("half_x", 0.5)))
-    hy = float(entry.get("hy", entry.get("half_y", 0.5)))
-    if "radius" in entry and "hx" not in entry and "half_x" not in entry:
-        legacy = float(entry["radius"])
-        hx = hy = legacy
+    if "hx" in entry:
+        hx = float(entry["hx"])
+    elif "half_x" in entry:
+        hx = float(entry["half_x"])
+    elif "radius" in entry:
+        hx = float(entry["radius"])
+    else:
+        raise ValueError("structure entry requires hx, half_x, or radius")
+    if "hy" in entry:
+        hy = float(entry["hy"])
+    elif "half_y" in entry:
+        hy = float(entry["half_y"])
+    elif "radius" in entry:
+        hy = float(entry["radius"])
+    else:
+        raise ValueError("structure entry requires hy, half_y, or radius")
     return RectObstacle(
-        x=float(entry["x"]),
-        y=float(entry["y"]),
+        x=float(require_key(entry, "x", context="structure")),
+        y=float(require_key(entry, "y", context="structure")),
         hx=hx,
         hy=hy,
-        height=float(entry.get("height", 2.5)),
+        height=float(require_key(entry, "height", context="structure")),
     )
 
 
@@ -117,10 +129,11 @@ def load_dubins_race_world(
     if not isinstance(data, dict):
         raise ValueError(f"Invalid obstacle YAML: {obstacle_path}")
 
-    bounds_raw = data.get("workspace_bounds", {})
-    x_bounds = bounds_raw.get("x", [0.0, 24.0])
-    y_bounds = bounds_raw.get("y", [0.0, 16.0])
-    z_bounds = bounds_raw.get("z", [0.0, 4.0])
+    ctx = f"obstacle YAML {obstacle_path.name}"
+    bounds_raw = require_key(data, "workspace_bounds", context=ctx)
+    x_bounds = require_key(bounds_raw, "x", context=ctx)
+    y_bounds = require_key(bounds_raw, "y", context=ctx)
+    z_bounds = require_key(bounds_raw, "z", context=ctx)
     workspace_bounds: tuple[
         tuple[float, float],
         tuple[float, float],
@@ -131,12 +144,12 @@ def load_dubins_race_world(
         (float(z_bounds[0]), float(z_bounds[1])),
     )
 
-    start_xy = np.asarray(data.get("start_xy", [2.0, 2.0]), dtype=np.float64)
-    goal_xy = np.asarray(data.get("goal_xy", [22.0, 14.0]), dtype=np.float64)
+    start_xy = np.asarray(require_key(data, "start_xy", context=ctx), dtype=np.float64)
+    goal_xy = np.asarray(require_key(data, "goal_xy", context=ctx), dtype=np.float64)
 
-    vehicle = data.get("vehicle", {})
-    vehicle_radius = float(vehicle.get("radius", 0.42))
-    clearance_margin = float(vehicle.get("clearance_margin", 0.28))
+    vehicle = require_key(data, "vehicle", context=ctx)
+    vehicle_radius = float(require_key(vehicle, "radius", context=ctx))
+    clearance_margin = float(require_key(vehicle, "clearance_margin", context=ctx))
 
     structure_entries = data.get("structures")
     if structure_entries is None:
@@ -152,14 +165,20 @@ def load_dubins_race_world(
         for part in dead_end.get("parts", []):
             structures.append(_parse_rect(part))
 
+    planner = require_key(data, "planner", context=ctx)
+    if not isinstance(planner, dict):
+        raise ValueError(f"'planner' must be a mapping in {obstacle_path}")
+
     return DubinsRaceWorld(
         workspace_bounds=workspace_bounds,
         start_xy=start_xy,
         goal_xy=goal_xy,
-        agent_lateral_offset=float(data.get("agent_lateral_offset", 0.6)),
+        agent_lateral_offset=float(
+            require_key(data, "agent_lateral_offset", context=ctx)
+        ),
         vehicle_radius=vehicle_radius,
         clearance_margin=clearance_margin,
-        planner=dict(data.get("planner", {})),
+        planner=dict(planner),
         structures=tuple(structures),
     )
 
@@ -329,8 +348,9 @@ def vehicle_body_clearance(
     structures: tuple[RectObstacle, ...],
     *,
     vehicle_radius: float,
-    half_length: float = 0.36,
-    half_width: float = 0.22,
+    half_length: float,
+    half_width: float,
+    corner_sample_radius: float,
 ) -> float:
     """Minimum oriented-body clearance over centre and corner samples [m]."""
     offsets = [
@@ -346,7 +366,9 @@ def vehicle_body_clearance(
     for ox, oy in offsets:
         px = x + cos_t * ox - sin_t * oy
         py = y + sin_t * ox + cos_t * oy
-        sample_radius = vehicle_radius if ox == 0.0 and oy == 0.0 else 0.05
+        sample_radius = (
+            vehicle_radius if ox == 0.0 and oy == 0.0 else corner_sample_radius
+        )
         if not structures:
             clearances.append(float("inf"))
             continue

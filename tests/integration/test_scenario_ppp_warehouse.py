@@ -18,6 +18,7 @@ import time
 import numpy as np
 import pytest
 
+from fret.config_loader import load_algorithm_config
 from fret.interfaces import PlanningStatus
 from fret.planning.ppp_obstacles import (
     load_ppp_warehouse_preview_obstacles,
@@ -34,7 +35,9 @@ _SCENARIO_PATH = (
     / "ppp_warehouse.yml"
 )
 _PLANNING_TIMEOUT_S = 30.0
-_EE_ERROR_LIMIT_M = 0.010
+_EE_ERROR_LIMIT_M = float(
+    load_algorithm_config("planning/ppp.yml")["ee_error_limit_m"]
+)
 
 
 def test_preview_obstacle_file_exists() -> None:
@@ -98,8 +101,13 @@ def test_planned_path_collision_free() -> None:
 
 def test_runner_loads_scenario_start_goal() -> None:
     """Runner must honour scenario start/goal configurations."""
+    from fret.config_loader import load_scenario_bundle
+
     runner = PPPWarehouseRunner(scenario_path=_SCENARIO_PATH)
-    params = runner.load_parameters()
+    bundle = load_scenario_bundle(_SCENARIO_PATH)
+    params = bundle.parameters
+    assert bundle.planning["contact_radius"] == pytest.approx(0.015)
+    assert bundle.grasp is not None
     np.testing.assert_allclose(
         params["start_configuration"], [2.0, 1.0, 2.4], atol=1e-9
     )

@@ -91,25 +91,20 @@ class DubinsRaceRosNode:  # pragma: no cover
 
         from fret.ros.mujoco_bridge import make_dubins_race_bridge_core
         from fret.scenario.dubins_race_runner import DubinsRaceRunner
+        from fret.config_loader import load_scenario_bundle, resolve_obstacle_file
         from fret.sitl_config import (
             controller_config_path,
-            load_scenario_parameters,
-            resolve_package_file,
             scenario_config_path,
         )
 
         scenario_path = scenario_config_path(self._scenario_stem)
-        params = load_scenario_parameters(scenario_path)
-        race_timeout = float(params.get("race_timeout", 90.0))
-        dt = float(params.get("simulation_dt", 0.05))
+        bundle = load_scenario_bundle(scenario_path)
+        params = bundle.parameters
+        race_timeout = float(params["race_timeout"])
+        dt = float(params["simulation_dt"])
         self._max_steps = int(race_timeout / dt)
 
-        obstacle_rel = str(
-            params.get("obstacle_file", "worlds/dubins_race_obstacles.yml")
-        )
-        obstacle_path = resolve_package_file(
-            "config", *pathlib.Path(obstacle_rel).parts
-        )
+        obstacle_path = resolve_obstacle_file(bundle.planning)
 
         self._runner = DubinsRaceRunner(
             scenario_path=scenario_path,

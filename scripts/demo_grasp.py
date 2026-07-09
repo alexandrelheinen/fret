@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from fret.control import GraspConfig, GraspState, MagneticGraspFSM
+from fret.config_loader import load_algorithm_config
+from fret.control import GraspState, MagneticGraspFSM
+from fret.control.grasp_magnet import parse_grasp_config
 
 _BOX = np.array([3.0, 2.0, 1.0])
 _GOAL = np.array([10.0, 3.0, 1.0])
@@ -21,7 +23,8 @@ _GOAL = np.array([10.0, 3.0, 1.0])
 
 def main() -> None:
     """Run a minimal weld → transport → release sequence."""
-    fsm = MagneticGraspFSM(GraspConfig())
+    grasp_cfg = parse_grasp_config(load_algorithm_config("grasp/magnetic.yml"))
+    fsm = MagneticGraspFSM(grasp_cfg)
     print("Magnetic grasp FSM demo (FR-GSP-01–04)")
     print(f"  initial state: {fsm.state.name}")
 

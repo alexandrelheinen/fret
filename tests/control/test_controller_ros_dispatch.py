@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
+import yaml
 
+from fret.config_loader import load_ros_parameters_yaml
 from fret.control.controller_node import (
     compute_tracking_command,
     controller_is_halted,
@@ -17,9 +20,9 @@ from fret.control.controller_ppp import PPPControllerState
 from fret.control.kinematics import Kinematics
 
 
-def _ppp_config() -> str:
-    return str(
-        pathlib.Path(__file__).resolve().parents[1]
+def _ppp_config_path() -> pathlib.Path:
+    return (
+        pathlib.Path(__file__).resolve().parents[2]
         / "src"
         / "fret"
         / "config"
@@ -28,29 +31,30 @@ def _ppp_config() -> str:
     )
 
 
+def _bundled_controller_params() -> dict[str, Any]:
+    return dict(load_ros_parameters_yaml(_ppp_config_path()))
+
+
+def _write_ppp_controller_yaml(
+    path: pathlib.Path,
+    **overrides: Any,
+) -> None:
+    params = _bundled_controller_params()
+    params.update(overrides)
+    path.write_text(
+        yaml.dump({"/**": {"ros__parameters": params}}),
+        encoding="utf-8",
+    )
+
+
 def test_controller_update_rate_ppp() -> None:
-    logic = make_controller_node("ppp", _ppp_config())
+    logic = make_controller_node("ppp", _ppp_config_path())
     assert controller_update_rate_hz(logic, "ppp") == 50.0
 
 
 def test_compute_tracking_command_ppp(tmp_path: pathlib.Path) -> None:
-    import yaml
-
     config_file = tmp_path / "ppp.yml"
-    config_file.write_text(
-        yaml.dump(
-            {
-                "/**": {
-                    "ros__parameters": {
-                        "kp": 1.5,
-                        "max_joint_velocity": [3.0, 3.0, 1.5],
-                        "fault_threshold": 1.0,
-                        "update_rate": 50.0,
-                    }
-                }
-            }
-        )
-    )
+    _write_ppp_controller_yaml(config_file, kp=1.5, fault_threshold=1.0)
     logic = make_controller_node("ppp", config_file)
     kin = Kinematics("ppp")
     logic.set_trajectory([np.zeros(3), np.array([0.1, 0.0, 0.0])])
@@ -61,7 +65,7 @@ def test_compute_tracking_command_ppp(tmp_path: pathlib.Path) -> None:
 
 
 def test_controller_is_halted_ppp() -> None:
-    logic = make_controller_node("ppp", _ppp_config())
+    logic = make_controller_node("ppp", _ppp_config_path())
     logic._enter_halted()
     assert controller_is_halted(logic, "ppp") is True
     assert logic.state == PPPControllerState.HALTED

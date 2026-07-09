@@ -24,6 +24,7 @@
 /**:
   ros__parameters:
     scenario_id: "arc"
+    planning_config: planning/scara.yml
 
     # Arc centre in the horizontal (XY) plane [m].
     arc_center_x: 0.30

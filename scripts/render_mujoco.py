@@ -367,23 +367,31 @@ def plan_ppp_warehouse_path(
     """
     _ensure_fret_importable()
     from fret.interfaces import PlanningRequest, PlanningStatus
+    from fret.config_loader import load_scenario_bundle, resolve_obstacle_file
     from fret.control.grasp_magnet import parse_grasp_config
     from fret.planning.planner_node import PlannerNode
     from fret.planning.ppp_obstacles import load_preview_workspace_bounds
     from fret.scenario.ppp_warehouse_runner import _build_occupancy_adapter
-    from fret.sitl_config import load_scenario_parameters
 
-    scenario_path = _scenario_config_path(scenario)
-    params = load_scenario_parameters(scenario_path)
-    occ_adapter, box_occ = _build_occupancy_adapter(None)
-    preview_bounds = load_preview_workspace_bounds(None)
-    resolved_mjcf = mjcf_path or resolve_mjcf_path("ppp", scenario, None)
-    resolved_planner = str(params.get("planner_algorithm", planner_algorithm))
-    resolved_collision = str(
-        params.get("collision_backend", collision_backend)
+    bundle = load_scenario_bundle(_scenario_config_path(scenario))
+    params = bundle.parameters
+    planning = bundle.planning
+    if bundle.grasp is None:
+        raise ValueError(f"Scenario {scenario!r} requires grasp_config")
+    obstacle_path = resolve_obstacle_file(planning)
+    contact_radius = float(planning["contact_radius"])
+    samples_per_edge = int(planning["samples_per_edge"])
+    occ_adapter, box_occ = _build_occupancy_adapter(
+        obstacle_path,
+        samples_per_edge=samples_per_edge,
+        contact_radius=contact_radius,
     )
-    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
-    plan_include_cargo = bool(params.get("plan_include_cargo", True))
+    preview_bounds = load_preview_workspace_bounds(obstacle_path)
+    resolved_mjcf = mjcf_path or resolve_mjcf_path("ppp", scenario, None)
+    resolved_planner = str(params["planner_algorithm"])
+    resolved_collision = str(params["collision_backend"])
+    grasp_cfg = parse_grasp_config(bundle.grasp)
+    plan_include_cargo = bool(params["plan_include_cargo"])
 
     planner = PlannerNode(
         model="ppp",
@@ -393,9 +401,10 @@ def plan_ppp_warehouse_path(
         planner_algorithm=resolved_planner,  # type: ignore[arg-type]
         include_cargo=plan_include_cargo,
         grasp_config=grasp_cfg,
-        scenario=str(params.get("scenario_id", scenario)),
+        scenario=str(params["scenario_id"]),
         workspace_bounds=preview_bounds,
         mjcf_path=resolved_mjcf,
+        planning_config=planning,
     )
 
     start = np.asarray(params["start_configuration"], dtype=np.float64)
@@ -408,8 +417,8 @@ def plan_ppp_warehouse_path(
     req = PlanningRequest(
         start_configuration=start.copy(),
         goal_configuration=goal.copy(),
-        planning_timeout=float(params.get("planning_timeout", 30.0)),
-        scenario_id=str(params.get("scenario_id", scenario)),
+        planning_timeout=float(params["planning_timeout"]),
+        scenario_id=str(params["scenario_id"]),
     )
     result = planner.plan(req)
     if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
@@ -433,26 +442,33 @@ def build_showcase_waypoints(
     showcase videos show full Z-axis motion and cargo transport.
     """
     _ensure_fret_importable()
+    from fret.config_loader import load_scenario_bundle, resolve_obstacle_file
     from fret.control.grasp_magnet import parse_grasp_config
     from fret.planning.ppp_obstacles import load_ppp_warehouse_preview_obstacles
     from fret.scenario.ppp_warehouse_runner import (
-        _PPP_CARGO_EE_OFFSET_Z,
         compute_ppp_cruise_z,
         stitch_ppp_operational_path,
     )
-    from fret.sitl_config import load_scenario_parameters
 
-    params = load_scenario_parameters(_scenario_config_path(scenario))
-    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+    bundle = load_scenario_bundle(_scenario_config_path(scenario))
+    params = bundle.parameters
+    planning = bundle.planning
+    if bundle.grasp is None:
+        raise ValueError(f"Scenario {scenario!r} requires grasp_config")
+    grasp_cfg = parse_grasp_config(bundle.grasp)
     start = np.asarray(params["start_configuration"], dtype=np.float64)
     goal = np.asarray(params["goal_configuration"], dtype=np.float64)
-    boxes = load_ppp_warehouse_preview_obstacles(None)
+    obstacle_path = resolve_obstacle_file(planning)
+    boxes = load_ppp_warehouse_preview_obstacles(obstacle_path)
     max_obs_z = max((box.z_max for box in boxes), default=1.2)
+    cargo_ee_offset_z = float(planning["cargo_ee_offset_z"])
     cruise_z = compute_ppp_cruise_z(
         start,
         goal,
         max_obstacle_z=max_obs_z,
         cargo_half_z=float(grasp_cfg.box_half_extent[2]),
+        cargo_ee_offset_z=cargo_ee_offset_z,
+        cruise_cfg=planning["cruise"],
     )
 
     transit = plan_ppp_warehouse_path(
@@ -462,7 +478,7 @@ def build_showcase_waypoints(
         mjcf_path=mjcf_path,
         transit_z=cruise_z,
     )
-    pick_ee_z = float(grasp_cfg.box_half_extent[2]) - _PPP_CARGO_EE_OFFSET_Z
+    pick_ee_z = float(grasp_cfg.box_half_extent[2]) - cargo_ee_offset_z
     return stitch_ppp_operational_path(
         start,
         goal,
@@ -595,28 +611,35 @@ def build_pruned_dense_waypoints(
         load_ppp_warehouse_preview_obstacles,
         load_preview_workspace_bounds,
     )
+    from fret.config_loader import load_scenario_bundle, resolve_obstacle_file
     from fret.planning.trajectory_generator import TrajectoryGenerator
-    from fret.sitl_config import load_scenario_parameters
 
-    params = load_scenario_parameters(_scenario_config_path(scenario))
-    grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
-    plan_include_cargo = bool(params.get("plan_include_cargo", True))
-    preview_bounds = load_preview_workspace_bounds(None)
-    boxes = load_ppp_warehouse_preview_obstacles(None)
+    bundle = load_scenario_bundle(_scenario_config_path(scenario))
+    params = bundle.parameters
+    if bundle.grasp is None:
+        raise ValueError(f"Scenario {scenario!r} requires grasp_config")
+    grasp_cfg = parse_grasp_config(bundle.grasp)
+    plan_include_cargo = bool(params["plan_include_cargo"])
+    planning = bundle.planning
+    obstacle_path = resolve_obstacle_file(planning)
+    preview_bounds = load_preview_workspace_bounds(obstacle_path)
+    boxes = load_ppp_warehouse_preview_obstacles(obstacle_path)
+    contact_radius = float(planning["contact_radius"])
 
     kin = Kinematics("ppp")
-    occ = build_box_obstacle_occupancy(boxes)
+    occ = build_box_obstacle_occupancy(boxes, contact_radius=contact_radius)
     checker = make_cspace_checker(
         kin,
         occ,
         include_cargo=plan_include_cargo,
         grasp_config=grasp_cfg,
+        contact_radius=contact_radius,
         collision_backend="mujoco",
         scenario=scenario,
         workspace_bounds=preview_bounds,
         mjcf_path=resolve_mjcf_path("ppp", scenario, None),
     )
-    traj_gen = TrajectoryGenerator(kin)
+    traj_gen = TrajectoryGenerator(kin, planning)
     traj_gen.set_collision_context(
         _CSpaceOccupancy(checker),
         np.full(kin.dof, 0.1, dtype=np.float64),
@@ -1564,11 +1587,13 @@ def render_showcase_videos(
     placed_floor_pos: npt.NDArray[np.float64] | None = None
     if scenario in {"ppp_warehouse", "ppp"}:
         _ensure_fret_importable()
+        from fret.config_loader import load_scenario_bundle
         from fret.control.grasp_magnet import MagneticGraspFSM, parse_grasp_config
-        from fret.sitl_config import load_scenario_parameters
 
-        params = load_scenario_parameters(_scenario_config_path(scenario))
-        grasp_cfg = parse_grasp_config(dict(params.get("grasp", {})))
+        bundle = load_scenario_bundle(_scenario_config_path(scenario))
+        if bundle.grasp is None:
+            raise ValueError(f"Scenario {scenario!r} requires grasp_config")
+        grasp_cfg = parse_grasp_config(bundle.grasp)
         start = path_waypoints[0]
         goal_position = path_waypoints[-1].copy()
         box_anchor = np.array(

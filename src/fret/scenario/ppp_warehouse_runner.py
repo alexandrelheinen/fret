@@ -18,6 +18,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from fret.config_loader import (
+    load_scenario_bundle,
+    resolve_obstacle_file,
+)
 from fret.control.controller_ppp import PPPControllerNode
 from fret.control.grasp_magnet import (
     GraspConfig,
@@ -43,24 +47,10 @@ from fret.planning.ppp_obstacles import (
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.ros.mujoco_bridge import make_mujoco_bridge_core
 from fret.scene.occupancy_adapter import OccupancyAdapter
-from fret.sitl_config import load_scenario_parameters
+from fret.sitl_config import controller_config_path, scenario_config_path
 
-_DEFAULT_SCENARIO = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "config"
-    / "scenarios"
-    / "ppp_warehouse.yml"
-)
-_DEFAULT_CONTROLLER = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "config"
-    / "controllers"
-    / "ppp.yml"
-)
-_EE_ERROR_LIMIT_M: float = 0.010
-_PLANNING_TIMEOUT_S: float = 30.0
-# MJCF ``cargo`` body offset from the EE (see ppp_warehouse.xml).
-_PPP_CARGO_EE_OFFSET_Z: float = -0.34
+_DEFAULT_SCENARIO = scenario_config_path("ppp_warehouse")
+_DEFAULT_CONTROLLER = controller_config_path("ppp")
 
 
 @dataclass(frozen=True)
@@ -83,11 +73,14 @@ def _parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
 
 
 def _build_occupancy_adapter(
-    obstacle_path: pathlib.Path | None,
+    obstacle_path: pathlib.Path,
+    *,
+    samples_per_edge: int,
+    contact_radius: float,
 ) -> tuple[OccupancyAdapter, BoxObstacleOccupancy]:
     """Load preview obstacles into point-cloud and box occupancy models."""
     boxes = load_ppp_warehouse_preview_obstacles(obstacle_path)
-    cloud = boxes_to_point_cloud(boxes, samples_per_edge=4)
+    cloud = boxes_to_point_cloud(boxes, samples_per_edge=samples_per_edge)
     adapter = OccupancyAdapter()
     adapter.update(
         OccupancyUpdatePayload(
@@ -96,7 +89,7 @@ def _build_occupancy_adapter(
             frame_id="world",
         )
     )
-    return adapter, BoxObstacleOccupancy(boxes)
+    return adapter, BoxObstacleOccupancy(boxes, contact_radius=contact_radius)
 
 
 def compute_ppp_cruise_z(
@@ -105,13 +98,22 @@ def compute_ppp_cruise_z(
     *,
     max_obstacle_z: float,
     cargo_half_z: float,
+    cargo_ee_offset_z: float,
+    cruise_cfg: dict[str, Any],
 ) -> float:
     """Return EE cruise height for welded-cargo transit around floor clutter."""
-    cargo_drop = float(cargo_half_z + abs(_PPP_CARGO_EE_OFFSET_Z))
-    nominal_cruise = float(max(start[2], goal[2], 2.2))
-    flyover_z = max_obstacle_z + cargo_drop + 0.05
+    cargo_drop = float(cargo_half_z + abs(cargo_ee_offset_z))
+    nominal_cruise = float(
+        max(start[2], goal[2], float(cruise_cfg["default_z"]))
+    )
+    flyover_z = max_obstacle_z + cargo_drop + float(
+        cruise_cfg["flyover_clearance_m"]
+    )
     if nominal_cruise >= flyover_z:
-        return max(1.5, max_obstacle_z + 0.35)
+        return max(
+            float(cruise_cfg["nominal_min_z"]),
+            max_obstacle_z + float(cruise_cfg["obstacle_clearance_m"]),
+        )
     return nominal_cruise
 
 
@@ -192,6 +194,7 @@ def _path_is_collision_free(
     grasp_config: GraspConfig,
     collision_backend: str = "analytic",
     scenario: str = "ppp_warehouse",
+    contact_radius: float | None = None,
     workspace_bounds: (
         tuple[
             tuple[float, float],
@@ -207,6 +210,7 @@ def _path_is_collision_free(
         occupancy,
         include_cargo=include_cargo,
         grasp_config=grasp_config,
+        contact_radius=contact_radius,
         collision_backend=collision_backend,  # type: ignore[arg-type]
         scenario=scenario,
         workspace_bounds=workspace_bounds,
@@ -225,6 +229,7 @@ def _track_carrot_path(
     max_carrot_lag: float,
     dt: float,
     fault_threshold_m: float,
+    goal_tolerance: float,
     on_step: Any | None = None,
 ) -> float:
     """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
@@ -257,7 +262,7 @@ def _track_carrot_path(
         max_carrot_lag=max_carrot_lag,
         dt=dt,
         goal=dense[-1],
-        goal_tolerance=0.02,
+        goal_tolerance=goal_tolerance,
         on_step=_sync_bridge,
     )
     return max_err_m
@@ -297,24 +302,44 @@ class PPPWarehouseRunner:
 
     def load_parameters(self) -> dict[str, Any]:
         """Load flat scenario parameters from YAML."""
-        return load_scenario_parameters(self._scenario_path)
+        return load_scenario_bundle(self._scenario_path).parameters
 
     def run(self) -> PPPWarehouseRunResult:
         """Execute planning, tracking, grasp, and collision validation."""
-        params = self.load_parameters()
+        bundle = load_scenario_bundle(self._scenario_path)
+        params = bundle.parameters
+        planning = bundle.planning
+        if bundle.grasp is None:
+            raise ValueError("ppp_warehouse scenario requires grasp_config")
         start = np.asarray(params["start_configuration"], dtype=np.float64)
         goal = np.asarray(params["goal_configuration"], dtype=np.float64)
-        timeout = float(params.get("planning_timeout", _PLANNING_TIMEOUT_S))
-        grasp_cfg = _parse_grasp_config(dict(params.get("grasp", {})))
-        plan_include_cargo = bool(params.get("plan_include_cargo", True))
+        timeout = float(params["planning_timeout"])
+        grasp_cfg = _parse_grasp_config(bundle.grasp)
+        plan_include_cargo = bool(params["plan_include_cargo"])
 
-        occ_adapter, box_occ = _build_occupancy_adapter(self._obstacle_path)
-        preview_bounds = load_preview_workspace_bounds(self._obstacle_path)
-        boxes = load_ppp_warehouse_preview_obstacles(self._obstacle_path)
+        obstacle_path = (
+            self._obstacle_path
+            if self._obstacle_path is not None
+            else resolve_obstacle_file(planning)
+        )
+        contact_radius = float(planning["contact_radius"])
+        samples_per_edge = int(planning["samples_per_edge"])
+        cargo_ee_offset_z = float(planning["cargo_ee_offset_z"])
+        cruise_cfg = planning["cruise"]
+        tracking_cfg = planning["tracking"]
+        ee_error_limit_m = float(planning["ee_error_limit_m"])
+
+        occ_adapter, box_occ = _build_occupancy_adapter(
+            obstacle_path,
+            samples_per_edge=samples_per_edge,
+            contact_radius=contact_radius,
+        )
+        preview_bounds = load_preview_workspace_bounds(obstacle_path)
+        boxes = load_ppp_warehouse_preview_obstacles(obstacle_path)
         kin = Kinematics("ppp")
-        collision_backend = str(params.get("collision_backend", "analytic"))
-        planner_algorithm = str(params.get("planner_algorithm", "rrt_star"))
-        scenario_id = str(params.get("scenario_id", "ppp_warehouse"))
+        collision_backend = str(params["collision_backend"])
+        planner_algorithm = str(params["planner_algorithm"])
+        scenario_id = str(params["scenario_id"])
         planner = PlannerNode(
             model="ppp",
             occupancy_adapter=occ_adapter,
@@ -325,8 +350,9 @@ class PPPWarehouseRunner:
             grasp_config=grasp_cfg,
             scenario=scenario_id,
             workspace_bounds=preview_bounds,
+            planning_config=planning,
         )
-        traj_gen = TrajectoryGenerator(kin)
+        traj_gen = TrajectoryGenerator(kin, planning)
 
         t0 = time.monotonic()
         max_obs_z = max((box.z_max for box in boxes), default=1.2)
@@ -335,17 +361,17 @@ class PPPWarehouseRunner:
             goal,
             max_obstacle_z=max_obs_z,
             cargo_half_z=float(grasp_cfg.box_half_extent[2]),
+            cargo_ee_offset_z=cargo_ee_offset_z,
+            cruise_cfg=cruise_cfg,
         )
-        pick_ee_z = (
-            float(grasp_cfg.box_half_extent[2]) - _PPP_CARGO_EE_OFFSET_Z
-        )
+        pick_ee_z = float(grasp_cfg.box_half_extent[2]) - cargo_ee_offset_z
         transit_result = _plan_ppp_transit_path(
             planner,
             start,
             goal,
             cruise_z=cruise_z,
             timeout=timeout,
-            scenario_id=str(params.get("scenario_id", "ppp_warehouse")),
+            scenario_id=scenario_id,
         )
         planning_duration = time.monotonic() - t0
 
@@ -377,6 +403,7 @@ class PPPWarehouseRunner:
             grasp_config=grasp_cfg,
             collision_backend=collision_backend,
             scenario=scenario_id,
+            contact_radius=contact_radius,
             workspace_bounds=preview_bounds,
         )
 
@@ -431,9 +458,10 @@ class PPPWarehouseRunner:
                 max_carrot_lag=ctrl.max_carrot_lag,
                 dt=dt,
                 fault_threshold_m=ctrl.fault_threshold,
+                goal_tolerance=float(tracking_cfg["goal_tolerance"]),
                 on_step=_grasp_tick,
             )
-            if max_err_m > ctrl.fault_threshold:
+            if max_err_m > ee_error_limit_m:
                 controller_faulted = True
         except RuntimeError:
             controller_faulted = True
@@ -463,6 +491,7 @@ class PPPWarehouseRunner:
                 grasp_config=grasp_cfg,
                 collision_backend=collision_backend,
                 scenario=scenario_id,
+                contact_radius=contact_radius,
                 workspace_bounds=preview_bounds,
             )
             path_collision_free = path_collision_free and cargo_free

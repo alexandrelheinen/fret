@@ -13,6 +13,7 @@
 /**:
   ros__parameters:
     scenario_id: "static_reach"
+    planning_config: planning/scara.yml
 
     # Goal EE position in the world frame [m].
     # 160° azimuth, r=0.25 m (≈ −58% reach from full extension), z=0.05 m.

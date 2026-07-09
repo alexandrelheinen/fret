@@ -35,8 +35,11 @@ from fret.interfaces import (
     PlanningStatus,
 )
 from fret.planning.planner_node import PlannerNode
+from fret.config_loader import load_algorithm_config
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
+
+_SCARA_PLANNING = load_algorithm_config("planning/scara.yml")
 
 # ---------------------------------------------------------------------------
 # Scenario parameters — SC-01 Static Reach
@@ -74,7 +77,7 @@ def _build_pipeline() -> tuple[PlannerNode, TrajectoryGenerator, Kinematics]:
     adapter.update(empty_payload)
     kin = Kinematics("scara")
     planner = PlannerNode(model="scara", occupancy_adapter=adapter)
-    traj_gen = TrajectoryGenerator(kin)
+    traj_gen = TrajectoryGenerator(kin, _SCARA_PLANNING)
     return planner, traj_gen, kin
 
 

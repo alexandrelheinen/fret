@@ -10,7 +10,7 @@ Satisfies requirements FR-PLN-02 and FR-GSP-02.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -39,7 +39,7 @@ class PPPCheckerConfig:
     """
 
     include_cargo: bool = False
-    grasp_config: GraspConfig = field(default_factory=GraspConfig)
+    grasp_config: GraspConfig | None = None
     workspace_bounds: (
         tuple[
             tuple[float, float],
@@ -68,6 +68,10 @@ class PPPcSpaceChecker:
         self._kin = kinematics
         self._occ = occupancy
         self._config = config if config is not None else PPPCheckerConfig()
+        if self._config.include_cargo and self._config.grasp_config is None:
+            raise ValueError(
+                "grasp_config is required when include_cargo is True for PPP"
+            )
         self._dof: int = kinematics.dof
 
     @property
@@ -82,6 +86,8 @@ class PPPcSpaceChecker:
             return None
         ee_pos = configuration.astype(np.float64)
         grasp = self._config.grasp_config
+        if grasp is None:
+            return None
         return BodyEnvelope(
             centre=ee_pos + grasp.weld_offset,
             half_extent=grasp.box_half_extent.copy(),

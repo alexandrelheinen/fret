@@ -15,34 +15,37 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from fret.planning.trajectory_generator import (
-    _MAX_INTERP_STEP_M,
-    TrajectoryGenerator,
+from fret.config_loader import load_algorithm_config
+from fret.planning.trajectory_generator import TrajectoryGenerator
+
+_SCARA_PLANNING = load_algorithm_config("planning/scara.yml")
+_MAX_INTERP_STEP_M = float(
+    _SCARA_PLANNING["trajectory_generator"]["max_interp_step_m"]
 )
 
 
 def test_construction(mock_kinematics: object) -> None:
-    TrajectoryGenerator(kinematics=mock_kinematics)
+    TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
 
 
 def test_process_returns_trajectory_with_enough_points(
     mock_kinematics: object,
 ) -> None:
     """Output JointTrajectory must have at least 2 points."""
-    gen = TrajectoryGenerator(kinematics=mock_kinematics)
+    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
     path = [np.zeros(3), np.array([0.3, 0.3, 0.05]), np.array([0.5, 0.2, 0.1])]
     traj = gen.process(path)
     assert len(traj.points) >= 2  # type: ignore[attr-defined]
 
 
 def test_single_waypoint_raises(mock_kinematics: object) -> None:
-    gen = TrajectoryGenerator(kinematics=mock_kinematics)
+    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
     with pytest.raises(ValueError):
         gen.process([np.zeros(3)])
 
 
 def test_empty_path_raises(mock_kinematics: object) -> None:
-    gen = TrajectoryGenerator(kinematics=mock_kinematics)
+    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
     with pytest.raises(ValueError):
         gen.process([])
 
@@ -53,12 +56,12 @@ def test_interp_step_bounded_for_static_reach() -> None:
     The linear fallback must produce dense enough waypoints so that the
     Jacobian controller (fault_threshold = 0.020 m) does not fault when it
     advances from waypoint k to k+1 while the robot is still at waypoint k.
-    The max allowed step is ``_MAX_INTERP_STEP_M`` (8 mm, half of 20 mm).
+    The max allowed step comes from ``planning/scara.yml``.
     """
     from fret.control.kinematics import Kinematics
 
     kin = Kinematics("scara")
-    gen = TrajectoryGenerator(kinematics=kin)
+    gen = TrajectoryGenerator(kinematics=kin, config=_SCARA_PLANNING)
 
     # Static reach scenario: rest pose → goal near obstacle cluster.
     path = [np.zeros(3), np.array([0.3272, 0.4712, 0.05])]
@@ -95,7 +98,7 @@ def test_no_fault_with_trajectory_generator_output() -> None:
     from fret.control.kinematics import Kinematics
 
     kin = Kinematics("scara")
-    gen = TrajectoryGenerator(kinematics=kin)
+    gen = TrajectoryGenerator(kinematics=kin, config=_SCARA_PLANNING)
 
     path = [np.zeros(3), np.array([0.3272, 0.4712, 0.05])]
     traj = gen.process(path)

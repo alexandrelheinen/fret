@@ -15,28 +15,9 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 
-#: Default obstacle layout shipped with FRET (ARCO ``ppp.yml`` port).
-_DEFAULT_OBSTACLE_FILE = (
-    Path(__file__).resolve().parents[1]
-    / "config"
-    / "worlds"
-    / "ppp_warehouse_obstacles.yml"
-)
-
-#: MJCF 1:5 preview layout for MuJoCo / E2E validation (SC-v10).
-_PREVIEW_OBSTACLE_FILE = (
-    Path(__file__).resolve().parents[1]
-    / "config"
-    / "worlds"
-    / "ppp_warehouse_preview_obstacles.yml"
-)
+from fret.sitl_config import resolve_package_file
 
 _PPP_JOINT_NAMES: list[str] = ["joint_x", "joint_y", "joint_z"]
-
-# Safety margin subtracted from obstacle clearance during PPP planning [m].
-# 1.5× the legacy 1 cm contact shell keeps welded cargo off clutter faces.
-PPP_DEFAULT_CONTACT_RADIUS_M: float = 0.015
-_LEGACY_CONTACT_RADIUS_M: float = 0.01
 
 
 @dataclass(frozen=True)
@@ -77,12 +58,14 @@ class BoxObstacle:
 
 def default_obstacle_file() -> Path:
     """Return the path to the bundled PPP warehouse obstacle YAML."""
-    return _DEFAULT_OBSTACLE_FILE
+    return resolve_package_file("config", "worlds", "ppp_warehouse_obstacles.yml")
 
 
 def preview_obstacle_file() -> Path:
     """Return the path to the MJCF 1:5 preview obstacle YAML."""
-    return _PREVIEW_OBSTACLE_FILE
+    return resolve_package_file(
+        "config", "worlds", "ppp_warehouse_preview_obstacles.yml"
+    )
 
 
 def load_ppp_warehouse_obstacles(
@@ -164,12 +147,21 @@ def load_preview_workspace_bounds(
         ``((x_lo, x_hi), (y_lo, y_hi), (z_lo, z_hi))`` in metres.
     """
     obstacle_path = path if path is not None else preview_obstacle_file()
-    with obstacle_path.open() as fh:
+    with obstacle_path.open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
-    bounds = data.get("workspace_bounds", {})
-    xb = bounds.get("x", [0.0, 12.0])
-    yb = bounds.get("y", [0.0, 5.0])
-    zb = bounds.get("z", [0.0, 3.0])
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid obstacle YAML: {obstacle_path}")
+    bounds = data.get("workspace_bounds")
+    if not isinstance(bounds, dict):
+        raise ValueError(
+            f"Missing workspace_bounds in obstacle YAML: {obstacle_path}"
+        )
+    for axis in ("x", "y", "z"):
+        if axis not in bounds:
+            raise ValueError(
+                f"Missing workspace_bounds.{axis} in {obstacle_path}"
+            )
+    xb, yb, zb = bounds["x"], bounds["y"], bounds["z"]
     return (
         (float(xb[0]), float(xb[1])),
         (float(yb[0]), float(yb[1])),
@@ -236,7 +228,7 @@ class BoxObstacleOccupancy:
         self,
         boxes: list[BoxObstacle],
         *,
-        contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M,
+        contact_radius: float,
     ) -> None:
         self._boxes = list(boxes)
         self._contact_radius = contact_radius
@@ -287,7 +279,7 @@ class BoxObstacleOccupancy:
 def build_box_obstacle_occupancy(
     boxes: list[BoxObstacle] | None = None,
     *,
-    contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M,
+    contact_radius: float,
 ) -> BoxObstacleOccupancy:
     """Build box occupancy from the default warehouse or a custom list."""
     resolved = boxes if boxes is not None else load_ppp_warehouse_obstacles()

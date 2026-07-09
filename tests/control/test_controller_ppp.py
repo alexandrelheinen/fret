@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
 import yaml
 
+from fret.config_loader import load_ros_parameters_yaml
 from fret.control.controller_node import make_controller_node
 from fret.control.controller_ppp import PPPControllerNode, PPPControllerState
 from fret.control.kinematics import Kinematics
@@ -21,6 +23,22 @@ def _ppp_config_path() -> pathlib.Path:
         / "config"
         / "controllers"
         / "ppp.yml"
+    )
+
+
+def _bundled_controller_params() -> dict[str, Any]:
+    return dict(load_ros_parameters_yaml(_ppp_config_path()))
+
+
+def _write_ppp_controller_yaml(
+    path: pathlib.Path,
+    **overrides: Any,
+) -> None:
+    params = _bundled_controller_params()
+    params.update(overrides)
+    path.write_text(
+        yaml.dump({"/**": {"ros__parameters": params}}),
+        encoding="utf-8",
     )
 
 
@@ -46,20 +64,15 @@ def test_fault_threshold_10mm() -> None:
     assert node._check_fault(0.010) is False
 
 
-def test_velocity_clipping() -> None:
+def test_velocity_clipping(tmp_path: pathlib.Path) -> None:
     """Large joint error must be clipped to per-axis max velocity."""
-    config = {
-        "/**": {
-            "ros__parameters": {
-                "kp": 10.0,
-                "max_joint_velocity": [3.0, 3.0, 1.5],
-                "fault_threshold": 25.0,
-                "ticks_per_waypoint": 1,
-            }
-        }
-    }
-    path = pathlib.Path("/tmp") / "ppp_clip.yml"
-    path.write_text(yaml.dump(config))
+    path = tmp_path / "ppp_clip.yml"
+    _write_ppp_controller_yaml(
+        path,
+        kp=10.0,
+        fault_threshold=25.0,
+        ticks_per_waypoint=1,
+    )
     node = PPPControllerNode(str(path))
     kin = Kinematics("ppp")
     q_far = np.array([10.0, 10.0, 10.0])
@@ -71,19 +84,12 @@ def test_velocity_clipping() -> None:
 
 def test_tracking_reaches_target_within_10mm(tmp_path: pathlib.Path) -> None:
     """P-control should drive error below 10 mm within 2 s at 50 Hz."""
-    config_data = {
-        "/**": {
-            "ros__parameters": {
-                "kp": 1.5,
-                "max_joint_velocity": [3.0, 3.0, 1.5],
-                "fault_threshold": 0.010,
-                "update_rate": 50.0,
-                "ticks_per_waypoint": 10_000,
-            }
-        }
-    }
     config_file = tmp_path / "ppp.yml"
-    config_file.write_text(yaml.dump(config_data))
+    _write_ppp_controller_yaml(
+        config_file,
+        kp=1.5,
+        ticks_per_waypoint=10_000,
+    )
     node = PPPControllerNode(str(config_file))
     kin = Kinematics("ppp")
     q_start = np.array([0.495, 0.295, 0.195])
@@ -102,20 +108,14 @@ def test_tracking_reaches_target_within_10mm(tmp_path: pathlib.Path) -> None:
     assert ee_error < 0.010
 
 
-def test_fault_on_unreachable_target() -> None:
+def test_fault_on_unreachable_target(tmp_path: pathlib.Path) -> None:
     """Controller should halt when tracking error exceeds fault threshold."""
-    config = {
-        "/**": {
-            "ros__parameters": {
-                "kp": 0.1,
-                "max_joint_velocity": [3.0, 3.0, 1.5],
-                "fault_threshold": 0.010,
-                "ticks_per_waypoint": 1,
-            }
-        }
-    }
-    path = pathlib.Path("/tmp") / "ppp_fault.yml"
-    path.write_text(yaml.dump(config))
+    path = tmp_path / "ppp_fault.yml"
+    _write_ppp_controller_yaml(
+        path,
+        kp=0.1,
+        ticks_per_waypoint=1,
+    )
     node = PPPControllerNode(str(path))
     kin = Kinematics("ppp")
     node.set_trajectory([np.zeros(3), np.array([1.0, 0.0, 0.0])])
@@ -147,19 +147,15 @@ def test_set_trajectory_requires_two_waypoints() -> None:
 
 
 def test_config_loading_from_yaml(tmp_path: pathlib.Path) -> None:
-    """Custom threshold from YAML must override the default."""
+    """Custom threshold from YAML must override bundled defaults."""
     config_file = tmp_path / "ppp.yml"
-    config_data = {
-        "/**": {
-            "ros__parameters": {
-                "fault_threshold": 0.050,
-                "kp": 2.0,
-                "max_joint_velocity": [1.0, 2.0, 3.0],
-                "update_rate": 100.0,
-            }
-        }
-    }
-    config_file.write_text(yaml.dump(config_data))
+    _write_ppp_controller_yaml(
+        config_file,
+        fault_threshold=0.050,
+        kp=2.0,
+        max_joint_velocity=[1.0, 2.0, 3.0],
+        update_rate=100.0,
+    )
     node = PPPControllerNode(str(config_file))
     assert node.fault_threshold == 0.050
     assert node.update_rate == 100.0
@@ -186,3 +182,14 @@ def test_make_controller_node_unknown_model() -> None:
     """Factory should raise ValueError for unknown models."""
     with pytest.raises(ValueError, match="Unknown controller model"):
         make_controller_node("unknown", _ppp_config_path())
+
+
+def test_missing_controller_key_raises(tmp_path: pathlib.Path) -> None:
+    """Incomplete controller YAML must fail fast."""
+    path = tmp_path / "incomplete.yml"
+    path.write_text(
+        yaml.dump({"/**": {"ros__parameters": {"kp": 1.0}}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(KeyError):
+        PPPControllerNode(str(path))

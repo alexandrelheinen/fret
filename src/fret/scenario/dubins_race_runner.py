@@ -19,11 +19,17 @@ from typing import Any, Literal, cast
 
 import numpy as np
 import numpy.typing as npt
-import yaml
 from arco.control.tracking import TrackingLoop
 from arco.planning.continuous import RRTPlanner, SSTPlanner, TrajectoryPruner
 from arco.simulator.sim.tracking import VehicleConfig, build_vehicle_sim
 
+from fret.config_loader import (
+    load_ros_parameters_yaml,
+    load_scenario_bundle,
+    require_key,
+    require_keys,
+    resolve_obstacle_file,
+)
 from fret.planning.dubins_obstacles import (
     DubinsRaceWorld,
     RectStructureOccupancy,
@@ -32,7 +38,6 @@ from fret.planning.dubins_obstacles import (
     load_dubins_race_world,
     vehicle_body_clearance,
 )
-from fret.sitl_config import load_scenario_parameters
 
 _make_dubins_race_bridge_core: Any
 try:
@@ -85,6 +90,7 @@ class DubinsRaceSimulation:
 
     world: DubinsRaceWorld
     vehicle_cfg: VehicleConfig
+    vehicle_body: dict[str, Any]
     occupancy: RectStructureOccupancy
     dt: float
     rrt_vehicle: Any
@@ -178,11 +184,13 @@ class DubinsRaceSimulation:
                     tuple(self.rrt_pose_history),
                     self.world.structures,
                     vehicle_radius=self.world.vehicle_radius,
+                    vehicle_body=self.vehicle_body,
                 ),
                 _min_pose_history_clearance(
                     tuple(self.sst_pose_history),
                     self.world.structures,
                     vehicle_radius=self.world.vehicle_radius,
+                    vehicle_body=self.vehicle_body,
                 ),
             ),
             rrt_pose_history=tuple(self.rrt_pose_history),
@@ -201,33 +209,37 @@ def _polyline_length(path: list[npt.NDArray[np.float64]]) -> float:
     )
 
 
+_CONTROLLER_KEYS: tuple[str, ...] = (
+    "max_speed",
+    "min_speed",
+    "cruise_speed",
+    "lookahead_distance",
+    "goal_radius",
+    "max_turn_rate_deg",
+    "max_acceleration",
+    "max_turn_rate_dot_deg",
+    "curvature_gain",
+    "repulsion_gain",
+)
+
+
 def _load_controller_params(path: pathlib.Path) -> dict[str, Any]:
-    with path.open(encoding="utf-8") as fh:
-        data = yaml.safe_load(fh)
-    if not isinstance(data, dict):
-        return {}
-    for section in data.values():
-        if isinstance(section, dict):
-            params = section.get("ros__parameters")
-            if isinstance(params, dict):
-                return dict(params)
-    return {}
+    return load_ros_parameters_yaml(path)
 
 
 def _vehicle_config(ctrl: dict[str, Any]) -> VehicleConfig:
+    require_keys(ctrl, _CONTROLLER_KEYS, context="dubins controller config")
     return VehicleConfig(
-        max_speed=float(ctrl.get("max_speed", 4.5)),
-        min_speed=float(ctrl.get("min_speed", 0.0)),
-        cruise_speed=float(ctrl.get("cruise_speed", 2.8)),
-        lookahead_distance=float(ctrl.get("lookahead_distance", 2.5)),
-        goal_radius=float(ctrl.get("goal_radius", 0.75)),
-        max_turn_rate=math.radians(float(ctrl.get("max_turn_rate_deg", 90.0))),
-        max_acceleration=float(ctrl.get("max_acceleration", 4.9)),
-        max_turn_rate_dot=math.radians(
-            float(ctrl.get("max_turn_rate_dot_deg", 360.0))
-        ),
-        curvature_gain=float(ctrl.get("curvature_gain", 0.5)),
-        repulsion_gain=float(ctrl.get("repulsion_gain", 1.2)),
+        max_speed=float(ctrl["max_speed"]),
+        min_speed=float(ctrl["min_speed"]),
+        cruise_speed=float(ctrl["cruise_speed"]),
+        lookahead_distance=float(ctrl["lookahead_distance"]),
+        goal_radius=float(ctrl["goal_radius"]),
+        max_turn_rate=math.radians(float(ctrl["max_turn_rate_deg"])),
+        max_acceleration=float(ctrl["max_acceleration"]),
+        max_turn_rate_dot=math.radians(float(ctrl["max_turn_rate_dot_deg"])),
+        curvature_gain=float(ctrl["curvature_gain"]),
+        repulsion_gain=float(ctrl["repulsion_gain"]),
     )
 
 
@@ -380,6 +392,7 @@ def _min_pose_history_clearance(
     structures: tuple[Any, ...],
     *,
     vehicle_radius: float,
+    vehicle_body: dict[str, Any],
 ) -> float:
     if not poses:
         return float("inf")
@@ -391,6 +404,9 @@ def _min_pose_history_clearance(
                 pose[2],
                 structures,
                 vehicle_radius=vehicle_radius,
+                half_length=float(vehicle_body["half_length"]),
+                half_width=float(vehicle_body["half_width"]),
+                corner_sample_radius=float(vehicle_body["corner_sample_radius"]),
             )
             for pose in poses
         )
@@ -443,7 +459,7 @@ class DubinsRaceRunner:
 
     def load_parameters(self) -> dict[str, Any]:
         """Load flat scenario parameters from YAML."""
-        return load_scenario_parameters(self._scenario_path)
+        return load_scenario_bundle(self._scenario_path).parameters
 
     def prepare_simulation(
         self,
@@ -454,18 +470,24 @@ class DubinsRaceRunner:
             ``(rrt_plan, sst_plan, session)`` where ``session`` is ``None`` if
             either planner failed.
         """
-        params = self.load_parameters()
+        bundle = load_scenario_bundle(self._scenario_path)
+        params = bundle.parameters
+        planning = bundle.planning
         ctrl = _load_controller_params(self._controller_config_path)
         vehicle_cfg = _vehicle_config(ctrl)
-        dt = float(params.get("simulation_dt", 0.05))
+        dt = float(params["simulation_dt"])
+        vehicle_body = planning["vehicle_body"]
 
-        world = load_dubins_race_world(
-            self._obstacle_path or default_obstacle_file()
+        obstacle_path = (
+            self._obstacle_path
+            if self._obstacle_path is not None
+            else resolve_obstacle_file(planning)
         )
+        world = load_dubins_race_world(obstacle_path)
         occupancy = build_race_occupancy(world)
         bounds = [
             tuple(b)
-            for b in world.planner.get("bounds", world.workspace_bounds[:2])
+            for b in require_key(world.planner, "bounds", context="planner config")
         ]
 
         rrt_spawn, sst_spawn = _spawn_positions(
@@ -507,6 +529,7 @@ class DubinsRaceRunner:
         session = DubinsRaceSimulation(
             world=world,
             vehicle_cfg=vehicle_cfg,
+            vehicle_body=vehicle_body,
             occupancy=occupancy,
             dt=dt,
             rrt_vehicle=rrt_vehicle,
@@ -524,10 +547,8 @@ class DubinsRaceRunner:
     def run(self, *, record_poses: bool = False) -> DubinsRaceRunResult:
         """Execute dual planning, simultaneous tracking, and race metrics."""
         params = self.load_parameters()
-        race_timeout = float(params.get("race_timeout", 90.0))
-        max_steps = int(
-            race_timeout / float(params.get("simulation_dt", 0.05))
-        )
+        race_timeout = float(params["race_timeout"])
+        max_steps = int(race_timeout / float(params["simulation_dt"]))
 
         rrt_plan, sst_plan, session = self.prepare_simulation()
         if session is None:

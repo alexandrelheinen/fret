@@ -53,6 +53,8 @@ require_command pytest "pytest is required. Run: pip install pytest pytest-cov p
 
 if pytest tests/ \
     --ignore=tests/integration \
+    -p no:launch_testing \
+    -p no:launch_ros \
     -v \
     --cov=src/fret; then
     ok "Unit tests: PASSED"
