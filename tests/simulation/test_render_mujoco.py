@@ -218,6 +218,38 @@ def test_list_showcase_cameras_dubins_race() -> None:
     assert cameras == ["overview", "follow"]
 
 
+def test_dubins_race_mjcf_loads_with_warehouse_assets() -> None:
+    """MJCF must load TurtleBot3 and AWS clutter mesh assets."""
+    mujoco = pytest.importorskip("mujoco")
+    path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
+    model = mujoco.MjModel.from_xml_path(str(path))
+    assert model.nmesh >= 6
+
+
+def test_ppp_visual_place_detects_floor_contact_at_goal() -> None:
+    goal = np.array([10.5, 2.8, 2.65])
+    ee = np.array([10.5, 2.8, 0.59])
+    assert rm._ppp_should_visually_place_cargo(
+        ee,
+        goal=goal,
+        box_half_z=0.25,
+        floor_z=0.25,
+        goal_radius=0.5,
+    )
+
+
+def test_ppp_visual_place_not_triggered_during_transit() -> None:
+    goal = np.array([10.5, 2.8, 2.65])
+    ee = np.array([6.0, 2.0, 2.0])
+    assert not rm._ppp_should_visually_place_cargo(
+        ee,
+        goal=goal,
+        box_half_z=0.25,
+        floor_z=0.25,
+        goal_radius=0.5,
+    )
+
+
 def test_dubins_follow_distance_targets_car_fill() -> None:
     distance = rm._dubins_follow_distance(640, 720)
     assert 4.0 < distance < 18.0
