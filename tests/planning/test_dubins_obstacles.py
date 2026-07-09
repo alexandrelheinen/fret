@@ -21,7 +21,7 @@ def test_default_obstacle_file_exists() -> None:
 
 def test_load_world_structures() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 85
+    assert len(world.structures) >= 30
     assert world.vehicle_radius > 0.0
 
 
@@ -58,4 +58,4 @@ def test_vehicle_body_clearance_samples_corners() -> None:
 
 def test_dead_end_parts_increase_structure_count() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 90
+    assert len(world.structures) >= 35

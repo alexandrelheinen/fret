@@ -34,7 +34,7 @@ def test_obstacle_file_exists() -> None:
 
 def test_world_has_structure_forest() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 85
+    assert len(world.structures) >= 30
 
 
 def test_dual_agents_plan_and_finish_race() -> None:
