@@ -256,6 +256,50 @@ def _spawn_positions(
     return rrt, sst
 
 
+def _postprocess_vehicle_path(
+    path: list[npt.NDArray[np.float64]],
+    occupancy: RectStructureOccupancy,
+    planner_cfg: dict[str, Any],
+    cruise_speed: float,
+) -> list[npt.NDArray[np.float64]]:
+    """Prune and time-parameterize a planner polyline (ARCO vehicle scene)."""
+    from arco.planning import PlanningPipeline
+    from arco.planning.continuous import TrajectoryOptimizer
+
+    dense = [np.asarray(p, dtype=np.float64) for p in path]
+    if len(dense) < 2:
+        return dense
+
+    pruner = None
+    if bool(planner_cfg.get("enable_pruning", True)):
+        step = float(planner_cfg.get("step_size", 0.35))
+        pruner = TrajectoryPruner(
+            occupancy,
+            step_size=np.array([step, step], dtype=np.float64),
+            collision_check_count=int(
+                planner_cfg.get("collision_check_count", 10)
+            ),
+        )
+
+    try:
+        optimizer = TrajectoryOptimizer.create_from_config(
+            occupancy,
+            cruise_speed=cruise_speed,
+        )
+        pipeline = PlanningPipeline(pruner=pruner, optimizer=optimizer)
+        result = pipeline.run_from_path(dense)
+        if result.trajectory and len(result.trajectory) >= 2:
+            return [
+                np.asarray(p, dtype=np.float64) for p in result.trajectory
+            ]
+    except Exception:
+        pass
+
+    if pruner is not None:
+        return [np.asarray(p, dtype=np.float64) for p in pruner.prune(dense)]
+    return dense
+
+
 def _plan_path(
     planner_kind: AgentName,
     occupancy: RectStructureOccupancy,
@@ -263,6 +307,7 @@ def _plan_path(
     start_xy: tuple[float, float],
     goal_xy: npt.NDArray[np.float64],
     planner_cfg: dict[str, Any],
+    cruise_speed: float,
 ) -> AgentPlanResult:
     start = np.array(start_xy, dtype=np.float64)
     goal = np.asarray(goal_xy[:2], dtype=np.float64)
@@ -309,15 +354,12 @@ def _plan_path(
             node_count=len(nodes),
         )
 
-    dense = [np.asarray(p, dtype=np.float64) for p in path]
-    if bool(planner_cfg.get("enable_pruning", True)):
-        step = float(common["step_size"])
-        pruner = TrajectoryPruner(
-            occupancy,
-            step_size=np.array([step, step], dtype=np.float64),
-            collision_check_count=common["collision_check_count"],
-        )
-        dense = [np.asarray(p, dtype=np.float64) for p in pruner.prune(dense)]
+    dense = _postprocess_vehicle_path(
+        path,
+        occupancy,
+        planner_cfg,
+        cruise_speed,
+    )
 
     return AgentPlanResult(
         agent=planner_kind,
@@ -441,6 +483,7 @@ class DubinsRaceRunner:
             rrt_spawn,
             world.goal_xy,
             world.planner,
+            vehicle_cfg.cruise_speed,
         )
         sst_plan = _plan_path(
             "sst",
@@ -449,6 +492,7 @@ class DubinsRaceRunner:
             sst_spawn,
             world.goal_xy,
             world.planner,
+            vehicle_cfg.cruise_speed,
         )
         if not rrt_plan.path_found or not sst_plan.path_found:
             return rrt_plan, sst_plan, None

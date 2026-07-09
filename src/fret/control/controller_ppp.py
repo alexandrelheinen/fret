@@ -30,6 +30,9 @@ _DEFAULT_MAX_VEL: npt.NDArray[np.float64] = np.array(
 _DEFAULT_FAULT_THRESHOLD: float = 0.010
 _DEFAULT_RATE: float = 50.0
 _DEFAULT_TICKS_PER_WAYPOINT: int = 5
+_DEFAULT_MAX_ACC: float = 2.0
+_DEFAULT_RACE_SPEED: float = 0.9
+_DEFAULT_MAX_CARROT_LAG: float = 0.008
 
 
 class PPPControllerState(enum.IntEnum):
@@ -62,6 +65,9 @@ class PPPControllerNode:
         self._fault_threshold: float = _DEFAULT_FAULT_THRESHOLD
         self._update_rate: float = _DEFAULT_RATE
         self._ticks_per_waypoint: int = _DEFAULT_TICKS_PER_WAYPOINT
+        self._max_joint_acc: float = _DEFAULT_MAX_ACC
+        self._race_speed: float = _DEFAULT_RACE_SPEED
+        self._max_carrot_lag: float = _DEFAULT_MAX_CARROT_LAG
         self._dof: int = _PPP_DOF
         self._current_command: npt.NDArray[np.float64] = np.zeros(
             self._dof, dtype=np.float64
@@ -85,6 +91,21 @@ class PPPControllerNode:
     def fault_threshold(self) -> float:
         """Joint-space tracking fault threshold [m]."""
         return self._fault_threshold
+
+    @property
+    def max_joint_acc(self) -> float:
+        """Per-axis joint acceleration limit [m/s²]."""
+        return self._max_joint_acc
+
+    @property
+    def race_speed(self) -> float:
+        """Arc-length carrot advance speed [m/s]."""
+        return self._race_speed
+
+    @property
+    def max_carrot_lag(self) -> float:
+        """Maximum carrot lag before arc-length advance resumes [m]."""
+        return self._max_carrot_lag
 
     def _load_config(self, config_path: str) -> None:
         path = pathlib.Path(config_path)
@@ -120,6 +141,15 @@ class PPPControllerNode:
                 )
                 self._ticks_per_waypoint = int(
                     params.get("ticks_per_waypoint", self._ticks_per_waypoint)
+                )
+                self._max_joint_acc = float(
+                    params.get("max_joint_acc", self._max_joint_acc)
+                )
+                self._race_speed = float(
+                    params.get("race_speed", self._race_speed)
+                )
+                self._max_carrot_lag = float(
+                    params.get("max_carrot_lag", self._max_carrot_lag)
                 )
                 break
         except (yaml.YAMLError, OSError, ValueError, KeyError):

@@ -139,7 +139,7 @@ def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
             "collision_check_count": 24,
             "goal_bias": 0.10,
             "witness_radius": 0.25,
-            "enable_pruning": False,
+            "enable_pruning": True,
         },
         "structures": structures,
         "dead_ends": [
