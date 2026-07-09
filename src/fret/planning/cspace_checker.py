@@ -190,11 +190,11 @@ def make_cspace_checker(
             raise ValueError(
                 "grasp_config is required when include_cargo is True for PPP"
             )
-        if collision_backend == "mujoco" and contact_radius is None:
-            raise ValueError(
-                "contact_radius is required for the MuJoCo PPP collision backend"
-            )
         if collision_backend == "mujoco":
+            if contact_radius is None:
+                raise ValueError(
+                    "contact_radius is required for the MuJoCo PPP collision backend"
+                )
             from fret.planning.cspace_checker_mujoco import (
                 MujocoCheckerConfig,
                 MujocoPPPCollisionChecker,

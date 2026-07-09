@@ -106,8 +106,8 @@ def compute_ppp_cruise_z(
     nominal_cruise = float(
         max(start[2], goal[2], float(cruise_cfg["default_z"]))
     )
-    flyover_z = max_obstacle_z + cargo_drop + float(
-        cruise_cfg["flyover_clearance_m"]
+    flyover_z = (
+        max_obstacle_z + cargo_drop + float(cruise_cfg["flyover_clearance_m"])
     )
     if nominal_cruise >= flyover_z:
         return max(

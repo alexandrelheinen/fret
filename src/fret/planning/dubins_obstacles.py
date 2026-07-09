@@ -144,12 +144,18 @@ def load_dubins_race_world(
         (float(z_bounds[0]), float(z_bounds[1])),
     )
 
-    start_xy = np.asarray(require_key(data, "start_xy", context=ctx), dtype=np.float64)
-    goal_xy = np.asarray(require_key(data, "goal_xy", context=ctx), dtype=np.float64)
+    start_xy = np.asarray(
+        require_key(data, "start_xy", context=ctx), dtype=np.float64
+    )
+    goal_xy = np.asarray(
+        require_key(data, "goal_xy", context=ctx), dtype=np.float64
+    )
 
     vehicle = require_key(data, "vehicle", context=ctx)
     vehicle_radius = float(require_key(vehicle, "radius", context=ctx))
-    clearance_margin = float(require_key(vehicle, "clearance_margin", context=ctx))
+    clearance_margin = float(
+        require_key(vehicle, "clearance_margin", context=ctx)
+    )
 
     structure_entries = data.get("structures")
     if structure_entries is None:

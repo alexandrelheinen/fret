@@ -375,9 +375,14 @@ class PlannerRosNode:  # pragma: no cover
         from fret.control.kinematics import Kinematics
 
         kin = Kinematics(self._model)
-        from fret.config_loader import load_algorithm_config, planning_config_for_model
+        from fret.config_loader import (
+            load_algorithm_config,
+            planning_config_for_model,
+        )
 
-        planning = load_algorithm_config(planning_config_for_model(self._model))
+        planning = load_algorithm_config(
+            planning_config_for_model(self._model)
+        )
         traj_gen = TrajectoryGenerator(kin, planning)
         timed = traj_gen.process(result.path)
 
