@@ -142,51 +142,52 @@ def _path_is_collision_free(
     return all(checker.is_collision_free(q) for q in path)
 
 
-def _track_prismatic_path(
+def _track_carrot_path(
     waypoints: list[npt.NDArray[np.float64]],
-    kin: Kinematics,
     bridge: Any,
     *,
     kp: float,
     max_joint_velocity: npt.NDArray[np.float64],
+    max_joint_acc: float,
+    race_speed: float,
+    max_carrot_lag: float,
     dt: float,
     fault_threshold_m: float,
     on_step: Any | None = None,
-    convergence_m: float = 0.004,
-    max_inner_steps: int = 50,
 ) -> float:
-    """Track dense waypoints with per-axis P-control (FR-CTL-02).
+    """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
+    from fret.control.path_tracking import (
+        densify_polyline,
+        simulate_joint_carrot_tracking,
+        _subsample_path,
+    )
 
-    Mirrors ``PPPControllerNode`` control law while advancing references
-    only after the gantry converges, avoiding spurious fault trips.
+    dense = densify_polyline(
+        [np.asarray(q, dtype=np.float64) for q in waypoints],
+        max_step=0.08,
+    )
+    if len(dense) > 600:
+        dense = _subsample_path(dense, 600)
+    max_acc = np.full(3, max_joint_acc, dtype=np.float64)
 
-    Returns:
-        Maximum joint-space tracking error observed [m].
-    """
-    max_err_m = 0.0
-    for wp_idx, q_ref in enumerate(waypoints):
-        for _ in range(max_inner_steps):
-            q = bridge.get_positions()
-            joint_error = q_ref - q
-            err_m = float(np.linalg.norm(joint_error))
-            max_err_m = max(max_err_m, err_m)
-            if err_m > fault_threshold_m:
-                msg = (
-                    f"Tracking error {err_m * 1000:.2f} mm exceeds "
-                    f"{fault_threshold_m * 1000:.0f} mm at waypoint {wp_idx}"
-                )
-                raise RuntimeError(msg)
+    def _sync_bridge(q: npt.NDArray[np.float64]) -> None:
+        bridge.set_positions(q)
+        if on_step is not None:
+            on_step(q)
 
-            q_dot = np.clip(
-                kp * joint_error,
-                -max_joint_velocity,
-                max_joint_velocity,
-            )
-            bridge.step(q_dot, dt)
-            if on_step is not None:
-                on_step(bridge.get_positions())
-            if err_m <= convergence_m:
-                break
+    _, max_err_m = simulate_joint_carrot_tracking(
+        dense,
+        start=bridge.get_positions(),
+        race_speed=race_speed,
+        max_joint_velocity=max_joint_velocity,
+        max_joint_acc=max_acc,
+        proportional_gain=kp,
+        max_carrot_lag=max_carrot_lag,
+        dt=dt,
+        goal=dense[-1],
+        goal_tolerance=0.02,
+        on_step=_sync_bridge,
+    )
     return max_err_m
 
 
@@ -321,16 +322,20 @@ class PPPWarehouseRunner:
         _grasp_tick(start)
 
         try:
-            max_err_m = _track_prismatic_path(
+            max_err_m = _track_carrot_path(
                 waypoints,
-                kin,
                 bridge,
                 kp=ctrl._kp,
                 max_joint_velocity=ctrl._max_joint_velocity,
+                max_joint_acc=ctrl.max_joint_acc,
+                race_speed=ctrl.race_speed,
+                max_carrot_lag=ctrl.max_carrot_lag,
                 dt=dt,
                 fault_threshold_m=ctrl.fault_threshold,
                 on_step=_grasp_tick,
             )
+            if max_err_m > ctrl.fault_threshold:
+                controller_faulted = True
         except RuntimeError:
             controller_faulted = True
 

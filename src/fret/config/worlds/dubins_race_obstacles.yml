@@ -39,7 +39,7 @@ planner:
   collision_check_count: 24
   goal_bias: 0.1
   witness_radius: 0.25
-  enable_pruning: false
+  enable_pruning: true
 structures:
 - x: 9.1
   y: 18.9

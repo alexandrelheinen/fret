@@ -47,7 +47,7 @@ _PPP_PICK_DESCEND_S: float = 4.0
 _PPP_PICK_ASCEND_S: float = 3.5
 _PPP_PLACE_DESCEND_S: float = 4.0
 _PPP_PLACE_ASCEND_S: float = 3.0
-_PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.45
+_PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.9
 # Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
@@ -712,12 +712,42 @@ def build_showcase_trajectory(
                 scenario=scenario,
             )
         if scenario in {"ppp_warehouse", "ppp"} and len(path_waypoints) >= 4:
-            segment_durations = pick_place_segment_durations(path_waypoints)
-            trajectory, sim_time_s = interpolate_segmented_waypoints(
-                path_waypoints,
-                segment_durations,
-                fps,
-            )
+            if collision_backend is not None and use_tracking:
+                from fret.control.path_tracking import densify_polyline
+
+                dense_showcase = densify_polyline(
+                    [np.asarray(q, dtype=np.float64) for q in path_waypoints],
+                    max_step=0.08,
+                )
+                trajectory, sim_time_s = simulate_tracked_trajectory(
+                    dense_showcase,
+                    duration_s=duration_s,
+                    fps=fps,
+                    start=start if start is not None else path_waypoints[0],
+                )
+            elif collision_backend is not None:
+                from fret.control.path_tracking import densify_polyline
+
+                dense_showcase = densify_polyline(
+                    [np.asarray(q, dtype=np.float64) for q in path_waypoints],
+                    max_step=0.08,
+                )
+                sim_time_s = estimate_ppp_path_duration_s(dense_showcase)
+                render_duration_s = (
+                    sim_time_s if duration_s is None else float(duration_s)
+                )
+                trajectory = interpolate_waypoints(
+                    dense_showcase,
+                    render_duration_s,
+                    fps,
+                )
+            else:
+                segment_durations = pick_place_segment_durations(path_waypoints)
+                trajectory, sim_time_s = interpolate_segmented_waypoints(
+                    path_waypoints,
+                    segment_durations,
+                    fps,
+                )
         else:
             sim_time_s = estimate_ppp_path_duration_s(interpolate_path)
             render_duration_s = (
@@ -732,6 +762,22 @@ def build_showcase_trajectory(
     return trajectory, sim_time_s
 
 
+def _load_ppp_controller_params() -> dict[str, float | list[float]]:
+    """Load PPP carrot-tracking parameters from ``ppp.yml``."""
+    import yaml
+
+    ctrl_path = _project_root() / "src/fret/config/controllers/ppp.yml"
+    with ctrl_path.open(encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if isinstance(data, dict):
+        for section in data.values():
+            if isinstance(section, dict):
+                params = section.get("ros__parameters")
+                if isinstance(params, dict):
+                    return dict(params)
+    return {}
+
+
 def simulate_tracked_trajectory(
     waypoints: list[npt.NDArray[np.float64]],
     *,
@@ -739,19 +785,14 @@ def simulate_tracked_trajectory(
     fps: int,
     start: npt.NDArray[np.float64] | None = None,
 ) -> tuple[npt.NDArray[np.float64], float]:
-    """Simulate PPP P-control tracking and sample frames for rendering.
+    """Simulate PPP arc-length carrot tracking and sample frames for rendering.
 
-    Follows the same per-axis velocity law as ``PPPControllerNode`` and
-    ``PPPWarehouseRunner`` so release videos show executed motion rather
-    than idealized joint interpolation.
-
-    The full dense waypoint sequence is tracked to completion, then
-    resampled to the requested frame count.  Sampling on simulation clock
-    alone would stall the gantry in early vertical approach segments for
-    the full clip duration.
+    Uses :class:`~arco.control.JointSpaceTracker` with an advancing carrot
+  on a densified reference path (ARCO PPP race pattern) instead of
+    stop-and-go convergence at every waypoint.
 
     Args:
-        waypoints: Dense joint references from pruning + interpolation.
+        waypoints: Joint references (sparse or dense).
         duration_s: Target clip duration in seconds.
         fps: Output frame rate.
         start: Optional initial joint configuration.
@@ -760,53 +801,48 @@ def simulate_tracked_trajectory(
         Tuple of trajectory ``(n_frames, 3)`` and simulated motion time [s].
     """
     _ensure_fret_importable()
-    from fret.control.controller_ppp import PPPControllerNode
-    from fret.ros.mujoco_bridge import make_mujoco_bridge_core
-
-    ctrl = PPPControllerNode(
-        str(_project_root() / "src/fret/config/controllers/ppp.yml")
+    from fret.control.path_tracking import (
+        densify_polyline,
+        simulate_joint_carrot_tracking,
+        _subsample_path,
     )
+
+    params = _load_ppp_controller_params()
     q0 = (
         np.asarray(start, dtype=np.float64)
         if start is not None
         else waypoints[0].copy()
     )
-    bridge = make_mujoco_bridge_core(
-        "ppp", "ppp_warehouse", initial_positions=q0
+    update_rate = float(params.get("update_rate", 50.0))
+    dt = 1.0 / update_rate
+    max_vel = np.asarray(
+        params.get("max_joint_velocity", [3.0, 3.0, 1.5]),
+        dtype=np.float64,
     )
-    dt = 1.0 / float(ctrl.update_rate)
-    convergence_m = 0.004
-    max_inner_steps = 50
-
-    history: list[npt.NDArray[np.float64]] = [bridge.get_positions().copy()]
-
-    for q_ref in waypoints:
-        for _ in range(max_inner_steps):
-            q = bridge.get_positions()
-            joint_error = q_ref - q
-            q_dot = np.clip(
-                ctrl._kp * joint_error,
-                -ctrl._max_joint_velocity,
-                ctrl._max_joint_velocity,
-            )
-            bridge.step(q_dot, dt)
-            history.append(bridge.get_positions().copy())
-            if float(np.linalg.norm(joint_error)) <= convergence_m:
-                break
-
-    q_ref = waypoints[-1]
-    for _ in range(max_inner_steps):
-        q = bridge.get_positions()
-        joint_error = q_ref - q
-        if float(np.linalg.norm(joint_error)) <= convergence_m:
-            break
-        q_dot = np.clip(
-            ctrl._kp * joint_error,
-            -ctrl._max_joint_velocity,
-            ctrl._max_joint_velocity,
-        )
-        bridge.step(q_dot, dt)
-        history.append(bridge.get_positions().copy())
+    max_acc = np.full(
+        3,
+        float(params.get("max_joint_acc", 2.0)),
+        dtype=np.float64,
+    )
+    dense = _subsample_path(
+        densify_polyline(
+            [np.asarray(q, dtype=np.float64) for q in waypoints],
+            max_step=0.08,
+        ),
+        max_points=400,
+    )
+    history, _ = simulate_joint_carrot_tracking(
+        dense,
+        start=q0,
+        race_speed=float(params.get("race_speed", 0.9)),
+        max_joint_velocity=max_vel,
+        max_joint_acc=max_acc,
+        proportional_gain=float(params.get("kp", 2.0)),
+        max_carrot_lag=float(params.get("max_carrot_lag", 0.15)),
+        dt=dt,
+        goal=dense[-1],
+        goal_tolerance=0.02,
+    )
 
     sim_time_s = max(0.0, (len(history) - 1) * dt)
     render_duration_s = (
