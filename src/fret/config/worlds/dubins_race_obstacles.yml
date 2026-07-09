@@ -33,7 +33,7 @@ planner:
   - - 0.0
     - 80.0
   rrt_max_sample_count: 6000
-  sst_max_sample_count: 6000
+  sst_max_sample_count: 8000
   step_size: 0.45
   goal_tolerance: 0.65
   collision_check_count: 24

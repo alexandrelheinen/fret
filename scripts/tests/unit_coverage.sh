@@ -18,6 +18,10 @@ trap 'on_error $LINENO "Unit coverage"' ERR
 
 shopt -s nullglob
 coverage_files=(.coverage.*)
+if [[ ${#coverage_files[@]} -eq 0 ]]; then
+    # download-artifact may preserve per-shard subdirectories
+    mapfile -t coverage_files < <(find . -maxdepth 3 -name '.coverage.*' -type f)
+fi
 shopt -u nullglob
 
 if [[ ${#coverage_files[@]} -eq 0 ]]; then
