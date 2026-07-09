@@ -250,7 +250,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
     import rclpy.node
 
-    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):
+    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):  # type: ignore[misc]
         def __init__(self) -> None:
             DubinsRaceRosNode.__init__(self)
 

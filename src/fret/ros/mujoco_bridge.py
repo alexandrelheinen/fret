@@ -881,7 +881,7 @@ class MuJoCoBridgeNode:
 
         self._rclpy = rclpy
 
-        class _Node(rclpy.node.Node):
+        class _Node(rclpy.node.Node):  # type: ignore[misc]
             pass
 
         self._node: rclpy.node.Node = _Node("mujoco_bridge_node")
