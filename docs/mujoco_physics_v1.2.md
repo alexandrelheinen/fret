@@ -143,3 +143,81 @@ Implementation lives in `src/fret/ros/mujoco_bridge.py`. No open-loop
 `set_positions()` calls are permitted while `physics_mode` is active (FR-SIM-07).
 
 ---
+
+## 2. Cargo weld physics (PPP)
+
+### Problem
+
+v1.0 magnetic grasp is **logical**: `MagneticGraspFSM` sets cargo pose relative to
+the EE during TRANSPORT, and the bridge writes `cargo` body `qpos` directly
+(kinematic mirror). Planning uses the welded AABB via `cargo_corners()`.
+
+v1.2 requires the cargo to follow the EE through **physical coupling** while
+contacts with obstacles produce forces (V12-2).
+
+### Chosen approach: toggled MJCF equality weld
+
+| Alternative | Verdict |
+| --- | --- |
+| Fixed weld for entire episode | Cannot release at goal |
+| Mocap `cargo_floor` body | Mocap bodies do not participate in contact dynamics the same way as free bodies |
+| Manual per-step pose sync in physics mode | Pose teleportation — violates FR-SIM-07 |
+| **`<equality type="weld">` toggled by bridge** | **Selected** — native MuJoCo constraint, release by deactivating constraint |
+
+### MJCF changes (`ppp_warehouse.xml`)
+
+1. **Cargo body** — add a `freejoint` on the `cargo` body so it can settle after
+   release (remove fixed child offset-only placement during physics episodes):
+
+```xml
+<body name="cargo" pos="0 0 -0.34">
+  <freejoint name="cargo_free"/>
+  <geom name="cargo_box" type="box" size="0.25 0.25 0.25" material="cargo" mass="2.0"/>
+</body>
+```
+
+Initial spawn pose is set from scenario `start_configuration` + grasp
+`weld_offset` at episode start (same as v1.0 pick zone).
+
+2. **Weld constraint** — add near the end of the MJCF (inactive by default):
+
+```xml
+<equality>
+  <!-- Activated by bridge when MagneticGraspFSM enters CAPTURE/TRANSPORT -->
+  <weld name="cargo_weld" body1="z_hoist" body2="cargo"
+        relpose="0 0 -0.34 1 0 0 0" active="false"/>
+</equality>
+```
+
+`relpose` matches grasp config `weld_offset: [0.0, 0.0, -0.34]` from
+`ppp_warehouse.yml`. Offset updates must stay in YAML, not Python defaults.
+
+### Bridge ↔ FSM hook (T12-04)
+
+| FSM transition | Bridge action |
+| --- | --- |
+| IDLE → CAPTURE (distance < `capture_radius`) | Set `model.eq_active[eq_id_cargo_weld] = 1`, call `mj_forward` |
+| CAPTURE → TRANSPORT | Keep weld active |
+| TRANSPORT → RELEASE (distance to goal < `goal_radius`) | Set `eq_active = 0`; cargo freejoint integrates under gravity |
+| RELEASE → IDLE | Hide or reposition floor mocap cargo visual if used |
+
+**Planning collision predicate** is unchanged: `MagneticGraspFSM.is_welded` and
+`cargo_corners()` still drive `CSpaceCheckerPPP` / MuJoCo checker during TRANSPORT.
+Physics weld and planning envelope must use the same `weld_offset` from scenario
+grasp config.
+
+### Contact behaviour during transport
+
+- Welded cargo + obstacle contacts generate constraint forces on the gantry.
+- Controller must overcome contact disturbances; tune Z actuator `forcerange` and
+  `kv` if vertical deflection exceeds 10 mm.
+- On RELEASE, cargo must rest inside the goal zone without interpenetrating
+  obstacles (logged contact force peak < threshold at settle — see §4).
+
+### Kinematic mode compatibility
+
+When `physics_mode: false`, the bridge keeps v1.0 behaviour: set `cargo` pose
+from FSM, ignore equality weld. Showcase scripts (`render_mujoco.py`) default to
+kinematic mode until `--physics-mode` is passed (T12-07).
+
+---
