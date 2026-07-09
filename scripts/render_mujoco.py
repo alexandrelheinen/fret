@@ -1227,6 +1227,32 @@ def _set_mocap_position(
     data.mocap_pos[mocap_id] = np.asarray(position, dtype=np.float64)
 
 
+def _ppp_visual_cargo_center(
+    ee_position: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """World-frame cargo centre from EE pose and MJCF weld offset."""
+    center = np.asarray(ee_position, dtype=np.float64).reshape(3).copy()
+    center[2] += _PPP_CARGO_EE_OFFSET_Z
+    return center
+
+
+def _ppp_should_visually_place_cargo(
+    ee_position: npt.NDArray[np.float64],
+    *,
+    goal: npt.NDArray[np.float64],
+    box_half_z: float,
+    floor_z: float,
+    goal_radius: float,
+) -> bool:
+    """Return True when welded cargo has reached the floor at the place pose."""
+    center = _ppp_visual_cargo_center(ee_position)
+    cargo_bottom = center[2] - box_half_z
+    near_goal = (
+        np.linalg.norm(ee_position[:2] - goal[:2]) < goal_radius
+    )
+    return bool(near_goal and cargo_bottom <= floor_z + 0.04)
+
+
 def _update_ppp_cargo_visuals(
     mujoco: object,
     model: object,
@@ -1237,12 +1263,31 @@ def _update_ppp_cargo_visuals(
     goal: npt.NDArray[np.float64],
     ee_position: npt.NDArray[np.float64],
     was_welded: bool,
-) -> bool:
+    placed_floor_pos: npt.NDArray[np.float64] | None,
+) -> tuple[bool, npt.NDArray[np.float64] | None]:
     """Drive floor vs welded cargo visuals from the magnetic grasp FSM."""
     from fret.control.grasp_magnet import GraspState
 
+    floor_z = float(box_anchor[2])
+    box_half_z = float(grasp._config.box_half_extent[2])
+
     grasp.update(ee_position, box_anchor, goal)
-    if grasp.is_welded:
+
+    if placed_floor_pos is None and grasp.is_welded:
+        if _ppp_should_visually_place_cargo(
+            ee_position,
+            goal=goal,
+            box_half_z=box_half_z,
+            floor_z=floor_z,
+            goal_radius=float(grasp._config.goal_radius),
+        ):
+            center = _ppp_visual_cargo_center(ee_position)
+            placed_floor_pos = np.array(
+                [center[0], center[1], floor_z],
+                dtype=np.float64,
+            )
+
+    if grasp.is_welded and placed_floor_pos is None:
         _set_geom_alpha(mujoco, model, "cargo_box", 1.0)
         _set_geom_alpha(mujoco, model, "cargo_floor_box", 0.0)
         _set_mocap_position(
@@ -1252,11 +1297,13 @@ def _update_ppp_cargo_visuals(
             "cargo_floor",
             np.array([-20.0, -20.0, -5.0]),
         )
-        return True
+        return True, placed_floor_pos
 
-    if was_welded and grasp.state == GraspState.IDLE:
+    if placed_floor_pos is not None:
+        floor_pos = placed_floor_pos
+    elif was_welded and grasp.state == GraspState.IDLE:
         floor_pos = np.array(
-            [goal[0], goal[1], box_anchor[2]],
+            [goal[0], goal[1], floor_z],
             dtype=np.float64,
         )
     else:
@@ -1264,7 +1311,7 @@ def _update_ppp_cargo_visuals(
     _set_geom_alpha(mujoco, model, "cargo_box", 0.0)
     _set_geom_alpha(mujoco, model, "cargo_floor_box", 1.0)
     _set_mocap_position(mujoco, model, data, "cargo_floor", floor_pos)
-    return was_welded
+    return grasp.is_welded, placed_floor_pos
 
 
 def _open_video_writer(path: Path, fps: int) -> object:
@@ -1447,6 +1494,7 @@ def render_showcase_videos(
     box_anchor: npt.NDArray[np.float64] | None = None
     goal_position: npt.NDArray[np.float64] | None = None
     was_welded = False
+    placed_floor_pos: npt.NDArray[np.float64] | None = None
     if scenario in {"ppp_warehouse", "ppp"}:
         _ensure_fret_importable()
         from fret.control.grasp_magnet import MagneticGraspFSM, parse_grasp_config
@@ -1480,7 +1528,7 @@ def render_showcase_videos(
                 and box_anchor is not None
                 and goal_position is not None
             ):
-                was_welded = _update_ppp_cargo_visuals(
+                was_welded, placed_floor_pos = _update_ppp_cargo_visuals(
                     mujoco,
                     model,
                     data,
@@ -1489,6 +1537,7 @@ def render_showcase_videos(
                     goal=goal_position,
                     ee_position=q,
                     was_welded=was_welded,
+                    placed_floor_pos=placed_floor_pos,
                 )
             mujoco.mj_forward(model, data)
             for camera in camera_names:
