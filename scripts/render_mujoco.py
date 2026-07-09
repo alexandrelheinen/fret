@@ -47,7 +47,7 @@ _PPP_PICK_DESCEND_S: float = 4.0
 _PPP_PICK_ASCEND_S: float = 3.5
 _PPP_PLACE_DESCEND_S: float = 4.0
 _PPP_PLACE_ASCEND_S: float = 3.0
-_PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.9
+_PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.45
 # Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
@@ -338,26 +338,6 @@ def postprocess_showcase_results(
     return results
 
 
-def _compute_ppp_showcase_cruise_z(
-    start: npt.NDArray[np.float64],
-    goal: npt.NDArray[np.float64],
-    *,
-    max_obstacle_z: float,
-    cargo_half_z: float,
-) -> float:
-    """Return EE cruise height that forces lateral detours around floor clutter.
-
-    Start/goal Z for pick-and-place can sit above the racks, but horizontal
-    transit must stay low enough that welded cargo cannot fly over obstacles.
-    """
-    cargo_drop = float(cargo_half_z + abs(_PPP_CARGO_EE_OFFSET_Z))
-    nominal_cruise = float(max(start[2], goal[2], 2.2))
-    flyover_z = max_obstacle_z + cargo_drop + 0.05
-    if nominal_cruise >= flyover_z:
-        return max(1.5, max_obstacle_z + 0.35)
-    return nominal_cruise
-
-
 def plan_ppp_warehouse_path(
     scenario: str = "ppp_warehouse",
     *,
@@ -452,6 +432,11 @@ def build_showcase_waypoints(
     _ensure_fret_importable()
     from fret.control.grasp_magnet import parse_grasp_config
     from fret.planning.ppp_obstacles import load_ppp_warehouse_preview_obstacles
+    from fret.scenario.ppp_warehouse_runner import (
+        _PPP_CARGO_EE_OFFSET_Z,
+        compute_ppp_cruise_z,
+        stitch_ppp_operational_path,
+    )
     from fret.sitl_config import load_scenario_parameters
 
     params = load_scenario_parameters(_scenario_config_path(scenario))
@@ -460,7 +445,7 @@ def build_showcase_waypoints(
     goal = np.asarray(params["goal_configuration"], dtype=np.float64)
     boxes = load_ppp_warehouse_preview_obstacles(None)
     max_obs_z = max((box.z_max for box in boxes), default=1.2)
-    cruise_z = _compute_ppp_showcase_cruise_z(
+    cruise_z = compute_ppp_cruise_z(
         start,
         goal,
         max_obstacle_z=max_obs_z,
@@ -474,20 +459,14 @@ def build_showcase_waypoints(
         mjcf_path=mjcf_path,
         transit_z=cruise_z,
     )
-    box_half_z = float(grasp_cfg.box_half_extent[2])
-    pick_ee_z = box_half_z - _PPP_CARGO_EE_OFFSET_Z
-
-    waypoints: list[npt.NDArray[np.float64]] = [
-        start.copy(),
-        np.array([start[0], start[1], pick_ee_z]),
-        np.array([start[0], start[1], cruise_z]),
-    ]
-    for q in transit[1:-1]:
-        waypoints.append(np.array([q[0], q[1], cruise_z]))
-    waypoints.append(np.array([goal[0], goal[1], cruise_z]))
-    waypoints.append(np.array([goal[0], goal[1], pick_ee_z]))
-    waypoints.append(goal.copy())
-    return waypoints
+    pick_ee_z = float(grasp_cfg.box_half_extent[2]) - _PPP_CARGO_EE_OFFSET_Z
+    return stitch_ppp_operational_path(
+        start,
+        goal,
+        transit,
+        pick_ee_z=pick_ee_z,
+        cruise_z=cruise_z,
+    )
 
 
 def pick_place_segment_durations(

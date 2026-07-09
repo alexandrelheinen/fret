@@ -33,6 +33,11 @@ _PREVIEW_OBSTACLE_FILE = (
 
 _PPP_JOINT_NAMES: list[str] = ["joint_x", "joint_y", "joint_z"]
 
+# Safety margin subtracted from obstacle clearance during PPP planning [m].
+# 1.5× the legacy 1 cm contact shell keeps welded cargo off clutter faces.
+PPP_DEFAULT_CONTACT_RADIUS_M: float = 0.015
+_LEGACY_CONTACT_RADIUS_M: float = 0.01
+
 
 @dataclass(frozen=True)
 class BoxObstacle:
@@ -231,7 +236,7 @@ class BoxObstacleOccupancy:
         self,
         boxes: list[BoxObstacle],
         *,
-        contact_radius: float = 0.01,
+        contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M,
     ) -> None:
         self._boxes = list(boxes)
         self._contact_radius = contact_radius
@@ -282,7 +287,7 @@ class BoxObstacleOccupancy:
 def build_box_obstacle_occupancy(
     boxes: list[BoxObstacle] | None = None,
     *,
-    contact_radius: float = 0.01,
+    contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M,
 ) -> BoxObstacleOccupancy:
     """Build box occupancy from the default warehouse or a custom list."""
     resolved = boxes if boxes is not None else load_ppp_warehouse_obstacles()

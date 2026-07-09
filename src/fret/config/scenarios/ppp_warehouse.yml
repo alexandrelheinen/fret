@@ -22,14 +22,14 @@
     duration: 60.0
 
     # Collision checking: analytic (AABB + occupancy) or mujoco (MJCF contacts).
-    collision_backend: mujoco
+    collision_backend: analytic
     planner_algorithm: rrt_star
     plan_include_cargo: true
 
     grasp:
       capture_radius: 0.45
       goal_radius: 0.5
-      weld_offset: 0.0
+      weld_offset: [0.0, 0.0, -0.34]
       box_half_extent: 0.25
 
     recording:
