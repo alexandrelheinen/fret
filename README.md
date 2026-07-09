@@ -131,22 +131,14 @@ contact_radius = bundle.planning["contact_radius"]
 
 ### Layer stack
 
-```
-┌────────────────────────────────────────────────────────┐
-│  TASK        scenario YAML → planning / grasp / world  │
-└────────────────────────────────────────────────────────┘
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│  PLANNING    ARCO RRT* / SST, occupancy, pruner        │
-└────────────────────────────────────────────────────────┘
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│  CONTROL     per-robot kinematics + tracking loops     │
-└────────────────────────────────────────────────────────┘
-                         ▼
-┌────────────────────────────────────────────────────────┐
-│  SIMULATOR   MuJoCo (physics, contacts, rendering)     │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    TASK["TASK<br/>scenario YAML → planning / grasp / world"]
+    PLANNING["PLANNING<br/>ARCO RRT* / SST, occupancy, pruner"]
+    CONTROL["CONTROL<br/>per-robot kinematics + tracking loops"]
+    SIMULATOR["SIMULATOR<br/>MuJoCo (physics, contacts, rendering)"]
+
+    TASK --> PLANNING --> CONTROL --> SIMULATOR
 ```
 
 ### PPP warehouse data flow (v1.0)
