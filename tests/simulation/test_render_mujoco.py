@@ -252,6 +252,52 @@ def test_ppp_visual_place_not_triggered_during_transit() -> None:
     )
 
 
+def test_ppp_cargo_freejoint_follows_welded_ee() -> None:
+    """Welded cargo must mirror EE via freejoint (PR2 top-level body)."""
+    mujoco = pytest.importorskip("mujoco")
+    from fret.config_loader import load_scenario_bundle
+    from fret.control.grasp_magnet import MagneticGraspFSM, parse_grasp_config
+
+    mjcf = rm.resolve_mjcf_path("ppp", "ppp_warehouse", None)
+    model = mujoco.MjModel.from_xml_path(str(mjcf))
+    data = mujoco.MjData(model)
+
+    bundle = load_scenario_bundle(
+        _REPO_ROOT / "src/fret/config/scenarios/ppp_warehouse.yml"
+    )
+    assert bundle.grasp is not None
+    grasp = MagneticGraspFSM(parse_grasp_config(bundle.grasp))
+    box_anchor = np.array([2.0, 1.0, 0.25], dtype=np.float64)
+    goal = np.array([10.5, 2.8, 2.65], dtype=np.float64)
+    ee = np.array([6.0, 2.0, 2.0], dtype=np.float64)
+
+    rm._set_cargo_freejoint_pose(mujoco, model, data, box_anchor)
+    grasp.begin_transport()
+    ee_pick = np.array([2.0, 1.0, 0.59], dtype=np.float64)
+    grasp.update(ee_pick, box_anchor, goal)
+    assert grasp.is_welded
+    grasp.update(ee, box_anchor, goal)
+
+    rm._update_ppp_cargo_visuals(
+        mujoco,
+        model,
+        data,
+        grasp=grasp,
+        box_anchor=box_anchor,
+        goal=goal,
+        ee_position=ee,
+        was_welded=False,
+        placed_floor_pos=None,
+    )
+
+    joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "cargo_free")
+    adr = int(model.jnt_qposadr[joint_id])
+    cargo_pos = data.qpos[adr : adr + 3].copy()
+    assert cargo_pos[0] == pytest.approx(ee[0])
+    assert cargo_pos[1] == pytest.approx(ee[1])
+    assert cargo_pos[2] == pytest.approx(ee[2] + rm._PPP_CARGO_EE_OFFSET_Z)
+
+
 def test_dubins_follow_distance_targets_car_fill() -> None:
     distance = rm._dubins_follow_distance(640, 720)
     assert 4.0 < distance < 18.0
