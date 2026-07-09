@@ -85,8 +85,8 @@ than the analytic map.
 | Clearance = vehicle radius + margin (0.42 + 0.42 m) | **Done** |
 | Repulsive APF layer (`repulsion_gain`) | **Active** — tuned to 3.0 in `dubins.yml` |
 | Executed-path clearance metric | **Done** — `min_obstacle_clearance_m` in E2E runner |
-| TurtleBot3 mesh import script | Planned (`scripts/import_dubins_assets.py`) |
-| Clutter mesh column visuals | Planned |
+| TurtleBot3 mesh import script | **Done** — `scripts/import_dubins_assets.py` |
+| Clutter mesh column visuals | **Done** — `scripts/generate_dubins_race_mjcf.py` |
 
 ---
 
