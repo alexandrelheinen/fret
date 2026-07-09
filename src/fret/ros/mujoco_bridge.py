@@ -25,9 +25,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
+from fret.control.kinematics_ppp import PPPKinematics
+
 if TYPE_CHECKING:
     from fret.control.grasp_magnet import MagneticGraspFSM
-    from fret.control.kinematics_ppp import PPPKinematics
 
 # MJCF preview scale (1:5) limits for ppp_warehouse.xml.
 _PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
