@@ -63,7 +63,9 @@ class GraspConfig:
 def parse_grasp_config(grasp: dict[str, Any]) -> GraspConfig:
     """Build ``GraspConfig`` from a grasp parameter mapping."""
     context = "grasp config"
-    capture_radius = float(require_key(grasp, "capture_radius", context=context))
+    capture_radius = float(
+        require_key(grasp, "capture_radius", context=context)
+    )
     goal_radius = float(require_key(grasp, "goal_radius", context=context))
 
     weld_raw = require_key(grasp, "weld_offset", context=context)

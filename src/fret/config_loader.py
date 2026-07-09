@@ -151,7 +151,9 @@ def load_scenario_bundle(path: str | pathlib.Path) -> ScenarioBundle:
 
 def resolve_obstacle_file(planning: dict[str, Any]) -> pathlib.Path:
     """Return the obstacle YAML referenced by a planning config."""
-    rel = str(require_key(planning, "obstacle_file", context="planning config"))
+    rel = str(
+        require_key(planning, "obstacle_file", context="planning config")
+    )
     return resolve_package_file("config", *rel.split("/"))
 
 

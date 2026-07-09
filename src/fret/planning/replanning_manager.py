@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
+from fret.config_loader import require_keys
 from fret.interfaces import (
     OccupancyUpdatePayload,
     PlanningRequest,
     PlanningStatus,
 )
-from fret.config_loader import require_keys
 from fret.planning.trajectory_converter import (
     TrajectoryConverter,
     TrajectoryResult,
@@ -275,5 +275,7 @@ class ReplanningManager:
     def _parse_config(config: dict[str, Any]) -> dict[str, Any]:
         """Validate and flatten replanning configuration."""
         src: dict[str, Any] = config.get("replanning", config)
-        require_keys(src, _REQUIRED_REPLANNING_KEYS, context="replanning config")
+        require_keys(
+            src, _REQUIRED_REPLANNING_KEYS, context="replanning config"
+        )
         return dict(src)

@@ -89,9 +89,12 @@ class DubinsRaceRosNode:  # pragma: no cover
 
         from sensor_msgs.msg import JointState
 
+        from fret.config_loader import (
+            load_scenario_bundle,
+            resolve_obstacle_file,
+        )
         from fret.ros.mujoco_bridge import make_dubins_race_bridge_core
         from fret.scenario.dubins_race_runner import DubinsRaceRunner
-        from fret.config_loader import load_scenario_bundle, resolve_obstacle_file
         from fret.sitl_config import (
             controller_config_path,
             scenario_config_path,

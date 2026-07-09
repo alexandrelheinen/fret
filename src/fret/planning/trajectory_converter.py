@@ -133,7 +133,9 @@ class TrajectoryConverter:
     def _parse_config(config: dict[str, Any]) -> dict[str, Any]:
         """Validate and flatten trajectory configuration."""
         src: dict[str, Any] = config.get("trajectory", config)
-        require_keys(src, _REQUIRED_TRAJECTORY_KEYS, context="trajectory config")
+        require_keys(
+            src, _REQUIRED_TRAJECTORY_KEYS, context="trajectory config"
+        )
         return dict(src)
 
     def _compute_segment_times(

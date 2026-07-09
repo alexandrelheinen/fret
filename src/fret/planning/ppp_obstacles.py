@@ -58,7 +58,9 @@ class BoxObstacle:
 
 def default_obstacle_file() -> Path:
     """Return the path to the bundled PPP warehouse obstacle YAML."""
-    return resolve_package_file("config", "worlds", "ppp_warehouse_obstacles.yml")
+    return resolve_package_file(
+        "config", "worlds", "ppp_warehouse_obstacles.yml"
+    )
 
 
 def preview_obstacle_file() -> Path:

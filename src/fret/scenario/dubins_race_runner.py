@@ -406,7 +406,9 @@ def _min_pose_history_clearance(
                 vehicle_radius=vehicle_radius,
                 half_length=float(vehicle_body["half_length"]),
                 half_width=float(vehicle_body["half_width"]),
-                corner_sample_radius=float(vehicle_body["corner_sample_radius"]),
+                corner_sample_radius=float(
+                    vehicle_body["corner_sample_radius"]
+                ),
             )
             for pose in poses
         )
@@ -487,7 +489,9 @@ class DubinsRaceRunner:
         occupancy = build_race_occupancy(world)
         bounds = [
             tuple(b)
-            for b in require_key(world.planner, "bounds", context="planner config")
+            for b in require_key(
+                world.planner, "bounds", context="planner config"
+            )
         ]
 
         rrt_spawn, sst_spawn = _spawn_positions(
