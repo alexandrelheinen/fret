@@ -68,9 +68,9 @@ class DubinsRaceRosNode:  # pragma: no cover
             .string_value
         )
         self._physics_mode = _parse_bool(
-            self.get_parameter(
-                "physics_mode"
-            ).value  # type: ignore[attr-defined]
+            self.get_parameter("physics_mode")  # type: ignore[attr-defined]
+            .get_parameter_value()
+            .string_value
         )
         self._ready = False
         self._runner: Any = None
@@ -250,7 +250,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
     import rclpy.node
 
-    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):  # type: ignore[misc]
+    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):
         def __init__(self) -> None:
             DubinsRaceRosNode.__init__(self)
 
