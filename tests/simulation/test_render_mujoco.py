@@ -255,6 +255,29 @@ def test_dubins_follow_distance_targets_car_fill() -> None:
     assert 4.0 < distance < 18.0
 
 
+def test_dubins_overview_distance_is_quarter_of_static() -> None:
+    assert rm._DUBINS_OVERVIEW_DISTANCE_M == pytest.approx(
+        rm._DUBINS_OVERVIEW_STATIC_DISTANCE_M * rm._DUBINS_OVERVIEW_DISTANCE_SCALE
+    )
+    assert 25.0 < rm._DUBINS_OVERVIEW_DISTANCE_M < 30.0
+
+
+def test_dubins_race_midpoint_averages_agent_positions() -> None:
+    rrt = np.array([10.0, 20.0, 0.0])
+    sst = np.array([14.0, 24.0, 1.0])
+    assert rm._dubins_race_midpoint(rrt, sst) == pytest.approx((12.0, 22.0, 0.4))
+
+
+def test_make_dubins_overview_camera_targets_midpoint() -> None:
+    mujoco = pytest.importorskip("mujoco")
+    cam = rm._make_dubins_overview_camera(mujoco, (12.0, 22.0, 0.4))
+    assert cam.lookat[0] == pytest.approx(12.0)
+    assert cam.lookat[1] == pytest.approx(22.0)
+    assert cam.distance == pytest.approx(rm._DUBINS_OVERVIEW_DISTANCE_M)
+    assert cam.azimuth == pytest.approx(rm._DUBINS_OVERVIEW_AZIMUTH_DEG)
+    assert cam.elevation == pytest.approx(rm._DUBINS_OVERVIEW_ELEVATION_DEG)
+
+
 def test_simulate_dubins_race_poses_covers_transit() -> None:
     """Release dubins clip must traverse the warehouse floor."""
     pytest.importorskip("arco")

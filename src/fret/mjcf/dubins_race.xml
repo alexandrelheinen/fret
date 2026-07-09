@@ -177,7 +177,7 @@
       <geom name="sst_marker" type="sphere" pos="0 0 0.82" size="0.05" material="marker_dark" contype="0" conaffinity="0"/>
     </body>
 
-    <camera name="overview" pos="-32.90 91.05 63.00" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
+    <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
     <camera name="topdown" pos="40 40 55" xyaxes="1 0 0 0 1 0" fovy="40"/>
     <camera name="follow" pos="18 14 8" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
     <camera name="finish" pos="74 58 10" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
