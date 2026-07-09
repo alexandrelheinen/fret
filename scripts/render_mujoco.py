@@ -1037,6 +1037,16 @@ _DUBINS_CAR_WIDTH_M: float = 0.72
 _DUBINS_FOLLOW_FOVY_DEG: float = 50.0
 _DUBINS_FOLLOW_FILL: float = 0.15
 _DUBINS_FOLLOW_DISTANCE_SCALE: float = 2.0
+# Static MJCF overview sits ~109 m from arena centre; chase the car midpoint at
+# one quarter of that range for a tighter release export.
+_DUBINS_OVERVIEW_STATIC_DISTANCE_M: float = 108.75
+_DUBINS_OVERVIEW_DISTANCE_SCALE: float = 0.25
+_DUBINS_OVERVIEW_DISTANCE_M: float = (
+    _DUBINS_OVERVIEW_STATIC_DISTANCE_M * _DUBINS_OVERVIEW_DISTANCE_SCALE
+)
+_DUBINS_OVERVIEW_AZIMUTH_DEG: float = 145.0
+_DUBINS_OVERVIEW_ELEVATION_DEG: float = -35.0
+_DUBINS_OVERVIEW_LOOKAT_Z_M: float = 0.4
 
 
 def _dubins_follow_distance(
@@ -1051,6 +1061,38 @@ def _dubins_follow_distance(
     half_fov_rad = math.radians(fovy_deg) / 2.0
     hfov_rad = 2.0 * math.atan(math.tan(half_fov_rad) * half_width / height)
     return (car_width / 2.0) / (fill * math.tan(hfov_rad / 2.0))
+
+
+def _dubins_race_midpoint(
+    rrt_q: npt.NDArray[np.float64],
+    sst_q: npt.NDArray[np.float64],
+) -> tuple[float, float, float]:
+    """Return the XY midpoint between both race agents."""
+    return (
+        (float(rrt_q[0]) + float(sst_q[0])) / 2.0,
+        (float(rrt_q[1]) + float(sst_q[1])) / 2.0,
+        _DUBINS_OVERVIEW_LOOKAT_Z_M,
+    )
+
+
+def _make_dubins_overview_camera(
+    mujoco: object,
+    midpoint: tuple[float, float, float],
+    *,
+    distance: float = _DUBINS_OVERVIEW_DISTANCE_M,
+    azimuth_deg: float = _DUBINS_OVERVIEW_AZIMUTH_DEG,
+    elevation_deg: float = _DUBINS_OVERVIEW_ELEVATION_DEG,
+) -> object:
+    """Build an oblique overview camera locked on the dual-agent midpoint."""
+    cam = mujoco.MjvCamera()
+    cam.type = mujoco.mjtCamera.mjCAMERA_FREE
+    cam.lookat[0] = midpoint[0]
+    cam.lookat[1] = midpoint[1]
+    cam.lookat[2] = midpoint[2]
+    cam.distance = float(distance)
+    cam.azimuth = float(azimuth_deg)
+    cam.elevation = float(elevation_deg)
+    return cam
 
 
 def _make_dubins_tracking_camera(
@@ -1196,6 +1238,13 @@ def render_dubins_race_showcase_videos(
                         ],
                         axis=1,
                     )
+                elif camera == "overview":
+                    cam_overview = _make_dubins_overview_camera(
+                        mujoco,
+                        _dubins_race_midpoint(rrt_q, sst_q),
+                    )
+                    renderer.update_scene(data, camera=cam_overview)
+                    frame = renderer.render()
                 else:
                     renderer.update_scene(data, camera=camera)
                     frame = renderer.render()
