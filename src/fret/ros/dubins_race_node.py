@@ -10,6 +10,8 @@ Publishes:
 Parameters:
     scenario (str, default: ``dubins_race``)
         Scenario YAML stem under ``config/scenarios/``.
+    physics_mode (bool, default: ``false``)
+        When ``true``, drive MuJoCo actuators via ``mj_step`` (v1.2).
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ from typing import Any
 
 import numpy as np
 import yaml
+
+from fret.ros.mujoco_bridge import _parse_bool
 
 _RRT_JOINTS: tuple[str, ...] = (
     "rrt_joint_x",
@@ -57,10 +61,15 @@ class DubinsRaceRosNode:  # pragma: no cover
         rclpy.node.Node.__init__(self, "dubins_race_node")
 
         self.declare_parameter("scenario", "dubins_race")  # type: ignore[attr-defined]
+        self.declare_parameter("physics_mode", False)  # type: ignore[attr-defined]
         self._scenario_stem = str(
             self.get_parameter("scenario")  # type: ignore[attr-defined]
             .get_parameter_value()
             .string_value
+        )
+        self._physics_mode = _parse_bool(
+            self.get_parameter("physics_mode")  # type: ignore[attr-defined]
+            .value
         )
         self._ready = False
         self._runner: Any = None
@@ -93,7 +102,12 @@ class DubinsRaceRosNode:  # pragma: no cover
             load_scenario_bundle,
             resolve_obstacle_file,
         )
-        from fret.ros.mujoco_bridge import make_dubins_race_bridge_core
+        from fret.ros.mujoco_bridge import (
+            _load_bridge_config,
+            _resolve_config_path,
+            make_dubins_race_bridge_core,
+            physics_config_from_bridge_yaml,
+        )
         from fret.scenario.dubins_race_runner import DubinsRaceRunner
         from fret.sitl_config import (
             controller_config_path,
@@ -128,6 +142,12 @@ class DubinsRaceRosNode:  # pragma: no cover
             raise RuntimeError(msg)
 
         self._session = session
+        bridge_cfg = _load_bridge_config(_resolve_config_path(None))
+        physics_config = physics_config_from_bridge_yaml(
+            bridge_cfg,
+            "dubins",
+            physics_mode=self._physics_mode,
+        )
         self._bridge = make_dubins_race_bridge_core(
             initial_rrt=np.array(
                 session.rrt_vehicle.pose,
@@ -137,6 +157,7 @@ class DubinsRaceRosNode:  # pragma: no cover
                 session.sst_vehicle.pose,
                 dtype=np.float64,
             ),
+            physics_config=physics_config,
         )
 
         update_rate = _controller_update_rate()
@@ -155,6 +176,7 @@ class DubinsRaceRosNode:  # pragma: no cover
             f"scenario={self._scenario_stem}, "
             f"mjcf={self._bridge.mjcf_path.name}, "
             f"rate={update_rate:.1f} Hz, "
+            f"physics_mode={self._bridge.physics_mode}, "
             f"mujoco_runtime={self._bridge.has_mujoco_runtime}"
         )
         self._publish_state()
@@ -179,6 +201,9 @@ class DubinsRaceRosNode:  # pragma: no cover
             float(sst[1]),
             float(sst[2]),
         ]
+        if self._physics_mode:
+            velocities = self._bridge.get_joint_velocities()
+            msg.velocity = [float(v) for v in velocities]
         self._state_pub.publish(msg)
 
     def _timer_callback(self) -> None:
@@ -209,9 +234,12 @@ class DubinsRaceRosNode:  # pragma: no cover
                 self._race_timer.cancel()
             return
 
-        self._session.step()
-        self._bridge.set_rrt_pose(self._session.rrt_vehicle.pose)
-        self._bridge.set_sst_pose(self._session.sst_vehicle.pose)
+        if self._physics_mode:
+            self._session.step_physics(self._bridge)
+        else:
+            self._session.step()
+            self._bridge.set_rrt_pose(self._session.rrt_vehicle.pose)
+            self._bridge.set_sst_pose(self._session.sst_vehicle.pose)
         self._publish_state()
         self._step_count += 1
 

@@ -122,4 +122,10 @@
     <camera name="follow" mode="targetbody" target="z_hoist" pos="3 1.5 1.5" fovy="48"/>
     <camera name="pick" mode="targetbody" target="cargo" pos="1.8 0.6 0.7" fovy="42"/>
   </worldbody>
+
+  <actuator>
+    <velocity name="act_joint_x" joint="joint_x" kv="1" forcelimited="true" forcerange="-5000 5000"/>
+    <velocity name="act_joint_y" joint="joint_y" kv="1" forcelimited="true" forcerange="-5000 5000"/>
+    <velocity name="act_joint_z" joint="joint_z" kv="1" forcelimited="true" forcerange="-8000 8000"/>
+  </actuator>
 </mujoco>

@@ -110,6 +110,18 @@ run_smoke_test "sitl_ppp_warehouse_mujoco" 30 -- \
     scenario:=ppp_warehouse model:=ppp backend:=mujoco \
     || FAILED=1
 
+run_smoke_test "sitl_ppp_warehouse_physics" 30 -- \
+    env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
+    xvfb-run -a ros2 launch fret sitl.py \
+    scenario:=ppp_warehouse model:=ppp backend:=mujoco physics_mode:=true \
+    || FAILED=1
+
+run_smoke_test "sitl_dubins_race_physics" 30 -- \
+    env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
+    xvfb-run -a ros2 launch fret sitl.py \
+    scenario:=dubins_race model:=dubins backend:=mujoco physics_mode:=true \
+    || FAILED=1
+
 # Bootstrap SCARA launches — optional when legacy sim stack is installed.
 if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
     run_smoke_test "sim_launch" -- xvfb-run -a ros2 launch fret sim.py model:=scara \
