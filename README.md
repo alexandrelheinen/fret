@@ -488,10 +488,9 @@ bash scripts/check/pre_push.sh
 
 | Workflow | Checks |
 |---|---|
-| `tests.yml` | Build, pytest, smoke |
+| `tests.yml` | Parallel: unit shards (4×), coverage gate, smoke, integration |
 | `formatting.yml` | Black, isort, clang-format |
 | `type_check.yml` | mypy strict |
-| `integration.yml` | launch_testing |
 | `release.yml` | Showcase MP4 on version tags (PPP + Dubins) |
 
 ---

@@ -6,5 +6,5 @@ standard unit test run via::
     pytest tests/ --ignore=tests/integration
 
 They are executed separately in the integration CI workflow
-(.github/workflows/integration.yml).
+(.github/workflows/tests.yml, integration job).
 """

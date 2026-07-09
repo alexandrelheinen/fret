@@ -276,7 +276,7 @@ Written once at scenario shutdown to `metrics_path` (default:
 | `tests/integration/test_mujoco_physics_ppp.py` | SC-v10 + `physics_mode` | SITL completes; weld engage/release; `max_tracking_error_m ≤ 0.010`; `penetration_violations == 0`; contact log exists |
 | `tests/integration/test_mujoco_physics_dubins.py` | SC-v11 + `physics_mode` | Both agents reach goal; `penetration_violations == 0`; column contacts logged (`force_norm > 0`); optional inter-agent test |
 
-Tests run under `launch_testing` in `.github/workflows/integration.yml` when
+Tests run under the integration job in `.github/workflows/tests.yml` when
 physics implementation lands. Until then, mark `@pytest.mark.xfail` with reason
 `T12-01 not implemented`.
 

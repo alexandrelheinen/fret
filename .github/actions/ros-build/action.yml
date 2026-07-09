@@ -1,0 +1,43 @@
+name: ROS build
+description: Install ROS dependencies and build the FRET workspace for CI jobs.
+
+runs:
+  using: composite
+  steps:
+    - name: Install CI tooling
+      shell: bash
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          xvfb \
+          python3-pip \
+          curl \
+          gnupg
+        python3 -m pip install --break-system-packages \
+          pytest pytest-cov pytest-timeout coverage
+        python3 -m pip install --break-system-packages -e ".[sim]"
+
+    - name: Configure Gazebo apt repository
+      shell: bash
+      run: |
+        curl -sSL https://packages.osrfoundation.org/gazebo.gpg \
+          | gpg --dearmor --yes -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable noble main" \
+          > /etc/apt/sources.list.d/gazebo-stable.list
+        apt-get update
+
+    - name: Initialize rosdep
+      shell: bash
+      run: |
+        rosdep init 2>/dev/null || true
+        rosdep update
+
+    - name: Install ROS package dependencies
+      shell: bash
+      run: |
+        . /opt/ros/jazzy/setup.bash
+        rosdep install --from-paths src --ignore-src -r -y
+
+    - name: Build workspace
+      shell: bash
+      run: bash scripts/build.sh

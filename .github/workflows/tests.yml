@@ -13,10 +13,14 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  unit:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [control, planning, scene, simulation]
     container:
       image: osrf/ros:jazzy-desktop-noble
     env:
@@ -30,41 +34,92 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install CI tooling
-        run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            xvfb \
-            python3-pip \
-            curl \
-            gnupg
-          python3 -m pip install --break-system-packages \
-            pytest pytest-cov pytest-timeout
-          python3 -m pip install --break-system-packages -e ".[sim]"
+      - name: Build workspace
+        uses: ./.github/actions/ros-build
 
-      - name: Configure Gazebo apt repository
-        run: |
-          curl -sSL https://packages.osrfoundation.org/gazebo.gpg \
-            | gpg --dearmor --yes -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable noble main" \
-            > /etc/apt/sources.list.d/gazebo-stable.list
-          apt-get update
+      - name: Run unit test shard
+        run: bash scripts/tests/unit_shard.sh "${{ matrix.shard }}"
 
-      - name: Initialize rosdep
-        run: |
-          rosdep init 2>/dev/null || true
-          rosdep update
+      - name: Upload shard coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: .coverage.${{ matrix.shard }}
+          if-no-files-found: error
 
-      - name: Install ROS package dependencies
-        run: |
-          . /opt/ros/jazzy/setup.bash
-          rosdep install --from-paths src --ignore-src -r -y
+  unit-coverage:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install coverage
+        run: python3 -m pip install --break-system-packages coverage
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
+      - name: Combine coverage and enforce gate
+        run: bash scripts/tests/unit_coverage.sh
+
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: osrf/ros:jazzy-desktop-noble
+    env:
+      ROS_DISTRO: jazzy
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Build workspace
-        run: bash scripts/build.sh
-
-      - name: Run unit tests
-        run: bash scripts/tests/unit.sh
+        uses: ./.github/actions/ros-build
 
       - name: Run smoke tests
         run: bash scripts/tests/smoke.sh
+
+  integration:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    container:
+      image: osrf/ros:jazzy-desktop-noble
+    env:
+      ROS_DISTRO: jazzy
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build workspace
+        uses: ./.github/actions/ros-build
+
+      - name: Run integration tests
+        run: bash scripts/tests/integration.sh
+
+      - name: Upload physics contact logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physics-contacts
+          path: /tmp/fret_physics/**/*
+          if-no-files-found: ignore

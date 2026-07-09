@@ -438,8 +438,7 @@ CI workflows (all required on pull requests):
 |---|---|---|
 | `formatting.yml` | PR | Black, isort, clang-format |
 | `type_check.yml` | PR | mypy strict on `src/` |
-| `tests.yml` | PR | pytest + smoke tests |
-| `integration.yml` | PR | `launch_testing` inter-node scenarios |
+| `tests.yml` | PR | Parallel jobs: unit shards (4×), coverage gate, smoke, integration |
 
 ## 13. Git and Version Control
 
