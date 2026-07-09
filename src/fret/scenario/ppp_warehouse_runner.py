@@ -45,7 +45,12 @@ from fret.planning.ppp_obstacles import (
     load_preview_workspace_bounds,
 )
 from fret.planning.trajectory_generator import TrajectoryGenerator
-from fret.ros.mujoco_bridge import make_mujoco_bridge_core
+from fret.ros.mujoco_bridge import (
+    cargo_weld_config_from_bridge_yaml,
+    make_mujoco_bridge_core,
+    _load_merged_bridge_config,
+    _resolve_config_path,
+)
 from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import controller_config_path, scenario_config_path
 
@@ -216,6 +221,32 @@ def _path_is_collision_free(
         workspace_bounds=workspace_bounds,
     )
     return all(checker.is_collision_free(q) for q in path)
+
+
+def _configure_ppp_cargo_bridge(
+    bridge: Any,
+    box_anchor: npt.NDArray[np.float64],
+) -> None:
+    """Bind cargo weld and seed the pick-zone pose when MuJoCo is available."""
+    if not bridge.has_mujoco_runtime:
+        return
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
+    if "cargo_weld" not in cfg:
+        return
+    bridge.configure_cargo_weld(cargo_weld_config_from_bridge_yaml(cfg))
+    bridge.seed_cargo_pose(box_anchor)
+
+
+def _ppp_cargo_pose(
+    grasp: MagneticGraspFSM,
+    *,
+    box_anchor: npt.NDArray[np.float64],
+    grasp_captured: bool,
+) -> npt.NDArray[np.float64]:
+    """World-frame cargo centre for kinematic mirroring."""
+    if grasp.is_welded or grasp_captured:
+        return grasp.cargo_position
+    return box_anchor
 
 
 def _track_carrot_path(
@@ -425,6 +456,7 @@ class PPPWarehouseRunner:
             ],
             dtype=np.float64,
         )
+        _configure_ppp_cargo_bridge(bridge, box_anchor)
         grasp.begin_transport()
 
         max_err_m = 0.0
@@ -440,6 +472,14 @@ class PPPWarehouseRunner:
                 grasp_captured = True
             if grasp_captured and not grasp.is_welded:
                 grasp_released = True
+            bridge.sync_cargo_grasp(
+                is_welded=grasp.is_welded,
+                cargo_pose=_ppp_cargo_pose(
+                    grasp,
+                    box_anchor=box_anchor,
+                    grasp_captured=grasp_captured,
+                ),
+            )
 
         rate_hz = ctrl.update_rate
         dt = 1.0 / rate_hz

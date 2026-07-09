@@ -13,6 +13,7 @@ import pytest
 from fret.ros.mujoco_bridge import (
     DubinsRaceBridgeCore,
     MuJoCoBridgeCore,
+    cargo_weld_config_from_bridge_yaml,
     integrate_joint_velocities,
     make_dubins_race_bridge_core,
     make_mujoco_bridge_core,
@@ -269,3 +270,55 @@ def test_dubins_bridge_step_physics_runs() -> None:
     )
     with pytest.raises(RuntimeError, match="set_rrt_pose"):
         core.set_rrt_pose((0.0, 0.0, 0.0))
+
+
+def test_cargo_weld_config_from_yaml() -> None:
+    """Merged mujoco config should expose PPP cargo weld settings."""
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
+
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
+    weld = cargo_weld_config_from_bridge_yaml(cfg)
+    assert weld.equality_name == "cargo_weld"
+    assert weld.body_parent == "z_hoist"
+    assert weld.body_child == "cargo"
+
+
+@pytest.mark.skipif(
+    not make_mujoco_bridge_core("ppp", "ppp_warehouse").has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
+def test_cargo_weld_toggle_kinematic_pose() -> None:
+    """Kinematic mode should mirror cargo pose; physics mode toggles weld."""
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
+
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
+    weld_cfg = cargo_weld_config_from_bridge_yaml(cfg)
+    core = make_mujoco_bridge_core("ppp", "ppp_warehouse")
+    core.configure_cargo_weld(weld_cfg)
+
+    box_anchor = np.array([2.0, 1.0, 0.25], dtype=np.float64)
+    core.seed_cargo_pose(box_anchor)
+
+    transport_pose = np.array([2.0, 1.0, 2.06], dtype=np.float64)
+    core.sync_cargo_grasp(is_welded=True, cargo_pose=transport_pose)
+    assert core._cargo_weld_active is False
+
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
+    physics_core = make_mujoco_bridge_core("ppp", "ppp_warehouse")
+    physics_core.configure_cargo_weld(weld_cfg)
+    physics_core.seed_cargo_pose(box_anchor)
+    physics_core.configure_physics(physics)
+    physics_core.sync_cargo_grasp(is_welded=True, cargo_pose=transport_pose)
+    assert physics_core._cargo_weld_active is True
+    physics_core.sync_cargo_grasp(is_welded=False, cargo_pose=transport_pose)
+    assert physics_core._cargo_weld_active is False
+    with pytest.raises(RuntimeError, match="set_cargo_pose"):
+        physics_core.set_cargo_pose(transport_pose)
