@@ -6,6 +6,8 @@ reference paths without stop-and-go waypoint holds.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import numpy.typing as npt
 
@@ -135,7 +137,7 @@ def simulate_joint_carrot_tracking(
     goal_tolerance: float = 0.02,
     occupancy: object | None = None,
     repulsion_gain: float = 0.0,
-    on_step: object | None = None,
+    on_step: Callable[[npt.NDArray[np.float64]], None] | None = None,
 ) -> tuple[list[npt.NDArray[np.float64]], float]:
     """Track *path* with an advancing arc-length carrot (ARCO PPP race).
 
