@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate warehouse-style Dubins race obstacle YAML.
 
-Produces a lower-density industrial layout: rack rows and pallet clusters
-along the A→B corridor with a clear central aisle (≥ 3.5 m from structure
-faces to the diagonal race line).
+Produces an industrial layout where rack rows and pallet clusters flank the
+A→B race line, with deliberate diagonal barriers that block the trivial
+straight route while leaving multiple viable detour corridors.
 
 Example::
 
@@ -25,12 +25,27 @@ _DEFAULT_OUT = (
     _REPO_ROOT / "src/fret/config/worlds/dubins_race_obstacles.yml"
 )
 
-# Minimum perpendicular distance from structure centre to diagonal y = x [m].
-_MIN_DIAGONAL_OFFSET_M = 4.2
+# Keep peripheral clutter off the spawn/goal pads.
+_BOUNDS_PAD_M = 6.0
+_BOUNDS_MAX_M = 78.0
+
+# Flank racks sit this far from the diagonal (perpendicular) [m].
+_FLANK_OFFSET_M = 3.4
 
 
 def _dist_to_diagonal(x: float, y: float) -> float:
     return abs(y - x) / math.sqrt(2.0)
+
+
+def _on_diagonal(station: float) -> tuple[float, float]:
+    """Return a point on the race diagonal y = x."""
+    return station, station
+
+
+def _normal(side: float) -> tuple[float, float]:
+    """Unit normal to the diagonal; ``side`` flips north/south of the line."""
+    inv_sqrt2 = 0.70710678
+    return -inv_sqrt2 * side, inv_sqrt2 * side
 
 
 def _add(
@@ -40,10 +55,17 @@ def _add(
     hx: float,
     hy: float,
     height: float,
+    *,
+    min_diagonal_offset: float = 0.0,
 ) -> None:
-    if _dist_to_diagonal(x, y) < _MIN_DIAGONAL_OFFSET_M:
+    if min_diagonal_offset > 0.0 and _dist_to_diagonal(x, y) < min_diagonal_offset:
         return
-    if x - hx < 6.0 or x + hx > 78.0 or y - hy < 6.0 or y + hy > 78.0:
+    if (
+        x - hx < _BOUNDS_PAD_M
+        or x + hx > _BOUNDS_MAX_M
+        or y - hy < _BOUNDS_PAD_M
+        or y + hy > _BOUNDS_MAX_M
+    ):
         return
     structures.append(
         {
@@ -56,42 +78,94 @@ def _add(
     )
 
 
+def _add_flank_rack(
+    structures: list[dict[str, float]],
+    station: float,
+    side: float,
+    offset: float,
+    rack_hx: float,
+    height: float,
+) -> None:
+    nx, ny = _normal(side)
+    cx = station + nx * offset
+    cy = station + ny * offset
+    _add(structures, cx, cy, rack_hx, 0.45, height)
+
+
+def _add_diagonal_barrier(
+    structures: list[dict[str, float]],
+    station: float,
+    hx: float,
+    hy: float,
+    height: float,
+    *,
+    side: float = 0.0,
+    lateral: float = 0.0,
+) -> None:
+    """Place a barrier that crosses or grazes the race diagonal."""
+    cx, cy = _on_diagonal(station)
+    if side != 0.0:
+        nx, ny = _normal(side)
+        cx += nx * lateral
+        cy += ny * lateral
+    _add(structures, cx, cy, hx, hy, height)
+
+
 def generate_structures() -> list[dict[str, float]]:
     """Build rack rows, pallet stations, and cross-aisle clutter."""
     structures: list[dict[str, float]] = []
 
-    # Rack pairs flanking the diagonal corridor (warehouse aisles).
+    # Diagonal barriers with staggered gaps — block the trivial straight route
+    # while leaving both a northern (y > x) and southern (y < x) corridor.
+    diagonal_barriers: tuple[tuple[float, float, float, float, float, float, float], ...] = (
+        # station, hx, hy, height, side, lateral
+        (18.0, 2.40, 2.40, 2.6, 0.0, 0.0),  # early full block → detour north or south
+        (28.0, 2.80, 1.20, 2.8, 1.0, 1.6),  # north cheek; gap to the south
+        (36.0, 1.20, 2.80, 2.7, -1.0, 1.6),  # south cheek; gap to the north
+        (46.0, 2.60, 2.60, 2.9, 0.0, 0.0),  # mid choke — forces side choice
+        (54.0, 2.80, 1.20, 2.8, -1.0, 1.6),  # south cheek
+        (62.0, 1.20, 2.80, 2.7, 1.0, 1.6),  # north cheek
+        (70.0, 2.20, 2.20, 2.5, 0.0, 0.0),  # late block before goal pad
+    )
+    for station, hx, hy, height, side, lateral in diagonal_barriers:
+        _add_diagonal_barrier(
+            structures,
+            station,
+            hx,
+            hy,
+            height,
+            side=side,
+            lateral=lateral,
+        )
+
+    # Rack pairs flanking the diagonal — close enough to narrow corridors but
+    # not a duplicate of the central barriers.
     for i, station in enumerate(range(14, 70, 7)):
         side = 1.0 if i % 2 == 0 else -1.0
-        offset = 7.0 + (i % 3) * 1.2
-        nx = -0.70710678 * side
-        ny = 0.70710678 * side
+        offset = _FLANK_OFFSET_M + (i % 3) * 0.8
         height = 2.4 + (i % 4) * 0.25
-        rack_hx = 2.8 + (i % 2) * 0.4
-        _add(
+        rack_hx = 2.6 + (i % 2) * 0.4
+        _add_flank_rack(structures, station, side, offset, rack_hx, height)
+        _add_flank_rack(
             structures,
-            station + nx * offset,
-            station + ny * offset,
+            station,
+            -side,
+            offset + 1.2,
             rack_hx,
-            0.45,
-            height,
-        )
-        _add(
-            structures,
-            station - nx * (offset + 1.5),
-            station - ny * (offset + 1.5),
-            rack_hx,
-            0.45,
             height + 0.2,
         )
 
-    # Pallet / crate clusters between rack rows.
-    for i, station in enumerate(range(18, 66, 9)):
-        side = -1.0 if i % 2 == 0 else 1.0
-        nx = -0.70710678 * side
-        ny = 0.70710678 * side
-        offset = 5.2
-        height = 1.9 + (i % 3) * 0.35
+    # Pallet / crate clusters between rack rows, biased toward alternate routes.
+    pallet_stations: tuple[tuple[float, float, float, float], ...] = (
+        (22.0, 1.0, 5.0, 1.9),  # station, side, offset, height
+        (30.0, -1.0, 4.6, 2.2),
+        (40.0, 1.0, 5.4, 2.5),
+        (48.0, -1.0, 4.8, 2.0),
+        (58.0, 1.0, 5.2, 2.3),
+        (66.0, -1.0, 4.4, 2.6),
+    )
+    for station, side, offset, height in pallet_stations:
+        nx, ny = _normal(side)
         _add(
             structures,
             station + nx * offset,
@@ -101,17 +175,17 @@ def generate_structures() -> list[dict[str, float]]:
             height,
         )
 
-    # Peripheral storage blocks (force detours without sealing the map).
+    # Peripheral storage blocks — pin corners without sealing the map.
     peripheral = (
-        (22.0, 52.0, 1.2, 1.0, 2.2),
-        (52.0, 22.0, 1.0, 1.2, 2.1),
-        (30.0, 58.0, 1.1, 0.9, 2.0),
-        (58.0, 30.0, 0.9, 1.1, 2.3),
-        (64.0, 44.0, 1.0, 0.95, 2.1),
-        (44.0, 64.0, 0.95, 1.0, 2.4),
+        (20.0, 50.0, 1.2, 1.0, 2.2),
+        (50.0, 20.0, 1.0, 1.2, 2.1),
+        (28.0, 60.0, 1.1, 0.9, 2.0),
+        (60.0, 28.0, 0.9, 1.1, 2.3),
+        (66.0, 46.0, 1.0, 0.95, 2.1),
+        (46.0, 66.0, 0.95, 1.0, 2.4),
     )
     for x, y, hx, hy, height in peripheral:
-        _add(structures, x, y, hx, hy, height)
+        _add(structures, x, y, hx, hy, height, min_diagonal_offset=2.5)
 
     return structures
 
@@ -146,25 +220,25 @@ def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
             {
                 "id": "alcove_sw",
                 "parts": [
-                    {"x": 24.0, "y": 16.0, "hx": 0.35, "hy": 2.20, "height": 2.6},
-                    {"x": 22.4, "y": 18.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
-                    {"x": 22.4, "y": 14.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
+                    {"x": 20.0, "y": 12.0, "hx": 0.35, "hy": 2.20, "height": 2.6},
+                    {"x": 18.4, "y": 14.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
+                    {"x": 18.4, "y": 10.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
                 ],
             },
             {
                 "id": "alcove_mid",
                 "parts": [
-                    {"x": 42.0, "y": 40.5, "hx": 2.80, "hy": 0.35, "height": 2.8},
-                    {"x": 44.5, "y": 38.8, "hx": 0.35, "hy": 1.50, "height": 2.8},
-                    {"x": 39.5, "y": 38.8, "hx": 0.35, "hy": 1.50, "height": 2.8},
+                    {"x": 44.0, "y": 36.0, "hx": 2.80, "hy": 0.35, "height": 2.8},
+                    {"x": 46.5, "y": 34.2, "hx": 0.35, "hy": 1.50, "height": 2.8},
+                    {"x": 41.5, "y": 34.2, "hx": 0.35, "hy": 1.50, "height": 2.8},
                 ],
             },
             {
                 "id": "alcove_ne",
                 "parts": [
-                    {"x": 58.0, "y": 54.0, "hx": 0.35, "hy": 2.40, "height": 2.4},
-                    {"x": 56.2, "y": 56.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
-                    {"x": 56.2, "y": 52.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
+                    {"x": 60.0, "y": 66.0, "hx": 0.35, "hy": 2.40, "height": 2.4},
+                    {"x": 58.2, "y": 68.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
+                    {"x": 58.2, "y": 64.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
                 ],
             },
         ],
