@@ -278,6 +278,23 @@ use exactly these profiles to ensure correct publisher/subscriber matching.
 
 ---
 
+## Simulation launch parameters (v1.2)
+
+Passed to `ros2 launch fret sitl.py` or declared in scenario YAML under
+`ros__parameters`. Full schema: [config.md](config.md#simulation-physics-v12).
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `model` | string | `scara` | Robot model (`ppp`, `dubins`, …) |
+| `scenario` | string | `static_reach` | Scenario YAML stem |
+| `physics_mode` | bool | `false` | Enable MuJoCo actuator + `mj_step` SITL (FR-SIM-09) |
+
+When `physics_mode:=true`, `/joint_states` must reflect simulated `qpos`/`qvel`
+only — no open-loop pose injection (FR-SIM-07). See
+[mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
+
+---
+
 ## ARCO Dependency Contract
 
 **Integration mechanism:** editable local install.

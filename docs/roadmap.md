@@ -114,7 +114,7 @@ open-loop integration.
 - [ ] Tag `v1.2.0`
 
 Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) ·
-[mujoco.md](mujoco.md).
+[mujoco.md](mujoco.md) · [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
 
 ---
 

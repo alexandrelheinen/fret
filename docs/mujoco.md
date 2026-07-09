@@ -4,7 +4,8 @@
 > engine for physics, contacts, rendering, and SITL validation.
 >
 > **Related:** [simulation.md](simulation.md) · [requirements.md](requirements.md) ·
-> [releases.md](releases.md) · [modules/ros_nodes.md](modules/ros_nodes.md)
+> [releases.md](releases.md) · [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) ·
+> [modules/ros_nodes.md](modules/ros_nodes.md)
 
 ---
 
@@ -292,6 +293,11 @@ Optional asset import tools: `trimesh`, `pycollada`.
 ## v1.2 physics deliverables (summary)
 
 Full acceptance criteria: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
+
+**Implementation specification:** [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)
+(actuators, cargo weld, contact logs, regression tests).
+
+Configuration schema: [config.md § Simulation](config.md#simulation-physics-v12).
 
 | Robot | Physics work |
 |---|---|
