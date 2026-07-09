@@ -396,13 +396,18 @@ def _min_pose_history_clearance(
 ) -> float:
     if not poses:
         return float("inf")
+    # Low lane-edge curbs (≈0.06 m) fence the route for planners but are
+    # excluded from body clearance so tracking noise does not fail the race.
+    tall_structures = tuple(
+        rect for rect in structures if float(getattr(rect, "height", 0.0)) > 0.15
+    )
     return float(
         min(
             vehicle_body_clearance(
                 pose[0],
                 pose[1],
                 pose[2],
-                structures,
+                tall_structures,
                 vehicle_radius=vehicle_radius,
                 half_length=float(vehicle_body["half_length"]),
                 half_width=float(vehicle_body["half_width"]),

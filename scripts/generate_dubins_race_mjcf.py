@@ -57,42 +57,65 @@ def _mesh_scale(mesh: str, hx: float, hy: float, height: float) -> tuple[float, 
     return (2.0 * hx / ex, 2.0 * hy / ey, height / ez)
 
 
-def _load_structures(yaml_path: Path) -> list[dict[str, float]]:
+def _load_structures(yaml_path: Path) -> tuple[list[dict[str, float]], list[dict[str, float]]]:
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     structures = list(data.get("structures", []))
+    lane_barriers = list(data.get("lane_barriers", []))
     for alcove in data.get("dead_ends", []):
         structures.extend(alcove.get("parts", []))
-    return structures
+    return structures, lane_barriers
 
 
-def generate_structure_geoms(structures: list[dict[str, float]]) -> str:
+def generate_structure_geoms(
+    structures: list[dict[str, float]],
+    lane_barriers: list[dict[str, float]],
+) -> str:
     """Return MJCF geoms for analytic collision + clutter mesh visuals."""
     lines: list[str] = [_STRUCTURES_BEGIN]
     for idx, spec in enumerate(structures):
-        x = float(spec["x"])
-        y = float(spec["y"])
-        hx = float(spec["hx"])
-        hy = float(spec["hy"])
-        height = float(spec["height"])
-        half_z = height / 2.0
-        mesh = _tier_mesh(height)
-        material = _tier_material(mesh)
-        sx, sy, sz = _mesh_scale(mesh, hx, hy, height)
-        name = f"str_{idx:03d}"
-        lines.append(
-            f'    <geom name="{name}_col" type="box" pos="{x} {y} {half_z:.2f}" '
-            f'size="{hx} {hy} {half_z:.2f}" rgba="0 0 0 0"/>'
-        )
-        corner_x = x - hx
-        corner_y = y - hy
-        lines.append(
-            f'    <geom name="{name}_vis" type="mesh" mesh="{mesh}" '
-            f'pos="{corner_x:.3f} {corner_y:.3f} 0" '
-            f'size="{sx:.4f} {sy:.4f} {sz:.4f}" material="{material}" '
-            f'contype="0" conaffinity="0"/>'
-        )
+        lines.extend(_structure_geom_lines(f"str_{idx:03d}", spec))
+    for idx, spec in enumerate(lane_barriers):
+        lines.extend(_lane_barrier_geom_lines(f"curb_{idx:03d}", spec))
     lines.append(_STRUCTURES_END)
     return "\n".join(lines)
+
+
+def _structure_geom_lines(name: str, spec: dict[str, float]) -> list[str]:
+    x = float(spec["x"])
+    y = float(spec["y"])
+    hx = float(spec["hx"])
+    hy = float(spec["hy"])
+    height = float(spec["height"])
+    half_z = height / 2.0
+    mesh = _tier_mesh(height)
+    material = _tier_material(mesh)
+    sx, sy, sz = _mesh_scale(mesh, hx, hy, height)
+    corner_x = x - hx
+    corner_y = y - hy
+    return [
+        f'    <geom name="{name}_col" type="box" pos="{x} {y} {half_z:.2f}" '
+        f'size="{hx} {hy} {half_z:.2f}" rgba="0 0 0 0"/>',
+        f'    <geom name="{name}_vis" type="mesh" mesh="{mesh}" '
+        f'pos="{corner_x:.3f} {corner_y:.3f} 0" '
+        f'size="{sx:.4f} {sy:.4f} {sz:.4f}" material="{material}" '
+        f'contype="0" conaffinity="0"/>',
+    ]
+
+
+def _lane_barrier_geom_lines(name: str, spec: dict[str, float]) -> list[str]:
+    x = float(spec["x"])
+    y = float(spec["y"])
+    hx = float(spec["hx"])
+    hy = float(spec["hy"])
+    height = float(spec["height"])
+    half_z = height / 2.0
+    return [
+        f'    <geom name="{name}_col" type="box" pos="{x} {y} {half_z:.3f}" '
+        f'size="{hx} {hy} {half_z:.3f}" rgba="0 0 0 0"/>',
+        f'    <geom name="{name}_vis" type="box" pos="{x} {y} {half_z:.3f}" '
+        f'size="{hx} {hy} {half_z:.3f}" material="lane_curb" '
+        f'contype="0" conaffinity="0"/>',
+    ]
 
 
 def patch_mjcf(mjcf_path: Path, structure_block: str) -> str:
@@ -124,16 +147,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    structures = _load_structures(args.yaml.resolve())
-    block = generate_structure_geoms(structures)
+    structures, lane_barriers = _load_structures(args.yaml.resolve())
+    block = generate_structure_geoms(structures, lane_barriers)
     if args.dry_run:
         print(block)
-        print(f"# structures: {len(structures)}", file=sys.stderr)
+        print(
+            f"# structures: {len(structures)}, lane_barriers: {len(lane_barriers)}",
+            file=sys.stderr,
+        )
         return 0
 
     updated = patch_mjcf(args.mjcf.resolve(), block)
     args.mjcf.write_text(updated, encoding="utf-8")
-    print(f"Wrote {len(structures)} structures into {args.mjcf}")
+    print(
+        f"Wrote {len(structures)} structures and "
+        f"{len(lane_barriers)} lane barriers into {args.mjcf}"
+    )
     return 0
 
 

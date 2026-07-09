@@ -32,14 +32,53 @@ _BOUNDS_MAX_M = 78.0
 # Flank racks sit this far from the diagonal (perpendicular) [m].
 _FLANK_OFFSET_M = 3.4
 
+# Low lane-edge curbs: 1/3 of the TurtleBot3 collision height (2 × 0.09 m in MJCF).
+_ROBOT_COLLISION_HEIGHT_M = 0.18
+_LANE_BARRIER_HEIGHT_M = _ROBOT_COLLISION_HEIGHT_M / 3.0
+_LANE_BARRIER_HALF_THICKNESS_M = 0.10
+_LANE_BARRIER_OUTSET_M = 0.08
+_LANE_BARRIER_STATION_STEP_M = 5.0
+_LANE_BARRIER_STATION_WINDOW_M = 5.0
+_LANE_BARRIER_SEGMENT_HALF_M = 1.25
+# Ignore corner storage whose centre is farther than this from the race diagonal.
+_LANE_BARRIER_MAX_CENTER_PERP_M = 10.0
+_LANE_BARRIER_STATION_MIN_M = 24.0
+_LANE_BARRIER_STATION_MAX_M = 92.0
+
 
 def _dist_to_diagonal(x: float, y: float) -> float:
     return abs(y - x) / math.sqrt(2.0)
 
 
 def _on_diagonal(station: float) -> tuple[float, float]:
-    """Return a point on the race diagonal y = x."""
+    """Return a point on the race diagonal y = x (coordinate along the line)."""
     return station, station
+
+
+def _point_on_diagonal_arc(station_m: float) -> tuple[float, float]:
+    """Return a point on y = x given arc-length ``station_m`` from the origin."""
+    inv_sqrt2 = 0.70710678
+    return inv_sqrt2 * station_m, inv_sqrt2 * station_m
+
+
+def _station_of(x: float, y: float) -> float:
+    """Return arc-length station along the race diagonal through ``(x, y)``."""
+    return (x + y) / math.sqrt(2.0)
+
+
+def _structure_corners(
+    structure: dict[str, float],
+) -> tuple[tuple[float, float], ...]:
+    x = float(structure["x"])
+    y = float(structure["y"])
+    hx = float(structure["hx"])
+    hy = float(structure["hy"])
+    return (
+        (x - hx, y - hy),
+        (x + hx, y - hy),
+        (x + hx, y + hy),
+        (x - hx, y + hy),
+    )
 
 
 def _normal(side: float) -> tuple[float, float]:
@@ -190,6 +229,135 @@ def generate_structures() -> list[dict[str, float]]:
     return structures
 
 
+def generate_lane_barriers(
+    structures: list[dict[str, float]],
+) -> list[dict[str, float]]:
+    """Place low curbs that block warehouse-perimeter shortcuts.
+
+    Flank segments follow the outer envelope of lane-adjacent structures on
+    each side of the A→B diagonal.  Additional seals sit on the exterior face
+    of far corner storage blocks so agents cannot loop around the forest.
+    """
+    barriers = _peripheral_exterior_seals(structures)
+    barriers.extend(_flank_lane_curbs(structures))
+    return barriers
+
+
+def _flank_lane_curbs(
+    structures: list[dict[str, float]],
+) -> list[dict[str, float]]:
+    """Low walls just outside the lane flank envelope along the race diagonal."""
+    barriers: list[dict[str, float]] = []
+    station = _LANE_BARRIER_STATION_MIN_M
+    while station <= _LANE_BARRIER_STATION_MAX_M:
+        north_limit = 0.0
+        south_limit = 0.0
+        for structure in structures:
+            if (
+                _dist_to_diagonal(structure["x"], structure["y"])
+                > _LANE_BARRIER_MAX_CENTER_PERP_M
+            ):
+                continue
+            for cx, cy in _structure_corners(structure):
+                if abs(_station_of(cx, cy) - station) > _LANE_BARRIER_STATION_WINDOW_M:
+                    continue
+                perp = _dist_to_diagonal(cx, cy)
+                if cy > cx:
+                    north_limit = max(north_limit, perp)
+                elif cy < cx:
+                    south_limit = max(south_limit, perp)
+
+        diag_x, diag_y = _point_on_diagonal_arc(station)
+        nx, ny = _normal(1.0)
+        sx, sy = _normal(-1.0)
+        for side, limit, normal in (
+            ("north", north_limit, (nx, ny)),
+            ("south", south_limit, (sx, sy)),
+        ):
+            if limit <= 0.0:
+                continue
+            offset = limit + _LANE_BARRIER_OUTSET_M + _LANE_BARRIER_HALF_THICKNESS_M
+            cx = diag_x + normal[0] * offset
+            cy = diag_y + normal[1] * offset
+            barriers.append(
+                {
+                    "x": round(cx, 2),
+                    "y": round(cy, 2),
+                    "hx": round(_LANE_BARRIER_SEGMENT_HALF_M, 2),
+                    "hy": round(_LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "height": round(_LANE_BARRIER_HEIGHT_M, 3),
+                    "kind": "lane_barrier",
+                    "side": side,
+                }
+            )
+        station += _LANE_BARRIER_STATION_STEP_M
+    return barriers
+
+
+def _peripheral_exterior_seals(
+    structures: list[dict[str, float]],
+) -> list[dict[str, float]]:
+    """Close shortcuts behind far corner storage blocks."""
+    seals: list[dict[str, float]] = []
+    for structure in structures:
+        perp = _dist_to_diagonal(structure["x"], structure["y"])
+        if perp < _LANE_BARRIER_MAX_CENTER_PERP_M:
+            continue
+        x = float(structure["x"])
+        y = float(structure["y"])
+        hx = float(structure["hx"])
+        hy = float(structure["hy"])
+        if y > x:
+            # Northwest drift: seal north and west faces.
+            seals.append(
+                {
+                    "x": round(x, 2),
+                    "y": round(y + hy + _LANE_BARRIER_OUTSET_M + _LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "hx": round(hx + 0.35, 2),
+                    "hy": round(_LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "height": round(_LANE_BARRIER_HEIGHT_M, 3),
+                    "kind": "lane_barrier",
+                    "side": "north",
+                }
+            )
+            seals.append(
+                {
+                    "x": round(x - hx - _LANE_BARRIER_OUTSET_M - _LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "y": round(y, 2),
+                    "hx": round(_LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "hy": round(hy + 0.35, 2),
+                    "height": round(_LANE_BARRIER_HEIGHT_M, 3),
+                    "kind": "lane_barrier",
+                    "side": "west",
+                }
+            )
+        else:
+            # Southeast drift: seal south and east faces.
+            seals.append(
+                {
+                    "x": round(x, 2),
+                    "y": round(y - hy - _LANE_BARRIER_OUTSET_M - _LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "hx": round(hx + 0.35, 2),
+                    "hy": round(_LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "height": round(_LANE_BARRIER_HEIGHT_M, 3),
+                    "kind": "lane_barrier",
+                    "side": "south",
+                }
+            )
+            seals.append(
+                {
+                    "x": round(x + hx + _LANE_BARRIER_OUTSET_M + _LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "y": round(y, 2),
+                    "hx": round(_LANE_BARRIER_HALF_THICKNESS_M, 2),
+                    "hy": round(hy + 0.35, 2),
+                    "height": round(_LANE_BARRIER_HEIGHT_M, 3),
+                    "kind": "lane_barrier",
+                    "side": "east",
+                }
+            )
+    return seals
+
+
 def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
     return {
         "workspace_bounds": {
@@ -216,6 +384,7 @@ def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
             "enable_pruning": True,
         },
         "structures": structures,
+        "lane_barriers": generate_lane_barriers(structures),
         "dead_ends": [
             {
                 "id": "alcove_sw",
@@ -260,14 +429,16 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     structures = generate_structures()
     world = build_world(structures)
+    lane_barriers = world["lane_barriers"]
     header = (
         "# Dubins race warehouse layout (SC-v11 / T11-02).\n"
         "#\n"
-        "# 80 m × 80 m industrial floor with rack rows, pallet clusters, and\n"
-        "# U-shaped dead-end alcoves.  Regenerate with:\n"
+        "# 80 m × 80 m industrial floor with rack rows, pallet clusters, low\n"
+        "# lane-edge curbs, and U-shaped dead-end alcoves.  Regenerate with:\n"
         "#   python3 scripts/generate_dubins_warehouse_layout.py\n"
         "#\n"
-        "# Structure format: {x, y, hx, hy, height} — centre + half-extents (m).\n\n"
+        "# Structure format: {x, y, hx, hy, height} — centre + half-extents (m).\n"
+        "# lane_barriers: optional {kind, side} metadata for MJCF curb visuals.\n\n"
     )
     body = yaml.dump(
         world,
@@ -282,7 +453,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     args.out.write_text(text, encoding="utf-8")
-    print(f"Wrote {len(structures)} base structures to {args.out}")
+    print(
+        f"Wrote {len(structures)} base structures and "
+        f"{len(lane_barriers)} lane barriers to {args.out}"
+    )
     return 0
 
 

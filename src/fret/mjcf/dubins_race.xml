@@ -35,6 +35,7 @@
     <material name="clutter_cardboard" rgba="0.62 0.48 0.32 1" specular="0.04" shininess="0.03"/>
     <material name="clutter_crate" rgba="0.55 0.38 0.22 1" specular="0.05" shininess="0.04"/>
     <material name="clutter_pallet" rgba="0.48 0.42 0.36 1" specular="0.04" shininess="0.03"/>
+    <material name="lane_curb" rgba="0.78 0.80 0.82 0.85" specular="0.02" shininess="0.02"/>
 
     <mesh name="shelf" file="aws_warehouse/meshes/shelf.obj" scale="0.012 0.012 0.012"/>
     <mesh name="clutter_a" file="aws_warehouse/meshes/clutter_a.obj"/>
@@ -149,6 +150,86 @@
     <geom name="str_042_vis" type="mesh" mesh="clutter_c" pos="56.400 67.650 0" size="1.6613 0.4425 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
     <geom name="str_043_col" type="box" pos="58.2 64.0 1.20" size="1.8 0.35 1.20" rgba="0 0 0 0"/>
     <geom name="str_043_vis" type="mesh" mesh="clutter_c" pos="56.400 63.650 0" size="1.6613 0.4425 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="curb_000_col" type="box" pos="20.0 51.18 0.030" size="1.55 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_000_vis" type="box" pos="20.0 51.18 0.030" size="1.55 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_001_col" type="box" pos="18.62 50.0 0.030" size="0.1 1.35 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_001_vis" type="box" pos="18.62 50.0 0.030" size="0.1 1.35 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_002_col" type="box" pos="50.0 18.62 0.030" size="1.35 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_002_vis" type="box" pos="50.0 18.62 0.030" size="1.35 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_003_col" type="box" pos="51.18 20.0 0.030" size="0.1 1.55 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_003_vis" type="box" pos="51.18 20.0 0.030" size="0.1 1.55 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_004_col" type="box" pos="28.0 61.08 0.030" size="1.45 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_004_vis" type="box" pos="28.0 61.08 0.030" size="1.45 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_005_col" type="box" pos="26.72 60.0 0.030" size="0.1 1.25 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_005_vis" type="box" pos="26.72 60.0 0.030" size="0.1 1.25 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_006_col" type="box" pos="60.0 26.72 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_006_vis" type="box" pos="60.0 26.72 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_007_col" type="box" pos="61.08 28.0 0.030" size="0.1 1.45 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_007_vis" type="box" pos="61.08 28.0 0.030" size="0.1 1.45 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_008_col" type="box" pos="66.0 44.87 0.030" size="1.35 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_008_vis" type="box" pos="66.0 44.87 0.030" size="1.35 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_009_col" type="box" pos="67.18 46.0 0.030" size="0.1 1.3 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_009_vis" type="box" pos="67.18 46.0 0.030" size="0.1 1.3 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_010_col" type="box" pos="46.0 67.18 0.030" size="1.3 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_010_vis" type="box" pos="46.0 67.18 0.030" size="1.3 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_011_col" type="box" pos="44.87 66.0 0.030" size="0.1 1.35 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_011_vis" type="box" pos="44.87 66.0 0.030" size="0.1 1.35 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_012_col" type="box" pos="11.32 22.62 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_012_vis" type="box" pos="11.32 22.62 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_013_col" type="box" pos="21.92 12.02 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_013_vis" type="box" pos="21.92 12.02 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_014_col" type="box" pos="14.85 26.16 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_014_vis" type="box" pos="14.85 26.16 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_015_col" type="box" pos="25.36 15.65 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_015_vis" type="box" pos="25.36 15.65 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_016_col" type="box" pos="18.89 29.19 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_016_vis" type="box" pos="18.89 29.19 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_017_col" type="box" pos="28.89 19.19 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_017_vis" type="box" pos="28.89 19.19 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_018_col" type="box" pos="22.42 32.73 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_018_vis" type="box" pos="22.42 32.73 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_019_col" type="box" pos="33.63 21.52 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_019_vis" type="box" pos="33.63 21.52 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_020_col" type="box" pos="25.96 36.26 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_020_vis" type="box" pos="25.96 36.26 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_021_col" type="box" pos="37.16 25.06 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_021_vis" type="box" pos="37.16 25.06 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_022_col" type="box" pos="29.5 39.8 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_022_vis" type="box" pos="29.5 39.8 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_023_col" type="box" pos="38.9 30.4 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_023_vis" type="box" pos="38.9 30.4 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_024_col" type="box" pos="33.36 43.01 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_024_vis" type="box" pos="33.36 43.01 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_025_col" type="box" pos="42.44 33.93 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_025_vis" type="box" pos="42.44 33.93 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_026_col" type="box" pos="36.89 46.55 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_026_vis" type="box" pos="36.89 46.55 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_027_col" type="box" pos="47.17 36.27 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_027_vis" type="box" pos="47.17 36.27 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_028_col" type="box" pos="39.0 51.51 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_028_vis" type="box" pos="39.0 51.51 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_029_col" type="box" pos="50.71 39.8 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_029_vis" type="box" pos="50.71 39.8 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_030_col" type="box" pos="42.54 55.04 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_030_vis" type="box" pos="42.54 55.04 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_031_col" type="box" pos="54.14 43.44 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_031_vis" type="box" pos="54.14 43.44 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_032_col" type="box" pos="48.27 56.38 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_032_vis" type="box" pos="48.27 56.38 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_033_col" type="box" pos="57.68 46.97 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_033_vis" type="box" pos="57.68 46.97 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_034_col" type="box" pos="51.13 60.59 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_034_vis" type="box" pos="51.13 60.59 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_035_col" type="box" pos="60.81 50.91 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_035_vis" type="box" pos="60.81 50.91 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_036_col" type="box" pos="53.74 65.05 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_036_vis" type="box" pos="53.74 65.05 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_037_col" type="box" pos="64.35 54.44 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_037_vis" type="box" pos="64.35 54.44 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_038_col" type="box" pos="57.28 68.58 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_038_vis" type="box" pos="57.28 68.58 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
+    <geom name="curb_039_col" type="box" pos="67.78 58.08 0.030" size="1.25 0.1 0.030" rgba="0 0 0 0"/>
+    <geom name="curb_039_vis" type="box" pos="67.78 58.08 0.030" size="1.25 0.1 0.030" material="lane_curb" contype="0" conaffinity="0"/>
     <!-- End warehouse structure block -->
 
     <!-- Agent 1: RRT* (blue TurtleBot3) -->

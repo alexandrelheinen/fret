@@ -171,6 +171,9 @@ def load_dubins_race_world(
         for part in dead_end.get("parts", []):
             structures.append(_parse_rect(part))
 
+    for barrier in data.get("lane_barriers", []):
+        structures.append(_parse_rect(barrier))
+
     planner = require_key(data, "planner", context=ctx)
     if not isinstance(planner, dict):
         raise ValueError(f"'planner' must be a mapping in {obstacle_path}")
