@@ -268,6 +268,8 @@ def test_dubins_bridge_step_physics_runs() -> None:
         core.get_joint_velocities(),
         [0.4, 0.0, 0.0, 0.4, 0.0, 0.0],
     )
+    assert core.get_rrt_pose()[0] > 6.0
+    assert core.get_sst_pose()[0] > 6.0
     with pytest.raises(RuntimeError, match="set_rrt_pose"):
         core.set_rrt_pose((0.0, 0.0, 0.0))
 
