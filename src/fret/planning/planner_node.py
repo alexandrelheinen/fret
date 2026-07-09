@@ -117,13 +117,24 @@ class PlannerNode:
             ]
             | None
         ) = None,
+        planning_config: dict[str, Any] | None = None,
     ) -> None:
+        from fret.config_loader import (
+            load_algorithm_config,
+            planning_config_for_model,
+        )
         from fret.control.kinematics import Kinematics
 
         self._kin = Kinematics(model)
         self._occ_adapter = occupancy_adapter
         self._occ_direct = occupancy
-        self._traj_gen = TrajectoryGenerator(self._kin)
+        resolved_planning = (
+            planning_config
+            if planning_config is not None
+            else load_algorithm_config(planning_config_for_model(model))
+        )
+        self._planning_config = resolved_planning
+        self._traj_gen = TrajectoryGenerator(self._kin, resolved_planning)
         self._collision_backend = collision_backend
         self._planner_algorithm = planner_algorithm
         self._include_cargo = include_cargo
@@ -175,6 +186,7 @@ class PlannerNode:
                 occ,
                 include_cargo=self._include_cargo,
                 grasp_config=self._grasp_config,
+                contact_radius=self._planning_config.get("contact_radius"),
                 collision_backend=self._collision_backend,
                 scenario=self._scenario,
                 mjcf_path=self._mjcf_path,

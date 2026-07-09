@@ -29,6 +29,7 @@ from fret.interfaces import (
     PlanningRequest,
     PlanningStatus,
 )
+from fret.config_loader import require_keys
 from fret.planning.trajectory_converter import (
     TrajectoryConverter,
     TrajectoryResult,
@@ -77,20 +78,15 @@ class TriggerKind(enum.Enum):
 
 
 # ---------------------------------------------------------------------------
-# Default configuration values
-# ---------------------------------------------------------------------------
-
-_DEFAULT_CONFIG: dict[str, Any] = {
-    "tracking_error_threshold": 0.020,
-    "occupancy_change_threshold": 0.050,
-    "min_replan_interval": 1.0,
-    "max_replan_attempts": 3,
-}
-
-
-# ---------------------------------------------------------------------------
 # ReplanningManager
 # ---------------------------------------------------------------------------
+
+_REQUIRED_REPLANNING_KEYS: tuple[str, ...] = (
+    "tracking_error_threshold",
+    "occupancy_change_threshold",
+    "min_replan_interval",
+    "max_replan_attempts",
+)
 
 
 class ReplanningManager:
@@ -103,24 +99,14 @@ class ReplanningManager:
         planner_node: Pure-Python planning logic instance.
         trajectory_converter: Converts raw paths to time-parameterized
             trajectories.
-        config: Optional configuration dict.  Accepted keys (all optional)
-            may be nested under a ``"replanning"`` sub-key:
-
-            - ``tracking_error_threshold`` (float): EE tracking error [m]
-              that triggers replanning (default 0.02).
-            - ``occupancy_change_threshold`` (float): Minimum obstacle
-              displacement [m] to trigger replanning (default 0.05).
-            - ``min_replan_interval`` (float): Minimum seconds between
-              consecutive replan attempts / debounce window (default 1.0).
-            - ``max_replan_attempts`` (int): Maximum consecutive replan
-              attempts before transitioning to ``HALTED`` (default 3).
+        config: Configuration dict.  Keys may be nested under ``"replanning"``.
     """
 
     def __init__(
         self,
         planner_node: PlannerNode,
         trajectory_converter: TrajectoryConverter,
-        config: dict[str, Any] | None = None,
+        config: dict[str, Any],
     ) -> None:
         cfg = self._parse_config(config)
         self._planner = planner_node
@@ -286,21 +272,8 @@ class ReplanningManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_config(config: dict[str, Any] | None) -> dict[str, Any]:
-        """Merge user config with defaults.
-
-        Args:
-            config: User-supplied config dict (may contain a ``"replanning"``
-                sub-key).
-
-        Returns:
-            Flat config dict with all required keys present.
-        """
-        base: dict[str, Any] = dict(_DEFAULT_CONFIG)
-        if config is None:
-            return base
+    def _parse_config(config: dict[str, Any]) -> dict[str, Any]:
+        """Validate and flatten replanning configuration."""
         src: dict[str, Any] = config.get("replanning", config)
-        for key in base:
-            if key in src:
-                base[key] = src[key]
-        return base
+        require_keys(src, _REQUIRED_REPLANNING_KEYS, context="replanning config")
+        return dict(src)

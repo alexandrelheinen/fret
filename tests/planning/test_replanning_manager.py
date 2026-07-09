@@ -24,6 +24,7 @@ from fret.interfaces import (
     PlanningResult,
     PlanningStatus,
 )
+from fret.config_loader import load_algorithm_config
 from fret.planning.replanning_manager import (
     ManagerState,
     ReplanningManager,
@@ -85,6 +86,16 @@ def _make_converter() -> MagicMock:
     return converter
 
 
+def _default_replanning_config() -> dict[str, object]:
+    return load_algorithm_config("planning/scara.yml")
+
+
+def _replanning_config(**overrides: object) -> dict[str, object]:
+    base = dict(_default_replanning_config()["replanning"])  # type: ignore[index]
+    base.update(overrides)
+    return {"replanning": base}
+
+
 def _make_manager(
     success: bool = True,
     config: dict | None = None,
@@ -92,7 +103,7 @@ def _make_manager(
     return ReplanningManager(
         planner_node=_make_planner(success),
         trajectory_converter=_make_converter(),
-        config=config,
+        config=config if config is not None else _default_replanning_config(),
     )
 
 
@@ -182,7 +193,7 @@ def test_trigger_replan_debounce() -> None:
     mgr = ReplanningManager(
         planner_node=_make_planner(),
         trajectory_converter=_make_converter(),
-        config={"min_replan_interval": 60.0},
+        config=_replanning_config(min_replan_interval=60.0),
     )
     mgr.start_execution(_make_request())
     first = mgr.trigger_replan(TriggerKind.MANUAL)
@@ -198,7 +209,9 @@ def test_trigger_replan_debounce() -> None:
 
 def test_tracking_error_below_threshold_no_replan() -> None:
     """Small error does not trigger replan."""
-    mgr = _make_manager(config={"tracking_error_threshold": 0.02})
+    mgr = _make_manager(
+        config=_replanning_config(tracking_error_threshold=0.02)
+    )
     mgr.start_execution(_make_request())
     # Manually reset last replan time so debounce is not active.
     mgr._last_replan_time = -float("inf")
@@ -209,7 +222,9 @@ def test_tracking_error_below_threshold_no_replan() -> None:
 
 def test_tracking_error_above_threshold_triggers_replan() -> None:
     """Large error triggers replan."""
-    mgr = _make_manager(config={"tracking_error_threshold": 0.02})
+    mgr = _make_manager(
+        config=_replanning_config(tracking_error_threshold=0.02)
+    )
     mgr.start_execution(_make_request())
     mgr._last_replan_time = -float("inf")
     initial_attempts = mgr._replan_attempts
@@ -224,7 +239,9 @@ def test_tracking_error_above_threshold_triggers_replan() -> None:
 
 def test_occupancy_update_small_change_no_replan() -> None:
     """Tiny obstacle displacement does not trigger replan."""
-    mgr = _make_manager(config={"occupancy_change_threshold": 0.05})
+    mgr = _make_manager(
+        config=_replanning_config(occupancy_change_threshold=0.05)
+    )
     mgr.start_execution(_make_request())
     pts = np.array([[0.0, 0.0, 0.5], [0.1, 0.0, 0.5]], dtype=np.float64)
     mgr.report_occupancy_update(_payload_with_points(pts))
@@ -238,7 +255,9 @@ def test_occupancy_update_small_change_no_replan() -> None:
 
 def test_occupancy_update_large_change_triggers_replan() -> None:
     """Large obstacle displacement triggers replan."""
-    mgr = _make_manager(config={"occupancy_change_threshold": 0.05})
+    mgr = _make_manager(
+        config=_replanning_config(occupancy_change_threshold=0.05)
+    )
     mgr.start_execution(_make_request())
     pts = np.array([[0.0, 0.0, 0.5], [0.1, 0.0, 0.5]], dtype=np.float64)
     mgr.report_occupancy_update(_payload_with_points(pts))
@@ -295,7 +314,7 @@ def test_max_replan_attempts_halts() -> None:
     mgr = ReplanningManager(
         planner_node=_make_planner(success=True),
         trajectory_converter=_make_converter(),
-        config={"max_replan_attempts": 2, "min_replan_interval": 0.0},
+        config=_replanning_config(max_replan_attempts=2, min_replan_interval=0.0),
     )
     mgr.start_execution(_make_request())
     # Burn through all attempts.
@@ -340,7 +359,7 @@ def test_replan_updates_trajectory() -> None:
     mgr = ReplanningManager(
         planner_node=_make_planner(success=True),
         trajectory_converter=converter,
-        config={"min_replan_interval": 0.0},
+        config=_replanning_config(min_replan_interval=0.0),
     )
     mgr.start_execution(_make_request())
     call_count_before = converter.convert.call_count

@@ -87,17 +87,19 @@ class PlannerRosNode:  # pragma: no cover
         self.declare_parameter("collision_backend", "analytic")  # type: ignore[attr-defined]
         self.declare_parameter("planner_algorithm", "rrt_star")  # type: ignore[attr-defined]
         self.declare_parameter("plan_include_cargo", False)  # type: ignore[attr-defined]
-        self.declare_parameter("grasp.capture_radius", 0.3)  # type: ignore[attr-defined]
-        self.declare_parameter("grasp.goal_radius", 0.5)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp_config", "")  # type: ignore[attr-defined]
+        self.declare_parameter("planning_config", "")  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.capture_radius", 0.0)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.goal_radius", 0.0)  # type: ignore[attr-defined]
         # weld_offset may be given as a scalar (interpreted as a Z offset) or a
         # 3-vector in scenario YAML; parse_grasp_config accepts both, so declare
         # it with dynamic typing to avoid a DOUBLE/DOUBLE_ARRAY type clash.
         self.declare_parameter(  # type: ignore[attr-defined]
             "grasp.weld_offset",
-            [0.0, 0.0, 0.0],
+            [],
             ParameterDescriptor(dynamic_typing=True),
         )
-        self.declare_parameter("grasp.box_half_extent", 0.25)  # type: ignore[attr-defined]
+        self.declare_parameter("grasp.box_half_extent", 0.0)  # type: ignore[attr-defined]
 
         self._model = str(
             self.get_parameter("model").get_parameter_value().string_value  # type: ignore[attr-defined]
@@ -206,33 +208,18 @@ class PlannerRosNode:  # pragma: no cover
             )
 
     def _read_grasp_config(self) -> Any:
-        """Read PPP grasp geometry from ROS parameters."""
+        """Read PPP grasp geometry from ``grasp_config`` ROS parameter."""
+        from fret.config_loader import load_algorithm_config
         from fret.control.grasp_magnet import parse_grasp_config
 
-        return parse_grasp_config(
-            {
-                "capture_radius": self.get_parameter(  # type: ignore[attr-defined]
-                    "grasp.capture_radius"
-                )
-                .get_parameter_value()
-                .double_value,
-                "goal_radius": self.get_parameter(  # type: ignore[attr-defined]
-                    "grasp.goal_radius"
-                )
-                .get_parameter_value()
-                .double_value,
-                # .value returns the native scalar or list; parse_grasp_config
-                # normalizes both to a 3-vector.
-                "weld_offset": self.get_parameter(  # type: ignore[attr-defined]
-                    "grasp.weld_offset"
-                ).value,
-                "box_half_extent": self.get_parameter(  # type: ignore[attr-defined]
-                    "grasp.box_half_extent"
-                )
-                .get_parameter_value()
-                .double_value,
-            }
+        grasp_rel = (
+            self.get_parameter("grasp_config")  # type: ignore[attr-defined]
+            .get_parameter_value()
+            .string_value
         )
+        if not grasp_rel:
+            return None
+        return parse_grasp_config(load_algorithm_config(str(grasp_rel)))
 
     # ------------------------------------------------------------------
     # Callbacks
@@ -388,7 +375,10 @@ class PlannerRosNode:  # pragma: no cover
         from fret.control.kinematics import Kinematics
 
         kin = Kinematics(self._model)
-        traj_gen = TrajectoryGenerator(kin)
+        from fret.config_loader import load_algorithm_config, planning_config_for_model
+
+        planning = load_algorithm_config(planning_config_for_model(self._model))
+        traj_gen = TrajectoryGenerator(kin, planning)
         timed = traj_gen.process(result.path)
 
         self._publish_trajectory(timed)

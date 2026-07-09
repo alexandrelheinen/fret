@@ -40,17 +40,8 @@ except ImportError:
 # Pure-Python trajectory containers (duck-type compatible with ROS msgs)
 # ---------------------------------------------------------------------------
 
-# Maximum allowed Cartesian EE step between consecutive waypoints.
-#
-# Must be chosen so that the steady-state tracking lag (step / Jacobian_gain)
-# stays below the controller's fault_threshold (0.020 m).
-#
-# Derivation for SCARA at q=0 (y-dominant direction, worst-case gain):
-#   ΔEE_per_step ≈ 0.330 × error  →  equilibrium error e* = step / 0.330
-#   Require  e* < fault_threshold  →  step < 0.020 × 0.330 ≈ 0.0066 m
-#
-# 4 mm (0.004 m) gives e* ≈ 12 mm, a 2× safety margin below 20 mm.
-_MAX_INTERP_STEP_M: float = 0.004  # 4 mm
+# Maximum allowed Cartesian EE step between consecutive waypoints is loaded
+# from ``config/planning/scara.yml`` → ``trajectory_generator.max_interp_step_m``.
 
 
 @dataclass
@@ -81,10 +72,21 @@ class TrajectoryGenerator:
     Args:
         kinematics: Kinematics engine.  Must expose ``dof: int`` and
             ``joint_names: list[str]``.
+        config: Planning config dict containing ``trajectory_generator``.
     """
 
-    def __init__(self, kinematics: Kinematics) -> None:
+    def __init__(
+        self,
+        kinematics: Kinematics,
+        config: dict[str, Any],
+    ) -> None:
         self._kin = kinematics
+        tg_cfg = config.get("trajectory_generator", config)
+        if "max_interp_step_m" not in tg_cfg:
+            raise KeyError(
+                "Missing required key 'max_interp_step_m' in trajectory_generator config"
+            )
+        self._max_interp_step_m = float(tg_cfg["max_interp_step_m"])
         self._prune_occupancy: Any | None = None
         self._prune_step_size: npt.NDArray[np.float64] | None = None
 
@@ -170,7 +172,9 @@ class TrajectoryGenerator:
             # Number of sub-steps: at least 1, enough to keep each step ≤ max.
             # A 10 % curvature margin compensates for the nonlinear EE arc that
             # results from linear-in-joint-space interpolation.
-            n_steps = max(math.ceil(cart_dist / _MAX_INTERP_STEP_M * 1.1), 1)
+            n_steps = max(
+                math.ceil(cart_dist / self._max_interp_step_m * 1.1), 1
+            )
             dt = 1.0 / n_steps
 
             for j in range(n_steps):

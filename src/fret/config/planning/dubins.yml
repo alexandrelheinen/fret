@@ -1,0 +1,13 @@
+# Dubins race planning parameters (v1.1).
+#
+# Vehicle footprint and planner tuning live in the obstacle/world YAML;
+# this file references that layout and holds sampling parameters.
+
+obstacle_file: worlds/dubins_race_obstacles.yml
+
+samples_per_edge: 4
+
+vehicle_body:
+  half_length: 0.36
+  half_width: 0.22
+  corner_sample_radius: 0.05

@@ -11,14 +11,13 @@ Satisfies requirement FR-SIM-01 when ``collision_backend=mujoco``.
 from __future__ import annotations
 
 import pathlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 
 from fret.control.grasp_magnet import GraspConfig
-from fret.planning.ppp_obstacles import PPP_DEFAULT_CONTACT_RADIUS_M
 from fret.ros.mujoco_bridge import resolve_mjcf_path
 
 if TYPE_CHECKING:
@@ -27,8 +26,6 @@ if TYPE_CHECKING:
 _OBSTACLE_GEOM_PREFIXES: tuple[str, ...] = ("obs_", "rack_")
 _CARGO_GEOM_NAMES: frozenset[str] = frozenset({"cargo_box"})
 _STATIC_ENV_GEOM_NAMES: frozenset[str] = frozenset({"floor"})
-_FREE_CLEARANCE_M: float = PPP_DEFAULT_CONTACT_RADIUS_M
-_COLLISION_CLEARANCE_M: float = -PPP_DEFAULT_CONTACT_RADIUS_M
 _GEOM_DISTANCE_MAX_M: float = 20.0
 
 
@@ -36,9 +33,9 @@ _GEOM_DISTANCE_MAX_M: float = 20.0
 class MujocoCheckerConfig:
     """Configuration for MuJoCo-backed PPP collision checks."""
 
-    include_cargo: bool = False
-    grasp_config: GraspConfig = field(default_factory=GraspConfig)
-    contact_radius: float = PPP_DEFAULT_CONTACT_RADIUS_M
+    include_cargo: bool
+    contact_radius: float
+    grasp_config: GraspConfig | None = None
     mjcf_path: pathlib.Path | None = None
     scenario: str = "ppp_warehouse"
     workspace_bounds: (
@@ -64,11 +61,11 @@ class MujocoPPPCollisionChecker:
         self,
         kinematics: Kinematics,
         occupancy: Any,
-        config: MujocoCheckerConfig | None = None,
+        config: MujocoCheckerConfig,
     ) -> None:
         del occupancy  # MJCF is authoritative for obstacles.
         self._kin = kinematics
-        self._config = config if config is not None else MujocoCheckerConfig()
+        self._config = config
         self._dof = kinematics.dof
         self._mujoco, self._model, self._data = self._load_runtime()
         self._qpos_adrs = self._resolve_qpos_addresses()
@@ -190,7 +187,7 @@ class MujocoPPPCollisionChecker:
                 if dist >= 0.0:
                     min_sep = min(min_sep, float(dist))
         if min_sep == float("inf"):
-            return _FREE_CLEARANCE_M
+            return self._config.contact_radius
         return min_sep - self._config.contact_radius
 
     def is_collision_free(
@@ -227,5 +224,5 @@ class MujocoPPPCollisionChecker:
                 return -1.0
         self._set_configuration(configuration)
         if self._has_robot_obstacle_contact():
-            return _COLLISION_CLEARANCE_M
+            return -self._config.contact_radius
         return self._min_robot_obstacle_separation()

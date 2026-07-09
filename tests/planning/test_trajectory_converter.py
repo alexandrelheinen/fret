@@ -16,10 +16,13 @@ import math
 import numpy as np
 import pytest
 
+from fret.config_loader import load_algorithm_config
 from fret.planning.trajectory_converter import (
     TrajectoryConverter,
     TrajectoryResult,
 )
+
+_SCARA_PLANNING = load_algorithm_config("planning/scara.yml")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -31,13 +34,16 @@ _GOAL = np.array([0.5, 0.5, 0.1])
 
 
 def _make_converter(**kwargs: object) -> TrajectoryConverter:
-    return TrajectoryConverter(config=kwargs if kwargs else None)
+    cfg = dict(_SCARA_PLANNING)
+    if kwargs:
+        cfg = {**cfg, **kwargs}
+    return TrajectoryConverter(config=cfg)
 
 
 def _two_waypoint_result(
     converter: TrajectoryConverter | None = None,
 ) -> TrajectoryResult:
-    c = converter or TrajectoryConverter()
+    c = converter or TrajectoryConverter(config=_SCARA_PLANNING)
     return c.convert([_START.copy(), _GOAL.copy()])
 
 
@@ -47,17 +53,20 @@ def _two_waypoint_result(
 
 
 def test_construction_default() -> None:
-    """No crash with default configuration."""
-    TrajectoryConverter()
+    """No crash with bundled SCARA configuration."""
+    TrajectoryConverter(config=_SCARA_PLANNING)
 
 
 def test_construction_with_config() -> None:
     """Custom config values are applied."""
     cfg = {
-        "control_hz": 10.0,
-        "v_max": [1.0, 1.0, 0.05],
-        "a_max": [1.5, 1.5, 0.1],
-        "dt_min": 0.05,
+        "trajectory": {
+            **_SCARA_PLANNING["trajectory"],  # type: ignore[index]
+            "control_hz": 10.0,
+            "v_max": [1.0, 1.0, 0.05],
+            "a_max": [1.5, 1.5, 0.1],
+            "dt_min": 0.05,
+        }
     }
     c = TrajectoryConverter(config=cfg)
     # Trigger conversion to verify config was consumed without error.
@@ -69,10 +78,8 @@ def test_construction_nested_config() -> None:
     """Config under a 'trajectory' sub-key is accepted."""
     cfg = {
         "trajectory": {
+            **_SCARA_PLANNING["trajectory"],  # type: ignore[index]
             "control_hz": 20.0,
-            "v_max": [1.5, 1.5, 0.1],
-            "a_max": [2.0, 2.0, 0.2],
-            "dt_min": 0.02,
         }
     }
     TrajectoryConverter(config=cfg)
@@ -149,7 +156,7 @@ def test_multi_segment_path() -> None:
         np.array([0.3, 0.4, 0.08]),
         np.array([0.5, 0.5, 0.10]),
     ]
-    result = TrajectoryConverter().convert(path)
+    result = TrajectoryConverter(config=_SCARA_PLANNING).convert(path)
     assert len(result.positions) >= 2
     np.testing.assert_allclose(result.positions[0], path[0], atol=1e-9)
     np.testing.assert_allclose(result.positions[-1], path[-1], atol=1e-9)
@@ -162,7 +169,7 @@ def test_multi_segment_path() -> None:
 
 def test_zero_motion_path() -> None:
     """start == goal → still returns >= 2 points and duration >= dt_min."""
-    c = TrajectoryConverter()
+    c = TrajectoryConverter(config=_SCARA_PLANNING)
     result = c.convert([_START.copy(), _START.copy()])
     assert len(result.positions) >= 2
     assert result.duration >= 0.02  # dt_min default
@@ -175,7 +182,7 @@ def test_zero_motion_path() -> None:
 
 def test_v_max_respected() -> None:
     """Max velocity in output does not significantly exceed per-joint v_max."""
-    c = TrajectoryConverter()
+    c = TrajectoryConverter(config=_SCARA_PLANNING)
     result = c.convert([_START.copy(), _GOAL.copy()])
     v_max = np.array([1.5, 1.5, 0.1])
     for vel in result.velocities:
@@ -190,7 +197,13 @@ def test_v_max_respected() -> None:
 
 def test_control_hz_sets_rate() -> None:
     """At 10 Hz for a ~1 s path, the sample count is approximately 10."""
-    c = TrajectoryConverter(config={"control_hz": 10.0})
+    cfg = {
+        "trajectory": {
+            **_SCARA_PLANNING["trajectory"],  # type: ignore[index]
+            "control_hz": 10.0,
+        }
+    }
+    c = TrajectoryConverter(config=cfg)
     # Create path long enough for ~1s duration given default v_max.
     path = [np.zeros(_DOF), np.array([1.5, 0.0, 0.0])]
     result = c.convert(path)
@@ -206,7 +219,7 @@ def test_control_hz_sets_rate() -> None:
 
 def test_timestamps_start_at_start_time() -> None:
     """start_time=5.0 → timestamps[0] == 5.0."""
-    result = TrajectoryConverter().convert(
+    result = TrajectoryConverter(config=_SCARA_PLANNING).convert(
         [_START.copy(), _GOAL.copy()], start_time=5.0
     )
     assert math.isclose(result.timestamps[0], 5.0, rel_tol=1e-9)
@@ -215,7 +228,7 @@ def test_timestamps_start_at_start_time() -> None:
 def test_timestamps_end_at_start_time_plus_duration() -> None:
     """timestamps[-1] == start_time + duration."""
     start_time = 3.0
-    result = TrajectoryConverter().convert(
+    result = TrajectoryConverter(config=_SCARA_PLANNING).convert(
         [_START.copy(), _GOAL.copy()], start_time=start_time
     )
     assert math.isclose(
@@ -231,10 +244,10 @@ def test_timestamps_end_at_start_time_plus_duration() -> None:
 def test_path_too_short_raises() -> None:
     """Path with 1 waypoint raises ValueError."""
     with pytest.raises(ValueError):
-        TrajectoryConverter().convert([_START.copy()])
+        TrajectoryConverter(config=_SCARA_PLANNING).convert([_START.copy()])
 
 
 def test_empty_path_raises() -> None:
     """Empty path raises ValueError."""
     with pytest.raises(ValueError):
-        TrajectoryConverter().convert([])
+        TrajectoryConverter(config=_SCARA_PLANNING).convert([])

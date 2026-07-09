@@ -52,6 +52,9 @@ def test_vehicle_body_clearance_samples_corners() -> None:
         0.0,
         (rect,),
         vehicle_radius=0.42,
+        half_length=0.36,
+        half_width=0.22,
+        corner_sample_radius=0.05,
     )
     assert clearance > 0.0
 

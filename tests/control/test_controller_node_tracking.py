@@ -19,6 +19,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from fret.config_loader import load_algorithm_config
 from fret.control.controller_node import ControllerNode, _NodeState
 from fret.control.kinematics import Kinematics
 from fret.interfaces import (
@@ -28,6 +29,8 @@ from fret.interfaces import (
 )
 from fret.planning.planner_node import PlannerNode
 from fret.planning.trajectory_generator import TrajectoryGenerator
+
+_SCARA_PLANNING = load_algorithm_config("planning/scara.yml")
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
 # ---------------------------------------------------------------------------
@@ -119,7 +122,7 @@ def trajectory_generator_waypoints() -> list[np.ndarray]:
     result = planner.plan(req)
     assert result.status == PlanningStatus.SUCCESS
 
-    traj_gen = TrajectoryGenerator(kin)
+    traj_gen = TrajectoryGenerator(kin, _SCARA_PLANNING)
     traj = traj_gen.process(result.path)
     assert len(traj.points) >= 2
     return [np.array(pt.positions, dtype=np.float64) for pt in traj.points]

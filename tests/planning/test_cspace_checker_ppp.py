@@ -15,6 +15,7 @@ from fret.control import GraspConfig, Kinematics
 from fret.planning.cspace_checker import CSpaceChecker, make_cspace_checker
 from fret.planning.cspace_checker_ppp import PPPCheckerConfig, PPPcSpaceChecker
 from fret.planning.ppp_robot_envelope import ppp_body_envelopes
+from fret.config_loader import load_algorithm_config
 from fret.planning.ppp_obstacles import (
     BoxObstacle,
     BoxObstacleOccupancy,
@@ -23,6 +24,8 @@ from fret.planning.ppp_obstacles import (
     load_ppp_warehouse_preview_obstacles,
 )
 
+_CONTACT_RADIUS = float(load_algorithm_config("planning/ppp.yml")["contact_radius"])
+
 
 def _checker_with_boxes(
     boxes: list[BoxObstacle],
@@ -30,7 +33,7 @@ def _checker_with_boxes(
     include_cargo: bool = False,
 ) -> PPPcSpaceChecker:
     kin = Kinematics("ppp")
-    occ = BoxObstacleOccupancy(boxes)
+    occ = BoxObstacleOccupancy(boxes, contact_radius=_CONTACT_RADIUS)
     return PPPcSpaceChecker(
         kin,
         occ,
@@ -40,7 +43,7 @@ def _checker_with_boxes(
 
 def test_make_cspace_checker_dispatches_ppp() -> None:
     kin = Kinematics("ppp")
-    occ = build_box_obstacle_occupancy([])
+    occ = build_box_obstacle_occupancy([], contact_radius=_CONTACT_RADIUS)
     checker = make_cspace_checker(kin, occ)
     assert isinstance(checker, PPPcSpaceChecker)
 
@@ -70,10 +73,13 @@ def test_collision_inside_single_box() -> None:
 
 def test_cargo_extends_into_obstacle() -> None:
     """EE may be free while welded cargo penetrates an obstacle (FR-GSP-02)."""
+    from fret.config_loader import load_algorithm_config
+    from fret.control.grasp_magnet import parse_grasp_config
+
     box = BoxObstacle(0.0, 0.0, 1.0, 60.0, 20.0, 1.8)
-    grasp = GraspConfig(weld_offset=np.array([0.0, 0.0, -0.34]))
+    grasp = parse_grasp_config(load_algorithm_config("grasp/ppp_warehouse.yml"))
     kin = Kinematics("ppp")
-    occ = BoxObstacleOccupancy([box])
+    occ = BoxObstacleOccupancy([box], contact_radius=_CONTACT_RADIUS)
     checker_ee = PPPcSpaceChecker(kin, occ, PPPCheckerConfig(include_cargo=False))
     checker_cargo = PPPcSpaceChecker(
         kin,

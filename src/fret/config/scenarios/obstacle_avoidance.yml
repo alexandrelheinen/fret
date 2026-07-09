@@ -15,6 +15,7 @@
 /**:
   ros__parameters:
     scenario_id: "obstacle_avoidance"
+    planning_config: planning/scara.yml
 
     goal_position: [0.30, -0.10, 0.05]
     goal_configuration: [−0.3272, 0.4712, 0.05]

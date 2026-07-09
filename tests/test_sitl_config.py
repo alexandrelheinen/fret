@@ -6,6 +6,7 @@ import pathlib
 
 import pytest
 
+from fret.config_loader import load_scenario_bundle
 from fret.sitl_config import (
     controller_config_relative,
     load_scenario_parameters,
@@ -56,12 +57,29 @@ def test_load_ppp_warehouse_scenario() -> None:
     assert params["scenario_id"] == "ppp_warehouse"
     assert params["model"] == "ppp"
     assert params["backend"] == "mujoco"
+    assert params["planning_config"] == "planning/ppp.yml"
+    assert params["grasp_config"] == "grasp/ppp_warehouse.yml"
     assert params["start_configuration"] == [2.0, 1.0, 2.4]
     assert params["goal_configuration"] == [10.5, 2.8, 2.65]
-    assert params["collision_backend"] == "mujoco"
+    assert params["collision_backend"] == "analytic"
     assert params["planner_algorithm"] == "rrt_star"
     assert params["plan_include_cargo"] is True
     assert params["planning_timeout"] == 30.0
+
+
+def test_load_ppp_warehouse_scenario_bundle() -> None:
+    path = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "src"
+        / "fret"
+        / "config"
+        / "scenarios"
+        / "ppp_warehouse.yml"
+    )
+    bundle = load_scenario_bundle(path)
+    assert bundle.planning["contact_radius"] == pytest.approx(0.015)
+    assert bundle.grasp is not None
+    assert bundle.grasp["capture_radius"] == pytest.approx(0.45)
 
 
 def test_load_scenario_missing_file() -> None:

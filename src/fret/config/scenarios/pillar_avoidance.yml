@@ -21,6 +21,7 @@
 /**:
   ros__parameters:
     scenario_id: "pillar_avoidance"
+    planning_config: planning/scara.yml
 
     # Legacy world file for bootstrap regression (relative to share/fret/).
     world_file: "worlds/pillar_scenario.sdf"

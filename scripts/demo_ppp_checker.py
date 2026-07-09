@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import numpy as np
 
+from fret.config_loader import load_algorithm_config
 from fret.control import Kinematics
+from fret.control.grasp_magnet import parse_grasp_config
 from fret.planning import (
     BoxObstacle,
     build_box_obstacle_occupancy,
@@ -24,12 +26,20 @@ from fret.planning import (
 
 def main() -> None:
     """Probe free and colliding PPP configurations in the warehouse."""
+    contact_radius = float(load_algorithm_config("planning/ppp.yml")["contact_radius"])
     boxes = load_ppp_warehouse_obstacles()
-    occ = build_box_obstacle_occupancy(boxes)
+    occ = build_box_obstacle_occupancy(boxes, contact_radius=contact_radius)
     kin = Kinematics("ppp")
 
     checker_ee = make_cspace_checker(kin, occ, include_cargo=False)
-    checker_cargo = make_cspace_checker(kin, occ, include_cargo=True)
+    checker_cargo = make_cspace_checker(
+        kin,
+        occ,
+        include_cargo=True,
+        grasp_config=parse_grasp_config(
+            load_algorithm_config("grasp/ppp_warehouse.yml")
+        ),
+    )
 
     probes = [
         ("open aisle", np.array([5.0, 5.0, 4.0])),
@@ -48,9 +58,16 @@ def main() -> None:
 
     # FR-GSP-02: cargo envelope can collide when EE alone is free.
     slab = BoxObstacle(0.0, 0.0, 1.0, 60.0, 20.0, 1.8)
-    slab_occ = build_box_obstacle_occupancy([slab])
+    slab_occ = build_box_obstacle_occupancy([slab], contact_radius=contact_radius)
     slab_ee = make_cspace_checker(kin, slab_occ, include_cargo=False)
-    slab_cargo = make_cspace_checker(kin, slab_occ, include_cargo=True)
+    slab_cargo = make_cspace_checker(
+        kin,
+        slab_occ,
+        include_cargo=True,
+        grasp_config=parse_grasp_config(
+            load_algorithm_config("grasp/ppp_warehouse.yml")
+        ),
+    )
     q_slab = np.array([5.0, 5.0, 0.6])
     print("  cargo-envelope slab (FR-GSP-02):")
     print(

@@ -18,27 +18,20 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-# ---------------------------------------------------------------------------
-# Default configuration values
-# ---------------------------------------------------------------------------
-
-_DEFAULT_JOINT_NAMES: list[str] = [
-    "joint_arm_0",
-    "joint_arm_1",
-    "joint_extension",
-]
-
-_DEFAULT_CONFIG: dict[str, Any] = {
-    "control_hz": 50.0,
-    "v_max": [1.5, 1.5, 0.1],
-    "a_max": [2.0, 2.0, 0.2],
-    "dt_min": 0.02,
-}
-
+from fret.config_loader import require_keys
 
 # ---------------------------------------------------------------------------
-# Result dataclass
+# TrajectoryConverter
 # ---------------------------------------------------------------------------
+
+
+_REQUIRED_TRAJECTORY_KEYS: tuple[str, ...] = (
+    "control_hz",
+    "v_max",
+    "a_max",
+    "dt_min",
+    "joint_names",
+)
 
 
 @dataclass
@@ -75,20 +68,18 @@ class TrajectoryConverter:
     smooth controller output.
 
     Args:
-        config: Optional configuration dict.  Accepted keys (all optional):
+        config: Configuration dict.  Accepted keys:
 
-            - ``control_hz`` (float): Output sample rate in Hz (default 50).
-            - ``v_max`` (list[float]): Per-joint max velocity (default
-              ``[1.5, 1.5, 0.1]``).
-            - ``a_max`` (list[float]): Per-joint max acceleration (default
-              ``[2.0, 2.0, 0.2]``).
-            - ``dt_min`` (float): Minimum segment duration in seconds
-              (default 0.02).
+            - ``control_hz`` (float): Output sample rate in Hz.
+            - ``v_max`` (list[float]): Per-joint max velocity.
+            - ``a_max`` (list[float]): Per-joint max acceleration.
+            - ``dt_min`` (float): Minimum segment duration in seconds.
+            - ``joint_names`` (list[str]): URDF joint names.
 
             Values may also be nested under a ``"trajectory"`` sub-key.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         cfg = self._parse_config(config)
         self._control_hz: float = float(cfg["control_hz"])
         self._v_max: npt.NDArray[np.float64] = np.asarray(
@@ -99,7 +90,7 @@ class TrajectoryConverter:
         )
         self._dt_min: float = float(cfg["dt_min"])
         self._dof: int = len(self._v_max)
-        self._joint_names: list[str] = list(_DEFAULT_JOINT_NAMES[: self._dof])
+        self._joint_names: list[str] = list(cfg["joint_names"][: self._dof])
 
     # ------------------------------------------------------------------
     # Public API
@@ -139,25 +130,11 @@ class TrajectoryConverter:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_config(config: dict[str, Any] | None) -> dict[str, Any]:
-        """Merge user config with defaults.
-
-        Args:
-            config: User-supplied config dict (may contain a ``"trajectory"``
-                sub-key).
-
-        Returns:
-            Flat config dict with all required keys present.
-        """
-        base: dict[str, Any] = dict(_DEFAULT_CONFIG)
-        if config is None:
-            return base
-        # Support nested "trajectory:" key (mirrors YAML structure).
+    def _parse_config(config: dict[str, Any]) -> dict[str, Any]:
+        """Validate and flatten trajectory configuration."""
         src: dict[str, Any] = config.get("trajectory", config)
-        for key in base:
-            if key in src:
-                base[key] = src[key]
-        return base
+        require_keys(src, _REQUIRED_TRAJECTORY_KEYS, context="trajectory config")
+        return dict(src)
 
     def _compute_segment_times(
         self, waypoints: list[npt.NDArray[np.float64]]
