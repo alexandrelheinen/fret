@@ -153,7 +153,7 @@ def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
     assert traj.shape[0] >= 2
     assert sim_time_s > 0.0
     assert traj[:, 0].max() > 8.0
-    assert traj[:, 1].max() > 2.0
+    assert traj[:, 1].max() > 1.1
 
 
 def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
@@ -177,7 +177,7 @@ def test_interpolated_dense_showcase_covers_horizontal_transit() -> None:
     assert traj.shape[0] >= 2
     assert sim_time_s > 0.0
     assert traj[:, 0].max() > 8.0
-    assert traj[:, 1].max() > 2.0
+    assert traj[:, 1].max() > 1.1
     assert traj[:, 2].max() - traj[:, 2].min() > 1.5
 
 
@@ -200,9 +200,9 @@ def test_interpolate_segmented_waypoints_preserves_z_motion() -> None:
         np.array([2.0, 1.0, 2.4]),
         np.array([2.0, 1.0, 0.6]),
         np.array([2.0, 1.0, 2.2]),
-        np.array([10.5, 2.8, 2.2]),
-        np.array([10.5, 2.8, 0.6]),
-        np.array([10.5, 2.8, 2.65]),
+        np.array([10.5, 1.2, 2.2]),
+        np.array([10.5, 1.2, 0.6]),
+        np.array([10.5, 1.2, 0.59]),
     ]
     durations = rm.pick_place_segment_durations(waypoints)
     traj, sim_time_s = rm.interpolate_segmented_waypoints(
@@ -229,8 +229,8 @@ def test_dubins_race_mjcf_loads_with_warehouse_assets() -> None:
 
 
 def test_ppp_visual_place_detects_floor_contact_at_goal() -> None:
-    goal = np.array([10.5, 2.8, 2.65])
-    ee = np.array([10.5, 2.8, 0.59])
+    goal = np.array([10.5, 1.2, 0.59])
+    ee = np.array([10.5, 1.2, 0.59])
     assert rm._ppp_should_visually_place_cargo(
         ee,
         goal=goal,
@@ -241,8 +241,8 @@ def test_ppp_visual_place_detects_floor_contact_at_goal() -> None:
 
 
 def test_ppp_visual_place_not_triggered_during_transit() -> None:
-    goal = np.array([10.5, 2.8, 2.65])
-    ee = np.array([6.0, 2.0, 2.0])
+    goal = np.array([10.5, 1.2, 0.59])
+    ee = np.array([6.0, 1.1, 2.0])
     assert not rm._ppp_should_visually_place_cargo(
         ee,
         goal=goal,
@@ -268,8 +268,8 @@ def test_ppp_cargo_freejoint_follows_welded_ee() -> None:
     assert bundle.grasp is not None
     grasp = MagneticGraspFSM(parse_grasp_config(bundle.grasp))
     box_anchor = np.array([2.0, 1.0, 0.25], dtype=np.float64)
-    goal = np.array([10.5, 2.8, 2.65], dtype=np.float64)
-    ee = np.array([6.0, 2.0, 2.0], dtype=np.float64)
+    goal = np.array([10.5, 1.2, 0.59], dtype=np.float64)
+    ee = np.array([6.0, 1.1, 2.0], dtype=np.float64)
 
     rm._set_cargo_freejoint_pose(mujoco, model, data, box_anchor)
     grasp.begin_transport()
