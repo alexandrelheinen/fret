@@ -320,7 +320,12 @@ def test_cargo_weld_toggle_kinematic_pose() -> None:
     physics_core.configure_physics(physics)
     physics_core.sync_cargo_grasp(is_welded=True, cargo_pose=transport_pose)
     assert physics_core._cargo_weld_active is True
+    assert physics_core._model.geom_contype[physics_core._cargo_geom_id] == 0
     physics_core.sync_cargo_grasp(is_welded=False, cargo_pose=transport_pose)
     assert physics_core._cargo_weld_active is False
+    assert (
+        physics_core._model.geom_contype[physics_core._cargo_geom_id]
+        == physics_core._cargo_geom_contype
+    )
     with pytest.raises(RuntimeError, match="set_cargo_pose"):
         physics_core.set_cargo_pose(transport_pose)

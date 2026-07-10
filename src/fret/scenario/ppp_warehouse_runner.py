@@ -62,6 +62,12 @@ from fret.sitl_config import (
 
 _DEFAULT_SCENARIO = scenario_config_path("ppp_warehouse")
 _DEFAULT_CONTROLLER = controller_config_path("ppp")
+# Engage magnetic weld only once the EE reaches pick depth (V113-01).
+_PICK_WELD_Z_TOLERANCE_M: float = 0.08
+# Release cargo only at place depth — not during cruise transit over goal XY.
+_PLACE_RELEASE_Z_TOLERANCE_M: float = 0.08
+# v1.1.3 intermediate tracking gate (25 mm is v1.1.4 / V12-2).
+_PHYSICS_EE_ERROR_LIMIT_M: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -250,6 +256,44 @@ def _configure_ppp_cargo_bridge(
     bridge.seed_cargo_pose(box_anchor)
 
 
+def _ppp_physics_weld_active(
+    grasp: MagneticGraspFSM,
+    ee_z: float,
+    pick_ee_z: float,
+) -> bool:
+    """Return True when the cargo weld may engage under physics SITL (V113-01)."""
+    return grasp.is_welded and float(ee_z) <= pick_ee_z + _PICK_WELD_Z_TOLERANCE_M
+
+
+def _ppp_physics_grasp_update(
+    grasp: MagneticGraspFSM,
+    ee: npt.NDArray[np.float64],
+    box_anchor: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    goal_radius: float,
+) -> GraspState:
+    """Advance grasp FSM with physics place-depth release gating (V113-01)."""
+    if grasp.state == GraspState.TRANSPORT:
+        xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < goal_radius
+        z_at_place = abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+        if xy_close and not z_at_place:
+            masked_goal = goal.copy()
+            masked_goal[2] = float(ee[2]) + 100.0
+            return grasp.update(ee, box_anchor, masked_goal)
+    return grasp.update(ee, box_anchor, goal)
+
+
+def _ppp_physics_grasp_released(
+    ee: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+) -> bool:
+    """Return True when cargo release is valid at place depth under physics."""
+    xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < _PHYSICS_EE_ERROR_LIMIT_M
+    z_at_place = abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+    return xy_close and z_at_place
+
+
 def _ppp_cargo_pose(
     grasp: MagneticGraspFSM,
     *,
@@ -274,6 +318,7 @@ def _track_carrot_path_physics(
     dt: float,
     goal_tolerance: float,
     on_step: Any | None = None,
+    stop_event: list[bool] | None = None,
 ) -> float:
     """Track waypoints with velocity actuators and ``mj_step`` (FR-SIM-07)."""
     from arco.control import JointSpaceTracker
@@ -282,6 +327,7 @@ def _track_carrot_path_physics(
         _subsample_path,
         cumulative_arc_lengths,
         densify_polyline,
+        project_arc_length,
         sample_path_at_distance,
     )
 
@@ -306,9 +352,15 @@ def _track_carrot_path_physics(
     max_steps = int((arcs[-1] / max(race_speed * dt, 1e-6)) * 8.0) + 5_000
 
     for _ in range(max_steps):
+        robot_arc = project_arc_length(tracker.q, nav, arcs)
+        carrot_dist = min(carrot_dist, robot_arc + max_carrot_lag)
         lag = float(np.linalg.norm(tracker.q - carrot))
         if lag < max_carrot_lag:
-            carrot_dist = min(carrot_dist + race_speed * dt, arcs[-1])
+            carrot_dist = min(
+                carrot_dist + race_speed * dt,
+                robot_arc + max_carrot_lag,
+                arcs[-1],
+            )
         carrot, at_path_end = sample_path_at_distance(nav, arcs, carrot_dist)
         tracker.step(carrot, dt)
         bridge.step(tracker.vel, dt)
@@ -317,6 +369,8 @@ def _track_carrot_path_physics(
         max_err_m = max(max_err_m, path_err_m)
         if on_step is not None:
             on_step(tracker.q)
+        if stop_event is not None and stop_event[0]:
+            break
         if (
             at_path_end
             and float(np.linalg.norm(tracker.q - nav[-1])) < goal_tolerance
@@ -340,6 +394,7 @@ def _track_carrot_path(
     goal_tolerance: float,
     on_step: Any | None = None,
     physics_mode: bool = False,
+    stop_event: list[bool] | None = None,
 ) -> float:
     """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
     if physics_mode:
@@ -354,6 +409,7 @@ def _track_carrot_path(
             dt=dt,
             goal_tolerance=goal_tolerance,
             on_step=on_step,
+            stop_event=stop_event,
         )
 
     from fret.control.path_tracking import (
@@ -586,6 +642,7 @@ class PPPWarehouseRunner:
         grasp_captured = False
         grasp_released = False
         controller_faulted = False
+        physics_stop_tracking: list[bool] = [False]
         qpos_history: list[tuple[float, ...]] = []
         sim_duration_s = 0.0
 
@@ -597,19 +654,49 @@ class PPPWarehouseRunner:
 
         def _grasp_tick(q: npt.NDArray[np.float64]) -> None:
             nonlocal grasp_captured, grasp_released
+            was_welded = grasp.is_welded
             ee = kin.forward_kinematics(q)[:3, 3]
-            state = grasp.update(ee, box_anchor, goal)
+            if physics_mode:
+                state = _ppp_physics_grasp_update(
+                    grasp,
+                    ee,
+                    box_anchor,
+                    goal,
+                    goal_radius=grasp_cfg.goal_radius,
+                )
+            else:
+                state = grasp.update(ee, box_anchor, goal)
             if state == GraspState.TRANSPORT:
                 grasp_captured = True
             if grasp_captured and not grasp.is_welded:
-                grasp_released = True
+                if physics_mode:
+                    if _ppp_physics_grasp_released(ee, goal):
+                        grasp_released = True
+                else:
+                    grasp_released = True
+            if (
+                physics_mode
+                and grasp_captured
+                and was_welded
+                and not grasp.is_welded
+            ):
+                physics_stop_tracking[0] = True
+            weld_active = (
+                _ppp_physics_weld_active(grasp, float(ee[2]), pick_ee_z)
+                if physics_mode
+                else grasp.is_welded
+            )
+            cargo_in_transport = (
+                physics_mode and grasp_captured and not grasp_released
+            )
             bridge.sync_cargo_grasp(
-                is_welded=grasp.is_welded,
+                is_welded=weld_active,
                 cargo_pose=_ppp_cargo_pose(
                     grasp,
                     box_anchor=box_anchor,
                     grasp_captured=grasp_captured,
                 ),
+                cargo_in_transport=cargo_in_transport,
             )
             _record_tick()
 
@@ -617,12 +704,13 @@ class PPPWarehouseRunner:
         dt = 1.0 / rate_hz
         settle_steps = int(2.0 * rate_hz)
         if physics_mode:
-            settle_steps = int(6.0 * rate_hz)
+            settle_steps = int(15.0 * rate_hz)
 
         _grasp_tick(start)
 
+        track_err_m = 0.0
         try:
-            max_err_m = _track_carrot_path(
+            track_err_m = _track_carrot_path(
                 waypoints,
                 bridge,
                 kp=ctrl._kp,
@@ -635,21 +723,22 @@ class PPPWarehouseRunner:
                 goal_tolerance=float(tracking_cfg["goal_tolerance"]),
                 on_step=_grasp_tick,
                 physics_mode=physics_mode,
+                stop_event=physics_stop_tracking if physics_mode else None,
             )
-            if max_err_m > ee_error_limit_m:
-                controller_faulted = True
         except RuntimeError:
             controller_faulted = True
 
-        if not controller_faulted:
+        physics_released_in_transit = physics_mode and physics_stop_tracking[0]
+        if not controller_faulted and not physics_released_in_transit:
             for _ in range(settle_steps):
                 q = bridge.get_positions()
                 _grasp_tick(q)
+                if physics_mode and physics_stop_tracking[0]:
+                    break
                 joint_error = goal - q
-                err_m = float(np.linalg.norm(joint_error))
-                max_err_m = max(max_err_m, err_m)
+                settle_kp = ctrl._kp * (2.0 if physics_mode else 1.0)
                 q_dot = np.clip(
-                    ctrl._kp * joint_error,
+                    settle_kp * joint_error,
                     -ctrl._max_joint_velocity,
                     ctrl._max_joint_velocity,
                 )
@@ -657,6 +746,14 @@ class PPPWarehouseRunner:
                 _record_tick()
 
         _grasp_tick(bridge.get_positions())
+        if physics_mode:
+            max_err_m = float(np.linalg.norm(bridge.get_positions() - goal))
+            controller_faulted = max_err_m > _PHYSICS_EE_ERROR_LIMIT_M
+        else:
+            max_err_m = track_err_m
+            if not controller_faulted and max_err_m > ee_error_limit_m:
+                controller_faulted = True
+
         sim_duration_s = float(len(qpos_history)) * dt if qpos_history else 0.0
 
         if grasp_captured:

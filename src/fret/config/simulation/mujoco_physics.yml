@@ -10,7 +10,7 @@
     actuators:
       ppp:
         names: [act_joint_x, act_joint_y, act_joint_z]
-        kv: [120.0, 120.0, 2000.0]
+        kv: [120.0, 120.0, 2500.0]
         forcerange: [[-5000, 5000], [-5000, 5000], [-30000, 30000]]
       dubins:
         names:
