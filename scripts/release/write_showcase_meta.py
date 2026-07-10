@@ -43,7 +43,7 @@ def write_showcase_meta(
         prefix = f"{scenario}_"
         scenario_files = [path for path in renders if path.name.startswith(prefix)]
         if not scenario_files:
-            raise SystemExit(f"Missing showcase clips for {scenario}")
+            continue
 
         timing_path = renders_dir / str(cfg["timing_file"])
         if not timing_path.is_file():
@@ -82,12 +82,16 @@ def write_showcase_meta(
             }
         )
 
+    if not showcases:
+        raise SystemExit("No showcase clips found for any scenario")
+
     meta: dict[str, object] = {
         "repo": repo,
         "git_sha": git_sha,
         "git_ref": tag,
         "release_cameras": ["overview", "follow"],
         "realtime_playback": True,
+        "partial": len(showcases) < len(_EXPECTED),
         "fps": 30,
         "width": 1280,
         "height": 720,

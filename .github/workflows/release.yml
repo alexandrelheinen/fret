@@ -2,6 +2,8 @@ name: Release
 
 # Renders PPP + Dubins MuJoCo showcase MP4s (overview + follow POV each) on
 # version tags, verifies pixels are non-blank, uploads to Cloudflare R2.
+# Each scenario publishes independently — one render failure does not block
+# the other from reaching R2.
 
 on:
   push:
@@ -98,8 +100,65 @@ jobs:
           path: showcase_renders/
           if-no-files-found: error
 
-  publish:
+  publish-ppp:
+    needs: render-ppp
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download PPP showcase renders
+        uses: actions/download-artifact@v4
+        with:
+          name: showcase-ppp
+          path: showcase_renders
+
+      - name: Upload PPP clips to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          ./scripts/release/upload_scenario_r2.sh ppp_warehouse ppp_warehouse.mp4
+
+  publish-dubins:
+    needs: render-dubins
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Dubins showcase renders
+        uses: actions/download-artifact@v4
+        with:
+          name: showcase-dubins
+          path: showcase_renders
+
+      - name: Upload Dubins clips to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          ./scripts/release/upload_scenario_r2.sh dubins_race dubins_race.mp4
+
+  publish-meta:
     needs: [render-ppp, render-dubins]
+    if: >-
+      always() &&
+      (needs.render-ppp.result == 'success' || needs.render-dubins.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -110,15 +169,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download showcase renders
+      - name: Download PPP showcase renders
+        if: needs.render-ppp.result == 'success'
         uses: actions/download-artifact@v4
         with:
-          pattern: showcase-*
-          merge-multiple: true
-          path: .
+          name: showcase-ppp
+          path: showcase_renders
+
+      - name: Download Dubins showcase renders
+        if: needs.render-dubins.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: showcase-dubins
+          path: showcase_renders
 
       - name: List rendered showcase files
-        run: ls -la showcase_renders/
+        run: ls -la showcase_renders/ || true
 
       - name: Write release metadata
         env:
@@ -141,33 +207,16 @@ jobs:
             showcase_renders/
             meta.json
           retention-days: 90
+          if-no-files-found: warn
 
-      - name: Upload to Cloudflare R2
+      - name: Upload metadata to Cloudflare R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ github.event.inputs.release_tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-
           python3 -m pip install --break-system-packages awscli
-
-          for mp4 in showcase_renders/*.mp4; do
-            base="$(basename "${mp4}")"
-            aws s3 cp "${mp4}" \
-              "s3://${R2_BUCKET}/releases/${TAG}/${base}" \
-              --endpoint-url "${R2_ENDPOINT}" \
-              --content-type video/mp4
-            aws s3 cp "${mp4}" \
-              "s3://${R2_BUCKET}/latest/${base}" \
-              --endpoint-url "${R2_ENDPOINT}" \
-              --content-type video/mp4
-          done
-
           aws s3 cp meta.json \
             "s3://${R2_BUCKET}/releases/${TAG}/meta.json" \
             --endpoint-url "${R2_ENDPOINT}" \
@@ -176,13 +225,3 @@ jobs:
             "s3://${R2_BUCKET}/latest/meta.json" \
             --endpoint-url "${R2_ENDPOINT}" \
             --content-type application/json
-
-          # Backward-compatible primary pointers for README / download script.
-          aws s3 cp showcase_renders/ppp_warehouse_overview.mp4 \
-            "s3://${R2_BUCKET}/latest/ppp_warehouse.mp4" \
-            --endpoint-url "${R2_ENDPOINT}" \
-            --content-type video/mp4
-          aws s3 cp showcase_renders/dubins_race_overview.mp4 \
-            "s3://${R2_BUCKET}/latest/dubins_race.mp4" \
-            --endpoint-url "${R2_ENDPOINT}" \
-            --content-type video/mp4

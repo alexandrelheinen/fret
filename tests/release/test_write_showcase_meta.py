@@ -65,3 +65,35 @@ def test_write_showcase_meta_merges_parallel_render_outputs(tmp_path: Path) -> N
     assert len(meta["showcases"]) == 2
     assert meta["primary_videos"]["ppp_warehouse"] == "ppp_warehouse_overview.mp4"
     assert (tmp_path / "meta.json").is_file()
+
+
+def test_write_showcase_meta_accepts_single_scenario(tmp_path: Path) -> None:
+    """Partial release uploads should still produce valid metadata."""
+    renders = tmp_path / "showcase_renders"
+    renders.mkdir()
+    for name in ("dubins_race_overview.mp4", "dubins_race_follow.mp4"):
+        (renders / name).write_bytes(b"\x00" * 64)
+
+    _write_timing(
+        renders / "dubins_timing.json",
+        [
+            {
+                "file": "dubins_race_overview.mp4",
+                "sim_time_s": 32.0,
+                "real_time_factor": 1.0,
+            }
+        ],
+    )
+
+    meta = write_showcase_meta(
+        renders_dir=renders,
+        tag="v9.9.9",
+        repo="owner/fret",
+        git_sha="abc123",
+        workflow_run="https://example.com/run/2",
+        output_path=tmp_path / "meta.json",
+    )
+
+    assert meta["partial"] is True
+    assert len(meta["showcases"]) == 1
+    assert meta["showcases"][0]["scenario"] == "dubins_race"
