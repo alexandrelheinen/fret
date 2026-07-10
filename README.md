@@ -7,8 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.1** — PPP warehouse pick-and-place **and** a dual-agent Dubins
-race through a rectangular structure forest with dead-end alcoves.
+**Current release: v1.2** — PPP warehouse pick-and-place, dual-agent Dubins race, and
+**MuJoCo physics SITL** (actuator-driven `mj_step`, contact dynamics, cargo weld).
+Release showcase videos and CI renders use `--physics-mode` by default.
 
 <br clear="left">
 
@@ -16,21 +17,20 @@ race through a rectangular structure forest with dead-end alcoves.
 
 ## What FRET provides
 
-| Capability | v1.0 PPP gantry | v1.1 Dubins race |
-|---|---|---|
-| Robot model | 3-axis prismatic gantry (`ppp`) | Two SE(2) car-like agents (`dubins`) |
-| Scenario | Warehouse box pick-and-place | Independent RRT* vs SST race A→B |
-| Planning | ARCO RRT* in 3-D C-space | ARCO RRT* + SST in 2-D with structure occupancy |
-| Control | Per-axis P-control + magnetic grasp FSM | ARCO Pure Pursuit + DubinsVehicle |
-| Visual backend | MuJoCo MJCF (`ppp_warehouse.xml`) | MuJoCo MJCF (`dubins_race.xml`) |
-| Showcase output | Overview + follow MP4 | Split-screen follow + overview MP4 |
+| Capability | v1.0 PPP gantry | v1.1 Dubins race | v1.2 physics SITL |
+|---|---|---|---|
+| Robot model | 3-axis prismatic gantry (`ppp`) | Two SE(2) car-like agents (`dubins`) | Both — actuator-driven |
+| Scenario | Warehouse box pick-and-place | Independent RRT* vs SST race A→B | SC-v10 + SC-v11 under `physics_mode` |
+| Planning | ARCO RRT* in 3-D C-space | ARCO RRT* + SST in 2-D with structure occupancy | Same planners; contacts during execution |
+| Control | Per-axis P-control + magnetic grasp FSM | ARCO Pure Pursuit + DubinsVehicle | Velocity actuators → `mj_step` |
+| Visual backend | MuJoCo MJCF (`ppp_warehouse.xml`) | MuJoCo MJCF (`dubins_race.xml`) | Physics-integrated motion in release MP4s |
+| Showcase output | Overview + follow MP4 | Split-screen follow + overview MP4 | Real-time physics showcase (release CI) |
 
 Both scenarios ship with headless render scripts, pure-Python E2E tests (no ROS required
 for CI validation), and optional ROS 2 SITL launch files.
 
-**Coming next:** MuJoCo physics SITL (v1.2), RRP/SCARA ARCO reproduction (v1.3),
-6-DOF challenge (v1.4). See [docs/roadmap.md](docs/roadmap.md) and
-[docs/releases.md](docs/releases.md).
+**Coming next:** RRP/SCARA ARCO reproduction (v1.3), 6-DOF challenge (v1.4).
+See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
 
@@ -70,8 +70,9 @@ target.
 - **ARCO** is a synchronous library inside planner nodes — not a separate ROS node.
 - **C-space** is the planning domain for manipulators; **SE(2)** for Dubins agents.
 - **MuJoCo** is the simulation engine for physics, contacts, rendering, and SITL.
-  v1.0–v1.1 use kinematic mirroring for showcase motion; v1.2 enables full
-  actuator-driven physics (`mj_step`).
+  v1.2 ships **physics SITL** by default (`mj_step`, velocity actuators, contact
+  dynamics). Kinematic mirroring remains for fast regression (`physics_mode:=false`
+  or `--kinematic-mode`).
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
 - **Configuration over code:** every tunable algorithm parameter (planning clearance,
   controller gains, grasp radii, trajectory limits, replanning thresholds, Dubins
@@ -410,7 +411,7 @@ After a version tag, CI uploads overview + follow MP4s to Cloudflare R2:
 
 ```bash
 ./scripts/download_showcase.sh --list
-./scripts/download_showcase.sh --tag v1.1.0 --all
+./scripts/download_showcase.sh --tag v1.2.0 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ```
 
@@ -433,11 +434,14 @@ pip install -e ".[dev,sim]"
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-# PPP warehouse MuJoCo SITL
+# PPP warehouse MuJoCo SITL (physics default from v1.2)
 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 
 # Dubins dual-agent race
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
+
+# Kinematic mirror (fast regression)
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=false
 ```
 
 Pre-push quality gate (matches CI; `.venv` must be active):

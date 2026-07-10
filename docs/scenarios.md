@@ -31,7 +31,7 @@ using magnetic grasp.
 | Planner | ARCO RRT* (MuJoCo collision contacts) |
 | Collision | `collision_backend:=mujoco`, `plan_include_cargo:=true` |
 | Timeout | 30 s |
-| Sim mode | Kinematic mirror (v1.0); physics mode from v1.2 |
+| Sim mode | Physics SITL (v1.2 default); kinematic mirror via `physics_mode:=false` |
 
 **Pass criteria:** See [releases.md § v1.0](releases.md#v10--ppp-gantry-warehouse-pick-and-place).
 
@@ -53,7 +53,7 @@ create multiple corridors — only proper planning avoids traps.
 | Workspace | 80 × 80 m |
 | Control | ARCO Pure Pursuit + DubinsVehicle |
 | Planner | ARCO RRT* (agent 1) + SST (agent 2) |
-| Sim mode | Kinematic mirror (v1.1); physics mode from v1.2 |
+| Sim mode | Physics SITL (v1.2 default); kinematic mirror via `physics_mode:=false` |
 
 **Pass criteria:** See [releases.md § v1.1](releases.md#v11--dubins-dual-robot-race).
 Robot details: [robots/dubins.md](robots/dubins.md).

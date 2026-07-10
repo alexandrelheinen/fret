@@ -1,6 +1,6 @@
 # MuJoCo physics SITL — v1.2 implementation specification
 
-> **Authoritative v1.2 engineering spec.** Product acceptance criteria remain in
+> **v1.2 physics SITL engineering spec (shipped).** Product acceptance criteria:
 > [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl). Overview and tuning
 > workflow: [mujoco.md](mujoco.md).
 >

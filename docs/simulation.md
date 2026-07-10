@@ -92,17 +92,23 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 ---
 
-## v1.2 — Physics SITL (planned)
+## v1.2 — Physics SITL (shipped)
 
-Enable actuator-driven simulation with contact dynamics:
+Actuator-driven simulation with contact dynamics is the default from v1.2:
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
-ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
+./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \
+  --output-dir /tmp/ppp_physics --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration \
+  --physics-mode
 ```
 
-See [mujoco.md § Physics SITL](mujoco.md#physics-sitl-v12-target) for architecture
-and tuning workflow.
+Kinematic mirror (fast regression): `physics_mode:=false` or `--kinematic-mode`.
+
+See [mujoco.md § Physics SITL](mujoco.md#physics-sitl-v12) for architecture
+and tuning workflow. Implementation spec: [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
 
 ---
 
