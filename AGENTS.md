@@ -18,6 +18,25 @@ conflict, resolve in this order:
 An imperative order (implement, add, fix…) always implies the full V-cycle
 described in [CONTRIBUTING.md](CONTRIBUTING.md), not code alone.
 
+## Pre-push gates (mandatory)
+
+Before every `git push` on a PR branch, agents **must** run at minimum:
+
+```bash
+bash scripts/check/formatting.sh
+bash scripts/check/types.sh
+```
+
+Do not push or update a PR until both pass. When ROS is available, prefer the
+full local gate before push:
+
+```bash
+bash scripts/check/pre_push.sh --skip-ros
+```
+
+Pushing with formatting or type-check failures is unacceptable at this stage
+of the project.
+
 ## Cursor Cloud specific instructions
 
 Durable, non-obvious notes for cloud agents. The base VM snapshot already has

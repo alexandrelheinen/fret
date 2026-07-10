@@ -489,7 +489,9 @@ contributor.
 2. **V-cycle** — Identify level; update `docs/` when Level 1–2 change.
 3. **Level 3** — Stubs + tests together when adding APIs.
 4. **Level 4** — Implement; run `scripts/check/pre_push.sh` (or `--skip-ros` when ROS unavailable).
-5. **PR** — Push; ensure CI green; do not claim done while checks fail.
+5. **PR** — Push only after **at minimum** `scripts/check/formatting.sh` and
+   `scripts/check/types.sh` pass locally; ensure CI green; do not claim done
+   while checks fail.
 
 ### Git safety
 
