@@ -235,6 +235,23 @@ def resolve_scenario_duration(
     return duration if duration > 0.0 else default_s
 
 
+def resolve_physics_showcase_duration_s(
+    scenario: str,
+    sim_time_s: float,
+    duration_s: float | None,
+) -> float:
+    """Cap physics showcase clip length to scenario nominal duration (V115-03).
+
+    Physics SITL can run far longer than the kinematic showcase clip.  Release
+    and dry-run renders subsample to ``min(sim_time_s, scenario.duration)`` so
+    ``--physics-mode --full-duration`` stays within release job timeouts.
+    """
+    if duration_s is not None:
+        return float(duration_s)
+    nominal_s = resolve_scenario_duration(scenario)
+    return min(float(sim_time_s), nominal_s)
+
+
 def resolve_scenario_simulation_dt(
     scenario: str,
     *,
@@ -1021,11 +1038,11 @@ def simulate_ppp_warehouse_qpos(
         if result.sim_duration_s > 0.0
         else float(max(0, history.shape[0] - 1)) * (1.0 / 50.0)
     )
-    nominal_s = resolve_scenario_duration("ppp_warehouse")
-    if duration_s is None:
-        render_duration_s = min(sim_time_s, nominal_s)
-    else:
-        render_duration_s = float(duration_s)
+    render_duration_s = resolve_physics_showcase_duration_s(
+        "ppp_warehouse",
+        sim_time_s,
+        duration_s,
+    )
     n_frames = max(2, int(round(render_duration_s * fps)))
     return _resample_qpos_history(history, n_frames), sim_time_s
 
@@ -1067,8 +1084,10 @@ def simulate_dubins_race_poses(
     else:
         sim_time_s = float(max(0, len(rrt_hist) - 1)) * sim_dt
 
-    render_duration_s = (
-        sim_time_s if duration_s is None else float(duration_s)
+    render_duration_s = resolve_physics_showcase_duration_s(
+        scenario,
+        sim_time_s,
+        duration_s,
     )
     n_frames = max(2, int(round(render_duration_s * fps)))
     return (

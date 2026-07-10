@@ -429,6 +429,35 @@ _RELEASE_DUBINS_CLI: list[str] = [
 ]
 
 
+def test_resolve_scenario_duration_ppp_warehouse() -> None:
+    duration = rm.resolve_scenario_duration("ppp_warehouse")
+    assert duration == pytest.approx(60.0)
+
+
+def test_resolve_physics_showcase_duration_caps_to_nominal() -> None:
+    """V115-03: physics clips subsample long sim runs to scenario duration."""
+    capped = rm.resolve_physics_showcase_duration_s(
+        "ppp_warehouse",
+        sim_time_s=573.0,
+        duration_s=None,
+    )
+    assert capped == pytest.approx(60.0)
+
+    explicit = rm.resolve_physics_showcase_duration_s(
+        "dubins_race",
+        sim_time_s=180.0,
+        duration_s=20.0,
+    )
+    assert explicit == pytest.approx(20.0)
+
+    dubins_capped = rm.resolve_physics_showcase_duration_s(
+        "dubins_race",
+        sim_time_s=180.0,
+        duration_s=None,
+    )
+    assert dubins_capped == pytest.approx(35.0)
+
+
 def test_release_workflow_cli_args_parse() -> None:
     """Release workflow flags must parse without missing Namespace attributes."""
     parser = rm.build_parser()

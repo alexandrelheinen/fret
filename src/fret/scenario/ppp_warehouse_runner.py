@@ -66,8 +66,8 @@ _DEFAULT_CONTROLLER = controller_config_path("ppp")
 _PICK_WELD_Z_TOLERANCE_M: float = 0.08
 # Release cargo only at place depth — not during cruise transit over goal XY.
 _PLACE_RELEASE_Z_TOLERANCE_M: float = 0.08
-# v1.1.4 intermediate gate [m] — 250 mm toward V12-2 (10 mm needs place-hold fix).
-_PHYSICS_EE_ERROR_LIMIT_M: float = 0.25
+# v1.1.5: tracking gate [m]; grasp release XY uses goal_radius (see below).
+_PHYSICS_TRACKING_ERROR_LIMIT_M: float = 0.25
 
 
 @dataclass(frozen=True)
@@ -291,11 +291,11 @@ def _ppp_physics_grasp_update(
 def _ppp_physics_grasp_released(
     ee: npt.NDArray[np.float64],
     goal: npt.NDArray[np.float64],
+    *,
+    goal_radius: float,
 ) -> bool:
     """Return True when cargo release is valid at place depth under physics."""
-    xy_close = (
-        float(np.linalg.norm(ee[:2] - goal[:2])) < _PHYSICS_EE_ERROR_LIMIT_M
-    )
+    xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < goal_radius
     z_at_place = (
         abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
     )
@@ -686,7 +686,9 @@ class PPPWarehouseRunner:
                 grasp_captured = True
             if grasp_captured and not grasp.is_welded:
                 if physics_mode:
-                    if _ppp_physics_grasp_released(ee, goal):
+                    if _ppp_physics_grasp_released(
+                        ee, goal, goal_radius=grasp_cfg.goal_radius
+                    ):
                         grasp_released = True
                 else:
                     grasp_released = True
@@ -764,7 +766,7 @@ class PPPWarehouseRunner:
         _grasp_tick(bridge.get_positions())
         if physics_mode:
             max_err_m = float(np.linalg.norm(bridge.get_positions() - goal))
-            controller_faulted = max_err_m > _PHYSICS_EE_ERROR_LIMIT_M
+            controller_faulted = max_err_m > _PHYSICS_TRACKING_ERROR_LIMIT_M
         else:
             max_err_m = track_err_m
             if not controller_faulted and max_err_m > ee_error_limit_m:
