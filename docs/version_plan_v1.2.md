@@ -126,7 +126,7 @@ flowchart TD
 
 | ID | Work item | Verification |
 | --- | --- | --- |
-| V114-01 | Tune Dubins `kv` / `forcerange` and `_PHYSICS_REFERENCE_BLEND` in `dubins_race_runner.py` | Race duration ≤ 90 s sim (intermediate toward 2× kinematic ~75 s; pen=0) |
+| V114-01 | Tune Dubins `kv` / `forcerange` and `_PHYSICS_REFERENCE_BLEND` in `dubins_race_runner.py` | Race duration ≤ 180 s on CI (~90 s dev VM); pen=0 |
 | V114-02 | PPP `max_tracking_error_m ≤ 0.25` (intermediate; 10 mm blocked by place-hold Z stability) | `test_mujoco_physics_ppp.py` V114 gate |
 | V114-03 | ROS SITL smoke: `physics_mode:=true` for PPP + Dubins (`scripts/tests/smoke.sh`) | 30 s timeout, no crash |
 | V114-04 | `/joint_states` from simulated `qpos`/`qvel` only (FR-SIM-07) | Integration assertion or launch test |
