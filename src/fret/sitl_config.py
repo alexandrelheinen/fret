@@ -33,6 +33,23 @@ def controller_config_relative(model: str) -> str:
     return "config/controllers/jacobian.yml"
 
 
+def physics_controller_config_relative(model: str) -> str:
+    """Return package-relative physics SITL controller YAML for a model.
+
+    Args:
+        model: Robot model name (``ppp`` today; others may follow in v1.2).
+
+    Returns:
+        Path relative to the ``fret`` package share root.
+
+    Raises:
+        ValueError: When no physics profile exists for the model.
+    """
+    if model == _PPP_MODEL:
+        return "config/controllers/ppp_physics.yml"
+    raise ValueError(f"No physics controller profile for model: {model!r}")
+
+
 def perception_config_relative(scenario: str) -> str:
     """Return package-relative perception YAML for a scenario.
 
@@ -102,6 +119,12 @@ def scenario_config_path(stem: str) -> pathlib.Path:
 def controller_config_path(model: str) -> pathlib.Path:
     """Return the controller YAML for a robot model."""
     rel = controller_config_relative(model)
+    return resolve_package_file(*rel.split("/"))
+
+
+def physics_controller_config_path(model: str) -> pathlib.Path:
+    """Return the physics SITL controller YAML for a robot model."""
+    rel = physics_controller_config_relative(model)
     return resolve_package_file(*rel.split("/"))
 
 

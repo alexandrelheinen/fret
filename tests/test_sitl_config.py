@@ -12,12 +12,25 @@ from fret.sitl_config import (
     load_scenario_parameters,
     mujoco_sim_config_relative,
     perception_config_relative,
+    physics_controller_config_relative,
     resolve_package_file,
 )
 
 
 def test_controller_config_relative_ppp() -> None:
     assert controller_config_relative("ppp") == "config/controllers/ppp.yml"
+
+
+def test_physics_controller_config_relative_ppp() -> None:
+    assert (
+        physics_controller_config_relative("ppp")
+        == "config/controllers/ppp_physics.yml"
+    )
+
+
+def test_physics_controller_config_relative_unknown_raises() -> None:
+    with pytest.raises(ValueError, match="No physics controller profile"):
+        physics_controller_config_relative("dubins")
 
 
 def test_controller_config_relative_scara() -> None:
