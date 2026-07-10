@@ -278,7 +278,8 @@ def _ppp_physics_grasp_update(
     if grasp.state == GraspState.TRANSPORT:
         xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < goal_radius
         z_at_place = (
-            abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_PHYSICS_M
+            abs(float(ee[2]) - float(goal[2]))
+            <= _PLACE_RELEASE_Z_TOLERANCE_PHYSICS_M
         )
         if xy_close and z_at_place:
             return grasp.update(ee, box_anchor, goal)
@@ -799,11 +800,15 @@ class PPPWarehouseRunner:
                 bridge.step(q_dot, dt)
                 _record_tick()
                 if physics_mode:
-                    pos_err = float(np.linalg.norm(bridge.get_positions() - goal))
+                    pos_err = float(
+                        np.linalg.norm(bridge.get_positions() - goal)
+                    )
                     if grasp_released and pos_err <= physics_error_limit_m:
                         break
-                    if grasp_captured and not grasp_released and pos_err <= (
-                        physics_error_limit_m * 0.5
+                    if (
+                        grasp_captured
+                        and not grasp_released
+                        and pos_err <= (physics_error_limit_m * 0.5)
                     ):
                         break
 
