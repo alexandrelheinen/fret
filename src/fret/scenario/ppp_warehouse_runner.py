@@ -58,6 +58,8 @@ from fret.sitl_config import controller_config_path, scenario_config_path
 
 _DEFAULT_SCENARIO = scenario_config_path("ppp_warehouse")
 _DEFAULT_CONTROLLER = controller_config_path("ppp")
+# Kinematic carrot gate (3 mm) is too tight once mj_step lag is in the loop.
+_PHYSICS_MAX_CARROT_LAG_M: float = 0.12
 
 
 @dataclass(frozen=True)
@@ -346,7 +348,7 @@ def _track_carrot_path(
             max_joint_velocity=max_joint_velocity,
             max_joint_acc=max_joint_acc,
             race_speed=race_speed,
-            max_carrot_lag=max_carrot_lag,
+            max_carrot_lag=max(max_carrot_lag, _PHYSICS_MAX_CARROT_LAG_M),
             dt=dt,
             goal_tolerance=goal_tolerance,
             on_step=on_step,

@@ -66,42 +66,42 @@
       <geom name="foot_bl" type="box" pos="12 0 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
       <geom name="foot_br" type="box" pos="12 5 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>
 
-      <geom name="leg_fl" type="box" pos="0 0 1.5" size="0.12 0.12 1.48" material="frame"/>
-      <geom name="leg_fr" type="box" pos="0 5 1.5" size="0.12 0.12 1.48" material="frame"/>
-      <geom name="leg_bl" type="box" pos="12 0 1.5" size="0.12 0.12 1.48" material="frame"/>
-      <geom name="leg_br" type="box" pos="12 5 1.5" size="0.12 0.12 1.48" material="frame"/>
+      <geom name="leg_fl" type="box" pos="0 0 1.5" size="0.12 0.12 1.48" material="frame" contype="0" conaffinity="0"/>
+      <geom name="leg_fr" type="box" pos="0 5 1.5" size="0.12 0.12 1.48" material="frame" contype="0" conaffinity="0"/>
+      <geom name="leg_bl" type="box" pos="12 0 1.5" size="0.12 0.12 1.48" material="frame" contype="0" conaffinity="0"/>
+      <geom name="leg_br" type="box" pos="12 5 1.5" size="0.12 0.12 1.48" material="frame" contype="0" conaffinity="0"/>
 
-      <geom name="tie_front" type="box" pos="6 0 2.98" size="6.2 0.08 0.06" material="frame"/>
-      <geom name="tie_back" type="box" pos="6 5 2.98" size="6.2 0.08 0.06" material="frame"/>
+      <geom name="tie_front" type="box" pos="6 0 2.98" size="6.2 0.08 0.06" material="frame" contype="0" conaffinity="0"/>
+      <geom name="tie_back" type="box" pos="6 5 2.98" size="6.2 0.08 0.06" material="frame" contype="0" conaffinity="0"/>
 
-      <geom name="runway_rail_near" type="box" pos="6 0.28 3.04" size="6.2 0.10 0.07" material="rail_top"/>
-      <geom name="runway_rail_far" type="box" pos="6 4.72 3.04" size="6.2 0.10 0.07" material="rail_top"/>
+      <geom name="runway_rail_near" type="box" pos="6 0.28 3.04" size="6.2 0.10 0.07" material="rail_top" contype="0" conaffinity="0"/>
+      <geom name="runway_rail_far" type="box" pos="6 4.72 3.04" size="6.2 0.10 0.07" material="rail_top" contype="0" conaffinity="0"/>
       <geom name="chain_y_near" type="box" pos="6 0.12 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
       <geom name="chain_y_far" type="box" pos="6 4.88 3.12" size="6.0 0.05 0.04" material="chain" contype="0" conaffinity="0"/>
 
       <body name="x_carriage" pos="0 0 3">
-        <joint name="joint_x" type="slide" axis="1 0 0" range="0 12" damping="80"/>
-        <geom name="x_car_near" type="box" pos="0 0.28 -0.03" size="0.20 0.14 0.11" material="carriage"/>
-        <geom name="x_car_far" type="box" pos="0 4.72 -0.03" size="0.20 0.14 0.11" material="carriage"/>
-        <geom name="x_bridge" type="box" pos="0 2.5 -0.05" size="0.16 2.46 0.08" material="gantry"/>
-        <geom name="x_bridge_rail_l" type="box" pos="0 0.28 -0.02" size="0.08 0.12 0.04" material="rail"/>
-        <geom name="x_bridge_rail_r" type="box" pos="0 4.72 -0.02" size="0.08 0.12 0.04" material="rail"/>
+        <joint name="joint_x" type="slide" axis="1 0 0" range="0 12" damping="12"/>
+        <geom name="x_car_near" type="box" pos="0 0.28 -0.03" size="0.20 0.14 0.11" material="carriage" contype="0" conaffinity="0"/>
+        <geom name="x_car_far" type="box" pos="0 4.72 -0.03" size="0.20 0.14 0.11" material="carriage" contype="0" conaffinity="0"/>
+        <geom name="x_bridge" type="box" pos="0 2.5 -0.05" size="0.16 2.46 0.08" material="gantry" contype="0" conaffinity="0"/>
+        <geom name="x_bridge_rail_l" type="box" pos="0 0.28 -0.02" size="0.08 0.12 0.04" material="rail" contype="0" conaffinity="0"/>
+        <geom name="x_bridge_rail_r" type="box" pos="0 4.72 -0.02" size="0.08 0.12 0.04" material="rail" contype="0" conaffinity="0"/>
 
         <body name="y_carriage" pos="0 0 0">
-          <joint name="joint_y" type="slide" axis="0 1 0" range="0 5" damping="80"/>
-          <geom name="y_trolley" type="box" pos="0 0 -0.08" size="0.30 0.22 0.12" material="carriage"/>
-          <geom name="y_trolley_head" type="box" pos="0 0 0.02" size="0.20 0.18 0.06" material="rail"/>
+          <joint name="joint_y" type="slide" axis="0 1 0" range="0 5" damping="12"/>
+          <geom name="y_trolley" type="box" pos="0 0 -0.08" size="0.30 0.22 0.12" material="carriage" contype="0" conaffinity="0"/>
+          <geom name="y_trolley_head" type="box" pos="0 0 0.02" size="0.20 0.18 0.06" material="rail" contype="0" conaffinity="0"/>
 
           <body name="z_hoist" pos="0 0 -3">
-            <joint name="joint_z" type="slide" axis="0 0 1" range="0 3" damping="120"/>
-            <geom name="z_column" type="box" size="0.11 0.11 1.45" pos="0 0 1.45" material="z_axis"/>
+            <joint name="joint_z" type="slide" axis="0 0 1" range="0 3" damping="18"/>
+            <geom name="z_column" type="box" size="0.11 0.11 1.45" pos="0 0 1.45" material="z_axis" contype="0" conaffinity="0"/>
             <geom name="z_guide_l" type="box" size="0.03 0.14 1.45" pos="-0.10 0 1.45" material="rail" contype="0" conaffinity="0"/>
             <geom name="z_guide_r" type="box" size="0.03 0.14 1.45" pos="0.10 0 1.45" material="rail" contype="0" conaffinity="0"/>
             <geom name="chain_z" type="box" pos="0 0 2.85" size="0.05 0.18 0.04" material="chain" contype="0" conaffinity="0"/>
             <geom name="cable_l" type="cylinder" fromto="-0.12 0 0 -0.12 0 3" size="0.012" material="cable" contype="0" conaffinity="0"/>
             <geom name="cable_r" type="cylinder" fromto="0.12 0 0 0.12 0 3" size="0.012" material="cable" contype="0" conaffinity="0"/>
-            <geom name="ee_gripper" type="box" size="0.28 0.22 0.08" material="gantry"/>
-            <geom name="ee_spreader" type="box" pos="0 0 -0.06" size="0.30 0.26 0.04" material="rail"/>
+            <geom name="ee_gripper" type="box" size="0.28 0.22 0.08" material="gantry" contype="0" conaffinity="0"/>
+            <geom name="ee_spreader" type="box" pos="0 0 -0.06" size="0.30 0.26 0.04" material="rail" contype="0" conaffinity="0"/>
           </body>
         </body>
       </body>

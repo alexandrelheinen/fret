@@ -1236,7 +1236,7 @@ def render_dubins_race_showcase_videos(
     width: int = 1280,
     height: int = 720,
     realtime_postprocess: bool = True,
-    physics_mode: bool = True,
+    physics_mode: bool = False,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -1547,7 +1547,7 @@ def render_video(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
-    physics_mode: bool = True,
+    physics_mode: bool = False,
 ) -> RenderResult:
     """Render a headless MuJoCo MP4 for the PPP warehouse preview.
 
@@ -1600,7 +1600,7 @@ def render_showcase_videos(
     planner_algorithm: str = "rrt_star",
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
-    physics_mode: bool = True,
+    physics_mode: bool = False,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -1973,7 +1973,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--physics-mode",
         action="store_true",
-        help="Drive MuJoCo via mj_step actuators (default; v1.2 physics SITL)",
+        help="Drive MuJoCo via mj_step actuators (v1.2 physics SITL; opt-in)",
     )
     parser.add_argument(
         "--kinematic-mode",
@@ -2047,7 +2047,7 @@ def main(argv: list[str] | None = None) -> int:
 
     use_tracking = not args.no_tracking
     realtime_postprocess = not args.no_realtime_postprocess
-    physics_mode = not args.kinematic_mode or bool(args.physics_mode)
+    physics_mode = bool(args.physics_mode) and not args.kinematic_mode
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
