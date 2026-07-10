@@ -27,7 +27,7 @@ v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
 v1.1  ✅  Dubins dual-robot race A→B through structure forest
   │
   ▼
-v1.2  🔲  MuJoCo physics SITL — actuators, contacts, controller tuning
+v1.2  🔶  MuJoCo physics SITL — actuators, contacts, controller tuning (ready to tag)
   │
   ▼
 v1.3  🔲  RRP/SCARA — reproduce ARCO rrp + rr scenarios in FRET
@@ -92,39 +92,32 @@ Validated on SCARA (RRP, 3-DOF):
 
 ---
 
-## Phase 4 — v1.2 MuJoCo physics SITL 🔲
+## Phase 4 — v1.2 MuJoCo physics SITL 🔶 *Ready to tag*
 
 **Cross-cutting release.** Applies to v1.0 PPP and v1.1 Dubins scenarios.
 
-Today MuJoCo is used for **display and collision geometry**: poses are written
-into MJCF joint coordinates (`mj_forward`) while motion is integrated in pure
-Python. **Contact forces and dynamics are not applied** during showcase or SITL
-runs — robots effectively teleport along controller outputs.
+MuJoCo **physics mode** (`physics_mode:=true`) drives robots through velocity
+actuators (`mj_step`), resolves contacts (columns, obstacles, cargo weld), and
+publishes `/joint_states` from simulated `qpos`/`qvel`. Kinematic mirroring
+remains available for fast regression (`physics_mode:=false`).
 
-**Goal:** Drive robots through MuJoCo actuators (`mj_step`), resolve contacts
-(columns, obstacles, cargo weld, inter-agent), and tune controller gains against
-simulated physics. Joint state on `/joint_states` must come from simulation, not
-open-loop integration.
-
-**v1.1.x iterations** (between v1.1.0 and v1.2.0) land physics incrementally;
-see [version_plan_v1.2.md](version_plan_v1.2.md).
+**v1.1.x iterations** landed on `main`; see [version_plan_v1.2.md](version_plan_v1.2.md).
 
 | Step | Tag | Focus |
 | --- | --- | --- |
-| 1 | `v1.1.2` | PPP MJCF collision policy + physics tracking baseline |
-| 2 | `v1.1.3` | Cargo weld / floor-contact handoff |
-| 3 | `v1.1.4` | Dubins RTF + PPP tracking ≤ 10 mm |
-| 4 | `v1.1.5` | Regression harness + CI hardening |
-| 5 | `v1.2.0` | Physics-default release showcase |
+| 1 | `v1.1.2` ✅ | PPP MJCF collision policy + physics tracking baseline |
+| 2 | `v1.1.3` ✅ | Cargo weld / floor-contact handoff |
+| 3 | `v1.1.4` ✅ | Dubins RTF + PPP E2E |
+| 4 | `v1.1.5` ✅ | Regression harness + CI hardening |
+| 5 | `v1.2.0` 🔶 | Physics-default release showcase |
 
 - [x] `physics_mode` parameter + `step_physics()` on MuJoCo bridge (T12-01)
 - [x] MJCF actuators + `mujoco_physics.yml` (T12-02, T12-03)
+- [x] Cargo weld physics + PPP gantry tuning (T12-04)
 - [x] Contact logging harness (T12-05); showcase `--physics-mode` flag (T12-07)
-- [x] Release kinematic default restored (#88); v1.1.1 not released
-- [ ] PPP gantry: prismatic actuators tuned; cargo weld contacts (T12-04)
-- [ ] Dubins race: physics RTF ≤ 2× kinematic; column contacts (T12-03)
-- [ ] Physics integration tests at full V12 gates (T12-06)
-- [ ] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-08)
+- [x] Dubins physics race + `both_reached_goal` (T12-03)
+- [x] Physics integration tests at V12 gates (T12-06)
+- [x] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-08)
 - [ ] Tag `v1.2.0`
 
 Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) ·

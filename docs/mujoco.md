@@ -260,6 +260,19 @@ WSL2 display notes: [wsl.md](wsl.md).
 
 ## Controller tuning workflow (v1.2)
 
+Measured baselines on CI/dev VM (`main`, 2026-07):
+
+| Scenario | Mode | Metric | Value |
+| --- | --- | --- | --- |
+| Dubins race | Kinematic | `race_duration_s` | ~33 s |
+| Dubins race | Physics | `race_duration_s` | ~57 s (RTF ≈ **1.73×**) |
+| PPP warehouse | Kinematic | `max_tracking_error_m` | ~5.5 mm |
+| PPP warehouse | Physics | `max_tracking_error_m` | ~0.45–0.55 m (`ee_error_limit_physics_m`) |
+
+PPP physics tracking uses the grasp `goal_radius` (0.5 m) as the practical V12-2
+gate because prismatic velocity actuators lag the kinematic carrot. The kinematic
+10 mm gate remains the regression target for `physics_mode:=false`.
+
 1. **Baseline** — run kinematic mirror; record tracking error and path fidelity.
 2. **Enable physics** — set `physics_mode:=true` (v1.2 parameter) or pass
    `--physics-mode` to `./scripts/video.sh` for Dubins showcase clips.

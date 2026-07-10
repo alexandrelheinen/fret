@@ -274,7 +274,7 @@ single-tick numerical noise across MuJoCo builds.
 
 | Test file | Scenario | Minimum assertions |
 | --- | --- | --- |
-| `tests/integration/test_mujoco_physics_ppp.py` | SC-v10 + `physics_mode` | SITL completes; weld engage/release; `max_tracking_error_m ≤ 0.010`; `penetration_violations == 0`; contact log exists |
+| `tests/integration/test_mujoco_physics_ppp.py` | SC-v10 + `physics_mode` | SITL completes; weld engage/release; `max_tracking_error_m ≤ ee_error_limit_physics_m`; `penetration_violations == 0`; contact log exists |
 | `tests/integration/test_mujoco_physics_dubins.py` | SC-v11 + `physics_mode` | Both agents reach goal; `penetration_violations == 0`; column contacts logged (`force_norm > 0`); optional inter-agent test |
 
 Tests run under the integration job in `.github/workflows/tests.yml` when
