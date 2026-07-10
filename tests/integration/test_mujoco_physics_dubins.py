@@ -51,6 +51,7 @@ def test_dubins_physics_run_produces_contact_log(
     result = dubins_physics_contact_run
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
+    assert result.both_reached_goal is True
     assert result.contact_log_path is not None
     assert result.contact_log_path.is_file()
     assert result.physics_metrics_path is not None
@@ -62,11 +63,12 @@ def test_dubins_physics_run_produces_contact_log(
     not _mujoco_available(), reason="mujoco package not installed"
 )
 def test_dubins_physics_planners_succeed() -> None:
-    """V12-3: both agents plan successfully under physics_mode."""
+    """V12-3: both agents plan and reach goal under physics_mode."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
     result = runner.run(physics_mode=True)
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
+    assert result.both_reached_goal is True
 
 
 @pytest.mark.skipif(
