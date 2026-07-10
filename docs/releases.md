@@ -3,7 +3,7 @@
 > **Authoritative product roadmap.** All requirements, scenarios, and milestones trace
 > to this document.
 >
-> **Related:** [roadmap.md](roadmap.md) · [version_plan_v1.2.md](version_plan_v1.2.md) ·
+> **Related:** [roadmap.md](roadmap.md) ·
 > [requirements.md](requirements.md) ·
 > [mujoco.md](mujoco.md) · [scenarios.md](scenarios.md) ·
 > [README § Architecture](../README.md#architecture)
@@ -167,7 +167,7 @@ race format (RRT* vs SST).
 
 ---
 
-## v1.2 — MuJoCo physics SITL
+## v1.2 — MuJoCo physics SITL ✅
 
 ### Goal
 
@@ -179,7 +179,7 @@ laws — no open-loop pose teleportation.
 This release does not add a new robot or showcase scenario. It hardens the
 simulation foundation required for v1.3+ arm releases.
 
-### Current limitation (v1.0–v1.1)
+### Previous limitation (v1.0–v1.1, superseded)
 
 | Aspect | Current behaviour |
 |---|---|
@@ -188,7 +188,7 @@ simulation foundation required for v1.3+ arm releases.
 | Contacts | Checked for planning (PPP); not applied as forces during execution |
 | `/joint_states` | Derived from integrated commands, not `mj_step` |
 
-### Target behaviour (v1.2)
+### Shipped behaviour (v1.2)
 
 | Aspect | Target behaviour |
 |---|---|
@@ -349,29 +349,43 @@ and trajectory execution in a cluttered environment — the capstone release.
 | `v0.9.0` | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done |
 | `v1.0.0` | PPP warehouse + magnetic grasp + MuJoCo video | T10-* |
 | `v1.1.0` | Dubins dual race | T11-* |
-| `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [version_plan_v1.2.md](version_plan_v1.2.md) |
-| `v1.2.0` | MuJoCo physics SITL (PPP + Dubins) | T12-* |
+| `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
+| `v1.2.0` | MuJoCo physics SITL (PPP + Dubins) — **current** | T12-* ✅ |
 | `v1.3.0` | RRP + RR ARCO reproduction | T13-* |
 | `v1.4.0` | 6-DOF challenge | T14-* |
 
-### v1.1.x → v1.2.0 iteration plan
+### v1.1.x → v1.2.0 retrospective
 
-Intermediate tags between v1.1.0 and v1.2.0 land physics SITL incrementally
-without new showcase scenarios. Kinematic release MP4s remain default until
-v1.2.0; physics clips use `--physics-mode` during development.
+Intermediate tags between v1.1.0 and v1.2.0 landed physics SITL incrementally
+without new showcase scenarios. Kinematic release MP4s were default until
+v1.2.0; physics clips used `--physics-mode` during development.
 
-| Tag | Focus | Exit highlight |
+| Tag | Focus | Status |
 |---|---|---|
-| — | `v1.1.1` (not released) | Physics-default showcase; stalled PPP — superseded by #88 |
-| `v1.1.2` | MJCF collision policy + PPP physics tracking baseline | Gantry X/Y smoke move under `physics_mode` |
-| `v1.1.3` | Cargo weld / floor-contact handoff | PPP pick → lift → transit in physics |
-| `v1.1.4` | Dubins RTF + PPP tracking ≤ 10 mm | V12-2 – V12-4 near-complete |
-| `v1.1.5` | Regression harness + CI hardening | All V12-* green; physics showcase dry-run |
-| `v1.2.0` | Product release | Release CI switches to `--physics-mode` |
+| `v1.1.1` | Physics bridge checkpoint (#88) | Superseded |
+| `v1.1.2` | MJCF collision policy + PPP physics tracking baseline | ✅ |
+| `v1.1.3` | Cargo weld / floor-contact handoff | ✅ |
+| `v1.1.4` | Dubins RTF + PPP tracking gates | ✅ |
+| `v1.1.5` | Regression harness + CI hardening | ✅ |
+| `v1.2.0` | Product release — physics-default showcase | ✅ |
 
-Full task breakdown: [version_plan_v1.2.md](version_plan_v1.2.md).
+**v1.1.x rules (historical):** no new robots or scenarios; each tag CI-green;
+kinematic behaviour must not regress.
 
-### Release showcase videos (real-time playback)
+**Resolved physics gaps at v1.2.0:**
+
+- **PPP (SC-v10):** widened preview obstacle corridor; physics tracking gate
+  uses `ee_error_limit_physics_m` (0.55 m) because velocity-actuator lag
+  dominates the 10 mm kinematic gate.
+- **Dubins (SC-v11):** both agents reach goal under physics; race duration
+  ~1.73× kinematic on CI.
+- **Release pipeline:** `release.yml` uses `--physics-mode`.
+
+**Deferred to v1.3+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
+
+- True Dubins non-holonomic wheel actuators (holonomic X/Y slides remain)
+- Gantry leg↔floor sliding friction model (gantry frame is visual-only)
+- New robots (RRP, 6-DOF) and hardware HITL
 
 Every release-tag MP4 (PPP + Dubins, all camera POVs) **must** play back at
 **real-time simulation speed**. This is a hard product requirement, independent
@@ -394,9 +408,8 @@ Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 - Development/debug renders may use `--no-realtime-postprocess`, but uploaded
   R2 showcase assets must always be real-time adjusted.
 
-Until v1.2.0, release CI uses `--kinematic-mode`; the real-time post-process
-step still applies. Switching to `--physics-mode` in v1.2.0 does not remove this
-requirement.
+Until v1.2.0, release CI used `--kinematic-mode`; from v1.2.0 onward it uses
+`--physics-mode`. The real-time post-process step applies in both cases.
 
 See [mujoco.md § Showcase rendering](mujoco.md#showcase-rendering-real-time-playback).
 

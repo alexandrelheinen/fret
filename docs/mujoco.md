@@ -38,26 +38,28 @@ FRET runs MuJoCo in three modes. All modes share the same MJCF assets.
 
 | Mode | Entry point | Physics | ROS |
 |---|---|---|---|
-| **Pure-Python** | `tests/`, `fret.scenario.*` | Kinematic mirror (v1.0–v1.1) | No |
-| **Showcase** | `view.sh`, `video.sh`, `render_mujoco.py` | Kinematic mirror (v1.0–v1.1) | No |
-| **SITL** | `ros2 launch fret sitl.py …` | Kinematic mirror today; **physics from v1.2** | Yes |
+| **Pure-Python** | `tests/`, `fret.scenario.*` | Physics or kinematic (`physics_mode` flag) | No |
+| **Showcase** | `view.sh`, `video.sh`, `render_mujoco.py` | Physics default in release CI (`--physics-mode`) | No |
+| **SITL** | `ros2 launch fret sitl.py …` | **Physics SITL (v1.2 default)** | Yes |
 
-### Kinematic mirror (v1.0–v1.1, current)
+### Kinematic mirror (legacy / regression)
 
 Controller outputs are integrated in pure Python. The bridge writes resulting
 joint positions into MJCF (`qpos`) and calls `mj_forward` for visuals and
 collision geometry sync. **No actuator forces or contact dynamics are applied.**
 
-Used for: release showcase videos, pure-Python E2E tests, current ROS SITL.
+Used for: fast regression, optional `--kinematic-mode` renders, `physics_mode:=false`.
 
-### Physics SITL (v1.2, target)
+### Physics SITL (v1.2, default)
 
-Controller velocity/torque commands drive MuJoCo actuators. The simulation
+Controller velocity commands drive MuJoCo actuators. The simulation
 advances with `mj_step` each control cycle. Contacts (columns, obstacles,
 cargo weld, inter-agent) produce forces that the robot must overcome.
 
 **No pose teleportation.** Joint state published on `/joint_states` comes from
 simulated `qpos`, not from open-loop integration.
+
+Used for: release showcase videos, ROS SITL default, physics integration tests.
 
 ---
 

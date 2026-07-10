@@ -27,7 +27,7 @@ v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
 v1.1  ✅  Dubins dual-robot race A→B through structure forest
   │
   ▼
-v1.2  🔶  MuJoCo physics SITL — actuators, contacts, controller tuning (ready to tag)
+v1.2  ✅  MuJoCo physics SITL — actuators, contacts, controller tuning
   │
   ▼
 v1.3  🔲  RRP/SCARA — reproduce ARCO rrp + rr scenarios in FRET
@@ -92,7 +92,7 @@ Validated on SCARA (RRP, 3-DOF):
 
 ---
 
-## Phase 4 — v1.2 MuJoCo physics SITL 🔶 *Ready to tag*
+## Phase 4 — v1.2 MuJoCo physics SITL ✅ *Complete*
 
 **Cross-cutting release.** Applies to v1.0 PPP and v1.1 Dubins scenarios.
 
@@ -101,15 +101,13 @@ actuators (`mj_step`), resolves contacts (columns, obstacles, cargo weld), and
 publishes `/joint_states` from simulated `qpos`/`qvel`. Kinematic mirroring
 remains available for fast regression (`physics_mode:=false`).
 
-**v1.1.x iterations** landed on `main`; see [version_plan_v1.2.md](version_plan_v1.2.md).
-
 | Step | Tag | Focus |
 | --- | --- | --- |
 | 1 | `v1.1.2` ✅ | PPP MJCF collision policy + physics tracking baseline |
 | 2 | `v1.1.3` ✅ | Cargo weld / floor-contact handoff |
 | 3 | `v1.1.4` ✅ | Dubins RTF + PPP E2E |
 | 4 | `v1.1.5` ✅ | Regression harness + CI hardening |
-| 5 | `v1.2.0` 🔶 | Physics-default release showcase |
+| 5 | `v1.2.0` ✅ | Physics-default release showcase |
 
 - [x] `physics_mode` parameter + `step_physics()` on MuJoCo bridge (T12-01)
 - [x] MJCF actuators + `mujoco_physics.yml` (T12-02, T12-03)
@@ -118,10 +116,10 @@ remains available for fast regression (`physics_mode:=false`).
 - [x] Dubins physics race + `both_reached_goal` (T12-03)
 - [x] Physics integration tests at V12 gates (T12-06)
 - [x] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-08)
-- [ ] Tag `v1.2.0`
+- [x] Release CI switched to `--physics-mode` (V120-01)
+- [x] Package version 1.2.0; docs updated for physics-default behaviour
 
 Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) ·
-[version_plan_v1.2.md](version_plan_v1.2.md) ·
 [mujoco.md](mujoco.md) · [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
 
 ---

@@ -1,4 +1,4 @@
-# MuJoCo Tutorial — FRET Visual Guide (v1.0 PPP · v1.1 Dubins)
+# MuJoCo Tutorial — FRET Visual Guide (v1.0 PPP · v1.1 Dubins · v1.2 physics)
 
 > **One-stop tutorial** for seeing FRET robots in MuJoCo.
 > MuJoCo is FRET's simulation engine for physics, contacts, rendering, and SITL.
@@ -105,7 +105,7 @@ token used for CI (never commit secrets to git):
 cp .env.example .env    # fill R2_* values once; .env is gitignored
 sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
-./scripts/download_showcase.sh --tag v1.1.0 --all
+./scripts/download_showcase.sh --tag v1.2.0 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ```
 
@@ -155,14 +155,25 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 ---
 
-## 5. Physics SITL (v1.2)
+## 5. Physics SITL (v1.2, default)
 
-From v1.2, MuJoCo advances the simulation with `mj_step` and actuator forces
-instead of kinematic pose mirroring. Enable with:
+From v1.2, MuJoCo advances the simulation with `mj_step` and velocity actuators
+instead of kinematic pose mirroring. Release CI and showcase renders pass
+`--physics-mode`; ROS SITL enables physics by default.
 
 ```bash
+ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+# explicit (same as default):
 ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
+
+# headless physics showcase MP4
+./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+  -o /tmp/fret_ppp_physics.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm rrt_star --full-duration \
+  --physics-mode
 ```
+
+Kinematic mirror for fast regression: `physics_mode:=false` or `--kinematic-mode`.
 
 Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 
