@@ -153,7 +153,7 @@ def test_load_mujoco_config_defaults() -> None:
     assert cfg["update_rate"] == 50.0
     assert cfg["initial_joint_positions"] == [0.0, 0.0, 0.0]
     assert cfg["physics_mode"] is False
-    assert cfg["substeps_per_tick"] == 25
+    assert cfg["substeps_per_tick"] == 40
     merged = _load_merged_bridge_config(config_path)
     assert "actuators" in merged
     assert pathlib.Path(config_path).is_file()
