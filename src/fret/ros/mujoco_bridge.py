@@ -462,7 +462,9 @@ class MuJoCoBridgeCore:
         self._cargo_qpos_adr = int(self._model.jnt_qposadr[joint_id])
         self._cargo_geom_id = int(geom_id)
         self._cargo_geom_contype = int(self._model.geom_contype[geom_id])
-        self._cargo_geom_conaffinity = int(self._model.geom_conaffinity[geom_id])
+        self._cargo_geom_conaffinity = int(
+            self._model.geom_conaffinity[geom_id]
+        )
         self._cargo_weld_active = bool(self._data.eq_active[eq_id])
 
     def set_cargo_weld_active(self, active: bool) -> None:

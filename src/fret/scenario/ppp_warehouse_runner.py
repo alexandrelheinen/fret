@@ -262,7 +262,9 @@ def _ppp_physics_weld_active(
     pick_ee_z: float,
 ) -> bool:
     """Return True when the cargo weld may engage under physics SITL (V113-01)."""
-    return grasp.is_welded and float(ee_z) <= pick_ee_z + _PICK_WELD_Z_TOLERANCE_M
+    return (
+        grasp.is_welded and float(ee_z) <= pick_ee_z + _PICK_WELD_Z_TOLERANCE_M
+    )
 
 
 def _ppp_physics_grasp_update(
@@ -276,7 +278,9 @@ def _ppp_physics_grasp_update(
     """Advance grasp FSM with physics place-depth release gating (V113-01)."""
     if grasp.state == GraspState.TRANSPORT:
         xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < goal_radius
-        z_at_place = abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+        z_at_place = (
+            abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+        )
         if xy_close and not z_at_place:
             masked_goal = goal.copy()
             masked_goal[2] = float(ee[2]) + 100.0
@@ -289,8 +293,12 @@ def _ppp_physics_grasp_released(
     goal: npt.NDArray[np.float64],
 ) -> bool:
     """Return True when cargo release is valid at place depth under physics."""
-    xy_close = float(np.linalg.norm(ee[:2] - goal[:2])) < _PHYSICS_EE_ERROR_LIMIT_M
-    z_at_place = abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+    xy_close = (
+        float(np.linalg.norm(ee[:2] - goal[:2])) < _PHYSICS_EE_ERROR_LIMIT_M
+    )
+    z_at_place = (
+        abs(float(ee[2]) - float(goal[2])) <= _PLACE_RELEASE_Z_TOLERANCE_M
+    )
     return xy_close and z_at_place
 
 
