@@ -159,9 +159,10 @@ class DubinsRaceSimulation:
     def step_physics(self, bridge: Any) -> bool:
         """Advance one physics SITL tick via MuJoCo actuators (v1.2).
 
-        Computes world-frame velocity commands from Pure Pursuit, drives
-        ``bridge.step_physics``, then syncs vehicle poses from simulated
-        ``qpos`` for the next tracking iteration.
+        Steps each agent's kinematic Pure Pursuit reference, then drives
+        velocity actuators with proportional tracking toward that reference
+        (same closed-loop pattern as PPP physics SITL).  Simulated ``qpos``
+        is synced back into the vehicle models after each tick.
 
         Args:
             bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
@@ -173,15 +174,23 @@ class DubinsRaceSimulation:
         if self.finished:
             return True
 
-        rrt_cmd, rrt_metrics = _agent_world_velocity_command(
+        rrt_cmd, rrt_metrics = _agent_physics_velocity_command(
             self.rrt_loop,
+            self.rrt_vehicle,
             self.rrt_path,
+            dt=self.dt,
             agent_finished=self.rrt_finish is not None,
+            max_speed=self.vehicle_cfg.max_speed,
+            max_turn_rate=self.vehicle_cfg.max_turn_rate,
         )
-        sst_cmd, sst_metrics = _agent_world_velocity_command(
+        sst_cmd, sst_metrics = _agent_physics_velocity_command(
             self.sst_loop,
+            self.sst_vehicle,
             self.sst_path,
+            dt=self.dt,
             agent_finished=self.sst_finish is not None,
+            max_speed=self.vehicle_cfg.max_speed,
+            max_turn_rate=self.vehicle_cfg.max_turn_rate,
         )
         commands = np.array([*rrt_cmd, *sst_cmd], dtype=np.float64)
         bridge.step_physics(commands)
@@ -474,6 +483,106 @@ def _min_pose_history_clearance(
             for pose in poses
         )
     )
+
+
+_PHYSICS_KP_POSITION: float = 4.5
+_PHYSICS_KP_YAW: float = 3.5
+_PHYSICS_MAX_POSITION_LAG_M: float = 0.75
+_PHYSICS_MAX_YAW_LAG_RAD: float = 0.6
+_PHYSICS_REFERENCE_BLEND: float = 0.55
+_PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.35
+
+
+def _wrap_heading(angle: float) -> float:
+    """Wrap a heading angle to ``[-pi, pi]``."""
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _agent_physics_velocity_command(
+    loop: TrackingLoop,
+    vehicle: Any,
+    path: list[tuple[float, float]],
+    *,
+    dt: float,
+    agent_finished: bool,
+    max_speed: float,
+    max_turn_rate: float,
+    kp_position: float = _PHYSICS_KP_POSITION,
+    kp_yaw: float = _PHYSICS_KP_YAW,
+    max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
+) -> tuple[tuple[float, float, float], dict[str, Any]]:
+    """Return closed-loop physics velocity toward a kinematic reference step."""
+    if agent_finished:
+        return (0.0, 0.0, 0.0), {
+            "cross_track_error": 0.0,
+            "heading_error": 0.0,
+            "pose": vehicle.pose,
+            "speed": 0.0,
+            "turn_rate": 0.0,
+            "curvature": 0.0,
+            "repulsion_turn_rate": 0.0,
+        }
+
+    sim_pose = vehicle.pose
+    sim_x, sim_y, sim_theta = sim_pose
+
+    metrics = loop.step(path, dt)
+    ref_x, ref_y, ref_theta = vehicle.pose
+
+    vehicle.x = sim_x
+    vehicle.y = sim_y
+    vehicle.heading = sim_theta
+
+    ref_x = sim_x + _PHYSICS_REFERENCE_BLEND * (ref_x - sim_x)
+    ref_y = sim_y + _PHYSICS_REFERENCE_BLEND * (ref_y - sim_y)
+    ref_theta = sim_theta + _PHYSICS_REFERENCE_BLEND * _wrap_heading(
+        ref_theta - sim_theta
+    )
+
+    dx = ref_x - sim_x
+    dy = ref_y - sim_y
+    lag = math.hypot(dx, dy)
+    if lag > max_position_lag_m:
+        scale = max_position_lag_m / lag
+        ref_x = sim_x + dx * scale
+        ref_y = sim_y + dy * scale
+
+    yaw_err = _wrap_heading(ref_theta - sim_theta)
+    if abs(yaw_err) > _PHYSICS_MAX_YAW_LAG_RAD:
+        ref_theta = sim_theta + math.copysign(
+            _PHYSICS_MAX_YAW_LAG_RAD,
+            yaw_err,
+        )
+        yaw_err = _wrap_heading(ref_theta - sim_theta)
+
+    vx = kp_position * (ref_x - sim_x)
+    vy = kp_position * (ref_y - sim_y)
+    omega = kp_yaw * yaw_err
+
+    speed = math.hypot(vx, vy)
+    if speed > max_speed:
+        scale = max_speed / speed
+        vx *= scale
+        vy *= scale
+    omega = max(-max_turn_rate, min(max_turn_rate, omega))
+
+    occupancy = getattr(loop, "_occupancy", None)
+    if occupancy is not None and hasattr(occupancy, "nearest_obstacle"):
+        clearance = float(getattr(occupancy, "clearance", 0.0))
+        if clearance > 0.0:
+            dist, _ = occupancy.nearest_obstacle(
+                np.array([sim_x, sim_y], dtype=np.float64)
+            )
+            influence_radius = 2.0 * clearance
+            if float(dist) < influence_radius:
+                proximity_scale = max(
+                    _PHYSICS_OBSTACLE_SPEED_FLOOR,
+                    float(dist) / influence_radius,
+                )
+                vx *= proximity_scale
+                vy *= proximity_scale
+
+    return (vx, vy, omega), metrics
 
 
 def _agent_world_velocity_command(

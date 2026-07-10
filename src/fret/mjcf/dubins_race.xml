@@ -13,6 +13,10 @@
             texturedir="assets/aws_warehouse/textures"/>
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
 
+  <default>
+    <geom friction="1 0.2 0.005" solref="0.01 1" solimp="0.9 0.95 0.001"/>
+  </default>
+
   <visual>
     <headlight ambient="0.50 0.52 0.55" diffuse="0.28 0.30 0.33" specular="0 0 0"/>
     <rgba haze="0.72 0.74 0.78 0.25"/>

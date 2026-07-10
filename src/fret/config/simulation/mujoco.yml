@@ -14,7 +14,7 @@
     # v1.2 physics SITL (FR-SIM-09)
     physics_mode: false
     mjcf_timestep: 0.002
-    substeps_per_tick: 25
+    substeps_per_tick: 40
 
     contact_log_enabled: false
     contact_log_path: ""
