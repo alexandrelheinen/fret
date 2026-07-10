@@ -19,21 +19,6 @@ _SCENARIO_PATH = (
     / "ppp_warehouse.yml"
 )
 
-_PLANNER_RNG_SEED = 11
-
-
-@pytest.fixture(autouse=True)
-def _deterministic_planner_rng(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ARC planners use unseeded ``default_rng()``; fix CI flakiness."""
-    original_default_rng = np.random.default_rng
-
-    def _seeded_default_rng(seed: int | None = None) -> np.random.Generator:
-        return original_default_rng(
-            _PLANNER_RNG_SEED if seed is None else seed
-        )
-
-    monkeypatch.setattr(np.random, "default_rng", _seeded_default_rng)
-
 
 def _mujoco_available() -> bool:
     from fret.ros.mujoco_bridge import make_mujoco_bridge_core
