@@ -485,12 +485,12 @@ def _min_pose_history_clearance(
     )
 
 
-_PHYSICS_KP_POSITION: float = 4.5
-_PHYSICS_KP_YAW: float = 3.5
-_PHYSICS_MAX_POSITION_LAG_M: float = 0.75
-_PHYSICS_MAX_YAW_LAG_RAD: float = 0.6
-_PHYSICS_REFERENCE_BLEND: float = 0.55
-_PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.35
+_PHYSICS_KP_POSITION: float = 6.8
+_PHYSICS_KP_YAW: float = 4.9
+_PHYSICS_MAX_POSITION_LAG_M: float = 0.82
+_PHYSICS_MAX_YAW_LAG_RAD: float = 0.65
+_PHYSICS_REFERENCE_BLEND: float = 0.73
+_PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
 
 
 def _wrap_heading(angle: float) -> float:

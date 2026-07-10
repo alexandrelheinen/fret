@@ -369,6 +369,35 @@ v1.2.0; physics clips use `--physics-mode` during development.
 
 Full task breakdown: [version_plan_v1.2.md](version_plan_v1.2.md).
 
+### Release showcase videos (real-time playback)
+
+Every release-tag MP4 (PPP + Dubins, all camera POVs) **must** play back at
+**real-time simulation speed**. This is a hard product requirement, independent
+of kinematic vs physics render mode.
+
+Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
+`.github/workflows/release.yml`):
+
+1. Record frames at fixed `fps`; capture `sim_time_s` (simulated motion
+   duration) and `render_duration_s` (`frame_count / fps`).
+2. Compute `real_time_factor = render_duration_s / sim_time_s`.
+3. Post-process with **ffmpeg** (`setpts=PTS/rtf`) so on-screen motion matches
+   `sim_time_s`. Skip only when `rtf ≈ 1`.
+
+**Rules:**
+
+- Release CI must **not** pass `--no-realtime-postprocess`.
+- `--timing-json` is required on release renders (persists RTF per clip in
+  `meta.json`).
+- Development/debug renders may use `--no-realtime-postprocess`, but uploaded
+  R2 showcase assets must always be real-time adjusted.
+
+Until v1.2.0, release CI uses `--kinematic-mode`; the real-time post-process
+step still applies. Switching to `--physics-mode` in v1.2.0 does not remove this
+requirement.
+
+See [mujoco.md § Showcase rendering](mujoco.md#showcase-rendering-real-time-playback).
+
 ---
 
 ## Deprecated / removed

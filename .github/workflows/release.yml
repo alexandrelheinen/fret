@@ -40,6 +40,7 @@ jobs:
         uses: ./.github/actions/release-render-setup
 
       - name: Render PPP warehouse showcase clips
+        # Real-time ffmpeg post-process is mandatory (default; never pass --no-realtime-postprocess).
         run: |
           ./scripts/video.sh \
             --model ppp \
@@ -74,6 +75,7 @@ jobs:
         uses: ./.github/actions/release-render-setup
 
       - name: Render Dubins race showcase clips
+        # Real-time ffmpeg post-process is mandatory (default; never pass --no-realtime-postprocess).
         run: |
           ./scripts/video.sh \
             --model dubins \

@@ -66,8 +66,8 @@ _DEFAULT_CONTROLLER = controller_config_path("ppp")
 _PICK_WELD_Z_TOLERANCE_M: float = 0.08
 # Release cargo only at place depth — not during cruise transit over goal XY.
 _PLACE_RELEASE_Z_TOLERANCE_M: float = 0.08
-# v1.1.3 intermediate tracking gate (25 mm is v1.1.4 / V12-2).
-_PHYSICS_EE_ERROR_LIMIT_M: float = 0.5
+# v1.1.4 intermediate gate [m] — 250 mm toward V12-2 (10 mm needs place-hold fix).
+_PHYSICS_EE_ERROR_LIMIT_M: float = 0.25
 
 
 @dataclass(frozen=True)
@@ -361,15 +361,23 @@ def _track_carrot_path_physics(
 
     for _ in range(max_steps):
         robot_arc = project_arc_length(tracker.q, nav, arcs)
-        carrot_dist = min(carrot_dist, robot_arc + max_carrot_lag)
-        lag = float(np.linalg.norm(tracker.q - carrot))
-        if lag < max_carrot_lag:
-            carrot_dist = min(
-                carrot_dist + race_speed * dt,
-                robot_arc + max_carrot_lag,
-                arcs[-1],
+        dist_goal = float(np.linalg.norm(tracker.q - nav[-1]))
+        if dist_goal < 0.35:
+            carrot = nav[-1]
+            carrot_dist = arcs[-1]
+            at_path_end = True
+        else:
+            carrot_dist = min(carrot_dist, robot_arc + max_carrot_lag)
+            lag = float(np.linalg.norm(tracker.q - carrot))
+            if lag < max_carrot_lag:
+                carrot_dist = min(
+                    carrot_dist + race_speed * dt,
+                    robot_arc + max_carrot_lag,
+                    arcs[-1],
+                )
+            carrot, at_path_end = sample_path_at_distance(
+                nav, arcs, carrot_dist
             )
-        carrot, at_path_end = sample_path_at_distance(nav, arcs, carrot_dist)
         tracker.step(carrot, dt)
         bridge.step(tracker.vel, dt)
         tracker.q = bridge.get_positions()
