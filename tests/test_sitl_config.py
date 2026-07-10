@@ -73,7 +73,7 @@ def test_load_ppp_warehouse_scenario() -> None:
     assert params["planning_config"] == "planning/ppp.yml"
     assert params["grasp_config"] == "grasp/ppp_warehouse.yml"
     assert params["start_configuration"] == [2.0, 1.0, 2.4]
-    assert params["goal_configuration"] == [10.5, 2.8, 2.65]
+    assert params["goal_configuration"] == [10.5, 1.2, 0.59]
     assert params["collision_backend"] == "analytic"
     assert params["planner_algorithm"] == "rrt_star"
     assert params["plan_include_cargo"] is True

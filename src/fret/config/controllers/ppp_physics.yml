@@ -7,11 +7,11 @@
 
 /**:
   ros__parameters:
-    kp: 7.5
-    max_joint_velocity: [3.0, 3.0, 2.0]
-    max_joint_acc: 3.5
-    race_speed: 0.28
-    max_carrot_lag: 0.12
+    kp: 10.0
+    max_joint_velocity: [2.5, 2.5, 2.5]
+    max_joint_acc: 4.0
+    race_speed: 0.22
+    max_carrot_lag: 0.15
     update_rate: 50.0
     fault_threshold: 0.050
     ticks_per_waypoint: 5

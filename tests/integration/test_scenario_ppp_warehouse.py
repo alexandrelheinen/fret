@@ -112,5 +112,5 @@ def test_runner_loads_scenario_start_goal() -> None:
         params["start_configuration"], [2.0, 1.0, 2.4], atol=1e-9
     )
     np.testing.assert_allclose(
-        params["goal_configuration"], [10.5, 2.8, 2.65], atol=1e-9
+        params["goal_configuration"], [10.5, 1.2, 0.59], atol=1e-9
     )
