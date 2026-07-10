@@ -5,7 +5,7 @@
 obstacle_file: worlds/ppp_warehouse_preview_obstacles.yml
 
 # Safety margin subtracted from obstacle clearance during planning [m].
-contact_radius: 0.015
+contact_radius: 0.10
 
 # Surface samples along each box edge for occupancy point clouds.
 samples_per_edge: 4
@@ -19,7 +19,7 @@ cargo_ee_offset_z: -0.34
 cruise:
   nominal_min_z: 1.5
   default_z: 2.2
-  flyover_clearance_m: 0.05
+  flyover_clearance_m: 0.30
   obstacle_clearance_m: 0.35
 
 tracking:
