@@ -397,6 +397,9 @@ class MuJoCoBridgeCore:
         self._qvel_adrs: list[int] = []
         self._cargo_eq_id: int | None = None
         self._cargo_qpos_adr: int | None = None
+        self._cargo_geom_id: int | None = None
+        self._cargo_geom_contype: int = 1
+        self._cargo_geom_conaffinity: int = 1
         self._cargo_weld_active = False
         self._contact_logger: PhysicsContactLogger | None = None
         self._load_mujoco_optional()
@@ -448,8 +451,18 @@ class MuJoCoBridgeCore:
         )
         if joint_id < 0:
             raise ValueError("Cargo freejoint not found in MJCF: cargo_free")
+        geom_id = self._mujoco.mj_name2id(
+            self._model,
+            self._mujoco.mjtObj.mjOBJ_GEOM,
+            "cargo_box",
+        )
+        if geom_id < 0:
+            raise ValueError("Cargo geom not found in MJCF: cargo_box")
         self._cargo_eq_id = int(eq_id)
         self._cargo_qpos_adr = int(self._model.jnt_qposadr[joint_id])
+        self._cargo_geom_id = int(geom_id)
+        self._cargo_geom_contype = int(self._model.geom_contype[geom_id])
+        self._cargo_geom_conaffinity = int(self._model.geom_conaffinity[geom_id])
         self._cargo_weld_active = bool(self._data.eq_active[eq_id])
 
     def set_cargo_weld_active(self, active: bool) -> None:
@@ -468,6 +481,23 @@ class MuJoCoBridgeCore:
         self._data.eq_active[self._cargo_eq_id] = int(flag)
         self._cargo_weld_active = flag
         self._mujoco.mj_forward(self._model, self._data)
+
+    def set_cargo_contacts_enabled(self, enabled: bool) -> None:
+        """Enable or disable ``cargo_box`` collision participation."""
+        if self._cargo_geom_id is None or self._model is None:
+            return
+        if enabled:
+            self._model.geom_contype[self._cargo_geom_id] = (
+                self._cargo_geom_contype
+            )
+            self._model.geom_conaffinity[self._cargo_geom_id] = (
+                self._cargo_geom_conaffinity
+            )
+        else:
+            self._model.geom_contype[self._cargo_geom_id] = 0
+            self._model.geom_conaffinity[self._cargo_geom_id] = 0
+        if self._mujoco is not None and self._data is not None:
+            self._mujoco.mj_forward(self._model, self._data)
 
     def seed_cargo_pose(self, position: npt.NDArray[np.float64]) -> None:
         """Set initial cargo freejoint pose before simulation starts."""
@@ -490,10 +520,16 @@ class MuJoCoBridgeCore:
         *,
         is_welded: bool,
         cargo_pose: npt.NDArray[np.float64],
+        cargo_in_transport: bool = False,
     ) -> None:
         """Apply grasp FSM output to cargo weld or kinematic pose (T12-04)."""
         if self._physics_mode:
             self.set_cargo_weld_active(is_welded)
+            self.set_cargo_contacts_enabled(
+                not (cargo_in_transport or is_welded)
+            )
+            if cargo_in_transport and not is_welded:
+                self._write_cargo_pose(cargo_pose)
             return
         self.set_cargo_weld_active(False)
         self.set_cargo_pose(cargo_pose)

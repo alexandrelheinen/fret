@@ -68,6 +68,37 @@ def densify_polyline(
     return dense
 
 
+def project_arc_length(
+    point: npt.NDArray[np.float64],
+    path: list[npt.NDArray[np.float64]],
+    arcs: list[float],
+) -> float:
+    """Return arc-length of the closest point on *path* to *point*."""
+    if not path:
+        return 0.0
+    q = np.asarray(point, dtype=np.float64)
+    best_dist = float("inf")
+    best_arc = 0.0
+    for i in range(len(path) - 1):
+        a = path[i]
+        b = path[i + 1]
+        ab = b - a
+        denom = float(np.dot(ab, ab))
+        if denom <= _EPSILON:
+            d = float(np.linalg.norm(q - a))
+            if d < best_dist:
+                best_dist = d
+                best_arc = arcs[i]
+            continue
+        t = float(np.clip(np.dot(q - a, ab) / denom, 0.0, 1.0))
+        proj = a + t * ab
+        d = float(np.linalg.norm(q - proj))
+        if d < best_dist:
+            best_dist = d
+            best_arc = arcs[i] + t * (arcs[i + 1] - arcs[i])
+    return best_arc
+
+
 def _nearest_polyline_distance(
     point: npt.NDArray[np.float64],
     path: list[npt.NDArray[np.float64]],

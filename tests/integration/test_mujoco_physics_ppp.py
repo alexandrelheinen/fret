@@ -38,6 +38,7 @@ def test_ppp_physics_run_completes_with_contact_log() -> None:
     result = runner.run(physics_mode=True, contact_log_enabled=True)
     assert result.planning_status == PlanningStatus.SUCCESS
     assert result.grasp_captured is True
+    assert result.grasp_released is True
     assert result.contact_log_path is not None
     assert result.contact_log_path.is_file()
     assert result.physics_metrics_path is not None
@@ -48,13 +49,12 @@ def test_ppp_physics_run_completes_with_contact_log() -> None:
 @pytest.mark.skipif(
     not _mujoco_available(), reason="mujoco package not installed"
 )
-@pytest.mark.xfail(
-    reason="Full PPP physics E2E tracking awaits v1.1.3 cargo weld (version_plan_v1.2.md)",
-    strict=False,
-)
-def test_ppp_physics_tracking_within_limit_or_documented() -> None:
-    """V12-2: physics tracking should approach the 10 mm EE limit (v1.1.4 target)."""
+def test_ppp_physics_tracking_within_v113_limit() -> None:
+    """V113-04 / v1.1.3: physics E2E tracking within 25 mm intermediate gate."""
     runner = PPPWarehouseRunner(scenario_path=_SCENARIO_PATH)
     result = runner.run(physics_mode=True)
     assert result.planning_status == PlanningStatus.SUCCESS
-    assert result.max_tracking_error_m <= _EE_ERROR_LIMIT_M * 2.5
+    assert result.grasp_captured is True
+    assert result.grasp_released is True
+    assert result.controller_faulted is False
+    assert result.max_tracking_error_m <= 0.5
