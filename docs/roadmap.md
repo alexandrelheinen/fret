@@ -106,14 +106,29 @@ runs — robots effectively teleport along controller outputs.
 simulated physics. Joint state on `/joint_states` must come from simulation, not
 open-loop integration.
 
-- [ ] PPP gantry: prismatic actuators from `PPPControllerNode`; cargo weld contacts
-- [ ] Dubins race: body actuation from Pure Pursuit; column and floor contacts
-- [ ] Shared harness: sim-time metrics, contact logging, physics regression clips
-- [ ] Controller tuning workflow documented ([mujoco.md](mujoco.md))
-- [ ] `physics_mode` parameter on MuJoCo bridge; CI-green for PPP + Dubins
+**v1.1.x iterations** (between v1.1.0 and v1.2.0) land physics incrementally;
+see [version_plan_v1.2.md](version_plan_v1.2.md).
+
+| Step | Tag | Focus |
+| --- | --- | --- |
+| 1 | `v1.1.2` | PPP MJCF collision policy + physics tracking baseline |
+| 2 | `v1.1.3` | Cargo weld / floor-contact handoff |
+| 3 | `v1.1.4` | Dubins RTF + PPP tracking ≤ 10 mm |
+| 4 | `v1.1.5` | Regression harness + CI hardening |
+| 5 | `v1.2.0` | Physics-default release showcase |
+
+- [x] `physics_mode` parameter + `step_physics()` on MuJoCo bridge (T12-01)
+- [x] MJCF actuators + `mujoco_physics.yml` (T12-02, T12-03)
+- [x] Contact logging harness (T12-05); showcase `--physics-mode` flag (T12-07)
+- [x] Release kinematic default restored (#88); v1.1.1 not released
+- [ ] PPP gantry: prismatic actuators tuned; cargo weld contacts (T12-04)
+- [ ] Dubins race: physics RTF ≤ 2× kinematic; column contacts (T12-03)
+- [ ] Physics integration tests at full V12 gates (T12-06)
+- [ ] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-08)
 - [ ] Tag `v1.2.0`
 
 Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) ·
+[version_plan_v1.2.md](version_plan_v1.2.md) ·
 [mujoco.md](mujoco.md) · [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
 
 ---
