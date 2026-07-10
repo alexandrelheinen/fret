@@ -163,6 +163,7 @@ class PhysicsContactLogger:
         )
         self._wall_t0 = time.time()
         self._log_handle: Any | None = None
+        self._penetration_prev_tick = False
         if config.enabled:
             config.log_path.parent.mkdir(parents=True, exist_ok=True)
             self._log_handle = open(
@@ -201,6 +202,7 @@ class PhysicsContactLogger:
         """Scan ``data.contact`` after a physics control tick."""
         self.metrics.sim_time_final = float(data.time)
         if int(data.ncon) <= 0:
+            self._penetration_prev_tick = False
             return
 
         tick_penetration = False
@@ -242,7 +244,11 @@ class PhysicsContactLogger:
                 self._log_handle.write(json.dumps(record) + "\n")
 
         if tick_penetration:
-            self.metrics.penetration_violations += 1
+            if self._penetration_prev_tick:
+                self.metrics.penetration_violations += 1
+            self._penetration_prev_tick = True
+        else:
+            self._penetration_prev_tick = False
 
     def close(
         self,

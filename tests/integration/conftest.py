@@ -19,8 +19,8 @@ from rclpy.node import Node
 _PLANNER_RNG_SEED = 11
 
 
-@pytest.fixture(autouse=True)
-def _deterministic_planner_rng(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(scope="session", autouse=True)
+def _deterministic_planner_rng() -> Generator[None, None, None]:
     """Seed ARC planner RNG so physics integration gates are reproducible."""
     original_default_rng = np.random.default_rng
 
@@ -29,7 +29,9 @@ def _deterministic_planner_rng(monkeypatch: pytest.MonkeyPatch) -> None:
             _PLANNER_RNG_SEED if seed is None else seed
         )
 
-    monkeypatch.setattr(np.random, "default_rng", _seeded_default_rng)
+    np.random.default_rng = _seeded_default_rng
+    yield
+    np.random.default_rng = original_default_rng
 
 
 @pytest.fixture(scope="session")
