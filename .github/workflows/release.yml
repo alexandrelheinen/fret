@@ -48,6 +48,7 @@ jobs:
             --collision-backend mujoco \
             --planner-algorithm rrt_star \
             --full-duration \
+            --kinematic-mode \
             --output-dir showcase_renders \
             --timing-json showcase_renders/ppp_timing.json \
             --fps 30 \
@@ -81,6 +82,7 @@ jobs:
             --collision-backend mujoco \
             --planner-algorithm sst \
             --full-duration \
+            --kinematic-mode \
             --output-dir showcase_renders \
             --timing-json showcase_renders/dubins_timing.json \
             --fps 30 \

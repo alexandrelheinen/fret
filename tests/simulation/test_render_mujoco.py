@@ -389,6 +389,7 @@ _RELEASE_PPP_CLI: list[str] = [
     "--timing-json",
     "showcase_renders/ppp_timing.json",
     "--full-duration",
+    "--kinematic-mode",
     "--fps",
     "30",
     "--width",
@@ -418,6 +419,7 @@ _RELEASE_DUBINS_CLI: list[str] = [
     "--timing-json",
     "showcase_renders/dubins_timing.json",
     "--full-duration",
+    "--kinematic-mode",
     "--fps",
     "30",
     "--width",
@@ -437,8 +439,8 @@ def test_release_workflow_cli_args_parse() -> None:
     assert ppp_args.scenario == "ppp_warehouse"
     assert ppp_args.all_cameras is True
     assert ppp_args.no_tracking is False
-    assert ppp_args.kinematic_mode is False
-    assert not ppp_args.kinematic_mode  # release uses default physics path
+    assert ppp_args.kinematic_mode is True
+    assert ppp_args.physics_mode is False
 
     kinematic_args = parser.parse_args(_RELEASE_PPP_KINEMATIC_CLI)
     assert kinematic_args.kinematic_mode is True
