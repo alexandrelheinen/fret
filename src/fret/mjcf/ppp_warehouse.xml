@@ -45,6 +45,8 @@
     <light name="key" pos="6 2.5 7" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
     <light name="fill" pos="-1 6 5" dir="0.35 -0.55 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
 
+    <!-- Collision policy (v1.1.2): gantry frame geoms are visual-only (contype=0).
+         Contacts enabled on floor, planning obstacles (obs_*), and cargo_box. -->
     <geom name="floor" type="plane" pos="6 2.5 0" size="0 0 0.05" material="floor"/>
 
     <!-- Collision boxes (planning / perception); invisible in renders. -->
@@ -128,7 +130,7 @@
   <actuator>
     <velocity name="act_joint_x" joint="joint_x" kv="1" forcelimited="true" forcerange="-5000 5000"/>
     <velocity name="act_joint_y" joint="joint_y" kv="1" forcelimited="true" forcerange="-5000 5000"/>
-    <velocity name="act_joint_z" joint="joint_z" kv="1" forcelimited="true" forcerange="-8000 8000"/>
+    <velocity name="act_joint_z" joint="joint_z" kv="1" forcelimited="true" forcerange="-30000 30000"/>
   </actuator>
 
   <equality>

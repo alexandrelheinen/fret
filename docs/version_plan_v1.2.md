@@ -94,9 +94,9 @@ flowchart TD
 
 **Exit criteria (tag `v1.1.2`)**
 
-- [ ] PPP physics smoke: 2 m X transit at Z = 2.4 m completes in &lt; 30 s sim
-- [ ] Kinematic release renders unchanged (CI `release.yml` `--kinematic-mode`)
-- [ ] All existing unit + integration tests green
+- [x] PPP physics smoke: 2 m X transit at Z = 2.4 m completes in &lt; 30 s sim
+- [x] Kinematic release renders unchanged (CI `release.yml` `--kinematic-mode`)
+- [x] All existing unit + integration tests green
 
 ---
 
@@ -240,4 +240,4 @@ Deferred to v1.3+ (documented in [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md
 
 | Tag | Notes |
 | --- | --- |
-| `v1.1.1` | Physics-default release attempt; **not released**. Superseded by #88 (kinematic showcase restore + MJCF prep). Lessons captured above. |
+| `v1.1.1` | Communication tag on #88 — physics bridge checkpoint; kinematic release restore |
