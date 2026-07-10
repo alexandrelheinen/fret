@@ -47,7 +47,7 @@ def test_ppp_physics_run_completes_with_contact_log() -> None:
     not _mujoco_available(), reason="mujoco package not installed"
 )
 def test_ppp_physics_tracking_within_v114_limit() -> None:
-    """V114-02: physics E2E tracking ≤ 250 mm (intermediate toward V12-2 10 mm)."""
+    """V114-02: physics E2E tracking ≤ 250 mm (V12-2 10 mm remains v1.2.0)."""
     runner = PPPWarehouseRunner(scenario_path=_SCENARIO_PATH)
     result = runner.run(physics_mode=True)
     assert result.planning_status == PlanningStatus.SUCCESS
@@ -55,3 +55,21 @@ def test_ppp_physics_tracking_within_v114_limit() -> None:
     assert result.grasp_released is True
     assert result.controller_faulted is False
     assert result.max_tracking_error_m <= 0.25
+
+
+@pytest.mark.skipif(
+    not _mujoco_available(), reason="mujoco package not installed"
+)
+@pytest.mark.xfail(
+    strict=True,
+    reason="V12-2 10 mm blocked by place-hold Z stability until v1.2.0",
+)
+def test_ppp_physics_tracking_within_v12_limit() -> None:
+    """V12-2 aspirational gate: physics E2E tracking ≤ 10 mm."""
+    runner = PPPWarehouseRunner(scenario_path=_SCENARIO_PATH)
+    result = runner.run(physics_mode=True)
+    assert result.planning_status == PlanningStatus.SUCCESS
+    assert result.grasp_captured is True
+    assert result.grasp_released is True
+    assert result.controller_faulted is False
+    assert result.max_tracking_error_m <= 0.010
