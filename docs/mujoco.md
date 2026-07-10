@@ -232,7 +232,20 @@ Output (one mode required):
 
 Optional: `--no-tracking`, `--timing-json`, `--no-realtime-postprocess`, `--mjcf`.
 
-Headless Linux / CI:
+### Showcase rendering (real-time playback)
+
+Release-tag MP4s **must** be real-time adjusted: after rendering at fixed
+`fps`, `render_mujoco.py` computes
+`real_time_factor = render_duration_s / sim_time_s` and runs ffmpeg
+(`setpts=PTS/rtf`) so playback duration matches simulated motion time. This is
+**on by default**; release CI must never pass `--no-realtime-postprocess`.
+
+| Flag | Release use |
+|---|---|
+| `--timing-json` | **Required** — per-clip `sim_time_s`, `render_duration_s`, RTF |
+| `--no-realtime-postprocess` | **Forbidden** for published showcase assets |
+
+---
 
 ```bash
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl

@@ -65,3 +65,15 @@ def test_dubins_physics_planners_succeed() -> None:
     result = runner.run(physics_mode=True)
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
+
+
+@pytest.mark.skipif(
+    not _mujoco_available(), reason="mujoco package not installed"
+)
+def test_dubins_physics_race_duration_within_v114_limit() -> None:
+    """V114-01: physics race duration ≤ 90 s (intermediate toward 2× kinematic ~75 s)."""
+    runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
+    result = runner.run(physics_mode=True)
+    assert result.rrt_plan.path_found is True
+    assert result.sst_plan.path_found is True
+    assert result.race_duration_s <= 90.0

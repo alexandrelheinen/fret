@@ -61,12 +61,12 @@ def test_ppp_physics_run_completes_with_contact_log() -> None:
 @pytest.mark.skipif(
     not _mujoco_available(), reason="mujoco package not installed"
 )
-def test_ppp_physics_tracking_within_v113_limit() -> None:
-    """V113-04 / v1.1.3: physics E2E tracking within 25 mm intermediate gate."""
+def test_ppp_physics_tracking_within_v114_limit() -> None:
+    """V114-02: physics E2E tracking ≤ 250 mm (intermediate toward V12-2 10 mm)."""
     runner = PPPWarehouseRunner(scenario_path=_SCENARIO_PATH)
     result = runner.run(physics_mode=True)
     assert result.planning_status == PlanningStatus.SUCCESS
     assert result.grasp_captured is True
     assert result.grasp_released is True
     assert result.controller_faulted is False
-    assert result.max_tracking_error_m <= 0.5
+    assert result.max_tracking_error_m <= 0.25
