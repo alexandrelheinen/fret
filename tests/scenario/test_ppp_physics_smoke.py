@@ -72,11 +72,11 @@ def test_ppp_physics_two_meter_x_transit_at_cruise_z_under_30s() -> None:
     cruise_z = 2.4
     bridge = _make_physics_bridge(start)
     dt = 0.02
-    kp_z = 15.0
-    max_vx = 0.35
-    max_vz = 2.0
+    kp_z = 50.0
+    max_vx = 0.25
+    max_vz = 5.0
 
-    _hold_altitude(bridge, cruise_z, dt=dt, steps=50, kp_z=kp_z, max_vz=max_vz)
+    _hold_altitude(bridge, cruise_z, dt=dt, steps=100, kp_z=kp_z, max_vz=max_vz)
 
     steps = 50
     max_steps = int(30.0 / dt)
@@ -89,5 +89,5 @@ def test_ppp_physics_two_meter_x_transit_at_cruise_z_under_30s() -> None:
     final = bridge.get_positions()
     sim_time_s = float(steps) * dt
     assert float(final[0]) >= target_x - 0.1
-    assert float(final[2]) >= 1.0
+    assert float(final[2]) >= cruise_z - 0.15
     assert sim_time_s < 30.0

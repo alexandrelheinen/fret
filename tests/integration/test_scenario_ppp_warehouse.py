@@ -46,15 +46,15 @@ def test_preview_obstacle_file_exists() -> None:
 
 
 def test_preview_obstacles_match_mjcf_layout() -> None:
-    """Preview layout must contain four floor-clutter boxes."""
+    """Preview layout must contain three floor-clutter boxes (v1.2 corridor)."""
     boxes = load_ppp_warehouse_preview_obstacles()
-    assert len(boxes) == 4
+    assert len(boxes) == 3
     first = boxes[0]
-    assert first.x_min == pytest.approx(3.2)
-    assert first.x_max == pytest.approx(4.8)
+    assert first.x_min == pytest.approx(3.5)
+    assert first.x_max == pytest.approx(4.9)
     shifted = boxes[1]
-    assert shifted.x_min == pytest.approx(6.3)
-    assert shifted.y_max == pytest.approx(4.7)
+    assert shifted.x_min == pytest.approx(6.8)
+    assert shifted.y_max == pytest.approx(4.9)
 
 
 def test_planner_returns_success_within_timeout() -> None:
