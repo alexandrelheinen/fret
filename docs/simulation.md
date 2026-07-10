@@ -152,5 +152,6 @@ ros2 bag record /joint_states /joint_commands /joint_trajectory
 
 - Interactive viewer requires a desktop display (or X11 forwarding). On WSL2,
   see [wsl.md](wsl.md).
-- v1.0–v1.1 SITL uses kinematic mirroring; full physics arrives in v1.2.
+- v1.2+ SITL and release showcases default to MuJoCo physics (`physics_mode:=true`).
+  Kinematic mirroring remains via `physics_mode:=false` or `--kinematic-mode`.
 - Full acceptance criteria: see [releases.md](releases.md).

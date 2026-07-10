@@ -157,7 +157,7 @@ loaded by launch, runners, and tests.
     backend: "mujoco"
 
     start_configuration: [2.0, 1.0, 2.4]
-    goal_configuration: [10.5, 2.8, 2.65]
+    goal_configuration: [10.5, 1.2, 0.59]
 
     planning_timeout: 30.0
     duration: 60.0

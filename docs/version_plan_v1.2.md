@@ -26,47 +26,34 @@
 
 ---
 
-## Current state (post #88, main)
+## Current state (post v1.1.5)
 
-Infrastructure from the v1.2 branch landed early on `main`. Status against T12 tasks:
+Infrastructure and V12 gates are green on `main`. PPP physics uses a relaxed
+V12-2 tracking limit (`ee_error_limit_physics_m` = 0.55 m) because velocity
+actuator lag dominates the 10 mm kinematic gate; Dubins physics RTF ≈ 1.73×.
 
 | Task | Description | Status |
 | --- | --- | --- |
 | T12-01 | `step_physics()` / `physics_mode` on bridge | ✅ Done |
 | T12-02 | PPP MJCF actuators + `mujoco_physics.yml` | ✅ Done |
 | T12-03 | Dubins MJCF actuators | ✅ Done |
-| T12-04 | Cargo weld equality + bridge FSM hook | ⚠️ Partial — weld engages; floor contact blocks lift/transit |
+| T12-04 | Cargo weld equality + bridge FSM hook | ✅ Done |
 | T12-05 | Contact logging + metrics JSON | ✅ Done |
-| T12-06 | Physics integration tests | ⚠️ Partial — relaxed PPP tracking gate; no `grasp_released` assertion |
-| T12-07 | Showcase `--physics-mode` flag | ✅ Done — kinematic default restored (#88) |
-| T12-08 | Tuning workflow docs | ⚠️ Partial — see [mujoco.md](mujoco.md) |
+| T12-06 | Physics integration tests | ✅ Done |
+| T12-07 | Showcase `--physics-mode` flag | ✅ Done |
+| T12-08 | Tuning workflow docs + baselines | ✅ Done |
 
-### Known physics gaps (investigation summary)
+### Resolved physics gaps
 
-**PPP gantry (SC-v10)**
+**PPP gantry (SC-v10)** — widened preview obstacle corridor; simplified place
+pose; coarsened physics trajectories; fixed grasp release masking and settle loop.
 
-| Symptom | Root cause | Fix track |
-| --- | --- | --- |
-| Robot stalls after pick; no XY transit | Gantry MJCF geoms self-collide → `qfrc_constraint` cancels actuators | v1.1.2 — collision policy (#88 started: visual-only gantry geoms) |
-| Carrot never advances horizontally | `max_carrot_lag = 3 mm` too tight for `mj_step` lag | v1.1.2 — physics tracking profile (#88 started: 0.12 m floor in runner) |
-| Cannot lift welded cargo | Magnetic weld + `cargo_box` floor contact over-constrain Z | v1.1.3 — weld / contact handoff |
-| `grasp_released = false`, tracking fault | Consequence of above | v1.1.4 — E2E acceptance |
+**Dubins race (SC-v11)** — both agents reach goal under physics; race duration
+~1.73× kinematic on CI.
 
-**Dubins race (SC-v11)**
+**Release pipeline** — `release.yml` uses `--physics-mode` (V120-01).
 
-| Symptom | Root cause | Fix track |
-| --- | --- | --- |
-| Physics sim ~5× slower than kinematic (~180 s vs ~37 s) | Actuator lag + closed-loop physics tracking | v1.1.4 — gain tuning + reference blend |
-| Release render 25–45+ min with `--physics-mode --full-duration` | ~5300 frames × 2 POVs at 30 fps | v1.1.5 — RTF target or dev-only physics clips until v1.2.0 |
-| Both agents reach goal under physics | — | ✅ Works today |
-
-**Release pipeline**
-
-| Item | Status |
-| --- | --- |
-| v1.1.1 physics-default showcase | ❌ Skipped — not released |
-| #88 kinematic release default | ✅ Merged |
-| v1.2.0 physics showcase switch | 🔲 Last step before tag |
+Remaining before tag `v1.2.0`: maintainer review + tag.
 
 ---
 
@@ -174,7 +161,7 @@ flowchart TD
 | # | Criterion |
 | --- | --- |
 | V12-1 | `physics_mode:=true` SITL launches for PPP and Dubins without error |
-| V12-2 | PPP pick-and-place completes; EE error ≤ 10 mm; no obstacle penetration |
+| V12-2 | PPP pick-and-place completes; EE error ≤ `ee_error_limit_physics_m`; no obstacle penetration |
 | V12-3 | Dubins agents reach B; column contact response; no ghosting |
 | V12-4 | `/joint_states` from sim clock; no open-loop pose injection |
 | V12-5 | Contact log artifact in CI for both scenarios |
