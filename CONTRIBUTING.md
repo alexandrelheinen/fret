@@ -59,7 +59,7 @@ The specification stack is in place:
 | 4 — Implementation | Filled algorithms and ROS nodes | Full CI suite, SITL smoke tests |
 
 Project status and roadmap: [docs/releases.md](docs/releases.md),
-[docs/roadmap.md](docs/roadmap.md). User-facing usage: [README.md](README.md),
+[docs/roadmap.md](docs/roadmap.md), [docs/version_plan_v1.2.md](docs/version_plan_v1.2.md). User-facing usage: [README.md](README.md),
 [docs/mujoco.md](docs/mujoco.md), [docs/simulation.md](docs/simulation.md).
 
 ---
@@ -521,6 +521,7 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | [docs/mujoco.md](docs/mujoco.md) | Level 2 — MuJoCo simulation integration |
 | [docs/simulation.md](docs/simulation.md) | User guide — MuJoCo modes and quick start |
 | [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.4 |
+| [docs/version_plan_v1.2.md](docs/version_plan_v1.2.md) | v1.1.x → v1.2.0 physics iteration plan |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |
 
 ### Methodology (external)

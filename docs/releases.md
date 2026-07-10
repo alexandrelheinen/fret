@@ -3,7 +3,8 @@
 > **Authoritative product roadmap.** All requirements, scenarios, and milestones trace
 > to this document.
 >
-> **Related:** [roadmap.md](roadmap.md) · [requirements.md](requirements.md) ·
+> **Related:** [roadmap.md](roadmap.md) · [version_plan_v1.2.md](version_plan_v1.2.md) ·
+> [requirements.md](requirements.md) ·
 > [mujoco.md](mujoco.md) · [scenarios.md](scenarios.md) ·
 > [README § Architecture](../README.md#architecture)
 
@@ -346,9 +347,27 @@ and trajectory execution in a cluttered environment — the capstone release.
 | `v0.9.0` | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done |
 | `v1.0.0` | PPP warehouse + magnetic grasp + MuJoCo video | T10-* |
 | `v1.1.0` | Dubins dual race | T11-* |
+| `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [version_plan_v1.2.md](version_plan_v1.2.md) |
 | `v1.2.0` | MuJoCo physics SITL (PPP + Dubins) | T12-* |
 | `v1.3.0` | RRP + RR ARCO reproduction | T13-* |
 | `v1.4.0` | 6-DOF challenge | T14-* |
+
+### v1.1.x → v1.2.0 iteration plan
+
+Intermediate tags between v1.1.0 and v1.2.0 land physics SITL incrementally
+without new showcase scenarios. Kinematic release MP4s remain default until
+v1.2.0; physics clips use `--physics-mode` during development.
+
+| Tag | Focus | Exit highlight |
+|---|---|---|
+| — | `v1.1.1` (not released) | Physics-default showcase; stalled PPP — superseded by #88 |
+| `v1.1.2` | MJCF collision policy + PPP physics tracking baseline | Gantry X/Y smoke move under `physics_mode` |
+| `v1.1.3` | Cargo weld / floor-contact handoff | PPP pick → lift → transit in physics |
+| `v1.1.4` | Dubins RTF + PPP tracking ≤ 10 mm | V12-2 – V12-4 near-complete |
+| `v1.1.5` | Regression harness + CI hardening | All V12-* green; physics showcase dry-run |
+| `v1.2.0` | Product release | Release CI switches to `--physics-mode` |
+
+Full task breakdown: [version_plan_v1.2.md](version_plan_v1.2.md).
 
 ---
 
