@@ -19,7 +19,7 @@ dev = [
     "mypy>=1.10",
 ]
 sim = [
-    "mujoco>=3.2",
+    "mujoco>=3.10,<3.11",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
 ]

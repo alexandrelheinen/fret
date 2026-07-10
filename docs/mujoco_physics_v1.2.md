@@ -266,8 +266,9 @@ Written once at scenario shutdown to `metrics_path` (default:
 }
 ```
 
-`penetration_violations` counts timesteps where any contact distance <
-`-0.001` m (1 mm tolerance).
+`penetration_violations` counts timesteps where agent–obstacle interpenetration
+(`contact.dist < -1 mm`) persists for **two consecutive** physics ticks, filtering
+single-tick numerical noise across MuJoCo builds.
 
 ### Regression test files (T12-06, V12-7)
 

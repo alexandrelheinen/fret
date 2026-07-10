@@ -51,7 +51,13 @@ set -u
 require_command xvfb-run "xvfb-run is required. Run: sudo apt install xvfb"
 require_command pytest "pytest is required. Run: pip install pytest"
 
-if xvfb-run -a pytest tests/integration/ -v \
+if xvfb-run -a env \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MUJOCO_GL=egl \
+    PYOPENGL_PLATFORM=egl \
+    pytest tests/integration/ -v \
     -p no:launch_testing \
     -p no:launch_ros; then
     ok "Integration tests: PASSED"

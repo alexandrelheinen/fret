@@ -7,7 +7,7 @@ import shutil
 
 import pytest
 
-from fret.scenario.dubins_race_runner import DubinsRaceRunner
+from fret.scenario.dubins_race_runner import DubinsRaceRunner, DubinsRaceRunResult
 
 _SCENARIO_PATH = (
     pathlib.Path(__file__).resolve().parents[2]
@@ -21,9 +21,9 @@ _SCENARIO_PATH = (
 _PHYSICS_ARTIFACT_DIR = pathlib.Path("/tmp/fret_physics/dubins_race")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def _clean_dubins_physics_artifacts() -> None:
-    """Remove stale contact logs so penetration metrics are per-run."""
+    """Remove stale contact logs once per module before the shared physics run."""
     if _PHYSICS_ARTIFACT_DIR.exists():
         shutil.rmtree(_PHYSICS_ARTIFACT_DIR)
 
@@ -34,13 +34,21 @@ def _mujoco_available() -> bool:
     return make_dubins_race_bridge_core().has_mujoco_runtime
 
 
+@pytest.fixture(scope="module")
+def dubins_physics_contact_run() -> DubinsRaceRunResult:
+    """One physics+contact-log run shared by V12 and V114 Dubins gates."""
+    runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
+    return runner.run(physics_mode=True, contact_log_enabled=True)
+
+
 @pytest.mark.skipif(
     not _mujoco_available(), reason="mujoco package not installed"
 )
-def test_dubins_physics_run_produces_contact_log() -> None:
+def test_dubins_physics_run_produces_contact_log(
+    dubins_physics_contact_run: DubinsRaceRunResult,
+) -> None:
     """V12-5/7: physics_mode Dubins run writes contact artifacts."""
-    runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
-    result = runner.run(physics_mode=True, contact_log_enabled=True)
+    result = dubins_physics_contact_run
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
     assert result.contact_log_path is not None
@@ -64,10 +72,11 @@ def test_dubins_physics_planners_succeed() -> None:
 @pytest.mark.skipif(
     not _mujoco_available(), reason="mujoco package not installed"
 )
-def test_dubins_physics_race_duration_within_v114_limit() -> None:
+def test_dubins_physics_race_duration_within_v114_limit(
+    dubins_physics_contact_run: DubinsRaceRunResult,
+) -> None:
     """V114-01: physics race duration ≤ 180 s (CI runner headroom; ~90 s on dev VM)."""
-    runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
-    result = runner.run(physics_mode=True)
+    result = dubins_physics_contact_run
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
     assert result.race_duration_s <= 180.0
