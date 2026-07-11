@@ -227,7 +227,12 @@ class DubinsRaceSimulation:
         bridge.step_physics(commands)
         _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
         _sync_vehicle_pose(self.sst_vehicle, bridge.get_sst_pose())
-        self.dummy_pose = tuple(float(v) for v in bridge.get_dummy_pose())
+        dummy_qpos = bridge.get_dummy_pose()
+        self.dummy_pose = (
+            float(dummy_qpos[0]),
+            float(dummy_qpos[1]),
+            float(dummy_qpos[2]),
+        )
 
         self.max_cross_track_error_m = max(
             self.max_cross_track_error_m,
