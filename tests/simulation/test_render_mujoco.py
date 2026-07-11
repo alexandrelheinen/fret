@@ -368,6 +368,38 @@ def test_showcase_timing_real_time_factor() -> None:
     assert timing.real_time_factor == pytest.approx(2.5)
 
 
+def test_showcase_playback_timing_skips_rtf_when_physics_subsampled() -> None:
+    """V115-03 capped physics clips must not stretch to wall-clock sim time."""
+    timing = rm.showcase_playback_timing(
+        wall_sim_time_s=1739.6,
+        render_duration_s=60.0,
+    )
+    assert timing.sim_time_s == pytest.approx(60.0)
+    assert timing.render_duration_s == pytest.approx(60.0)
+    assert timing.real_time_factor == pytest.approx(1.0)
+    assert timing.wall_sim_time_s == pytest.approx(1739.6)
+
+
+def test_showcase_playback_timing_keeps_rtf_when_sim_within_cap() -> None:
+    timing = rm.showcase_playback_timing(
+        wall_sim_time_s=32.0,
+        render_duration_s=32.0,
+    )
+    assert timing.sim_time_s == pytest.approx(32.0)
+    assert timing.real_time_factor == pytest.approx(1.0)
+    assert timing.wall_sim_time_s is None
+
+
+def test_showcase_playback_timing_dubins_physics_cap() -> None:
+    timing = rm.showcase_playback_timing(
+        wall_sim_time_s=103.4,
+        render_duration_s=35.0,
+    )
+    assert timing.sim_time_s == pytest.approx(35.0)
+    assert timing.real_time_factor == pytest.approx(1.0)
+    assert timing.wall_sim_time_s == pytest.approx(103.4)
+
+
 def test_resolve_scenario_duration_reads_yaml() -> None:
     assert rm.resolve_scenario_duration("ppp_warehouse") == pytest.approx(60.0)
     assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(35.0)

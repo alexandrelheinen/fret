@@ -96,6 +96,7 @@ class ShowcaseTiming:
 
     sim_time_s: float
     render_duration_s: float
+    wall_sim_time_s: float | None = None
 
     @property
     def real_time_factor(self) -> float:
@@ -103,6 +104,36 @@ class ShowcaseTiming:
         if self.sim_time_s <= 0.0:
             return 1.0
         return self.render_duration_s / self.sim_time_s
+
+
+def showcase_playback_timing(
+    *,
+    wall_sim_time_s: float,
+    render_duration_s: float,
+) -> ShowcaseTiming:
+    """Build RTF timing for a physics or kinematic showcase clip.
+
+    Physics SITL (V115-03) resamples the full ``qpos`` log into
+    ``render_duration_s`` at fixed fps when wall-clock sim exceeds the scenario
+    nominal duration.      That encode is already a time-compressed playback; using ``wall_sim_time_s``
+    for ffmpeg ``setpts`` would stretch frames to ``n_frames / wall_sim_time_s``
+    effective fps (slideshow on PPP/Dubins).
+    """
+    playback_sim_s = (
+        render_duration_s
+        if wall_sim_time_s > render_duration_s + 0.02
+        else wall_sim_time_s
+    )
+    wall = (
+        wall_sim_time_s
+        if wall_sim_time_s > playback_sim_s + 0.02
+        else None
+    )
+    return ShowcaseTiming(
+        sim_time_s=playback_sim_s,
+        render_duration_s=render_duration_s,
+        wall_sim_time_s=wall,
+    )
 
 
 @dataclass(frozen=True)
@@ -1275,8 +1306,8 @@ def render_dubins_race_showcase_videos(
     )
     _assert_dubins_race_moves(rrt_poses, sst_poses)
     render_duration_s = float(len(rrt_poses)) / float(fps)
-    timing = ShowcaseTiming(
-        sim_time_s=sim_time_s,
+    timing = showcase_playback_timing(
+        wall_sim_time_s=sim_time_s,
         render_duration_s=render_duration_s,
     )
 
@@ -1671,8 +1702,8 @@ def render_showcase_videos(
             fps=fps,
         )
         render_duration_s = float(len(qpos_trajectory)) / float(fps)
-        timing = ShowcaseTiming(
-            sim_time_s=sim_time_s,
+        timing = showcase_playback_timing(
+            wall_sim_time_s=sim_time_s,
             render_duration_s=render_duration_s,
         )
 
@@ -1748,8 +1779,8 @@ def render_showcase_videos(
         start=path_waypoints[0],
     )
     render_duration_s = float(len(trajectory)) / float(fps)
-    timing = ShowcaseTiming(
-        sim_time_s=sim_time_s,
+    timing = showcase_playback_timing(
+        wall_sim_time_s=sim_time_s,
         render_duration_s=render_duration_s,
     )
 
@@ -1867,18 +1898,20 @@ def write_showcase_timing_json(
     """Persist per-clip timing metadata for release workflows."""
     import json
 
-    payload = {
-        "clips": [
-            {
-                "camera": result.camera,
-                "file": result.path.name,
-                "sim_time_s": result.timing.sim_time_s,
-                "render_duration_s": result.timing.render_duration_s,
-                "real_time_factor": result.timing.real_time_factor,
-            }
-            for result in results
-        ]
-    }
+    clips: list[dict[str, float | str]] = []
+    for result in results:
+        timing = result.timing
+        clip: dict[str, float | str] = {
+            "camera": result.camera,
+            "file": result.path.name,
+            "sim_time_s": timing.sim_time_s,
+            "render_duration_s": timing.render_duration_s,
+            "real_time_factor": timing.real_time_factor,
+        }
+        if timing.wall_sim_time_s is not None:
+            clip["wall_sim_time_s"] = timing.wall_sim_time_s
+        clips.append(clip)
+    payload = {"clips": clips}
     output_path.write_text(
         json.dumps(payload, indent=2) + "\n",
         encoding="utf-8",
