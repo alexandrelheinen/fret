@@ -108,6 +108,8 @@ class DubinsRaceSimulation:
     goal_radius: float
     rrt_finish: float | None = None
     sst_finish: float | None = None
+    rrt_goal_dwell: int = 0
+    sst_goal_dwell: int = 0
     sim_time_s: float = 0.0
     max_cross_track_error_m: float = 0.0
     rrt_pose_history: list[tuple[float, float, float]] = field(
@@ -160,9 +162,9 @@ class DubinsRaceSimulation:
         """Advance one physics SITL tick via MuJoCo actuators (v1.2).
 
         Steps each agent's kinematic Pure Pursuit reference, then drives
-        velocity actuators with proportional tracking toward that reference
-        (same closed-loop pattern as PPP physics SITL).  Simulated ``qpos``
-        is synced back into the vehicle models after each tick.
+        velocity actuators with softened P-tracking toward that reference.
+        Forward-only projection, heading-error speed gating, and goal dwell
+        keep physics holonomic slides from reversing into workspace bounds.
 
         Args:
             bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
@@ -203,17 +205,25 @@ class DubinsRaceSimulation:
             abs(float(sst_metrics["cross_track_error"])),
         )
 
-        if self.rrt_finish is None and (
-            _distance_to_goal(self.rrt_vehicle.pose, self.world.goal_xy)
-            <= self.goal_radius
-        ):
-            self.rrt_finish = self.sim_time_s
+        if self.rrt_finish is None:
+            self.rrt_goal_dwell = _physics_goal_dwell_update(
+                self.rrt_vehicle.pose,
+                self.world.goal_xy,
+                goal_radius=self.goal_radius,
+                dwell=self.rrt_goal_dwell,
+            )
+            if self.rrt_goal_dwell >= _PHYSICS_GOAL_DWELL_TICKS:
+                self.rrt_finish = self.sim_time_s
 
-        if self.sst_finish is None and (
-            _distance_to_goal(self.sst_vehicle.pose, self.world.goal_xy)
-            <= self.goal_radius
-        ):
-            self.sst_finish = self.sim_time_s
+        if self.sst_finish is None:
+            self.sst_goal_dwell = _physics_goal_dwell_update(
+                self.sst_vehicle.pose,
+                self.world.goal_xy,
+                goal_radius=self.goal_radius,
+                dwell=self.sst_goal_dwell,
+            )
+            if self.sst_goal_dwell >= _PHYSICS_GOAL_DWELL_TICKS:
+                self.sst_finish = self.sim_time_s
 
         self.rrt_pose_history.append(self.rrt_vehicle.pose)
         self.sst_pose_history.append(self.sst_vehicle.pose)
@@ -491,11 +501,26 @@ _PHYSICS_MAX_POSITION_LAG_M: float = 0.82
 _PHYSICS_MAX_YAW_LAG_RAD: float = 0.65
 _PHYSICS_REFERENCE_BLEND: float = 0.73
 _PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
+_PHYSICS_GOAL_DWELL_TICKS: int = 6
+_PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
 
 
 def _wrap_heading(angle: float) -> float:
     """Wrap a heading angle to ``[-pi, pi]``."""
     return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _physics_goal_dwell_update(
+    pose: tuple[float, float, float],
+    goal: npt.NDArray[np.float64],
+    *,
+    goal_radius: float,
+    dwell: int,
+) -> int:
+    """Increment dwell while inside goal; reset when the agent leaves."""
+    if _distance_to_goal(pose, goal) <= goal_radius:
+        return dwell + 1
+    return 0
 
 
 def _agent_physics_velocity_command(
@@ -511,7 +536,7 @@ def _agent_physics_velocity_command(
     kp_yaw: float = _PHYSICS_KP_YAW,
     max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
 ) -> tuple[tuple[float, float, float], dict[str, Any]]:
-    """Return closed-loop physics velocity toward a kinematic reference step."""
+    """Return closed-loop physics velocity toward a kinematic PP reference."""
     if agent_finished:
         return (0.0, 0.0, 0.0), {
             "cross_track_error": 0.0,
@@ -523,15 +548,17 @@ def _agent_physics_velocity_command(
             "repulsion_turn_rate": 0.0,
         }
 
-    sim_pose = vehicle.pose
-    sim_x, sim_y, sim_theta = sim_pose
+    sim_x, sim_y, sim_theta = vehicle.pose
+    vehicle.x = float(sim_x)
+    vehicle.y = float(sim_y)
+    vehicle.heading = float(sim_theta)
 
     metrics = loop.step(path, dt)
     ref_x, ref_y, ref_theta = vehicle.pose
 
-    vehicle.x = sim_x
-    vehicle.y = sim_y
-    vehicle.heading = sim_theta
+    vehicle.x = float(sim_x)
+    vehicle.y = float(sim_y)
+    vehicle.heading = float(sim_theta)
 
     ref_x = sim_x + _PHYSICS_REFERENCE_BLEND * (ref_x - sim_x)
     ref_y = sim_y + _PHYSICS_REFERENCE_BLEND * (ref_y - sim_y)
@@ -559,12 +586,23 @@ def _agent_physics_velocity_command(
     vy = kp_position * (ref_y - sim_y)
     omega = kp_yaw * yaw_err
 
-    speed = math.hypot(vx, vy)
+    forward = vx * math.cos(sim_theta) + vy * math.sin(sim_theta)
+    forward = max(0.0, forward) * _PHYSICS_FORWARD_SPEED_SCALE
+    vx = forward * math.cos(sim_theta)
+    vy = forward * math.sin(sim_theta)
+    speed = forward
     if speed > max_speed:
         scale = max_speed / speed
         vx *= scale
         vy *= scale
     omega = max(-max_turn_rate, min(max_turn_rate, omega))
+
+    workspace_margin = 2.0
+    for coord in (sim_x, sim_y):
+        if coord < workspace_margin:
+            scale = max(0.0, coord / workspace_margin)
+            vx *= scale
+            vy *= scale
 
     occupancy = getattr(loop, "_occupancy", None)
     if occupancy is not None and hasattr(occupancy, "nearest_obstacle"):
