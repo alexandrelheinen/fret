@@ -1120,15 +1120,21 @@ def simulate_dubins_race_poses(
         record_poses=True,
         physics_mode=physics_mode,
     )
-    if not result.both_reached_goal and not physics_mode:
+    if not result.both_reached_goal:
         raise RuntimeError(
-            "Dubins race simulation failed before both agents reached goal"
+            "Dubins race simulation failed before both agents reached goal "
+            f"(race_duration_s={result.race_duration_s:.1f}, "
+            f"max_cross_track_error_m={result.max_cross_track_error_m:.2f})"
         )
 
     rrt_hist = np.asarray(result.rrt_pose_history, dtype=np.float64)
     sst_hist = np.asarray(result.sst_pose_history, dtype=np.float64)
     dummy_hist = np.asarray(result.dummy_pose_history, dtype=np.float64)
     sim_dt = resolve_scenario_simulation_dt(scenario)
+    race_samples = max(1, int(round(float(result.race_duration_s) / sim_dt)) + 1)
+    rrt_hist = rrt_hist[:race_samples]
+    sst_hist = sst_hist[:race_samples]
+    dummy_hist = dummy_hist[:race_samples]
     if (
         result.rrt_time_to_goal_s is not None
         and result.sst_time_to_goal_s is not None
