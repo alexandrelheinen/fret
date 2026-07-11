@@ -42,7 +42,8 @@
     <mesh name="clutter_c" file="aws_warehouse/meshes/clutter_c.obj"/>
     <mesh name="clutter_d" file="aws_warehouse/meshes/clutter_d.obj"/>
 
-    <!-- TurtleBot3 Burger chassis only (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint. -->
+    <!-- TurtleBot3 Burger chassis (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint.
+         Wheel rims are simple body-coloured cylinders — not the menagerie tire STLs (ugly black disks). -->
     <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.004 0.004 0.004"/>
   </asset>
 
@@ -157,6 +158,8 @@
       <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="rrt_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="rrt_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_rrt" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_rrt" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_rrt" contype="0" conaffinity="0"/>
     </body>
 
     <!-- Agent 2: SST (green TurtleBot3) -->
@@ -166,6 +169,8 @@
       <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="sst_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="sst_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_sst" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_sst" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_sst" contype="0" conaffinity="0"/>
     </body>
 
     <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
