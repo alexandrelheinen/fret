@@ -6,7 +6,8 @@
     Obstacles: analytic boxes from config/worlds/dubins_race_obstacles.yml
                 with AWS clutter mesh visuals (regenerate via
                 scripts/generate_dubins_race_mjcf.py).
-    Agents: TurtleBot3 Burger meshes (RRT* blue, SST green).
+    Agents: TurtleBot3 Burger meshes (RRT* blue, SST green, dummy grey).
+    Dummy follows a straight start→goal line and collides (showcase foil).
   -->
   <compiler angle="radian" coordinate="local"
             meshdir="assets"
@@ -32,6 +33,9 @@
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="car_rrt" rgba="0.267 0.467 0.800 1" specular="0.15" shininess="0.08"/>
     <material name="car_sst" rgba="0.267 0.667 0.400 1" specular="0.15" shininess="0.08"/>
+    <material name="car_dummy" rgba="0.55 0.56 0.58 1" specular="0.10" shininess="0.06"/>
+    <material name="wheel" rgba="0.10 0.10 0.11 1" specular="0.05" shininess="0.04"/>
+    <material name="tb3_hardware" rgba="0.62 0.63 0.66 1" specular="0.20" shininess="0.12"/>
     <material name="shelf" rgba="0.72 0.74 0.78 1" specular="0.06" shininess="0.04"/>
     <material name="clutter_cardboard" rgba="0.62 0.48 0.32 1" specular="0.04" shininess="0.03"/>
     <material name="clutter_crate" rgba="0.55 0.38 0.22 1" specular="0.05" shininess="0.04"/>
@@ -43,7 +47,7 @@
     <mesh name="clutter_d" file="aws_warehouse/meshes/clutter_d.obj"/>
 
     <!-- TurtleBot3 Burger chassis (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint.
-         Wheel rims are simple body-coloured cylinders — not the menagerie tire STLs (ugly black disks). -->
+         Paintable plates use agent tint; wheels stay black; standoffs use tb3_hardware. -->
     <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.004 0.004 0.004"/>
   </asset>
 
@@ -158,8 +162,12 @@
       <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="rrt_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="rrt_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_rrt" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_rrt" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_rrt" contype="0" conaffinity="0"/>
+      <geom name="rrt_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="rrt_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="rrt_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="rrt_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="rrt_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
     </body>
 
     <!-- Agent 2: SST (green TurtleBot3) -->
@@ -169,8 +177,27 @@
       <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="sst_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="sst_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_sst" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_sst" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="car_sst" contype="0" conaffinity="0"/>
+      <geom name="sst_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="sst_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="sst_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="sst_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="sst_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- Agent 3: straight-line dummy (grey) — collides with mid-field structures -->
+    <body name="car_dummy" pos="0 0 0.05">
+      <joint name="dummy_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
+      <joint name="dummy_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
+      <joint name="dummy_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
+      <geom name="dummy_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
+      <geom name="dummy_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_dummy" contype="0" conaffinity="0"/>
+      <geom name="dummy_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="dummy_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="dummy_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="dummy_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
+      <geom name="dummy_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+      <geom name="dummy_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
     </body>
 
     <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
@@ -186,5 +213,8 @@
     <velocity name="act_sst_x" joint="sst_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
     <velocity name="act_sst_y" joint="sst_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
     <velocity name="act_sst_yaw" joint="sst_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
+    <velocity name="act_dummy_x" joint="dummy_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_dummy_y" joint="dummy_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
+    <velocity name="act_dummy_yaw" joint="dummy_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
   </actuator>
 </mujoco>

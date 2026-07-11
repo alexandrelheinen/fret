@@ -5,7 +5,7 @@ while mirroring poses into ``dubins_race.xml`` via
 :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`.
 
 Publishes:
-    /joint_states  (``sensor_msgs/JointState``) — six joints for both agents
+    /joint_states  (``sensor_msgs/JointState``) — nine joints for all agents
 
 Parameters:
     scenario (str, default: ``dubins_race``)
@@ -34,7 +34,12 @@ _SST_JOINTS: tuple[str, ...] = (
     "sst_joint_y",
     "sst_joint_yaw",
 )
-_ALL_JOINTS: tuple[str, ...] = _RRT_JOINTS + _SST_JOINTS
+_DUMMY_JOINTS: tuple[str, ...] = (
+    "dummy_joint_x",
+    "dummy_joint_y",
+    "dummy_joint_yaw",
+)
+_ALL_JOINTS: tuple[str, ...] = _RRT_JOINTS + _SST_JOINTS + _DUMMY_JOINTS
 
 
 def _controller_update_rate() -> float:
@@ -158,6 +163,10 @@ class DubinsRaceRosNode:  # pragma: no cover
                 session.sst_vehicle.pose,
                 dtype=np.float64,
             ),
+            initial_dummy=np.array(
+                session.dummy_pose,
+                dtype=np.float64,
+            ),
             physics_config=physics_config,
         )
 
@@ -190,6 +199,7 @@ class DubinsRaceRosNode:  # pragma: no cover
 
         rrt = self._bridge.get_rrt_pose()
         sst = self._bridge.get_sst_pose()
+        dummy = self._bridge.get_dummy_pose()
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()  # type: ignore[attr-defined]
         msg.header.frame_id = "world"
@@ -201,6 +211,9 @@ class DubinsRaceRosNode:  # pragma: no cover
             float(sst[0]),
             float(sst[1]),
             float(sst[2]),
+            float(dummy[0]),
+            float(dummy[1]),
+            float(dummy[2]),
         ]
         if self._physics_mode:
             velocities = self._bridge.get_joint_velocities()
@@ -241,6 +254,7 @@ class DubinsRaceRosNode:  # pragma: no cover
             self._session.step()
             self._bridge.set_rrt_pose(self._session.rrt_vehicle.pose)
             self._bridge.set_sst_pose(self._session.sst_vehicle.pose)
+            self._bridge.set_dummy_pose(self._session.dummy_pose)
         self._publish_state()
         self._step_count += 1
 

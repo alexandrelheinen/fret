@@ -57,6 +57,17 @@ def test_dual_agents_plan_and_finish_race() -> None:
     assert result.min_obstacle_clearance_m >= 0.0
 
 
+def test_dummy_straight_line_collides_before_goal() -> None:
+    """Grey dummy must fail on the naive diagonal before reaching goal B."""
+    runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
+    result = runner.run(record_poses=True)
+    assert result.dummy_collided is True
+    assert result.dummy_pose_history
+    final = result.dummy_pose_history[-1]
+    assert final[0] < 70.0
+    assert final[1] < 70.0
+
+
 def test_agents_can_take_different_path_lengths() -> None:
     """RRT* and SST must diverge through the structure forest (not one corridor)."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)

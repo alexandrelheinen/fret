@@ -65,6 +65,11 @@ _SST_JOINT_NAMES: list[str] = [
     "sst_joint_y",
     "sst_joint_yaw",
 ]
+_DUMMY_JOINT_NAMES: list[str] = [
+    "dummy_joint_x",
+    "dummy_joint_y",
+    "dummy_joint_yaw",
+]
 
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
 _DEFAULT_MJCF_TIMESTEP_S: float = 0.002
@@ -782,7 +787,9 @@ class DubinsRaceBridgeCore:
     :meth:`step_physics` and poses are read from simulated ``qpos``.
     """
 
-    _JOINT_NAMES: tuple[str, ...] = tuple(_RRT_JOINT_NAMES + _SST_JOINT_NAMES)
+    _JOINT_NAMES: tuple[str, ...] = tuple(
+        _RRT_JOINT_NAMES + _SST_JOINT_NAMES + _DUMMY_JOINT_NAMES
+    )
 
     def __init__(
         self,
@@ -790,6 +797,7 @@ class DubinsRaceBridgeCore:
         mjcf_path: str | pathlib.Path | None = None,
         initial_rrt: npt.NDArray[np.float64] | None = None,
         initial_sst: npt.NDArray[np.float64] | None = None,
+        initial_dummy: npt.NDArray[np.float64] | None = None,
         physics_config: PhysicsBridgeConfig | None = None,
     ) -> None:
         resolved = resolve_mjcf_path("dubins", "dubins_race", mjcf_path)
@@ -813,6 +821,15 @@ class DubinsRaceBridgeCore:
                 self._limits[:, 1],
             )
         )
+        self._dummy = (
+            np.zeros(3, dtype=np.float64)
+            if initial_dummy is None
+            else np.clip(
+                np.asarray(initial_dummy, dtype=np.float64),
+                self._limits[:, 0],
+                self._limits[:, 1],
+            )
+        )
         self._mujoco: Any | None = None
         self._model: Any | None = None
         self._data: Any | None = None
@@ -821,7 +838,7 @@ class DubinsRaceBridgeCore:
         self._physics_mode = False
         self._substeps_per_tick = _DEFAULT_SUBSTEPS_PER_TICK
         self._actuator_ids: list[int] = []
-        self._velocities = np.zeros(6, dtype=np.float64)
+        self._velocities = np.zeros(9, dtype=np.float64)
         self._contact_logger: PhysicsContactLogger | None = None
         self._load_mujoco_optional()
         self._seed_mujoco_state()
@@ -916,8 +933,24 @@ class DubinsRaceBridgeCore:
         """Return SST pose copy."""
         return self._sst.copy()
 
+    def set_dummy_pose(self, pose: tuple[float, float, float]) -> None:
+        """Update straight-line dummy pose ``(x, y, heading)``."""
+        if self._physics_mode:
+            raise RuntimeError(
+                "set_dummy_pose() is forbidden while physics_mode is active"
+            )
+        self._dummy = np.array(pose, dtype=np.float64)
+        self._dummy = np.clip(
+            self._dummy, self._limits[:, 0], self._limits[:, 1]
+        )
+        self._write_mujoco_state()
+
+    def get_dummy_pose(self) -> npt.NDArray[np.float64]:
+        """Return dummy pose copy."""
+        return self._dummy.copy()
+
     def get_joint_velocities(self) -> npt.NDArray[np.float64]:
-        """Return the most recent six-DOF velocity commands."""
+        """Return the most recent nine-DOF velocity commands."""
         return self._velocities.copy()
 
     def step_physics(
@@ -926,15 +959,15 @@ class DubinsRaceBridgeCore:
         *,
         substeps: int | None = None,
     ) -> npt.NDArray[np.float64]:
-        """Advance both agents with six velocity actuator commands."""
+        """Advance all three agents with nine velocity actuator commands."""
         if not self._physics_mode:
             raise RuntimeError("step_physics() requires physics_mode=True")
         if self._model is None or self._data is None or self._mujoco is None:
             raise RuntimeError("step_physics() requires the mujoco package")
 
-        v = np.asarray(velocities, dtype=np.float64).reshape(6)
-        if len(self._actuator_ids) != 6:
-            raise RuntimeError("Dubins race MJCF must expose six actuators")
+        v = np.asarray(velocities, dtype=np.float64).reshape(9)
+        if len(self._actuator_ids) != 9:
+            raise RuntimeError("Dubins race MJCF must expose nine actuators")
 
         self._velocities = v.copy()
         for idx, act_id in enumerate(self._actuator_ids):
@@ -957,7 +990,9 @@ class DubinsRaceBridgeCore:
             )
 
         self._read_state_from_mujoco()
-        return np.concatenate([self._rrt, self._sst]).astype(np.float64)
+        return np.concatenate([self._rrt, self._sst, self._dummy]).astype(
+            np.float64
+        )
 
     def _load_mujoco_optional(self) -> None:
         try:
@@ -996,6 +1031,9 @@ class DubinsRaceBridgeCore:
             "sst_joint_x": float(self._sst[0]),
             "sst_joint_y": float(self._sst[1]),
             "sst_joint_yaw": float(self._sst[2]),
+            "dummy_joint_x": float(self._dummy[0]),
+            "dummy_joint_y": float(self._dummy[1]),
+            "dummy_joint_yaw": float(self._dummy[2]),
         }
         for name, value in mapping.items():
             adr = self._joint_adrs.get(name)
@@ -1012,8 +1050,12 @@ class DubinsRaceBridgeCore:
             rrt[idx] = float(self._data.qpos[self._joint_adrs[name]])
         for idx, name in enumerate(_SST_JOINT_NAMES):
             sst[idx] = float(self._data.qpos[self._joint_adrs[name]])
+        dummy = np.empty(3, dtype=np.float64)
+        for idx, name in enumerate(_DUMMY_JOINT_NAMES):
+            dummy[idx] = float(self._data.qpos[self._joint_adrs[name]])
         self._rrt = np.clip(rrt, self._limits[:, 0], self._limits[:, 1])
         self._sst = np.clip(sst, self._limits[:, 0], self._limits[:, 1])
+        self._dummy = np.clip(dummy, self._limits[:, 0], self._limits[:, 1])
 
     def _write_mujoco_state(self) -> None:
         if self._model is None or self._data is None or self._mujoco is None:
@@ -1029,6 +1071,9 @@ class DubinsRaceBridgeCore:
             "sst_joint_x": float(self._sst[0]),
             "sst_joint_y": float(self._sst[1]),
             "sst_joint_yaw": float(self._sst[2]),
+            "dummy_joint_x": float(self._dummy[0]),
+            "dummy_joint_y": float(self._dummy[1]),
+            "dummy_joint_yaw": float(self._dummy[2]),
         }
         for name, value in mapping.items():
             adr = self._joint_adrs.get(name)
@@ -1042,13 +1087,15 @@ def make_dubins_race_bridge_core(
     mjcf_path: str | pathlib.Path | None = None,
     initial_rrt: npt.NDArray[np.float64] | None = None,
     initial_sst: npt.NDArray[np.float64] | None = None,
+    initial_dummy: npt.NDArray[np.float64] | None = None,
     physics_config: PhysicsBridgeConfig | None = None,
 ) -> DubinsRaceBridgeCore:
-    """Build a dual-agent MuJoCo bridge for SC-v11."""
+    """Build a triple-agent MuJoCo bridge for SC-v11."""
     return DubinsRaceBridgeCore(
         mjcf_path=mjcf_path,
         initial_rrt=initial_rrt,
         initial_sst=initial_sst,
+        initial_dummy=initial_dummy,
         physics_config=physics_config,
     )
 

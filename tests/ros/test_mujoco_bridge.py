@@ -262,11 +262,13 @@ def test_dubins_bridge_step_physics_runs() -> None:
         initial_sst=np.array([6.0, 6.4, 0.0]),
         physics_config=physics,
     )
-    result = core.step_physics(np.array([0.4, 0.0, 0.0, 0.4, 0.0, 0.0]))
-    assert result.shape == (6,)
+    result = core.step_physics(
+        np.array([0.4, 0.0, 0.0, 0.4, 0.0, 0.0, 0.4, 0.0, 0.0])
+    )
+    assert result.shape == (9,)
     np.testing.assert_allclose(
         core.get_joint_velocities(),
-        [0.4, 0.0, 0.0, 0.4, 0.0, 0.0],
+        [0.4, 0.0, 0.0, 0.4, 0.0, 0.0, 0.4, 0.0, 0.0],
     )
     assert core.get_rrt_pose()[0] > 6.0
     assert core.get_sst_pose()[0] > 6.0

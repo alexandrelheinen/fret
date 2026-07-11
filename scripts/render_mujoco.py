@@ -73,6 +73,7 @@ _DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
 _DUBINS_JOINT_NAMES: tuple[tuple[str, str, str], ...] = (
     ("rrt_joint_x", "rrt_joint_y", "rrt_joint_yaw"),
     ("sst_joint_x", "sst_joint_y", "sst_joint_yaw"),
+    ("dummy_joint_x", "dummy_joint_y", "dummy_joint_yaw"),
 )
 
 _DUBINS_LIMITS = np.array(
@@ -1089,11 +1090,16 @@ def simulate_dubins_race_poses(
     duration_s: float | None,
     fps: int,
     physics_mode: bool = False,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], float]:
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    float,
+]:
     """Run the SC-v11 race and resample agent poses for video export.
 
     Returns:
-        RRT* poses, SST poses, and simulated race duration [s].
+        RRT* poses, SST poses, dummy poses, and simulated race duration [s].
     """
     _ensure_fret_importable()
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
@@ -1109,6 +1115,7 @@ def simulate_dubins_race_poses(
 
     rrt_hist = np.asarray(result.rrt_pose_history, dtype=np.float64)
     sst_hist = np.asarray(result.sst_pose_history, dtype=np.float64)
+    dummy_hist = np.asarray(result.dummy_pose_history, dtype=np.float64)
     sim_dt = resolve_scenario_simulation_dt(scenario)
     if (
         result.rrt_time_to_goal_s is not None
@@ -1129,6 +1136,7 @@ def simulate_dubins_race_poses(
     return (
         _resample_pose_history(rrt_hist, n_frames),
         _resample_pose_history(sst_hist, n_frames),
+        _resample_pose_history(dummy_hist, n_frames),
         sim_time_s,
     )
 
@@ -1262,11 +1270,13 @@ def _apply_dubins_poses(
     data: object,
     rrt_q: npt.NDArray[np.float64],
     sst_q: npt.NDArray[np.float64],
+    dummy_q: npt.NDArray[np.float64],
 ) -> None:
-    """Write both Dubins race agents into MuJoCo joint state."""
+    """Write RRT*, SST, and dummy poses into MuJoCo joint state."""
     for values, joint_names in (
         (rrt_q, _DUBINS_JOINT_NAMES[0]),
         (sst_q, _DUBINS_JOINT_NAMES[1]),
+        (dummy_q, _DUBINS_JOINT_NAMES[2]),
     ):
         for idx, joint_name in enumerate(joint_names):
             _set_joint_position(
@@ -1303,7 +1313,7 @@ def render_dubins_race_showcase_videos(
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
 
-    rrt_poses, sst_poses, sim_time_s = simulate_dubins_race_poses(
+    rrt_poses, sst_poses, dummy_poses, sim_time_s = simulate_dubins_race_poses(
         scenario,
         duration_s=duration_s,
         fps=fps,
@@ -1347,8 +1357,10 @@ def render_dubins_race_showcase_videos(
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
 
     try:
-        for rrt_q, sst_q in zip(rrt_poses, sst_poses, strict=True):
-            _apply_dubins_poses(mujoco, model, data, rrt_q, sst_q)
+        for rrt_q, sst_q, dummy_q in zip(
+            rrt_poses, sst_poses, dummy_poses, strict=True
+        ):
+            _apply_dubins_poses(mujoco, model, data, rrt_q, sst_q, dummy_q)
             for camera in camera_names:
                 if camera == "follow":
                     assert follow_renderer_left is not None
