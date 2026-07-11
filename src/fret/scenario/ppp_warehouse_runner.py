@@ -516,6 +516,7 @@ class PPPWarehouseRunner:
         physics_mode: bool = False,
         contact_log_enabled: bool = False,
         record_positions: bool = False,
+        planning_timeout: float | None = None,
     ) -> PPPWarehouseRunResult:
         """Execute planning, tracking, grasp, and collision validation."""
         bundle = load_scenario_bundle(self._scenario_path)
@@ -525,7 +526,11 @@ class PPPWarehouseRunner:
             raise ValueError("ppp_warehouse scenario requires grasp_config")
         start = np.asarray(params["start_configuration"], dtype=np.float64)
         goal = np.asarray(params["goal_configuration"], dtype=np.float64)
-        timeout = float(params["planning_timeout"])
+        timeout = float(
+            params["planning_timeout"]
+            if planning_timeout is None
+            else planning_timeout
+        )
         grasp_cfg = _parse_grasp_config(bundle.grasp)
         plan_include_cargo = bool(params["plan_include_cargo"])
 
