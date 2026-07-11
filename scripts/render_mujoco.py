@@ -51,6 +51,8 @@ _PPP_PICK_ASCEND_S: float = 3.5
 _PPP_PLACE_DESCEND_S: float = 4.0
 _PPP_PLACE_ASCEND_S: float = 3.0
 _PPP_SHOWCASE_TRANSIT_SPEED_M_S: float = 0.45
+# Mid-field rack (obs_d) can push RRT* past the 30 s scenario timeout on CI runners.
+_PPP_PHYSICS_SHOWCASE_PLANNING_TIMEOUT_S: float = 90.0
 # Legacy fallback when --collision-backend is not set.
 _PPP_WAREHOUSE_WAYPOINTS: list[npt.NDArray[np.float64]] = [
     np.array([2.0, 1.0, 2.4]),
@@ -1057,12 +1059,22 @@ def simulate_ppp_warehouse_qpos(
     _ensure_fret_importable()
     from fret.scenario.ppp_warehouse_runner import PPPWarehouseRunner
 
+    params = PPPWarehouseRunner().load_parameters()
+    scenario_timeout = float(params["planning_timeout"])
     result = PPPWarehouseRunner().run(
         physics_mode=True,
         record_positions=True,
+        planning_timeout=max(
+            scenario_timeout,
+            _PPP_PHYSICS_SHOWCASE_PLANNING_TIMEOUT_S,
+        ),
     )
     if not result.qpos_history:
-        raise RuntimeError("PPP physics simulation produced no qpos history")
+        raise RuntimeError(
+            "PPP physics simulation produced no qpos history "
+            f"(planning_status={result.planning_status!r}, "
+            f"planning_duration_s={result.planning_duration_s:.1f})"
+        )
 
     history = np.asarray(result.qpos_history, dtype=np.float64)
     sim_time_s = (
