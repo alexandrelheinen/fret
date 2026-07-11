@@ -53,12 +53,14 @@
     <geom name="obs_a" type="box" pos="4.2 0.95 0.5" size="0.7 0.55 0.5" rgba="0 0 0 0"/>
     <geom name="obs_b" type="box" pos="7.4 4.25 0.45" size="0.6 0.65 0.45" rgba="0 0 0 0"/>
     <geom name="obs_c" type="box" pos="8.8 0.75 0.5" size="0.6 0.45 0.5" rgba="0 0 0 0"/>
+    <geom name="obs_d" type="box" pos="6.0 2.5 1.0" size="0.8 2.5 1.0" rgba="0 0 0 0"/>
     <geom name="goal_zone" type="box" pos="10.5 3.2 0.05" size="0.9 0.9 0.05" rgba="0.20 0.75 0.35 0.35" contype="0" conaffinity="0"/>
 
     <!-- AWS box-cluster visuals (mesh origin = bottom corner of footprint). -->
     <geom name="obs_a_vis" type="mesh" mesh="clutter_a" pos="3.5 0.4 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
     <geom name="obs_b_vis" type="mesh" mesh="clutter_c" pos="6.8 3.6 0" material="clutter_crate" contype="0" conaffinity="0"/>
     <geom name="obs_c_vis" type="mesh" mesh="clutter_d" pos="8.2 0.3 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="obs_d_vis" type="box" pos="6.0 2.5 1.0" size="0.8 2.5 1.0" material="clutter_crate" contype="0" conaffinity="0"/>
 
     <body name="gantry_base" pos="0 0 0">
       <geom name="foot_fl" type="box" pos="0 0 0.05" size="0.24 0.24 0.05" material="frame" contype="0" conaffinity="0"/>

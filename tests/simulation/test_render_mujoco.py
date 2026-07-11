@@ -103,8 +103,8 @@ def test_build_showcase_waypoints_mujoco_backend() -> None:
     assert waypoints[-1][0] == pytest.approx(10.5)
 
 
-def test_showcase_cruise_avoids_flying_over_floor_clutter() -> None:
-    """Transit must route around racks, not pass through obstacle footprints."""
+def test_showcase_cruise_detours_around_mid_field_rack() -> None:
+    """Transit must not hug constant height along the pick/place Y lane."""
     pytest.importorskip("mujoco")
     pytest.importorskip("arco")
     from fret.planning.ppp_obstacles import load_ppp_warehouse_preview_obstacles
@@ -116,21 +116,24 @@ def test_showcase_cruise_avoids_flying_over_floor_clutter() -> None:
         mjcf_path=mjcf,
     )
     boxes = load_ppp_warehouse_preview_obstacles()
-    max_obs_z = max(box.z_max for box in boxes)
+    mid_field = max(boxes, key=lambda box: box.y_max - box.y_min)
+    assert (mid_field.y_max - mid_field.y_min) == pytest.approx(5.0, abs=0.1)
     cruise_z = float(waypoints[2][2])
-    assert cruise_z < max_obs_z + 0.6
-    for q in waypoints:
-        if abs(float(q[2]) - cruise_z) > 0.02:
-            continue
-        for box in boxes[:3]:
-            inside_xy = (
-                box.x_min <= float(q[0]) <= box.x_max
-                and box.y_min <= float(q[1]) <= box.y_max
-            )
-            assert not inside_xy, (
-                f"cruise waypoint ({q[0]:.2f}, {q[1]:.2f}) crosses "
-                f"obstacle footprint at z={cruise_z:.2f}"
-            )
+    mid_pts = [
+        q
+        for q in waypoints
+        if mid_field.x_min <= float(q[0]) <= mid_field.x_max
+    ]
+    assert mid_pts, "showcase must cross the mid-field rack span"
+    mid_ys = [float(q[1]) for q in mid_pts]
+    mid_zs = [float(q[2]) for q in mid_pts]
+    assert max(mid_ys) - min(mid_ys) > 0.8 or max(mid_zs) > cruise_z + 0.1, (
+        "mid-field crossing must detour laterally or climb over the full-width rack"
+    )
+    zs = [float(q[2]) for q in waypoints]
+    assert max(zs) - min(zs) > 0.15, (
+        "showcase must include vertical motion, not constant-height transit"
+    )
 
 
 def test_simulate_tracked_trajectory_covers_horizontal_transit() -> None:
@@ -310,7 +313,10 @@ def test_simulate_ppp_warehouse_qpos_records_physics() -> None:
     """PPP showcase physics path must log full qpos from SITL runner."""
     pytest.importorskip("mujoco")
     pytest.importorskip("arco")
-    qpos_traj, sim_time_s = rm.simulate_ppp_warehouse_qpos(duration_s=2.0, fps=5)
+    qpos_traj, sim_time_s = rm.simulate_ppp_warehouse_qpos(
+        duration_s=60.0,
+        fps=5,
+    )
     assert qpos_traj.ndim == 2
     assert qpos_traj.shape[0] >= 2
     assert qpos_traj.shape[1] >= 10

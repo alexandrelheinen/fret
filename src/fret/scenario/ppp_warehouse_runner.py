@@ -329,6 +329,7 @@ def _track_carrot_path_physics(
     stop_event: list[bool] | None = None,
     max_step_multiplier: float = 24.0,
     goal_snap_distance_m: float = 0.40,
+    scenario_duration_s: float = 60.0,
 ) -> float:
     """Track waypoints with velocity actuators and ``mj_step`` (FR-SIM-07)."""
     from arco.control import JointSpaceTracker
@@ -359,9 +360,14 @@ def _track_carrot_path_physics(
     carrot_dist = 0.0
     carrot, _ = sample_path_at_distance(nav, arcs, carrot_dist)
     max_err_m = 0.0
-    max_steps = (
+    duration_cap_steps = max(
+        int(max(1.0, scenario_duration_s) / dt) * 4,
+        4_000,
+    )
+    max_steps = min(
         int((arcs[-1] / max(race_speed * dt, 1e-6)) * max_step_multiplier)
-        + 8_000
+        + 8_000,
+        duration_cap_steps,
     )
 
     for _ in range(max_steps):
@@ -374,14 +380,10 @@ def _track_carrot_path_physics(
             carrot_dist = arcs[-1]
             at_path_end = True
         else:
-            carrot_dist = min(carrot_dist, robot_arc + max_carrot_lag)
-            lag = float(np.linalg.norm(tracker.q - carrot))
-            if lag < max_carrot_lag:
-                carrot_dist = min(
-                    carrot_dist + race_speed * dt,
-                    robot_arc + max_carrot_lag,
-                    arcs[-1],
-                )
+            # Advance the carrot along arc length at race_speed.  PPP Z
+            # actuators lag during pick/ascent; capping lead by robot_arc +
+            # max_carrot_lag stalls X/Y transit for the entire step budget.
+            carrot_dist = min(carrot_dist + race_speed * dt, arcs[-1])
             carrot, at_path_end = sample_path_at_distance(
                 nav, arcs, carrot_dist
             )
@@ -418,6 +420,7 @@ def _track_carrot_path(
     on_step: Any | None = None,
     physics_mode: bool = False,
     stop_event: list[bool] | None = None,
+    scenario_duration_s: float = 60.0,
 ) -> float:
     """Track dense waypoints with arc-length carrot following (FR-CTL-02)."""
     if physics_mode:
@@ -433,6 +436,7 @@ def _track_carrot_path(
             goal_tolerance=goal_tolerance,
             on_step=on_step,
             stop_event=stop_event,
+            scenario_duration_s=scenario_duration_s,
         )
 
     from fret.control.path_tracking import (
@@ -752,9 +756,13 @@ class PPPWarehouseRunner:
 
         rate_hz = ctrl.update_rate
         dt = 1.0 / rate_hz
+        scenario_duration_s = float(params.get("duration", 60.0))
         settle_steps = int(2.0 * rate_hz)
         if physics_mode:
-            settle_steps = int(40.0 * rate_hz)
+            settle_steps = min(
+                int(8.0 * rate_hz),
+                int(max(1.0, scenario_duration_s) * rate_hz),
+            )
 
         _grasp_tick(start)
 
@@ -773,6 +781,7 @@ class PPPWarehouseRunner:
                 goal_tolerance=goal_tolerance,
                 on_step=_grasp_tick,
                 physics_mode=physics_mode,
+                scenario_duration_s=scenario_duration_s,
             )
         except RuntimeError:
             controller_faulted = True

@@ -1074,6 +1074,11 @@ def simulate_ppp_warehouse_qpos(
         sim_time_s,
         duration_s,
     )
+    log_dt_s = 1.0 / 50.0
+    if sim_time_s > render_duration_s + 0.02:
+        max_log_samples = max(2, int(round(render_duration_s / log_dt_s)) + 1)
+        history = history[:max_log_samples]
+        sim_time_s = min(sim_time_s, float(max_log_samples - 1) * log_dt_s)
     n_frames = max(2, int(round(render_duration_s * fps)))
     return _resample_qpos_history(history, n_frames), sim_time_s
 
