@@ -32,9 +32,6 @@
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="car_rrt" rgba="0.267 0.467 0.800 1" specular="0.15" shininess="0.08"/>
     <material name="car_sst" rgba="0.267 0.667 0.400 1" specular="0.15" shininess="0.08"/>
-    <material name="wheel" rgba="0.12 0.12 0.14 1"/>
-    <material name="marker_light" rgba="0.95 0.95 0.98 1"/>
-    <material name="marker_dark" rgba="0.15 0.15 0.18 1"/>
     <material name="shelf" rgba="0.72 0.74 0.78 1" specular="0.06" shininess="0.04"/>
     <material name="clutter_cardboard" rgba="0.62 0.48 0.32 1" specular="0.04" shininess="0.03"/>
     <material name="clutter_crate" rgba="0.55 0.38 0.22 1" specular="0.05" shininess="0.04"/>
@@ -45,10 +42,8 @@
     <mesh name="clutter_c" file="aws_warehouse/meshes/clutter_c.obj"/>
     <mesh name="clutter_d" file="aws_warehouse/meshes/clutter_d.obj"/>
 
-    <!-- TurtleBot3 Burger (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint. -->
+    <!-- TurtleBot3 Burger chassis only (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint. -->
     <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.004 0.004 0.004"/>
-    <mesh name="tb3_lds" file="dubins/turtlebot3/lds.stl" scale="0.004 0.004 0.004"/>
-    <mesh name="tb3_tire" file="dubins/turtlebot3/left_tire.stl" scale="0.004 0.004 0.004"/>
   </asset>
 
   <worldbody>
@@ -157,28 +152,20 @@
 
     <!-- Agent 1: RRT* (blue TurtleBot3) -->
     <body name="car_rrt" pos="0 0 0.05">
-      <joint name="rrt_joint_x" type="slide" axis="1 0 0" range="0 80" damping="80"/>
-      <joint name="rrt_joint_y" type="slide" axis="0 1 0" range="0 80" damping="80"/>
-      <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="20"/>
+      <joint name="rrt_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
+      <joint name="rrt_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
+      <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="rrt_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="rrt_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_rrt" contype="0" conaffinity="0"/>
-      <geom name="rrt_lds" type="mesh" mesh="tb3_lds" pos="-0.13 0 0.73" euler="0 0 1.5708" material="marker_light" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_l" type="mesh" mesh="tb3_tire" pos="0 0.32 0.13" quat="0.707388 -0.706825 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_r" type="mesh" mesh="tb3_tire" pos="0 -0.32 0.13" quat="0.707388 0.706825 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="rrt_marker" type="sphere" pos="0 0 0.82" size="0.05" material="marker_light" contype="0" conaffinity="0"/>
     </body>
 
     <!-- Agent 2: SST (green TurtleBot3) -->
     <body name="car_sst" pos="0 0 0.05">
-      <joint name="sst_joint_x" type="slide" axis="1 0 0" range="0 80" damping="80"/>
-      <joint name="sst_joint_y" type="slide" axis="0 1 0" range="0 80" damping="80"/>
-      <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="20"/>
+      <joint name="sst_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
+      <joint name="sst_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
+      <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
       <geom name="sst_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0"/>
       <geom name="sst_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_sst" contype="0" conaffinity="0"/>
-      <geom name="sst_lds" type="mesh" mesh="tb3_lds" pos="-0.13 0 0.73" euler="0 0 1.5708" material="marker_dark" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_l" type="mesh" mesh="tb3_tire" pos="0 0.32 0.13" quat="0.707388 -0.706825 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_r" type="mesh" mesh="tb3_tire" pos="0 -0.32 0.13" quat="0.707388 0.706825 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="sst_marker" type="sphere" pos="0 0 0.82" size="0.05" material="marker_dark" contype="0" conaffinity="0"/>
     </body>
 
     <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
