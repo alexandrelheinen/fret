@@ -82,6 +82,8 @@ class DubinsRaceRunResult:
     min_obstacle_clearance_m: float
     rrt_pose_history: tuple[tuple[float, float, float], ...] = ()
     sst_pose_history: tuple[tuple[float, float, float], ...] = ()
+    dummy_pose_history: tuple[tuple[float, float, float], ...] = ()
+    dummy_collided: bool = False
     contact_log_path: pathlib.Path | None = None
     contact_event_count: int = 0
     max_contact_force_n: float = 0.0
@@ -116,6 +118,12 @@ class DubinsRaceSimulation:
         default_factory=list
     )
     sst_pose_history: list[tuple[float, float, float]] = field(
+        default_factory=list
+    )
+    dummy_pose: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    dummy_heading_rad: float = 0.0
+    dummy_stopped: bool = False
+    dummy_pose_history: list[tuple[float, float, float]] = field(
         default_factory=list
     )
 
@@ -155,8 +163,22 @@ class DubinsRaceSimulation:
 
         self.rrt_pose_history.append(self.rrt_vehicle.pose)
         self.sst_pose_history.append(self.sst_vehicle.pose)
+        self._step_dummy_kinematic()
         self.sim_time_s += self.dt
         return self.finished
+
+    def _step_dummy_kinematic(self) -> None:
+        """Advance the straight-line dummy and record its pose."""
+        self.dummy_pose, self.dummy_stopped = _step_dummy_straight_line(
+            self.dummy_pose,
+            heading_rad=self.dummy_heading_rad,
+            stopped=self.dummy_stopped,
+            goal=self.world.goal_xy,
+            speed=self.vehicle_cfg.cruise_speed,
+            dt=self.dt,
+            occupancy=self.occupancy,
+        )
+        self.dummy_pose_history.append(self.dummy_pose)
 
     def step_physics(self, bridge: Any) -> bool:
         """Advance one physics SITL tick via MuJoCo actuators (v1.2).
@@ -194,10 +216,18 @@ class DubinsRaceSimulation:
             max_speed=self.vehicle_cfg.max_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
         )
-        commands = np.array([*rrt_cmd, *sst_cmd], dtype=np.float64)
+        dummy_cmd, self.dummy_stopped = _dummy_physics_velocity_command(
+            self.dummy_pose,
+            heading_rad=self.dummy_heading_rad,
+            stopped=self.dummy_stopped,
+            speed=self.vehicle_cfg.cruise_speed,
+            occupancy=self.occupancy,
+        )
+        commands = np.array([*rrt_cmd, *sst_cmd, *dummy_cmd], dtype=np.float64)
         bridge.step_physics(commands)
         _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
         _sync_vehicle_pose(self.sst_vehicle, bridge.get_sst_pose())
+        self.dummy_pose = tuple(float(v) for v in bridge.get_dummy_pose())
 
         self.max_cross_track_error_m = max(
             self.max_cross_track_error_m,
@@ -227,6 +257,7 @@ class DubinsRaceSimulation:
 
         self.rrt_pose_history.append(self.rrt_vehicle.pose)
         self.sst_pose_history.append(self.sst_vehicle.pose)
+        self.dummy_pose_history.append(self.dummy_pose)
         self.sim_time_s += self.dt
         return self.finished
 
@@ -275,6 +306,8 @@ class DubinsRaceSimulation:
             ),
             rrt_pose_history=tuple(self.rrt_pose_history),
             sst_pose_history=tuple(self.sst_pose_history),
+            dummy_pose_history=tuple(self.dummy_pose_history),
+            dummy_collided=self.dummy_stopped,
         )
 
 
@@ -321,6 +354,95 @@ def _vehicle_config(ctrl: dict[str, Any]) -> VehicleConfig:
         curvature_gain=float(ctrl["curvature_gain"]),
         repulsion_gain=float(ctrl["repulsion_gain"]),
     )
+
+
+def _straight_line_heading(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+) -> float:
+    """Return the heading [rad] from ``start`` toward ``goal``."""
+    return math.atan2(
+        float(goal[1] - start[1]),
+        float(goal[0] - start[0]),
+    )
+
+
+def _initial_dummy_pose(world: DubinsRaceWorld) -> tuple[float, float, float]:
+    """Return the straight-line dummy spawn at the arena start."""
+    heading = _straight_line_heading(world.start_xy, world.goal_xy)
+    return (
+        float(world.start_xy[0]),
+        float(world.start_xy[1]),
+        heading,
+    )
+
+
+def _step_dummy_straight_line(
+    pose: tuple[float, float, float],
+    *,
+    heading_rad: float,
+    stopped: bool,
+    goal: npt.NDArray[np.float64],
+    speed: float,
+    dt: float,
+    occupancy: RectStructureOccupancy,
+) -> tuple[tuple[float, float, float], bool]:
+    """Advance the dummy along a straight corridor; stop on collision."""
+    if stopped:
+        return pose, True
+
+    x, y, _ = pose
+    centre = np.array([x, y], dtype=np.float64)
+    if occupancy.is_occupied(centre):
+        return (x, y, heading_rad), True
+
+    dist_to_goal = math.hypot(float(goal[0]) - x, float(goal[1]) - y)
+    step = float(speed) * float(dt)
+    if step >= dist_to_goal:
+        new_x = float(goal[0])
+        new_y = float(goal[1])
+    else:
+        new_x = x + step * math.cos(heading_rad)
+        new_y = y + step * math.sin(heading_rad)
+
+    if occupancy.is_occupied(np.array([new_x, new_y], dtype=np.float64)):
+        return (x, y, heading_rad), True
+
+    return (new_x, new_y, heading_rad), False
+
+
+def _dummy_physics_velocity_command(
+    pose: tuple[float, float, float],
+    *,
+    heading_rad: float,
+    stopped: bool,
+    speed: float,
+    occupancy: RectStructureOccupancy,
+) -> tuple[tuple[float, float, float], bool]:
+    """Drive the dummy forward along the start→goal diagonal until blocked."""
+    if stopped:
+        return (0.0, 0.0, 0.0), True
+
+    x, y, yaw = pose
+    if occupancy.is_occupied(np.array([x, y], dtype=np.float64)):
+        return (0.0, 0.0, 0.0), True
+
+    probe = np.array(
+        [
+            x + 0.35 * math.cos(heading_rad),
+            y + 0.35 * math.sin(heading_rad),
+        ],
+        dtype=np.float64,
+    )
+    if occupancy.is_occupied(probe):
+        return (0.0, 0.0, 0.0), True
+
+    yaw_err = _wrap_heading(heading_rad - yaw)
+    yaw_rate = max(-1.2, min(1.2, 3.5 * yaw_err))
+    body_vx = float(speed) * max(0.0, math.cos(yaw_err))
+    vx = body_vx * math.cos(yaw)
+    vy = body_vx * math.sin(yaw)
+    return (vx, vy, yaw_rate), False
 
 
 def _spawn_positions(
@@ -785,6 +907,7 @@ class DubinsRaceRunner:
             sst_path, vehicle_cfg, occupancy=occupancy
         )
 
+        dummy_pose = _initial_dummy_pose(world)
         session = DubinsRaceSimulation(
             world=world,
             vehicle_cfg=vehicle_cfg,
@@ -800,6 +923,9 @@ class DubinsRaceRunner:
             goal_radius=vehicle_cfg.goal_radius,
             rrt_pose_history=[rrt_vehicle.pose],
             sst_pose_history=[sst_vehicle.pose],
+            dummy_pose=dummy_pose,
+            dummy_heading_rad=dummy_pose[2],
+            dummy_pose_history=[dummy_pose],
         )
         return rrt_plan, sst_plan, session
 
@@ -862,6 +988,10 @@ class DubinsRaceRunner:
                     session.sst_vehicle.pose,
                     dtype=np.float64,
                 ),
+                initial_dummy=np.array(
+                    session.dummy_pose,
+                    dtype=np.float64,
+                ),
                 physics_config=physics_config,
             )
             if contact_log_enabled and bridge_cfg is not None:
@@ -883,6 +1013,7 @@ class DubinsRaceRunner:
                 if bridge is not None:
                     bridge.set_rrt_pose(session.rrt_vehicle.pose)
                     bridge.set_sst_pose(session.sst_vehicle.pose)
+                    bridge.set_dummy_pose(session.dummy_pose)
             if session.finished:
                 break
 
@@ -918,6 +1049,7 @@ class DubinsRaceRunner:
                 both_reached_goal=result.both_reached_goal,
                 max_cross_track_error_m=result.max_cross_track_error_m,
                 min_obstacle_clearance_m=result.min_obstacle_clearance_m,
+                dummy_collided=result.dummy_collided,
                 contact_log_path=contact_log_path,
                 contact_event_count=contact_event_count,
                 max_contact_force_n=max_contact_force_n,
@@ -937,6 +1069,8 @@ class DubinsRaceRunner:
             min_obstacle_clearance_m=result.min_obstacle_clearance_m,
             rrt_pose_history=result.rrt_pose_history,
             sst_pose_history=result.sst_pose_history,
+            dummy_pose_history=result.dummy_pose_history,
+            dummy_collided=result.dummy_collided,
             contact_log_path=contact_log_path,
             contact_event_count=contact_event_count,
             max_contact_force_n=max_contact_force_n,

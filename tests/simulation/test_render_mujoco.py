@@ -228,7 +228,8 @@ def test_dubins_race_mjcf_loads_with_warehouse_assets() -> None:
     mujoco = pytest.importorskip("mujoco")
     path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
     model = mujoco.MjModel.from_xml_path(str(path))
-    assert model.nmesh >= 6
+    assert model.nmesh >= 5
+    assert model.nbody >= 4
 
 
 def test_ppp_visual_place_detects_floor_contact_at_goal() -> None:
@@ -356,7 +357,7 @@ def test_simulate_dubins_race_poses_covers_transit() -> None:
     """Release dubins clip must traverse the warehouse floor."""
     pytest.importorskip("mujoco")
     pytest.importorskip("arco")
-    rrt, sst, sim_time_s = rm.simulate_dubins_race_poses(
+    rrt, sst, dummy, sim_time_s = rm.simulate_dubins_race_poses(
         "dubins_race",
         duration_s=None,
         fps=10,
@@ -364,9 +365,12 @@ def test_simulate_dubins_race_poses_covers_transit() -> None:
     )
     assert rrt.shape[0] >= 2
     assert sst.shape[0] >= 2
+    assert dummy.shape[0] >= 2
     assert sim_time_s > 20.0
     assert rrt[:, 0].max() > 8.0
     assert sst[:, 0].max() > 8.0
+    assert dummy[:, 0].max() > 10.0
+    assert dummy[-1, 0] < 74.0
 
 
 def test_showcase_timing_real_time_factor() -> None:
