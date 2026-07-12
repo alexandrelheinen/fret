@@ -75,6 +75,32 @@ def test_dubins_physics_run_produces_contact_log(
 @pytest.mark.skipif(
     not _mujoco_available(), reason="mujoco package not installed"
 )
+def test_dubins_physics_min_obstacle_clearance_non_negative(
+    dubins_physics_contact_run: DubinsRaceRunResult,
+) -> None:
+    """V12-3: physics pose logs must not penetrate structure occupancy."""
+    result = dubins_physics_contact_run
+    assert result.min_obstacle_clearance_m >= 0.0
+
+
+@pytest.mark.skipif(
+    not _mujoco_available(), reason="mujoco package not installed"
+)
+def test_dubins_physics_lateral_skid_bounded(
+    dubins_physics_contact_run: DubinsRaceRunResult,
+) -> None:
+    """Wheel-style agents must not sustain holonomic sideways sliding."""
+    from fret.control.dubins_wheel_model import max_body_lateral_speed_m_s
+
+    result = dubins_physics_contact_run
+    dt = 0.05
+    assert max_body_lateral_speed_m_s(result.rrt_pose_history, dt=dt) <= 0.10
+    assert max_body_lateral_speed_m_s(result.sst_pose_history, dt=dt) <= 0.10
+
+
+@pytest.mark.skipif(
+    not _mujoco_available(), reason="mujoco package not installed"
+)
 def test_dubins_physics_planners_succeed() -> None:
     """V12-3: both agents plan and reach goal under physics_mode."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
