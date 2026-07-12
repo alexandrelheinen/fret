@@ -6,7 +6,6 @@ import pathlib
 import shutil
 from collections.abc import Iterator
 
-import numpy as np
 import pytest
 
 from fret.scenario.dubins_race_runner import DubinsRaceRunner, DubinsRaceRunResult
@@ -20,23 +19,19 @@ _SCENARIO_PATH = (
     / "dubins_race.yml"
 )
 
+from fret.scenario.planner_rng import (
+    SHOWCASE_PLANNER_RNG_SEED,
+    deterministic_planner_rng,
+)
+
 _PHYSICS_ARTIFACT_DIR = pathlib.Path("/tmp/fret_physics/dubins_race")
-_PLANNER_RNG_SEED = 11
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _deterministic_planner_rng() -> Iterator[None]:
     """ARC planners use unseeded ``default_rng()``; fix CI flakiness."""
-    original_default_rng = np.random.default_rng
-
-    def _seeded_default_rng(seed: int | None = None) -> np.random.Generator:
-        return original_default_rng(
-            _PLANNER_RNG_SEED if seed is None else seed
-        )
-
-    np.random.default_rng = _seeded_default_rng  # type: ignore[method-assign]
-    yield
-    np.random.default_rng = original_default_rng  # type: ignore[method-assign]
+    with deterministic_planner_rng(SHOWCASE_PLANNER_RNG_SEED):
+        yield
 
 
 @pytest.fixture(scope="module", autouse=True)

@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 import pathlib
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
@@ -47,6 +48,7 @@ try:
 except ImportError:  # pragma: no cover
     _make_dubins_race_bridge_core = cast(Any, None)
 
+from fret.scenario.planner_rng import deterministic_planner_rng
 from fret.sitl_config import controller_config_path, scenario_config_path
 
 _DEFAULT_SCENARIO = scenario_config_path("dubins_race")
@@ -940,13 +942,20 @@ class DubinsRaceRunner:
         record_poses: bool = False,
         physics_mode: bool = False,
         contact_log_enabled: bool = False,
+        planner_rng_seed: int | None = None,
     ) -> DubinsRaceRunResult:
         """Execute dual planning, simultaneous tracking, and race metrics."""
         params = self.load_parameters()
         race_timeout = float(params["race_timeout"])
         max_steps = int(race_timeout / float(params["simulation_dt"]))
 
-        rrt_plan, sst_plan, session = self.prepare_simulation()
+        rng_ctx = (
+            deterministic_planner_rng(planner_rng_seed)
+            if planner_rng_seed is not None
+            else nullcontext()
+        )
+        with rng_ctx:
+            rrt_plan, sst_plan, session = self.prepare_simulation()
         if session is None:
             return DubinsRaceRunResult(
                 rrt_plan=rrt_plan,

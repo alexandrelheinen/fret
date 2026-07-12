@@ -1115,10 +1115,14 @@ def simulate_dubins_race_poses(
     """
     _ensure_fret_importable()
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
+    from fret.scenario.planner_rng import SHOWCASE_PLANNER_RNG_SEED
 
     result = DubinsRaceRunner().run(
         record_poses=True,
         physics_mode=physics_mode,
+        planner_rng_seed=(
+            SHOWCASE_PLANNER_RNG_SEED if physics_mode else None
+        ),
     )
     if not result.both_reached_goal:
         raise RuntimeError(
