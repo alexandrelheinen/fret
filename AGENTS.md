@@ -37,6 +37,21 @@ bash scripts/check/pre_push.sh --skip-ros
 Pushing with formatting or type-check failures is unacceptable at this stage
 of the project.
 
+## Proof reports (mandatory)
+
+Agents must **prove** that work works — not only implement and push. Report
+depth is **proportional** to change size and problem difficulty (trivial tuning
+→ one sentence; release blockers and chronic bugs → metrics, charts, renders).
+
+Load the repo skill [`.cursor/skills/report-writing/SKILL.md`](.cursor/skills/report-writing/SKILL.md)
+whenever you **create or update a PR**, finish a cloud-agent task, or the
+maintainer asks for evidence. Follow its tier table (T0–T4) and layer stack
+for engineer-grade cases.
+
+Minimum: cite commands run and pass/fail results. For flaky CI, stochastic
+sim, or visual/export pipelines, include measured before/after and at least
+one chart or screenshot from the real pipeline.
+
 ## Cursor Cloud specific instructions
 
 Durable, non-obvious notes for cloud agents. The base VM snapshot already has
