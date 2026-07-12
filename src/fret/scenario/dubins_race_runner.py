@@ -208,6 +208,7 @@ class DubinsRaceSimulation:
             agent_finished=self.rrt_finish is not None,
             max_speed=self.vehicle_cfg.max_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
+            occupancy=self.occupancy,
         )
         sst_cmd, sst_metrics = _agent_physics_velocity_command(
             self.sst_loop,
@@ -217,6 +218,7 @@ class DubinsRaceSimulation:
             agent_finished=self.sst_finish is not None,
             max_speed=self.vehicle_cfg.max_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
+            occupancy=self.occupancy,
         )
         dummy_cmd, self.dummy_stopped = _dummy_physics_velocity_command(
             self.dummy_pose,
@@ -654,6 +656,27 @@ def _physics_goal_dwell_update(
     return 0
 
 
+def _physics_forward_blocked(
+    pose: tuple[float, float, float],
+    *,
+    occupancy: RectStructureOccupancy,
+    probe_m: float = 0.40,
+) -> bool:
+    """Return True when the body centre cannot advance into occupied space."""
+    x, y, theta = pose
+    centre = np.array([x, y], dtype=np.float64)
+    if occupancy.is_occupied(centre):
+        return True
+    ahead = np.array(
+        [
+            x + probe_m * math.cos(theta),
+            y + probe_m * math.sin(theta),
+        ],
+        dtype=np.float64,
+    )
+    return bool(occupancy.is_occupied(ahead))
+
+
 def _agent_physics_velocity_command(
     loop: TrackingLoop,
     vehicle: Any,
@@ -663,6 +686,7 @@ def _agent_physics_velocity_command(
     agent_finished: bool,
     max_speed: float,
     max_turn_rate: float,
+    occupancy: RectStructureOccupancy,
     kp_position: float = _PHYSICS_KP_POSITION,
     kp_yaw: float = _PHYSICS_KP_YAW,
     max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
@@ -717,7 +741,21 @@ def _agent_physics_velocity_command(
     vy = kp_position * (ref_y - sim_y)
     omega = kp_yaw * yaw_err
 
+    repulsion_turn = loop._repulsion_turn_rate(sim_x, sim_y, sim_theta)
+    omega += repulsion_turn
+
+    dist, _closest = occupancy.nearest_obstacle(
+        np.array([sim_x, sim_y], dtype=np.float64)
+    )
+    clearance = float(occupancy.clearance)
+    influence_radius = _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE * clearance
+
     forward = vx * math.cos(sim_theta) + vy * math.sin(sim_theta)
+    if _physics_forward_blocked(
+        (sim_x, sim_y, sim_theta),
+        occupancy=occupancy,
+    ):
+        forward = min(forward, 0.0)
     forward = max(0.0, forward) * _PHYSICS_FORWARD_SPEED_SCALE
     vx = forward * math.cos(sim_theta)
     vy = forward * math.sin(sim_theta)
@@ -735,25 +773,21 @@ def _agent_physics_velocity_command(
             vx *= scale
             vy *= scale
 
-    occupancy = getattr(loop, "_occupancy", None)
-    if occupancy is not None and hasattr(occupancy, "nearest_obstacle"):
-        clearance = float(getattr(occupancy, "clearance", 0.0))
-        if clearance > 0.0:
-            dist, _ = occupancy.nearest_obstacle(
-                np.array([sim_x, sim_y], dtype=np.float64)
-            )
-            influence_radius = (
-                _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE * clearance
-            )
-            if float(dist) < influence_radius:
-                proximity_scale = max(
-                    _PHYSICS_OBSTACLE_SPEED_FLOOR,
-                    float(dist) / influence_radius,
-                )
-                vx *= proximity_scale
-                vy *= proximity_scale
+    if float(dist) < influence_radius:
+        proximity_scale = max(
+            _PHYSICS_OBSTACLE_SPEED_FLOOR,
+            float(dist) / influence_radius,
+        )
+        vx *= proximity_scale
+        vy *= proximity_scale
 
-    return (vx, vy, omega), metrics
+    return (
+        (vx, vy, omega),
+        {
+            **metrics,
+            "repulsion_turn_rate": repulsion_turn,
+        },
+    )
 
 
 def _agent_world_velocity_command(

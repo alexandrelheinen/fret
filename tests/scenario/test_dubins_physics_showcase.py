@@ -49,8 +49,12 @@ def test_physics_agents_finish_without_lateral_skid() -> None:
         planner_rng_seed=SHOWCASE_PLANNER_RNG_SEED,
     )
     dt = 0.05
-    rrt_lat = max_body_lateral_speed_m_s(result.rrt_pose_history, dt=dt)
-    sst_lat = max_body_lateral_speed_m_s(result.sst_pose_history, dt=dt)
+    rrt_lat = max_body_lateral_speed_m_s(
+        result.rrt_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
+    )
+    sst_lat = max_body_lateral_speed_m_s(
+        result.sst_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
+    )
     assert rrt_lat <= _MAX_PHYSICS_LATERAL_SPEED_M_S
     assert sst_lat <= _MAX_PHYSICS_LATERAL_SPEED_M_S
 

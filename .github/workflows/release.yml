@@ -42,7 +42,7 @@ jobs:
         uses: ./.github/actions/release-render-setup
 
       - name: Render PPP warehouse showcase clips
-        # v1.0 kinematic reference: planned path + pick/place dwells (not physics SITL).
+        # Physics SITL: velocity actuators, mj_step contacts, cargo weld forces.
         run: |
           ./scripts/video.sh \
             --model ppp \
@@ -51,8 +51,7 @@ jobs:
             --collision-backend mujoco \
             --planner-algorithm rrt_star \
             --full-duration \
-            --kinematic-mode \
-            --no-tracking \
+            --physics-mode \
             --output-dir showcase_renders \
             --timing-json showcase_renders/ppp_timing.json \
             --fps 30 \
@@ -78,7 +77,7 @@ jobs:
         uses: ./.github/actions/release-render-setup
 
       - name: Render Dubins race showcase clips
-        # v1.0 kinematic reference: DubinsVehicle paths (not holonomic physics slides).
+        # Physics SITL: mj_step contacts + obstacle repulsion (not pose teleport).
         run: |
           ./scripts/video.sh \
             --model dubins \
@@ -87,7 +86,7 @@ jobs:
             --collision-backend mujoco \
             --planner-algorithm sst \
             --full-duration \
-            --kinematic-mode \
+            --physics-mode \
             --output-dir showcase_renders \
             --timing-json showcase_renders/dubins_timing.json \
             --fps 30 \

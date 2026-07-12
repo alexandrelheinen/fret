@@ -412,7 +412,7 @@ def test_showcase_playback_timing_dubins_physics_cap() -> None:
 
 def test_resolve_scenario_duration_reads_yaml() -> None:
     assert rm.resolve_scenario_duration("ppp_warehouse") == pytest.approx(60.0)
-    assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(35.0)
+    assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(45.0)
 
 
 # Mirrors .github/workflows/release.yml showcase render invocations.
@@ -431,8 +431,7 @@ _RELEASE_PPP_CLI: list[str] = [
     "--timing-json",
     "showcase_renders/ppp_timing.json",
     "--full-duration",
-    "--kinematic-mode",
-    "--no-tracking",
+    "--physics-mode",
     "--fps",
     "30",
     "--width",
@@ -443,6 +442,8 @@ _RELEASE_PPP_CLI: list[str] = [
 
 _RELEASE_PPP_KINEMATIC_CLI: list[str] = [
     *_RELEASE_PPP_CLI,
+    "--kinematic-mode",
+    "--no-tracking",
 ]
 
 _RELEASE_DUBINS_CLI: list[str] = [
@@ -460,7 +461,7 @@ _RELEASE_DUBINS_CLI: list[str] = [
     "--timing-json",
     "showcase_renders/dubins_timing.json",
     "--full-duration",
-    "--kinematic-mode",
+    "--physics-mode",
     "--fps",
     "30",
     "--width",
@@ -496,17 +497,16 @@ def test_resolve_physics_showcase_duration_caps_to_nominal() -> None:
         sim_time_s=180.0,
         duration_s=None,
     )
-    assert dubins_capped == pytest.approx(35.0)
+    assert dubins_capped == pytest.approx(45.0)
 
 
-def test_release_workflow_yaml_uses_kinematic_showcase() -> None:
-    """Release CI must export v1.0 kinematic reference clips, not physics SITL."""
+def test_release_workflow_yaml_uses_physics_showcase() -> None:
+    """Release CI must export physics SITL clips (mj_step + contacts)."""
     workflow = (_REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
-    assert "--kinematic-mode" in workflow
-    assert workflow.count("--physics-mode") == 0
-    assert "--no-tracking" in workflow
+    assert workflow.count("--physics-mode") >= 2
+    assert "--kinematic-mode" not in workflow
 
 
 def test_release_workflow_cli_args_parse() -> None:
@@ -518,13 +518,14 @@ def test_release_workflow_cli_args_parse() -> None:
     assert ppp_args.model == "ppp"
     assert ppp_args.scenario == "ppp_warehouse"
     assert ppp_args.all_cameras is True
-    assert ppp_args.no_tracking is True
-    assert ppp_args.kinematic_mode is True
-    assert ppp_args.physics_mode is False
+    assert ppp_args.no_tracking is False
+    assert ppp_args.kinematic_mode is False
+    assert ppp_args.physics_mode is True
 
     kinematic_args = parser.parse_args(_RELEASE_PPP_KINEMATIC_CLI)
     assert kinematic_args.kinematic_mode is True
     assert kinematic_args.no_tracking is True
+    assert kinematic_args.physics_mode is False
     assert ppp_args.timing_json == Path("showcase_renders/ppp_timing.json")
     assert ppp_args.no_realtime_postprocess is False
     assert ppp_args.full_duration is True
