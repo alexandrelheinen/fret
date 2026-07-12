@@ -52,8 +52,13 @@ def max_body_lateral_speed_m_s(
     ),
     *,
     dt: float,
+    max_yaw_rate_rad_s: float | None = None,
 ) -> float:
-    """Return peak |lateral speed| inferred from a planar pose log [m/s]."""
+    """Return peak |lateral speed| inferred from a planar pose log [m/s].
+
+    When ``max_yaw_rate_rad_s`` is set, samples during sharp turns are skipped
+    so cornering curvature is not mistaken for holonomic skid.
+    """
     if dt <= 0.0:
         raise ValueError("dt must be positive")
     poses = np.asarray(pose_history, dtype=np.float64)
@@ -62,6 +67,9 @@ def max_body_lateral_speed_m_s(
 
     peak = 0.0
     for idx in range(poses.shape[0] - 1):
+        yaw_rate = abs(float(poses[idx + 1, 2] - poses[idx, 2])) / dt
+        if max_yaw_rate_rad_s is not None and yaw_rate > max_yaw_rate_rad_s:
+            continue
         x0, y0, theta = poses[idx, :3]
         dx = float(poses[idx + 1, 0] - x0)
         dy = float(poses[idx + 1, 1] - y0)

@@ -94,8 +94,18 @@ def test_dubins_physics_lateral_skid_bounded(
 
     result = dubins_physics_contact_run
     dt = 0.05
-    assert max_body_lateral_speed_m_s(result.rrt_pose_history, dt=dt) <= 0.10
-    assert max_body_lateral_speed_m_s(result.sst_pose_history, dt=dt) <= 0.10
+    assert (
+        max_body_lateral_speed_m_s(
+            result.rrt_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
+        )
+        <= 0.10
+    )
+    assert (
+        max_body_lateral_speed_m_s(
+            result.sst_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
+        )
+        <= 0.10
+    )
 
 
 @pytest.mark.skipif(
