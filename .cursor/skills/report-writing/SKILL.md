@@ -7,161 +7,214 @@ description: >-
   long-running bug investigation. Depth scales with PR size and problem
   difficulty — one sentence for trivial tuning, engineer-grade evidence
   (metrics, graphs, renders) for large refactors and chronic failures.
+metadata:
+  author: fret
+  version: "1.1.0"
+  policy: AGENTS.md#proof-reports-mandatory
 ---
 
-# Report writing (proof that work works)
+# Report writing — proof that work works
 
-Agents must **prove** outcomes, not assert them. A report is the deliverable
-that lets the maintainer decide without re-running your investigation.
+Agents must **prove** outcomes, not assert them. The report is the deliverable
+that lets the maintainer merge or reject **without re-running your investigation**.
 
-Use this skill **whenever you create or update a PR**, finish a cloud-agent
-task, or the user asks “does it work?”, “convince me”, or “show me evidence”.
+## When to use (mandatory triggers)
 
-Official agent policy also lives in [AGENTS.md](../../../AGENTS.md) (Proof
-reports section) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) (Rules for AI
-agents).
+Load this skill when **any** of these occur:
+
+- Creating or updating a **pull request**
+- Finishing a **cloud-agent** task that implies a PR
+- User asks: “does it work?”, “convince me”, “show evidence”, “report”
+- **Release / CI / showcase** pipeline failure
+- User says a prior fix **created another problem** or names a known failure mode
+  (e.g. “time-compression”, “flake”, “psychological manipulation”)
+- **Stochastic** behavior (RNG, timing, CI runner variance) or **visual/export**
+  output (video, MuJoCo, plots) where logs can mislead
+
+Repo policy: [AGENTS.md](../../../AGENTS.md#proof-reports-mandatory),
+[CONTRIBUTING.md](../../../CONTRIBUTING.md) (Rules for AI agents → Communication).
 
 ---
 
-## Choose report depth (mandatory)
+## Step 0 — Pick tier (before writing)
 
-Estimate **tier** from (a) diff size, (b) blast radius, (c) how long the
-problem has resisted fix, (d) whether behavior is stochastic or visual.
+Estimate tier from **four inputs**:
 
-| Tier | When | User-facing report |
+| Input | Ask |
+| --- | --- |
+| **Diff size** | Files changed, LOC, modules touched |
+| **Blast radius** | CI, release, sim, public API, data |
+| **Problem age** | First attempt vs chronic / multi-PR arc |
+| **Observability** | Deterministic pass/fail vs stochastic / visual |
+
+### Tier rubric
+
+| Tier | When | Deliverable |
 | --- | --- | --- |
-| **T0** | Typo, comment, pure format, single-line config with obvious effect | **One sentence** — what changed and that gates passed |
-| **T1** | Small fix (≤3 files, ≤~80 LOC), deterministic pass/fail | **2–4 bullets** — problem, fix, verification command + result |
-| **T2** | Multi-file feature/fix, CI repair, new test coverage | **Short sections** — Problem / Fix / Verification; include gate output or test counts |
-| **T3** | Release blocker, flaky CI, physics/sim/render pipeline, cross-module bug | **Evidence report** — metrics table + at least one chart or before/after comparison |
-| **T4** | Large refactor, architecture change, chronic issue (multiple failed PRs), release tag | **Engineer-grade report** — full layer stack below + artifacts the maintainer can open |
+| **T0** | Typo, comment, format-only, obvious one-liner | **One sentence** + gates passed |
+| **T1** | ≤3 files, ≤~80 LOC, deterministic | **2–4 bullets** (problem, fix, command, result) |
+| **T2** | Multi-file fix/feature, CI repair, new tests | **Problem / Fix / Verification** + gate output |
+| **T3** | Release blocker, flake, sim/render pipeline, cross-module | **Evidence report** + metric table + chart or before/after |
+| **T4** | Refactor, architecture, chronic bug, tag release, maintainer distrust | **Engineer-grade** — full layer stack + artifacts + recurrence |
 
-**Escalate one tier** when any of these apply:
+### Escalate +1 tier when
 
-- Prior agent PR claimed success but CI or user still red
-- Stochastic behavior (RNG, timing, race, CI runner variance)
-- Visual/export output (video, MuJoCo, plots) where logs lie
-- Maintainer said they already know the failure mode (e.g. “time-compression”,
-  “psychological manipulation”, “flake”) — show **mechanism**, not symptoms
+- A previous agent PR claimed success but CI/user still red
+- Behavior is **stochastic** (planner RNG, race, CI speed)
+- **Export/resampling** can make failure look like success
+- Maintainer already knows the trick — prove **mechanism**, not symptoms
 
-**Never** ship T0 for a T3 problem.
+**Never** ship T0 for a T3+ problem.
 
----
-
-## Engineer-grade report layers (T3–T4)
-
-Build evidence in order. Each layer answers a skeptic question.
-
-### Layer 1 — Reproduce verbatim
-
-- Quote the **exact** CI log line, exception, or user-reported run URL
-- Re-run the same command locally; show matching numbers (duration, error code)
-
-*Answers: “Did you actually hit my failure?”*
-
-### Layer 2 — Control variables
-
-- Change **one** thing at a time (seed, timeout, flag, commit)
-- Same environment assumptions as CI (EGL, pytest plugins, workflow flags)
-
-*Answers: “Is this environment noise or your code?”*
-
-### Layer 3 — State space / time domain
-
-- Trajectories, tables, bar charts — not raw log dumps
-- Plot **viewer time vs simulation time** when export/resampling is involved
-- Success rates over N trials when behavior is stochastic
-
-*Answers: “What actually happened in the system?”*
-
-### Layer 4 — Pixel / artifact proof
-
-- Screenshots, MP4 frame grabs, MuJoCo renders via the **same script** as CI
-- Save under `/opt/cursor/artifacts/<topic>/` and embed in PR or summary
-
-*Answers: “Would I see the same thing in the product?”*
-
-### Layer 5 — Fix chain (decision guide)
-
-Close with a short causal chain:
-
-```
-root cause → symptom → wrong fix (if any) → correct fix → verification
-```
-
-*Answers: “What should I merge and what should I watch?”*
+Templates per tier: [references/report-template.md](references/report-template.md)
 
 ---
 
-## Exemplar (T4)
+## Step 1 — Separate timeline from analysis (T2+)
 
-**Case:** Dubins physics release export — failed runs resampled from 300 s into
-35 s clips (8.6× apparent speedup); rejecting fake clips exposed unseeded
-planner flake (~25% CI failure).
+SRE best practice ([Google postmortem culture](https://sre.google/sre-book/postmortem-culture/)):
 
-**What we showed:**
+1. **Timeline** — sourced facts only (log lines, timestamps, command exit codes)
+2. **Analysis** — interpretation, clearly labeled
+3. **Recurrence** — have we seen this before? what happened to the last fix?
 
-1. CI error verbatim (`race_duration_s=300.0`, `max_cross_track_error_m=67.8`)
-2. 8×8 trial success rate (unseeded 75% vs seeded 100%)
-3. XY trajectory overlay (same physics, different plan)
-4. Viewer clock vs sim clock plot (resampling mechanism)
-5. MuJoCo overview snapshots (goal at x≈74 m only when seeded success)
-
-Methodology is reusable; see `scripts/evidence_dubins_physics_seed.py` when
-present on the branch.
+Do **not** mix “the database was slow” (vague) with “P99 latency 2000 ms at 23:47:12” (evidence). See [references/sre-principles.md](references/sre-principles.md).
 
 ---
 
-## Where to write the report
+## Step 2 — Evidence layers (T3–T4)
+
+Build in order. Each layer answers one skeptic question.
+
+| Layer | Content | Question answered |
+| --- | --- | --- |
+| **1. Reproduce verbatim** | CI URL, quoted exception, matching local repro | “Did you hit *my* failure?” |
+| **2. Control variable** | Change one knob (seed, timeout, flag); same env as CI | “Environment or code?” |
+| **3. State / time domain** | Trajectories, bar charts, success rates over N trials; **viewer clock vs sim clock** if resampling | “What actually happened?” |
+| **4. Pixel proof** | Screenshots / MuJoCo frames via **same script as CI** | “Would I see this in the product?” |
+| **5. Fix chain** | `root cause → symptom → wrong fix → correct fix → verification` | “What should I merge?” |
+
+### Honest failure vs deceptive success
+
+When export pipelines **resample** long failed runs into short clips, the viewer
+clock diverges from physics clock — apparent speedup without real success.
+**Rejecting** such exports is correct; **seeding/tuning** so physics actually
+finishes is the complementary fix. Never swap one deception for another (e.g.
+skip export checks to green CI).
+
+---
+
+## Step 3 — Exemplar (T4): Dubins physics release
+
+Maintainer feedback: *“You fixed one problem, you created another”* — honest
+rejection of fake clips exposed unseeded planner flake.
+
+| Layer | What we showed |
+| --- | --- |
+| 1 | CI: `race_duration_s=300.0`, `max_cross_track_error_m=67.80` |
+| 2 | Same physics controller; only `planner_rng_seed` changes |
+| 3 | 8×8 trial success rate; XY trajectories; viewer vs sim time (8.6×) |
+| 4 | MuJoCo overview: goal x≈74 m only on seeded success |
+| 5 | `unseeded flake → time-compress export → reject clips → seed RNG` |
+
+Repro script (when on branch): `scripts/evidence_dubins_physics_seed.py`  
+Artifacts: `/opt/cursor/artifacts/dubins_physics_evidence/*.png`
+
+---
+
+## Step 4 — Where to publish
 
 | Audience | Location |
 | --- | --- |
-| Maintainer (chat) | Final turn summary — lead with verdict, then layers |
-| PR reviewers | PR body: **Verification** section; embed images or link artifacts |
-| Long investigations | Optional `docs/postmortems/<topic>.md` only if user asks |
+| Maintainer (chat) | Final turn — **verdict first**, then layers; embed images |
+| PR reviewers | PR body **## Verification** (+ **## Problem** at T2+) |
+| Chronic issues | `docs/postmortems/<topic>.md` only if user asks |
 
-PR body minimum (T1+):
+### PR body skeleton (T1+)
 
 ```markdown
+## Problem
+[One paragraph or verbatim CI quote]
+
+## Fix
+[What changed and why — mechanism, not symptom only]
+
 ## Verification
-- Commands run: `...`
-- Result: pass / fail counts, timings, key metric
-- [T3+] Evidence: charts or screenshots in summary or artifacts
+- Commands: `...`
+- Results: exit codes, counts, timings
+- [T3+] Charts/screenshots or artifact paths
+
+## Recurrence
+[Prior attempts / what this fix adds beyond last PR]
 ```
 
 ---
 
-## Anti-patterns (do not)
+## Step 5 — Follow-ups (T3+)
 
-- “Should work” / “CI will pass” without command output
-- Describing fixes without showing the **failure mode** first
-- Replacing one deception with another (e.g. fake pass by skipping export checks)
-- Wall of grep output instead of one chart
-- Claiming flake is fixed from a single lucky run
+Each action item needs five fields (incident postmortem norm):
+
+**Owner** · **Verb** (add/remove/update/test/deploy) · **Measurable outcome** · **Tracker** · **Due**
+
+Avoid vague verbs: “investigate”, “explore”, “monitor” without a metric.
 
 ---
 
-## Commands to cite often
+## Anti-patterns
+
+| Do not | Do instead |
+| --- | --- |
+| “Should work” / “CI will pass” | Paste command + exit code |
+| Fix without showing failure mode | Reproduce first |
+| Single lucky run for flake | N trials + success rate |
+| Log wall | One chart or table |
+| Symptom-only patch on chronic bug | Recurrence + mechanism |
+| Time-compress failed sim into showcase | Reject + fix root cause |
+
+---
+
+## Commands (FRET)
 
 ```bash
 bash scripts/check/formatting.sh
 bash scripts/check/types.sh
 bash scripts/check/pre_push.sh --skip-ros
 python3 -m pytest tests/ --ignore=tests/integration -p no:launch_testing -p no:launch_ros
-```
-
-For render/physics evidence:
-
-```bash
-export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
+export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl   # headless MuJoCo / release renders
 ```
 
 ---
 
-## Cursor Automations (optional, maintainer)
+## Progressive references
 
-Repo skills are loaded by the agent from `.cursor/skills/`; they are **not**
-auto-triggered by GitHub events on their own. To run report-style review on
-every PR open, create a [Cursor Automation](https://cursor.com/docs/cloud-agent/automations)
-with trigger **PR opened** and a prompt that references this skill
-(`report-writing`).
+Load only when needed:
+
+- [references/report-template.md](references/report-template.md) — copy-paste T0–T4 bodies
+- [references/sre-principles.md](references/sre-principles.md) — evidence, blameless, Five Whys, recurrence
+
+---
+
+## Maintainer: PR-open automation (optional)
+
+Skills are discovered from `.cursor/skills/`; GitHub does **not** auto-run them.
+
+To enforce on every PR:
+
+1. [Cursor Automations](https://cursor.com/docs/cloud-agent/automations) → trigger **PR opened**
+2. Prompt: “Follow `report-writing` skill; assess tier from diff + issue history; post proportional **Verification** comment.”
+
+Or invoke manually: `/report-writing` or `@report-writing` in Agent chat.
+
+---
+
+## Maintainer: create / edit this skill
+
+| Action | How |
+| --- | --- |
+| **Edit** | Change `.cursor/skills/report-writing/SKILL.md`; keep `name` = folder name |
+| **Scaffold new skill** | Agent chat → `/create-skill` |
+| **Manual layout** | `.cursor/skills/<name>/SKILL.md` + optional `scripts/`, `references/`, `assets/` |
+| **Also loaded from** | `.agents/skills/` (same layout), `~/.cursor/skills/` (global) |
+| **Force manual only** | `disable-model-invocation: true` in frontmatter |
+
+Docs: [cursor.com/docs/skills](https://cursor.com/docs/skills)
