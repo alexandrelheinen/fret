@@ -781,22 +781,6 @@ def build_showcase_trajectory(
                     fps=fps,
                     start=start if start is not None else path_waypoints[0],
                 )
-            elif collision_backend is not None:
-                from fret.control.path_tracking import densify_polyline
-
-                dense_showcase = densify_polyline(
-                    [np.asarray(q, dtype=np.float64) for q in path_waypoints],
-                    max_step=0.08,
-                )
-                sim_time_s = estimate_ppp_path_duration_s(dense_showcase)
-                render_duration_s = (
-                    sim_time_s if duration_s is None else float(duration_s)
-                )
-                trajectory = interpolate_waypoints(
-                    dense_showcase,
-                    render_duration_s,
-                    fps,
-                )
             else:
                 segment_durations = pick_place_segment_durations(path_waypoints)
                 trajectory, sim_time_s = interpolate_segmented_waypoints(
@@ -1129,6 +1113,11 @@ def simulate_dubins_race_poses(
             "Dubins race simulation failed before both agents reached goal "
             f"(race_duration_s={result.race_duration_s:.1f}, "
             f"max_cross_track_error_m={result.max_cross_track_error_m:.2f})"
+        )
+    if physics_mode and result.min_obstacle_clearance_m < 0.0:
+        raise RuntimeError(
+            "Dubins physics showcase export has obstacle penetration "
+            f"(min_obstacle_clearance_m={result.min_obstacle_clearance_m:.3f})"
         )
 
     rrt_hist = np.asarray(result.rrt_pose_history, dtype=np.float64)

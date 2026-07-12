@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
+from fret.control.dubins_wheel_model import enforce_slide_yaw_nonholonomic_qvel
 from fret.control.kinematics_ppp import PPPKinematics
 from fret.ros.mujoco_physics_log import (
     ContactLogConfig,
@@ -979,8 +980,24 @@ class DubinsRaceBridgeCore:
         if step_count <= 0:
             raise ValueError("substeps must be positive")
 
+        agent_joint_groups: tuple[tuple[str, str, str], ...] = (
+            (_RRT_JOINT_NAMES[0], _RRT_JOINT_NAMES[1], _RRT_JOINT_NAMES[2]),
+            (_SST_JOINT_NAMES[0], _SST_JOINT_NAMES[1], _SST_JOINT_NAMES[2]),
+            (
+                _DUMMY_JOINT_NAMES[0],
+                _DUMMY_JOINT_NAMES[1],
+                _DUMMY_JOINT_NAMES[2],
+            ),
+        )
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
+            for joint_names in agent_joint_groups:
+                enforce_slide_yaw_nonholonomic_qvel(
+                    self._data,
+                    self._joint_adrs,
+                    self._qvel_adrs,
+                    tuple(joint_names),
+                )
 
         if self._contact_logger is not None:
             self._contact_logger.record_tick(

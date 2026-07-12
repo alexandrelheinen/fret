@@ -432,6 +432,7 @@ _RELEASE_PPP_CLI: list[str] = [
     "showcase_renders/ppp_timing.json",
     "--full-duration",
     "--kinematic-mode",
+    "--no-tracking",
     "--fps",
     "30",
     "--width",
@@ -442,8 +443,6 @@ _RELEASE_PPP_CLI: list[str] = [
 
 _RELEASE_PPP_KINEMATIC_CLI: list[str] = [
     *_RELEASE_PPP_CLI,
-    "--kinematic-mode",
-    "--no-tracking",
 ]
 
 _RELEASE_DUBINS_CLI: list[str] = [
@@ -500,6 +499,16 @@ def test_resolve_physics_showcase_duration_caps_to_nominal() -> None:
     assert dubins_capped == pytest.approx(35.0)
 
 
+def test_release_workflow_yaml_uses_kinematic_showcase() -> None:
+    """Release CI must export v1.0 kinematic reference clips, not physics SITL."""
+    workflow = (_REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "--kinematic-mode" in workflow
+    assert workflow.count("--physics-mode") == 0
+    assert "--no-tracking" in workflow
+
+
 def test_release_workflow_cli_args_parse() -> None:
     """Release workflow flags must parse without missing Namespace attributes."""
     parser = rm.build_parser()
@@ -509,7 +518,7 @@ def test_release_workflow_cli_args_parse() -> None:
     assert ppp_args.model == "ppp"
     assert ppp_args.scenario == "ppp_warehouse"
     assert ppp_args.all_cameras is True
-    assert ppp_args.no_tracking is False
+    assert ppp_args.no_tracking is True
     assert ppp_args.kinematic_mode is True
     assert ppp_args.physics_mode is False
 
