@@ -202,7 +202,7 @@ def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
         "agent_lateral_offset": 0.8,
         "vehicle": {
             "radius": 0.42,
-            "clearance_margin": 0.50,
+            "clearance_margin": 1.00,
         },
         "planner": {
             "bounds": [[0.0, 80.0], [0.0, 80.0]],

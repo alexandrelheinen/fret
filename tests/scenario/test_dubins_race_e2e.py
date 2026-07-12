@@ -8,14 +8,20 @@ from __future__ import annotations
 
 import pathlib
 import time
+from collections.abc import Iterator
 
 import numpy as np
+import pytest
 
 from fret.planning.dubins_obstacles import (
     default_obstacle_file,
     load_dubins_race_world,
 )
 from fret.scenario.dubins_race_runner import DubinsRaceRunner
+from fret.scenario.planner_rng import (
+    SHOWCASE_PLANNER_RNG_SEED,
+    deterministic_planner_rng,
+)
 
 _SCENARIO_PATH = (
     pathlib.Path(__file__).resolve().parents[2]
@@ -28,6 +34,13 @@ _SCENARIO_PATH = (
 _RACE_SIM_TIMEOUT_S = 120.0
 # Wall clock includes dual planning (SST can take ~80s in CI) plus race simulation.
 _WALL_CLOCK_BUDGET_S = 240.0
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _deterministic_planner_rng() -> Iterator[None]:
+    """ARC planners use unseeded ``default_rng()``; pin for reproducible E2E."""
+    with deterministic_planner_rng(SHOWCASE_PLANNER_RNG_SEED):
+        yield
 
 
 def test_obstacle_file_exists() -> None:

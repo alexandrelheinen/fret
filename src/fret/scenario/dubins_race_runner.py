@@ -15,7 +15,7 @@ import math
 import pathlib
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
 
 import numpy as np
@@ -630,6 +630,8 @@ _PHYSICS_MAX_POSITION_LAG_M: float = 0.82
 _PHYSICS_MAX_YAW_LAG_RAD: float = 0.65
 _PHYSICS_REFERENCE_BLEND: float = 0.73
 _PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
+_PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE: float = 3.0
+_PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.15
 _PHYSICS_GOAL_DWELL_TICKS: int = 6
 _PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
 
@@ -740,7 +742,9 @@ def _agent_physics_velocity_command(
             dist, _ = occupancy.nearest_obstacle(
                 np.array([sim_x, sim_y], dtype=np.float64)
             )
-            influence_radius = 2.0 * clearance
+            influence_radius = (
+                _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE * clearance
+            )
             if float(dist) < influence_radius:
                 proximity_scale = max(
                     _PHYSICS_OBSTACLE_SPEED_FLOOR,
@@ -849,6 +853,8 @@ class DubinsRaceRunner:
 
     def prepare_simulation(
         self,
+        *,
+        physics_mode: bool = False,
     ) -> tuple[AgentPlanResult, AgentPlanResult, DubinsRaceSimulation | None]:
         """Plan paths and optionally build an incremental race session.
 
@@ -870,6 +876,12 @@ class DubinsRaceRunner:
             else resolve_obstacle_file(planning)
         )
         world = load_dubins_race_world(obstacle_path)
+        if physics_mode:
+            world = replace(
+                world,
+                clearance_margin=world.clearance_margin
+                + _PHYSICS_PLANNING_CLEARANCE_BUMP_M,
+            )
         occupancy = build_race_occupancy(world)
         bounds = [
             tuple(b)
@@ -955,7 +967,9 @@ class DubinsRaceRunner:
             else nullcontext()
         )
         with rng_ctx:
-            rrt_plan, sst_plan, session = self.prepare_simulation()
+            rrt_plan, sst_plan, session = self.prepare_simulation(
+                physics_mode=physics_mode,
+            )
         if session is None:
             return DubinsRaceRunResult(
                 rrt_plan=rrt_plan,

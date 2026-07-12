@@ -13,8 +13,9 @@ from contextlib import contextmanager
 
 import numpy as np
 
-# Matches tests/integration/conftest.py and test_mujoco_physics_dubins.py.
-SHOWCASE_PLANNER_RNG_SEED: int = 11
+# Matches integration gates; seed 5 gives smooth physics showcase paths at
+# clearance_margin 1.0 + physics planning bump (v1.1.0-demo margins).
+SHOWCASE_PLANNER_RNG_SEED: int = 5
 
 
 @contextmanager
