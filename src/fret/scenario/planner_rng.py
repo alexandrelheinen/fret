@@ -26,11 +26,12 @@ def deterministic_planner_rng(
     original_default_rng = np.random.default_rng
 
     def _seeded_default_rng(
-        requested_seed: int | None = None,
+        seed: int | None = None,
+        **kwargs: object,
     ) -> np.random.Generator:
-        return original_default_rng(
-            seed if requested_seed is None else requested_seed
-        )
+        """Match ``numpy.random.default_rng`` signature for patched calls."""
+        pinned = seed if seed is not None else SHOWCASE_PLANNER_RNG_SEED
+        return original_default_rng(pinned, **kwargs)
 
     np.random.default_rng = _seeded_default_rng  # type: ignore[assignment]
     try:
