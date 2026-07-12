@@ -491,7 +491,8 @@ contributor.
 4. **Level 4** — Implement; run `scripts/check/pre_push.sh` (or `--skip-ros` when ROS unavailable).
 5. **PR** — Push only after **at minimum** `scripts/check/formatting.sh` and
    `scripts/check/types.sh` pass locally; ensure CI green; do not claim done
-   while checks fail.
+   while checks fail. Include a proportional **proof report** per the
+   `report-writing` skill (see Communication below).
 
 ### Git safety
 
@@ -504,6 +505,11 @@ contributor.
 
 - Be precise; use code citations when referencing existing code.
 - Keep responses proportional to task complexity.
+- **Proof reports:** When creating or updating a PR, follow the
+  [`report-writing` skill](.cursor/skills/report-writing/SKILL.md) (also
+  [AGENTS.md § Proof reports](AGENTS.md#proof-reports-mandatory)). Report depth
+  scales T0–T4 with diff size and problem difficulty; chronic or visual bugs
+  require measurable evidence, not assertions.
 
 ---
 
