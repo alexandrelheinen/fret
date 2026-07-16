@@ -13,3 +13,7 @@ The bootstrap `scara` model (RRP, 3-DOF) validated MS-1–5 and remains in the c
 as the foundation for v1.3.
 
 All robots run on **MuJoCo** for physics, rendering, and SITL. See [mujoco.md](../mujoco.md).
+
+Unit physics sandboxes (no warehouse/race): `ppp_unit`, `diffdrive_unit` via
+`fret.simulation` (FR-SIM-11). External MJCF sources and reuse policy:
+[mujoco_models_benchmark.md](../mujoco_models_benchmark.md).
