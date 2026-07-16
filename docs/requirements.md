@@ -122,6 +122,7 @@ Optional tests under `tests/simulation/` validate basic motions; they need not
 gate every PR.
 
 Full integration specification: [mujoco.md](mujoco.md).
+Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_benchmark.md).
 
 ---
 

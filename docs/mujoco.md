@@ -345,6 +345,9 @@ Full acceptance criteria: [releases.md § v1.2](releases.md#v12--mujoco-physics-
 **Implementation specification:** [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)
 (actuators, cargo weld, contact logs, regression tests).
 
+**External model repertoire:** [mujoco_models_benchmark.md](mujoco_models_benchmark.md)
+(Menagerie, ROBOTIS TB3, Hakoniwa, what FRET already vendors).
+
 Configuration schema: [config.md § Simulation](config.md#simulation-physics-v12).
 
 | Robot | Physics work |
