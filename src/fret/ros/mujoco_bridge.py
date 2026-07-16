@@ -991,12 +991,15 @@ class DubinsRaceBridgeCore:
         )
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
+            # Showcase race agents still use holonomic SE(2) slides; the
+            # unit sandbox (fret.simulation.DiffDriveUnitRobot) must NOT
+            # call this projection — wheel friction provides non-holonomy.
             for joint_names in agent_joint_groups:
                 enforce_slide_yaw_nonholonomic_qvel(
                     self._data,
                     self._joint_adrs,
                     self._qvel_adrs,
-                    tuple(joint_names),
+                    joint_names,
                 )
 
         if self._contact_logger is not None:
