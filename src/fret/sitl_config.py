@@ -130,7 +130,13 @@ def physics_controller_config_path(model: str) -> pathlib.Path:
 
 def mjcf_path(model: str, scenario: str) -> pathlib.Path:
     """Return the MJCF scene file for a model/scenario pair."""
-    if model == _PPP_MODEL and scenario in {_PPP_WAREHOUSE_SCENARIO, "ppp"}:
+    if model == _PPP_MODEL and scenario in {
+        _PPP_WAREHOUSE_SCENARIO,
+        "ppp",
+        "ppp_unit",
+    }:
+        if scenario == "ppp_unit":
+            return resolve_package_file("mjcf", "ppp_unit.xml")
         return resolve_package_file("mjcf", "ppp_warehouse.xml")
     if model == _DUBINS_MODEL and scenario in {
         _DUBINS_RACE_SCENARIO,
