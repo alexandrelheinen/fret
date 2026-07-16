@@ -1,9 +1,13 @@
-"""Non-holonomic wheel constraints for Dubins physics SITL (v1.2).
+"""Non-holonomic wheel constraints for Dubins *race* physics SITL (v1.2).
 
-Holonomic X/Y slide joints are a deliberate MJCF simplification
-(see ``docs/mujoco_physics_v1.2.md``).  After each ``mj_step`` we project
-planar ``qvel`` so motion is forward-only in the body frame — matching
-what differential-drive wheels can produce.
+Holonomic X/Y slide joints in ``dubins_race.xml`` are a deliberate MJCF
+simplification (see ``docs/mujoco_physics_v1.2.md``). After each ``mj_step``
+the race bridge may project planar ``qvel`` so motion is forward-only in the
+body frame.
+
+**Do not use this module for ``diffdrive_unit`` / ``DiffDriveUnitRobot``.**
+The unit sandbox has real wheel hinge actuators; non-holonomy must come from
+wheel–floor contact only (FR-SIM-11).
 """
 
 from __future__ import annotations

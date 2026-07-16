@@ -114,11 +114,15 @@ actuators — the same joint layout used for kinematic mirroring in v1.1.
 | RRT* | 0–2 | world `(v_x, v_y, ω)` from tracking loop |
 | SST | 3–5 | world `(v_x, v_y, ω)` from tracking loop |
 
-**Holonomic approximation:** independent X/Y slides do not enforce a non-holonomic
-Dubins constraint at the physics layer. Planning still uses ARCO `DubinsVehicle`;
-execution uses the existing three-DOF joint mirror with **contact-rich** dynamics.
-True differential-drive wheel actuators are deferred to a post-v1.2 refinement if
-needed.
+**Holonomic approximation (race showcase only):** independent X/Y slides do not
+enforce a non-holonomic constraint at the physics layer. Planning still uses
+ARCO `DubinsVehicle`; race execution uses the three-DOF joint mirror with
+**contact-rich** dynamics plus optional post-step `qvel` projection
+(`fret.control.dubins_wheel_model`).
+
+**Unit sandbox (FR-SIM-11):** `mjcf/diffdrive_unit.xml` +
+`fret.simulation.DiffDriveUnitRobot` is the true two-wheel model. It must never
+call the race `qvel` projection — wheel friction alone provides non-holonomy.
 
 **Collision geoms:** `rrt_collision`, `sst_collision`, and all `str_*_col` boxes
 must use matching `contype` / `conaffinity` (default contact). Visual meshes stay
