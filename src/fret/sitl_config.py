@@ -143,6 +143,8 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         "dubins",
     }:
         return resolve_package_file("mjcf", "dubins_race.xml")
+    if model == "diffdrive" and scenario in {"diffdrive_unit", "diffdrive"}:
+        return resolve_package_file("mjcf", "diffdrive_unit.xml")
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"

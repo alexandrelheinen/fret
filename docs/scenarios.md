@@ -76,8 +76,8 @@ Config: [config.md § Simulation](config.md#simulation-physics-v12).
 
 ### SC-v12u — Unit robot physics sandboxes (foundation)
 
-**Assets:** `mjcf/ppp_unit.xml` (diff-drive unit follows)  
-**API:** `fret.simulation.PPPUnitRobot`  
+**Assets:** `mjcf/ppp_unit.xml`, `mjcf/diffdrive_unit.xml`  
+**API:** `fret.simulation.PPPUnitRobot`, `fret.simulation.DiffDriveUnitRobot`  
 **Requirement:** FR-SIM-11
 
 **Purpose:** Prove foundational physical robots work under pure MuJoCo physics
@@ -86,6 +86,7 @@ with open-loop commands — before warehouse/race orchestration.
 | Robot | Commands | Pass criteria |
 |---|---|---|
 | PPP unit | `(vx, vy, vz)` | ±X/±Y/±Z displace within 15% of commanded distance over 1 s; zero command holds Z within 2 cm for 2 s |
+| Diff-drive unit | `(v, ω)` → wheel speeds | Forward travel; spin-in-place with translation ≤ 5 cm over 2 s; constant `(v, ω)` produces sustained yaw change (arc) |
 
 **CI policy:** optional / local (`tests/simulation/test_*_robot_unit.py`); not required
 on every PR gate.
