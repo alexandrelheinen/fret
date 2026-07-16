@@ -115,7 +115,7 @@ available for CI regression.
 
 **FR-SIM-10:** PPP collision checking via `CSpaceCheckerMujoco` (MJCF geometry + contacts).
 
-**FR-SIM-11:** Minimal unit-robot MJCF sandboxes (`ppp_unit`, later `diffdrive_unit`)
+**FR-SIM-11:** Minimal unit-robot MJCF sandboxes (`ppp_unit`, `diffdrive_unit`)
 shall respond to open-loop actuator commands under pure `mj_step` physics without
 pose teleportation, warehouse/race orchestration, or post-step velocity surgery.
 Optional tests under `tests/simulation/` validate basic motions; they need not

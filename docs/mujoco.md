@@ -107,6 +107,7 @@ MuJoCo is the implicit backend for all SITL launches.
 ```
 src/fret/mjcf/
 ├── ppp_unit.xml            # FR-SIM-11 Cartesian physics sandbox
+├── diffdrive_unit.xml      # FR-SIM-11 differential-drive sandbox
 ├── ppp_warehouse.xml       # v1.0 PPP gantry + warehouse
 ├── dubins_race.xml         # v1.1 dual Dubins agents (holonomic SE(2) approx.)
 ├── assets/

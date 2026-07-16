@@ -1,0 +1,64 @@
+<mujoco model="diffdrive_unit">
+  <!--
+    Minimal differential-drive physics sandbox (FR-SIM-11 / SC-v12u).
+
+    Free-floating chassis with two independently actuated hinge wheels and a
+    low-friction caster. Non-holonomic behaviour comes from wheel–floor
+    contact — no SE(2) slide joints and no post-step qvel surgery.
+  -->
+  <compiler angle="radian" coordinate="local"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
+
+  <default>
+    <geom condim="3" friction="2.0 0.05 0.001"
+          solref="0.02 1" solimp="0.9 0.95 0.001"/>
+  </default>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+  </visual>
+
+  <worldbody>
+    <light pos="2 2 4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="10 10 0.05"
+          friction="2.0 0.05 0.001" rgba="0.85 0.85 0.88 1"/>
+
+    <body name="chassis" pos="0 0 0.05">
+      <freejoint name="root"/>
+      <inertial pos="0 0 0.02" mass="1.5" diaginertia="0.01 0.02 0.025"/>
+      <geom name="chassis_box" type="box" size="0.10 0.07 0.03" pos="0 0 0.02"
+            mass="1.5" rgba="0.27 0.47 0.80 1" contype="1" conaffinity="0"/>
+
+      <body name="wheel_l" pos="0 0.09 0">
+        <joint name="wheel_l" type="hinge" axis="0 1 0" damping="0.002"/>
+        <inertial pos="0 0 0" mass="0.15" diaginertia="0.00015 0.0003 0.00015"/>
+        <geom name="wheel_l_geom" type="cylinder" size="0.05 0.015"
+              euler="1.57079632679 0 0" mass="0.15" rgba="0.10 0.10 0.11 1"
+              friction="2.5 0.05 0.001"/>
+      </body>
+
+      <body name="wheel_r" pos="0 -0.09 0">
+        <joint name="wheel_r" type="hinge" axis="0 1 0" damping="0.002"/>
+        <inertial pos="0 0 0" mass="0.15" diaginertia="0.00015 0.0003 0.00015"/>
+        <geom name="wheel_r_geom" type="cylinder" size="0.05 0.015"
+              euler="1.57079632679 0 0" mass="0.15" rgba="0.10 0.10 0.11 1"
+              friction="2.5 0.05 0.001"/>
+      </body>
+
+      <body name="caster" pos="-0.09 0 -0.03">
+        <joint name="caster_ball_joint" type="ball" damping="0.001"/>
+        <geom name="caster_sphere" type="sphere" size="0.02" mass="0.05"
+              friction="0.15 0.001 0.0001" rgba="0.50 0.50 0.52 1"/>
+      </body>
+    </body>
+
+    <camera name="overview" pos="1.5 1.5 1.2" xyaxes="-0.7 0.7 0 -0.35 -0.35 0.87"/>
+  </worldbody>
+
+  <actuator>
+    <velocity name="act_wheel_l" joint="wheel_l" kv="5"
+              forcelimited="true" forcerange="-5 5" ctrlrange="-50 50"/>
+    <velocity name="act_wheel_r" joint="wheel_r" kv="5"
+              forcelimited="true" forcerange="-5 5" ctrlrange="-50 50"/>
+  </actuator>
+</mujoco>
