@@ -106,12 +106,16 @@ MuJoCo is the implicit backend for all SITL launches.
 
 ```
 src/fret/mjcf/
+├── ppp_unit.xml            # FR-SIM-11 Cartesian physics sandbox
 ├── ppp_warehouse.xml       # v1.0 PPP gantry + warehouse
-├── dubins_race.xml         # v1.1 dual Dubins agents
+├── dubins_race.xml         # v1.1 dual Dubins agents (holonomic SE(2) approx.)
 ├── assets/
 │   └── aws_warehouse/      # MIT-0 meshes (PPP visuals)
 └── (v1.3+) rrp_pillars.xml, six_dof_cell.xml, …
 ```
+
+Unit sandboxes (`*_unit.xml`) are loaded by `fret.simulation` for open-loop
+physics tests (SC-v12u). Showcase worlds remain separate.
 
 ### MJCF conventions
 

@@ -115,6 +115,12 @@ available for CI regression.
 
 **FR-SIM-10:** PPP collision checking via `CSpaceCheckerMujoco` (MJCF geometry + contacts).
 
+**FR-SIM-11:** Minimal unit-robot MJCF sandboxes (`ppp_unit`, later `diffdrive_unit`)
+shall respond to open-loop actuator commands under pure `mj_step` physics without
+pose teleportation, warehouse/race orchestration, or post-step velocity surgery.
+Optional tests under `tests/simulation/` validate basic motions; they need not
+gate every PR.
+
 Full integration specification: [mujoco.md](mujoco.md).
 
 ---
@@ -191,6 +197,7 @@ Full integration specification: [mujoco.md](mujoco.md).
 | FR-SIM-01–06 | v1.0–v1.1 | MuJoCo launch + MP4 artifact |
 | FR-SIM-07–09 | v1.2 | Physics SITL smoke + integration tests |
 | FR-SIM-10 | v1.0 | `tests/planning/test_cspace_checker_mujoco.py` |
+| FR-SIM-11 | v1.2+ | `tests/simulation/test_*_robot_unit.py` |
 | FR-HW-01–03 | post v1.4 | — |
 
 ### Regression (bootstrap SCARA)
