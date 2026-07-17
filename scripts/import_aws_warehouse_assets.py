@@ -4,12 +4,16 @@
 Converts selected upstream DAE visuals to OBJ (meters, bottom-corner origin)
 and copies floor/wall textures into ``src/fret/mjcf/assets/aws_warehouse/``.
 
-Source: https://github.com/aws-robotics/aws-robomaker-small-warehouse-world
+Source of truth is the git submodule::
+
+    third_party/aws-robomaker-small-warehouse-world
+
+Upstream: https://github.com/aws-robotics/aws-robomaker-small-warehouse-world
 
 Example::
 
+    git submodule update --init third_party/aws-robomaker-small-warehouse-world
     python3 scripts/import_aws_warehouse_assets.py
-    python3 scripts/import_aws_warehouse_assets.py --src /path/to/aws-robomaker-small-warehouse-world
 """
 
 from __future__ import annotations
@@ -23,13 +27,25 @@ import trimesh
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_OUT = _REPO_ROOT / "src/fret/mjcf/assets/aws_warehouse"
+_DEFAULT_SRC = (
+    _REPO_ROOT / "third_party" / "aws-robomaker-small-warehouse-world"
+)
 
-# DAE unit quirks: shelf is centimeters; cluttering models are already meters.
+# DAE unit quirks (empirically checked after export):
+# - ShelfD/E and several props are authored in centimeters → scale 0.01
+# - Cluttering* and PalletJack are already meters → scale 1.0
+# - ShelfF is omitted (degenerate / oversized authored extents)
 _MODELS: tuple[tuple[str, str, float], ...] = (
     ("aws_robomaker_warehouse_ShelfD_01", "shelf.obj", 0.01),
+    ("aws_robomaker_warehouse_ShelfE_01", "shelf_e.obj", 0.01),
     ("aws_robomaker_warehouse_ClutteringA_01", "clutter_a.obj", 1.0),
     ("aws_robomaker_warehouse_ClutteringC_01", "clutter_c.obj", 1.0),
     ("aws_robomaker_warehouse_ClutteringD_01", "clutter_d.obj", 1.0),
+    ("aws_robomaker_warehouse_Bucket_01", "bucket.obj", 0.01),
+    ("aws_robomaker_warehouse_DeskC_01", "desk.obj", 0.01),
+    ("aws_robomaker_warehouse_Lamp_01", "lamp.obj", 0.01),
+    ("aws_robomaker_warehouse_PalletJackB_01", "pallet.obj", 1.0),
+    ("aws_robomaker_warehouse_TrashCanC_01", "trash.obj", 0.01),
 )
 
 _TEXTURES: tuple[tuple[str, str, str], ...] = (
@@ -69,13 +85,14 @@ def _export_visual(
     return float(extents[0]), float(extents[1]), float(extents[2])
 
 
-def import_assets(src_root: Path, out_dir: Path) -> None:
+def import_assets(src_root: Path, out_dir: Path) -> list[tuple[str, tuple[float, float, float]]]:
     """Convert AWS models and textures into the FRET MJCF asset tree."""
     aws_models = src_root / "models"
     if not aws_models.is_dir():
         raise FileNotFoundError(
             f"Expected AWS models directory at {aws_models}. "
-            "Clone https://github.com/aws-robotics/aws-robomaker-small-warehouse-world"
+            "Init submodule: git submodule update --init "
+            "third_party/aws-robomaker-small-warehouse-world"
         )
 
     meshes_dir = out_dir / "meshes"
@@ -83,10 +100,17 @@ def import_assets(src_root: Path, out_dir: Path) -> None:
     meshes_dir.mkdir(parents=True, exist_ok=True)
     textures_dir.mkdir(parents=True, exist_ok=True)
 
+    imported: list[tuple[str, tuple[float, float, float]]] = []
     print(f"Writing meshes to {meshes_dir}")
     for model_name, out_name, unit_scale in _MODELS:
-        extents = _export_visual(aws_models, model_name, meshes_dir / out_name, unit_scale)
-        print(f"  {out_name}: extents={extents[0]:.3f} x {extents[1]:.3f} x {extents[2]:.3f} m")
+        extents = _export_visual(
+            aws_models, model_name, meshes_dir / out_name, unit_scale
+        )
+        imported.append((out_name, extents))
+        print(
+            f"  {out_name}: extents="
+            f"{extents[0]:.3f} x {extents[1]:.3f} x {extents[2]:.3f} m"
+        )
 
     print(f"Writing textures to {textures_dir}")
     for model_name, src_name, dst_name in _TEXTURES:
@@ -100,6 +124,31 @@ def import_assets(src_root: Path, out_dir: Path) -> None:
     if license_src.is_file():
         shutil.copy2(license_src, out_dir / "LICENSE")
 
+    inventory = out_dir / "IMPORTED_ASSETS.md"
+    lines = [
+        "# Imported AWS RoboMaker assets",
+        "",
+        f"Source submodule: `{_DEFAULT_SRC.relative_to(_REPO_ROOT)}`",
+        "Upstream: https://github.com/aws-robotics/aws-robomaker-small-warehouse-world",
+        "License: MIT-0",
+        "",
+        "| File | Upstream model | Extents (m) |",
+        "| --- | --- | --- |",
+    ]
+    for (model_name, out_name, _) , (_, extents) in zip(
+        _MODELS, imported, strict=True
+    ):
+        lines.append(
+            f"| `meshes/{out_name}` | `{model_name}` | "
+            f"{extents[0]:.3f} × {extents[1]:.3f} × {extents[2]:.3f} |"
+        )
+    lines.append("| `textures/ground.png` | `GroundB_01` | — |")
+    lines.append("| `textures/wall.png` | `WallB_01` | — |")
+    lines.append("")
+    inventory.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Wrote {inventory}")
+    return imported
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
@@ -108,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--src",
         type=Path,
         default=None,
-        help="Path to aws-robomaker-small-warehouse-world clone",
+        help="Path to aws-robomaker-small-warehouse-world (default: submodule)",
     )
     parser.add_argument(
         "--out",
@@ -122,28 +171,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     args = build_parser().parse_args(argv)
-    src = args.src
-    if src is None:
-        tmp = Path("/tmp/aws-robomaker-small-warehouse-world")
-        if not tmp.is_dir():
-            print(
-                "Cloning aws-robomaker-small-warehouse-world into /tmp ...",
-                file=sys.stderr,
-            )
-            import subprocess
-
-            subprocess.run(
-                [
-                    "git",
-                    "clone",
-                    "--depth",
-                    "1",
-                    "https://github.com/aws-robotics/aws-robomaker-small-warehouse-world.git",
-                    str(tmp),
-                ],
-                check=True,
-            )
-        src = tmp
+    src = args.src if args.src is not None else _DEFAULT_SRC
+    if not src.is_dir():
+        print(
+            f"AWS warehouse source not found at {src}.\n"
+            "Run: git submodule update --init "
+            "third_party/aws-robomaker-small-warehouse-world",
+            file=sys.stderr,
+        )
+        return 1
 
     import_assets(src.resolve(), args.out.resolve())
     print("Done.")

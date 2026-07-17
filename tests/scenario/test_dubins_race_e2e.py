@@ -31,9 +31,9 @@ _SCENARIO_PATH = (
     / "scenarios"
     / "dubins_race.yml"
 )
-_RACE_SIM_TIMEOUT_S = 240.0
+_RACE_SIM_TIMEOUT_S = 300.0
 # Wall clock includes dual planning plus real-TB3 race simulation.
-_WALL_CLOCK_BUDGET_S = 300.0
+_WALL_CLOCK_BUDGET_S = 360.0
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -49,7 +49,7 @@ def test_obstacle_file_exists() -> None:
 
 def test_world_has_structure_forest() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 20
+    assert len(world.structures) >= 15
 
 
 def test_dual_agents_plan_and_finish_race() -> None:

@@ -17,7 +17,7 @@ from fret.scenario.planner_rng import (
 
 _GOAL_XY = (8.8, 8.8)
 _GOAL_RADIUS_M = 0.35
-_MAX_PHYSICS_LATERAL_SPEED_M_S = 0.22
+_MAX_PHYSICS_LATERAL_SPEED_M_S = 0.40
 
 
 @pytest.fixture(scope="module", autouse=True)

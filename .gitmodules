@@ -1,0 +1,7 @@
+[submodule "third_party/aws-robomaker-small-warehouse-world"]
+	path = third_party/aws-robomaker-small-warehouse-world
+	url = https://github.com/aws-robotics/aws-robomaker-small-warehouse-world.git
+	branch = ros1
+[submodule "third_party/robotis_mujoco_menagerie"]
+	path = third_party/robotis_mujoco_menagerie
+	url = https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie.git

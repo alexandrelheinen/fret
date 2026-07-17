@@ -1,12 +1,11 @@
-# Dubins race lab layout (SC-v11) — real TurtleBot3 Burger scale.
+# Dubins race warehouse maze (SC-v11) — real TurtleBot3 Burger.
 #
-# 10 m × 10 m floor with narrow corridors sized for TB3
-# (radius 0.12 m + clearance 0.18 m). Regenerate with:
+# Corridor gap target: 1.14 m (>= width 0.18 + 4*clearance 0.18, plus PP slack).
+# Estimated diagonal face-to-face gap: 1.140 m.
+# Regenerate with:
 #   python3 scripts/generate_dubins_warehouse_layout.py
 #   python3 scripts/generate_dubins_race_mjcf.py
 #
-# Structure format: {x, y, hx, hy, height} — centre + half-extents (m).
-
 workspace_bounds:
   x:
   - 0.0
@@ -23,162 +22,127 @@ start_xy:
 goal_xy:
 - 8.8
 - 8.8
-agent_lateral_offset: 0.28
+agent_lateral_offset: 0.55
 vehicle:
   radius: 0.12
   clearance_margin: 0.18
+  width: 0.18
+  min_corridor_gap: 1.14
 planner:
   bounds:
   - - 0.0
     - 10.0
   - - 0.0
     - 10.0
-  rrt_max_sample_count: 5000
-  sst_max_sample_count: 6000
-  step_size: 0.16
-  goal_tolerance: 0.28
-  collision_check_count: 24
-  goal_bias: 0.15
-  witness_radius: 0.1
+  rrt_max_sample_count: 7000
+  sst_max_sample_count: 8000
+  step_size: 0.2
+  goal_tolerance: 0.3
+  collision_check_count: 48
+  goal_bias: 0.2
+  witness_radius: 0.12
   enable_pruning: true
 structures:
-- x: 2.51
-  y: 3.49
+- x: 2.491
+  y: 3.509
   hx: 0.55
-  hy: 0.22
-  height: 1.15
-- x: 4.69
-  y: 3.71
-  hx: 0.22
+  hy: 0.15
+  height: 1.3
+  visual: shelf
+- x: 4.709
+  y: 3.691
+  hx: 0.15
   hy: 0.55
-  height: 1.2
-- x: 4.89
-  y: 5.91
+  height: 1.3
+  visual: shelf
+- x: 4.891
+  y: 5.909
   hx: 0.55
-  hy: 0.22
-  height: 1.25
-- x: 7.11
-  y: 6.09
-  hx: 0.22
+  hy: 0.15
+  height: 1.3
+  visual: shelf
+- x: 7.109
+  y: 6.091
+  hx: 0.15
   hy: 0.55
-  height: 1.2
-- x: 7.12
-  y: 8.08
+  height: 1.3
+  visual: shelf
+- x: 7.091
+  y: 8.109
   hx: 0.5
-  hy: 0.22
-  height: 1.15
-- x: 1.85
-  y: 3.75
-  hx: 0.45
-  hy: 0.16
-  height: 1.1
-- x: 3.93
-  y: 1.67
-  hx: 0.4
-  hy: 0.16
-  height: 1.05
-- x: 5.06
-  y: 2.94
+  hy: 0.15
+  height: 1.3
+  visual: shelf
+- x: 1.736
+  y: 4.664
   hx: 0.45
   hy: 0.16
   height: 1.15
-- x: 2.76
-  y: 5.24
-  hx: 0.4
-  hy: 0.16
-  height: 1.05
-- x: 4.25
-  y: 6.15
-  hx: 0.45
-  hy: 0.16
-  height: 1.2
-- x: 6.33
-  y: 4.07
-  hx: 0.4
-  hy: 0.16
-  height: 1.05
-- x: 7.46
-  y: 5.34
-  hx: 0.45
-  hy: 0.16
-  height: 1.1
-- x: 5.16
-  y: 7.64
-  hx: 0.4
-  hy: 0.16
-  height: 1.05
-- x: 6.45
-  y: 8.35
+  visual: shelf_e
+- x: 6.464
+  y: 3.536
   hx: 0.45
   hy: 0.16
   height: 1.15
-- x: 8.53
-  y: 6.27
-  hx: 0.4
+  visual: shelf_e
+- x: 5.336
+  y: 8.264
+  hx: 0.45
   hy: 0.16
-  height: 1.05
-- x: 2.5
-  y: 4.8
-  hx: 0.22
-  hy: 0.2
-  height: 0.9
-- x: 4.8
-  y: 2.6
-  hx: 0.2
-  hy: 0.22
-  height: 0.95
+  height: 1.15
+  visual: shelf_e
 - x: 5.0
-  y: 7.2
-  hx: 0.22
-  hy: 0.2
-  height: 1.0
-- x: 7.2
   y: 5.0
+  hx: 0.28
+  hy: 0.28
+  height: 1.05
+  visual: clutter_c
+- x: 2.0
+  y: 4.8
+  hx: 0.18
+  hy: 0.18
+  height: 0.55
+  visual: bucket
+- x: 4.8
+  y: 2.0
   hx: 0.2
-  hy: 0.22
-  height: 0.95
-- x: 3.6
-  y: 6.8
+  hy: 0.2
+  height: 0.7
+  visual: trash
+- x: 2.0
+  y: 7.5
+  hx: 0.3
+  hy: 0.18
+  height: 0.75
+  visual: desk
+- x: 7.5
+  y: 2.0
+  hx: 0.22
+  hy: 0.3
+  height: 0.9
+  visual: pallet
+- x: 3.2
+  y: 8.5
+  hx: 0.14
+  hy: 0.14
+  height: 1.1
+  visual: lamp
+- x: 8.5
+  y: 3.2
+  hx: 0.14
+  hy: 0.14
+  height: 1.1
+  visual: lamp
+- x: 8.2
+  y: 6.5
   hx: 0.18
   hy: 0.18
-  height: 0.85
-- x: 6.8
-  y: 3.6
-  hx: 0.18
-  hy: 0.18
-  height: 0.85
-dead_ends:
-- id: alcove_w
-  parts:
-  - x: 1.6
-    y: 3.8
-    hx: 0.12
-    hy: 0.55
-    height: 1.05
-  - x: 1.25
-    y: 4.25
-    hx: 0.35
-    hy: 0.12
-    height: 1.05
-  - x: 1.25
-    y: 3.35
-    hx: 0.35
-    hy: 0.12
-    height: 1.05
-- id: alcove_e
-  parts:
-  - x: 8.4
-    y: 6.2
-    hx: 0.12
-    hy: 0.55
-    height: 1.05
-  - x: 8.75
-    y: 6.65
-    hx: 0.35
-    hy: 0.12
-    height: 1.05
-  - x: 8.75
-    y: 5.75
-    hx: 0.35
-    hy: 0.12
-    height: 1.05
+  height: 0.55
+  visual: bucket
+- x: 6.5
+  y: 8.2
+  hx: 0.2
+  hy: 0.2
+  height: 0.7
+  visual: trash
+dead_ends: []

@@ -105,10 +105,13 @@ class DubinsRaceSimulation:
     dt: float
     rrt_vehicle: Any
     sst_vehicle: Any
+    dummy_vehicle: Any
     rrt_loop: TrackingLoop
     sst_loop: TrackingLoop
+    dummy_loop: TrackingLoop
     rrt_path: list[tuple[float, float]]
     sst_path: list[tuple[float, float]]
+    dummy_path: list[tuple[float, float]]
     goal_radius: float
     rrt_finish: float | None = None
     sst_finish: float | None = None
@@ -123,7 +126,6 @@ class DubinsRaceSimulation:
         default_factory=list
     )
     dummy_pose: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    dummy_heading_rad: float = 0.0
     dummy_stopped: bool = False
     dummy_pose_history: list[tuple[float, float, float]] = field(
         default_factory=list
@@ -170,16 +172,32 @@ class DubinsRaceSimulation:
         return self.finished
 
     def _step_dummy_kinematic(self) -> None:
-        """Advance the straight-line dummy and record its pose."""
-        self.dummy_pose, self.dummy_stopped = _step_dummy_straight_line(
+        """Advance the dummy with path tracking on the straight start→goal line."""
+        if self.dummy_stopped:
+            self.dummy_pose_history.append(self.dummy_pose)
+            return
+        cmd, stopped = _dummy_path_tracker_command(
             self.dummy_pose,
-            heading_rad=self.dummy_heading_rad,
+            path=self.dummy_path,
             stopped=self.dummy_stopped,
-            goal=self.world.goal_xy,
             speed=self.vehicle_cfg.cruise_speed,
-            dt=self.dt,
+            max_turn_rate=self.vehicle_cfg.max_turn_rate,
+            lookahead_distance=self.vehicle_cfg.lookahead_distance,
             occupancy=self.occupancy,
         )
+        self.dummy_stopped = stopped
+        if stopped:
+            self.dummy_pose_history.append(self.dummy_pose)
+            return
+        vx, vy, omega = cmd
+        x, y, yaw = self.dummy_pose
+        yaw = _wrap_heading(yaw + float(omega) * self.dt)
+        x = x + float(vx) * self.dt
+        y = y + float(vy) * self.dt
+        self.dummy_pose = (x, y, yaw)
+        self.dummy_vehicle.x = x
+        self.dummy_vehicle.y = y
+        self.dummy_vehicle.heading = yaw
         self.dummy_pose_history.append(self.dummy_pose)
 
     def step_physics(self, bridge: Any) -> bool:
@@ -224,23 +242,36 @@ class DubinsRaceSimulation:
             occupancy=self.occupancy,
             lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
-        dummy_cmd, self.dummy_stopped = _dummy_physics_velocity_command(
-            self.dummy_pose,
-            heading_rad=self.dummy_heading_rad,
-            stopped=self.dummy_stopped,
-            speed=self.vehicle_cfg.cruise_speed,
-            occupancy=self.occupancy,
-        )
+        if self.dummy_stopped:
+            dummy_cmd = (0.0, 0.0, 0.0)
+        else:
+            dummy_cmd, self.dummy_stopped = _dummy_path_tracker_command(
+                self.dummy_pose,
+                path=self.dummy_path,
+                stopped=self.dummy_stopped,
+                speed=self.vehicle_cfg.cruise_speed,
+                max_turn_rate=self.vehicle_cfg.max_turn_rate,
+                lookahead_distance=self.vehicle_cfg.lookahead_distance,
+                occupancy=self.occupancy,
+            )
         commands = np.array([*rrt_cmd, *sst_cmd, *dummy_cmd], dtype=np.float64)
         bridge.step_physics(commands)
         _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
         _sync_vehicle_pose(self.sst_vehicle, bridge.get_sst_pose())
         dummy_qpos = bridge.get_dummy_pose()
+        _sync_vehicle_pose(self.dummy_vehicle, dummy_qpos)
         self.dummy_pose = (
             float(dummy_qpos[0]),
             float(dummy_qpos[1]),
             float(dummy_qpos[2]),
         )
+        if (not self.dummy_stopped) and self.occupancy.is_occupied(
+            np.array(
+                [self.dummy_pose[0], self.dummy_pose[1]],
+                dtype=np.float64,
+            )
+        ):
+            self.dummy_stopped = True
 
         self.max_cross_track_error_m = max(
             self.max_cross_track_error_m,
@@ -390,72 +421,78 @@ def _initial_dummy_pose(world: DubinsRaceWorld) -> tuple[float, float, float]:
     )
 
 
-def _step_dummy_straight_line(
-    pose: tuple[float, float, float],
-    *,
-    heading_rad: float,
-    stopped: bool,
+def _straight_line_path(
+    start: npt.NDArray[np.float64],
     goal: npt.NDArray[np.float64],
-    speed: float,
-    dt: float,
-    occupancy: RectStructureOccupancy,
-) -> tuple[tuple[float, float, float], bool]:
-    """Advance the dummy along a straight corridor; stop on collision."""
-    if stopped:
-        return pose, True
-
-    x, y, _ = pose
-    centre = np.array([x, y], dtype=np.float64)
-    if occupancy.is_occupied(centre):
-        return (x, y, heading_rad), True
-
-    dist_to_goal = math.hypot(float(goal[0]) - x, float(goal[1]) - y)
-    step = float(speed) * float(dt)
-    if step >= dist_to_goal:
-        new_x = float(goal[0])
-        new_y = float(goal[1])
-    else:
-        new_x = x + step * math.cos(heading_rad)
-        new_y = y + step * math.sin(heading_rad)
-
-    if occupancy.is_occupied(np.array([new_x, new_y], dtype=np.float64)):
-        return (x, y, heading_rad), True
-
-    return (new_x, new_y, heading_rad), False
+    *,
+    spacing_m: float = 0.25,
+) -> list[tuple[float, float]]:
+    """Return dense SE(2) XY waypoints on the naive start→goal segment."""
+    dx = float(goal[0] - start[0])
+    dy = float(goal[1] - start[1])
+    length = math.hypot(dx, dy)
+    if length < 1e-9:
+        return [(float(start[0]), float(start[1]))]
+    n = max(2, int(math.ceil(length / max(spacing_m, 1e-3))) + 1)
+    return [
+        (
+            float(start[0] + (i / (n - 1)) * dx),
+            float(start[1] + (i / (n - 1)) * dy),
+        )
+        for i in range(n)
+    ]
 
 
-def _dummy_physics_velocity_command(
+def _dummy_path_tracker_command(
     pose: tuple[float, float, float],
     *,
-    heading_rad: float,
+    path: list[tuple[float, float]],
     stopped: bool,
     speed: float,
+    max_turn_rate: float,
+    lookahead_distance: float,
     occupancy: RectStructureOccupancy,
 ) -> tuple[tuple[float, float, float], bool]:
-    """Drive the dummy forward along the start→goal diagonal until blocked."""
-    if stopped:
+    """Pure-pursuit on the straight path; no obstacle repulsion (foil).
+
+    The dummy must keep tracking the naive start→goal line until the
+    inflated occupancy reports contact — repulsion would steer it off the
+    diagonal and look like reverse driving.
+    """
+    if stopped or not path:
         return (0.0, 0.0, 0.0), True
 
     x, y, yaw = pose
+    # Bail out if physics flung the body outside the lab (contact explosion).
+    if not (0.0 <= x <= 10.0 and 0.0 <= y <= 10.0):
+        return (0.0, 0.0, 0.0), True
     if occupancy.is_occupied(np.array([x, y], dtype=np.float64)):
         return (0.0, 0.0, 0.0), True
 
+    # Nose probe along the commanded heading — stop before scraping a wall.
     probe = np.array(
-        [
-            x + 0.35 * math.cos(heading_rad),
-            y + 0.35 * math.sin(heading_rad),
-        ],
+        [x + 0.30 * math.cos(yaw), y + 0.30 * math.sin(yaw)],
         dtype=np.float64,
     )
     if occupancy.is_occupied(probe):
         return (0.0, 0.0, 0.0), True
 
-    yaw_err = _wrap_heading(heading_rad - yaw)
-    yaw_rate = max(-1.2, min(1.2, 3.5 * yaw_err))
-    body_vx = float(speed) * max(0.0, math.cos(yaw_err))
-    vx = body_vx * math.cos(yaw)
-    vy = body_vx * math.sin(yaw)
-    return (vx, vy, yaw_rate), False
+    look_x, look_y = _path_lookahead_point(
+        path,
+        (x, y),
+        lookahead_m=max(float(lookahead_distance), 0.35),
+    )
+    bearing = math.atan2(look_y - y, look_x - x)
+    yaw_err = _wrap_heading(bearing - yaw)
+    heading_gate = 0.15 + 0.85 * max(0.0, math.cos(yaw_err))
+    forward = float(speed) * heading_gate
+    omega = max(
+        -float(max_turn_rate),
+        min(float(max_turn_rate), 2.5 * yaw_err),
+    )
+    vx = forward * math.cos(yaw)
+    vy = forward * math.sin(yaw)
+    return (vx, vy, omega), False
 
 
 def _spawn_positions(
@@ -1035,6 +1072,13 @@ class DubinsRaceRunner:
         )
 
         dummy_pose = _initial_dummy_pose(world)
+        dummy_path = _straight_line_path(world.start_xy, world.goal_xy)
+        dummy_vehicle, dummy_loop = build_vehicle_sim(
+            dummy_path, vehicle_cfg, occupancy=occupancy
+        )
+        dummy_vehicle.x = float(dummy_pose[0])
+        dummy_vehicle.y = float(dummy_pose[1])
+        dummy_vehicle.heading = float(dummy_pose[2])
         session = DubinsRaceSimulation(
             world=world,
             vehicle_cfg=vehicle_cfg,
@@ -1043,15 +1087,17 @@ class DubinsRaceRunner:
             dt=dt,
             rrt_vehicle=rrt_vehicle,
             sst_vehicle=sst_vehicle,
+            dummy_vehicle=dummy_vehicle,
             rrt_loop=rrt_loop,
             sst_loop=sst_loop,
+            dummy_loop=dummy_loop,
             rrt_path=rrt_path,
             sst_path=sst_path,
+            dummy_path=dummy_path,
             goal_radius=vehicle_cfg.goal_radius,
             rrt_pose_history=[rrt_vehicle.pose],
             sst_pose_history=[sst_vehicle.pose],
             dummy_pose=dummy_pose,
-            dummy_heading_rad=dummy_pose[2],
             dummy_pose_history=[dummy_pose],
         )
         return rrt_plan, sst_plan, session

@@ -5,7 +5,9 @@
     robotis_tb3/turtlebot3_burger.xml — true differential-drive with
     wheel hinge joints and velocity actuators (FR-SIM-11).
   -->
-  <compiler angle="radian" meshdir="assets/turtlebot3"/>
+  <!-- Meshes from git submodule third_party/robotis_mujoco_menagerie. -->
+  <compiler angle="radian"
+            meshdir="../../../third_party/robotis_mujoco_menagerie/robotis_tb3/assets"/>
 
   <asset>
     <material name="tb3_grey" rgba="0.3 0.3 0.3 1"/>
