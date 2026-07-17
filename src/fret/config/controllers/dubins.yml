@@ -1,16 +1,16 @@
-# Dubins vehicle + Pure Pursuit parameters (SC-v11 / T11-04).
-# Values aligned with ARCO simulator VehicleConfig defaults.
+# Dubins vehicle + Pure Pursuit — real TurtleBot3 Burger speeds (Menagerie).
+# v_max ≈ ω_wheel_max * r = 6.67 rad/s * 0.033 m ≈ 0.22 m/s.
 
 /**:
   ros__parameters:
-    max_speed: 7.0
+    max_speed: 0.22
     min_speed: 0.0
-    cruise_speed: 3.6
-    lookahead_distance: 3.5
-    goal_radius: 0.75
-    max_turn_rate_deg: 75.0
-    max_acceleration: 4.0
-    max_turn_rate_dot_deg: 300.0
-    curvature_gain: 0.6
-    repulsion_gain: 3.0
+    cruise_speed: 0.18
+    lookahead_distance: 0.50
+    goal_radius: 0.35
+    max_turn_rate_deg: 140.0
+    max_acceleration: 0.50
+    max_turn_rate_dot_deg: 400.0
+    curvature_gain: 0.9
+    repulsion_gain: 1.5
     update_rate: 20.0

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Generate warehouse-style Dubins race obstacle YAML.
+"""Generate compact Dubins race obstacle YAML for real TurtleBot3 speeds.
 
-Produces an industrial layout where rack rows and pallet clusters flank the
-A→B race line, with deliberate diagonal barriers that block the trivial
-straight route while leaving multiple viable detour corridors.
+Produces a 10 m × 10 m lab floor with narrow but navigable corridors for
+ROBOTIS TurtleBot3 Burger (planning radius 0.12 m + clearance 0.18 m).
 
 Example::
 
@@ -21,29 +20,18 @@ from pathlib import Path
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_DEFAULT_OUT = (
-    _REPO_ROOT / "src/fret/config/worlds/dubins_race_obstacles.yml"
-)
+_DEFAULT_OUT = _REPO_ROOT / "src/fret/config/worlds/dubins_race_obstacles.yml"
 
-# Keep peripheral clutter off the spawn/goal pads.
-_BOUNDS_PAD_M = 6.0
-_BOUNDS_MAX_M = 78.0
-
-# Flank racks sit this far from the diagonal (perpendicular) [m].
-_FLANK_OFFSET_M = 3.4
+_WORKSPACE_MAX_M = 10.0
+_BOUNDS_PAD_M = 0.85
+_BOUNDS_MAX_M = _WORKSPACE_MAX_M - 0.15
 
 
 def _dist_to_diagonal(x: float, y: float) -> float:
     return abs(y - x) / math.sqrt(2.0)
 
 
-def _on_diagonal(station: float) -> tuple[float, float]:
-    """Return a point on the race diagonal y = x."""
-    return station, station
-
-
 def _normal(side: float) -> tuple[float, float]:
-    """Unit normal to the diagonal; ``side`` flips north/south of the line."""
     inv_sqrt2 = 0.70710678
     return -inv_sqrt2 * side, inv_sqrt2 * side
 
@@ -57,9 +45,19 @@ def _add(
     height: float,
     *,
     min_diagonal_offset: float = 0.0,
+    avoid_pads: bool = True,
 ) -> None:
-    if min_diagonal_offset > 0.0 and _dist_to_diagonal(x, y) < min_diagonal_offset:
+    if (
+        min_diagonal_offset > 0.0
+        and _dist_to_diagonal(x, y) < min_diagonal_offset
+    ):
         return
+    if avoid_pads:
+        # Keep spawn / goal disks clear (centre + ~0.9 m).
+        if math.hypot(x - 1.2, y - 1.2) < 1.1:
+            return
+        if math.hypot(x - 8.8, y - 8.8) < 1.1:
+            return
     if (
         x - hx < _BOUNDS_PAD_M
         or x + hx > _BOUNDS_MAX_M
@@ -69,123 +67,73 @@ def _add(
         return
     structures.append(
         {
-            "x": round(x, 1),
-            "y": round(y, 1),
+            "x": round(x, 2),
+            "y": round(y, 2),
             "hx": round(hx, 2),
             "hy": round(hy, 2),
-            "height": round(height, 1),
+            "height": round(height, 2),
         }
     )
 
 
-def _add_flank_rack(
-    structures: list[dict[str, float]],
-    station: float,
-    side: float,
-    offset: float,
-    rack_hx: float,
-    height: float,
-) -> None:
-    nx, ny = _normal(side)
-    cx = station + nx * offset
-    cy = station + ny * offset
-    _add(structures, cx, cy, rack_hx, 0.45, height)
-
-
-def _add_diagonal_barrier(
-    structures: list[dict[str, float]],
-    station: float,
-    hx: float,
-    hy: float,
-    height: float,
-    *,
-    side: float = 0.0,
-    lateral: float = 0.0,
-) -> None:
-    """Place a barrier that crosses or grazes the race diagonal."""
-    cx, cy = _on_diagonal(station)
-    if side != 0.0:
-        nx, ny = _normal(side)
-        cx += nx * lateral
-        cy += ny * lateral
-    _add(structures, cx, cy, hx, hy, height)
-
-
 def generate_structures() -> list[dict[str, float]]:
-    """Build rack rows, pallet stations, and cross-aisle clutter."""
+    """Staggered diagonal chokes + flank racks with ~0.8 m corridors."""
     structures: list[dict[str, float]] = []
 
-    # Diagonal barriers with staggered gaps — block the trivial straight route
-    # while leaving both a northern (y > x) and southern (y < x) corridor.
-    diagonal_barriers: tuple[tuple[float, float, float, float, float, float, float], ...] = (
-        # station, hx, hy, height, side, lateral
-        (18.0, 2.40, 2.40, 2.6, 0.0, 0.0),  # early full block → detour north or south
-        (28.0, 2.80, 1.20, 2.8, 1.0, 1.6),  # north cheek; gap to the south
-        (36.0, 1.20, 2.80, 2.7, -1.0, 1.6),  # south cheek; gap to the north
-        (46.0, 2.60, 2.60, 2.9, 0.0, 0.0),  # mid choke — forces side choice
-        (54.0, 2.80, 1.20, 2.8, -1.0, 1.6),  # south cheek
-        (62.0, 1.20, 2.80, 2.7, 1.0, 1.6),  # north cheek
-        (70.0, 2.20, 2.20, 2.5, 0.0, 0.0),  # late block before goal pad
+    # Cheek barriers: offset from the diagonal so a ~0.8–1.0 m gap remains.
+    # Alternating sides force a weave without sealing the route.
+    cheeks: tuple[tuple[float, float, float, float, float, float], ...] = (
+        # station, hx, hy, height, side, lateral_from_diagonal
+        (3.0, 0.55, 0.22, 1.15, 1.0, 0.70),
+        (4.2, 0.22, 0.55, 1.20, -1.0, 0.70),
+        (5.4, 0.55, 0.22, 1.25, 1.0, 0.72),
+        (6.6, 0.22, 0.55, 1.20, -1.0, 0.72),
+        (7.6, 0.50, 0.22, 1.15, 1.0, 0.68),
     )
-    for station, hx, hy, height, side, lateral in diagonal_barriers:
-        _add_diagonal_barrier(
+    for station, hx, hy, height, side, lateral in cheeks:
+        nx, ny = _normal(side)
+        _add(
             structures,
-            station,
+            station + nx * lateral,
+            station + ny * lateral,
             hx,
             hy,
             height,
-            side=side,
-            lateral=lateral,
         )
 
-    # Rack pairs flanking the diagonal — close enough to narrow corridors but
-    # not a duplicate of the central barriers.
-    for i, station in enumerate(range(14, 70, 7)):
+    # Flank storage — further off-diagonal to narrow side pockets.
+    for i, station in enumerate((2.8, 4.0, 5.2, 6.4, 7.4)):
         side = 1.0 if i % 2 == 0 else -1.0
-        offset = _FLANK_OFFSET_M + (i % 3) * 0.8
-        height = 2.4 + (i % 4) * 0.25
-        rack_hx = 2.6 + (i % 2) * 0.4
-        _add_flank_rack(structures, station, side, offset, rack_hx, height)
-        _add_flank_rack(
-            structures,
-            station,
-            -side,
-            offset + 1.2,
-            rack_hx,
-            height + 0.2,
-        )
-
-    # Pallet / crate clusters between rack rows, biased toward alternate routes.
-    pallet_stations: tuple[tuple[float, float, float, float], ...] = (
-        (22.0, 1.0, 5.0, 1.9),  # station, side, offset, height
-        (30.0, -1.0, 4.6, 2.2),
-        (40.0, 1.0, 5.4, 2.5),
-        (48.0, -1.0, 4.8, 2.0),
-        (58.0, 1.0, 5.2, 2.3),
-        (66.0, -1.0, 4.4, 2.6),
-    )
-    for station, side, offset, height in pallet_stations:
+        offset = 1.35 + (i % 2) * 0.15
         nx, ny = _normal(side)
         _add(
             structures,
             station + nx * offset,
             station + ny * offset,
-            0.95,
-            0.85,
-            height,
+            0.45,
+            0.16,
+            1.1 + 0.05 * (i % 3),
+        )
+        _add(
+            structures,
+            station - nx * (offset + 0.25),
+            station - ny * (offset + 0.25),
+            0.40,
+            0.16,
+            1.05,
         )
 
-    # Peripheral storage blocks — pin corners without sealing the map.
-    peripheral = (
-        (20.0, 50.0, 1.2, 1.0, 2.2),
-        (50.0, 20.0, 1.0, 1.2, 2.1),
-        (28.0, 60.0, 1.1, 0.9, 2.0),
-        (60.0, 28.0, 0.9, 1.1, 2.3),
-        (66.0, 46.0, 1.0, 0.95, 2.1),
-        (46.0, 66.0, 0.95, 1.0, 2.4),
+    # Small crates in the pockets (not on the race line).
+    crates: tuple[tuple[float, float, float, float, float], ...] = (
+        (2.5, 4.8, 0.22, 0.20, 0.9),
+        (4.8, 2.6, 0.20, 0.22, 0.95),
+        (5.0, 7.2, 0.22, 0.20, 1.0),
+        (7.2, 5.0, 0.20, 0.22, 0.95),
+        (3.6, 6.8, 0.18, 0.18, 0.85),
+        (6.8, 3.6, 0.18, 0.18, 0.85),
     )
-    for x, y, hx, hy, height in peripheral:
-        _add(structures, x, y, hx, hy, height, min_diagonal_offset=2.5)
+    for x, y, hx, hy, height in crates:
+        _add(structures, x, y, hx, hy, height, min_diagonal_offset=1.0)
 
     return structures
 
@@ -193,52 +141,80 @@ def generate_structures() -> list[dict[str, float]]:
 def build_world(structures: list[dict[str, float]]) -> dict[str, object]:
     return {
         "workspace_bounds": {
-            "x": [0.0, 80.0],
-            "y": [0.0, 80.0],
-            "z": [0.0, 4.0],
+            "x": [0.0, _WORKSPACE_MAX_M],
+            "y": [0.0, _WORKSPACE_MAX_M],
+            "z": [0.0, 2.5],
         },
-        "start_xy": [6.0, 6.0],
-        "goal_xy": [74.0, 74.0],
-        "agent_lateral_offset": 0.8,
+        "start_xy": [1.2, 1.2],
+        "goal_xy": [8.8, 8.8],
+        "agent_lateral_offset": 0.28,
         "vehicle": {
-            "radius": 0.42,
-            "clearance_margin": 1.00,
+            "radius": 0.12,
+            "clearance_margin": 0.18,
         },
         "planner": {
-            "bounds": [[0.0, 80.0], [0.0, 80.0]],
-            "rrt_max_sample_count": 6000,
+            "bounds": [[0.0, _WORKSPACE_MAX_M], [0.0, _WORKSPACE_MAX_M]],
+            "rrt_max_sample_count": 5000,
             "sst_max_sample_count": 6000,
-            "step_size": 0.45,
-            "goal_tolerance": 0.65,
+            "step_size": 0.16,
+            "goal_tolerance": 0.28,
             "collision_check_count": 24,
-            "goal_bias": 0.10,
-            "witness_radius": 0.25,
+            "goal_bias": 0.15,
+            "witness_radius": 0.10,
             "enable_pruning": True,
         },
         "structures": structures,
         "dead_ends": [
             {
-                "id": "alcove_sw",
+                "id": "alcove_w",
                 "parts": [
-                    {"x": 20.0, "y": 12.0, "hx": 0.35, "hy": 2.20, "height": 2.6},
-                    {"x": 18.4, "y": 14.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
-                    {"x": 18.4, "y": 10.0, "hx": 1.60, "hy": 0.35, "height": 2.6},
+                    {
+                        "x": 1.6,
+                        "y": 3.8,
+                        "hx": 0.12,
+                        "hy": 0.55,
+                        "height": 1.05,
+                    },
+                    {
+                        "x": 1.25,
+                        "y": 4.25,
+                        "hx": 0.35,
+                        "hy": 0.12,
+                        "height": 1.05,
+                    },
+                    {
+                        "x": 1.25,
+                        "y": 3.35,
+                        "hx": 0.35,
+                        "hy": 0.12,
+                        "height": 1.05,
+                    },
                 ],
             },
             {
-                "id": "alcove_mid",
+                "id": "alcove_e",
                 "parts": [
-                    {"x": 44.0, "y": 36.0, "hx": 2.80, "hy": 0.35, "height": 2.8},
-                    {"x": 46.5, "y": 34.2, "hx": 0.35, "hy": 1.50, "height": 2.8},
-                    {"x": 41.5, "y": 34.2, "hx": 0.35, "hy": 1.50, "height": 2.8},
-                ],
-            },
-            {
-                "id": "alcove_ne",
-                "parts": [
-                    {"x": 60.0, "y": 66.0, "hx": 0.35, "hy": 2.40, "height": 2.4},
-                    {"x": 58.2, "y": 68.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
-                    {"x": 58.2, "y": 64.0, "hx": 1.80, "hy": 0.35, "height": 2.4},
+                    {
+                        "x": 8.4,
+                        "y": 6.2,
+                        "hx": 0.12,
+                        "hy": 0.55,
+                        "height": 1.05,
+                    },
+                    {
+                        "x": 8.75,
+                        "y": 6.65,
+                        "hx": 0.35,
+                        "hy": 0.12,
+                        "height": 1.05,
+                    },
+                    {
+                        "x": 8.75,
+                        "y": 5.75,
+                        "hx": 0.35,
+                        "hy": 0.12,
+                        "height": 1.05,
+                    },
                 ],
             },
         ],
@@ -261,11 +237,12 @@ def main(argv: list[str] | None = None) -> int:
     structures = generate_structures()
     world = build_world(structures)
     header = (
-        "# Dubins race warehouse layout (SC-v11 / T11-02).\n"
+        "# Dubins race lab layout (SC-v11) — real TurtleBot3 Burger scale.\n"
         "#\n"
-        "# 80 m × 80 m industrial floor with rack rows, pallet clusters, and\n"
-        "# U-shaped dead-end alcoves.  Regenerate with:\n"
+        "# 10 m × 10 m floor with narrow corridors sized for TB3\n"
+        "# (radius 0.12 m + clearance 0.18 m). Regenerate with:\n"
         "#   python3 scripts/generate_dubins_warehouse_layout.py\n"
+        "#   python3 scripts/generate_dubins_race_mjcf.py\n"
         "#\n"
         "# Structure format: {x, y, hx, hy, height} — centre + half-extents (m).\n\n"
     )
@@ -287,4 +264,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

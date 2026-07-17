@@ -1,270 +1,184 @@
-# Dubins race warehouse layout (SC-v11 / T11-02).
+# Dubins race lab layout (SC-v11) — real TurtleBot3 Burger scale.
 #
-# 80 m × 80 m industrial floor with rack rows, pallet clusters, and
-# U-shaped dead-end alcoves.  Regenerate with:
+# 10 m × 10 m floor with narrow corridors sized for TB3
+# (radius 0.12 m + clearance 0.18 m). Regenerate with:
 #   python3 scripts/generate_dubins_warehouse_layout.py
+#   python3 scripts/generate_dubins_race_mjcf.py
 #
 # Structure format: {x, y, hx, hy, height} — centre + half-extents (m).
 
 workspace_bounds:
   x:
   - 0.0
-  - 80.0
+  - 10.0
   y:
   - 0.0
-  - 80.0
+  - 10.0
   z:
   - 0.0
-  - 4.0
+  - 2.5
 start_xy:
-- 6.0
-- 6.0
+- 1.2
+- 1.2
 goal_xy:
-- 74.0
-- 74.0
-agent_lateral_offset: 0.8
+- 8.8
+- 8.8
+agent_lateral_offset: 0.28
 vehicle:
-  radius: 0.42
-  clearance_margin: 1.0
+  radius: 0.12
+  clearance_margin: 0.18
 planner:
   bounds:
   - - 0.0
-    - 80.0
+    - 10.0
   - - 0.0
-    - 80.0
-  rrt_max_sample_count: 6000
-  sst_max_sample_count: 8000
-  step_size: 0.45
-  goal_tolerance: 0.65
+    - 10.0
+  rrt_max_sample_count: 5000
+  sst_max_sample_count: 6000
+  step_size: 0.16
+  goal_tolerance: 0.28
   collision_check_count: 24
-  goal_bias: 0.1
-  witness_radius: 0.25
+  goal_bias: 0.15
+  witness_radius: 0.1
   enable_pruning: true
 structures:
-- x: 18.0
-  y: 18.0
-  hx: 2.4
-  hy: 2.4
-  height: 2.6
-- x: 26.9
-  y: 29.1
-  hx: 2.8
-  hy: 1.2
-  height: 2.8
-- x: 37.1
-  y: 34.9
-  hx: 1.2
-  hy: 2.8
-  height: 2.7
-- x: 46.0
-  y: 46.0
-  hx: 2.6
-  hy: 2.6
-  height: 2.9
-- x: 55.1
-  y: 52.9
-  hx: 2.8
-  hy: 1.2
-  height: 2.8
-- x: 60.9
-  y: 63.1
-  hx: 1.2
-  hy: 2.8
-  height: 2.7
-- x: 70.0
-  y: 70.0
-  hx: 2.2
-  hy: 2.2
-  height: 2.5
-- x: 11.6
-  y: 16.4
-  hx: 2.6
-  hy: 0.45
-  height: 2.4
-- x: 17.3
-  y: 10.7
-  hx: 2.6
-  hy: 0.45
-  height: 2.6
-- x: 24.0
-  y: 18.0
-  hx: 3.0
-  hy: 0.45
-  height: 2.6
-- x: 17.2
-  y: 24.8
-  hx: 3.0
-  hy: 0.45
-  height: 2.9
-- x: 24.5
-  y: 31.5
-  hx: 2.6
-  hy: 0.45
-  height: 2.9
-- x: 32.4
-  y: 23.6
-  hx: 2.6
-  hy: 0.45
-  height: 3.1
-- x: 37.4
-  y: 32.6
-  hx: 3.0
-  hy: 0.45
-  height: 3.1
-- x: 31.7
-  y: 38.3
-  hx: 3.0
-  hy: 0.45
-  height: 3.4
-- x: 39.0
-  y: 45.0
-  hx: 2.6
-  hy: 0.45
-  height: 2.4
-- x: 45.8
-  y: 38.2
-  hx: 2.6
-  hy: 0.45
-  height: 2.6
-- x: 52.5
-  y: 45.5
-  hx: 3.0
-  hy: 0.45
-  height: 2.6
-- x: 44.6
-  y: 53.4
-  hx: 3.0
-  hy: 0.45
-  height: 2.9
-- x: 53.6
-  y: 58.4
-  hx: 2.6
-  hy: 0.45
-  height: 2.9
-- x: 59.3
-  y: 52.7
-  hx: 2.6
-  hy: 0.45
-  height: 3.1
-- x: 66.0
-  y: 60.0
-  hx: 3.0
-  hy: 0.45
-  height: 3.1
-- x: 59.2
-  y: 66.8
-  hx: 3.0
-  hy: 0.45
-  height: 3.4
-- x: 18.5
-  y: 25.5
-  hx: 0.95
-  hy: 0.85
-  height: 1.9
-- x: 33.3
-  y: 26.7
-  hx: 0.95
-  hy: 0.85
-  height: 2.2
-- x: 36.2
-  y: 43.8
-  hx: 0.95
-  hy: 0.85
-  height: 2.5
-- x: 51.4
-  y: 44.6
-  hx: 0.95
-  hy: 0.85
-  height: 2.0
-- x: 54.3
-  y: 61.7
-  hx: 0.95
-  hy: 0.85
-  height: 2.3
-- x: 69.1
-  y: 62.9
-  hx: 0.95
-  hy: 0.85
-  height: 2.6
-- x: 20.0
-  y: 50.0
-  hx: 1.2
-  hy: 1.0
-  height: 2.2
-- x: 50.0
-  y: 20.0
-  hx: 1.0
-  hy: 1.2
-  height: 2.1
-- x: 28.0
-  y: 60.0
-  hx: 1.1
-  hy: 0.9
-  height: 2.0
-- x: 60.0
-  y: 28.0
-  hx: 0.9
-  hy: 1.1
-  height: 2.3
-- x: 66.0
-  y: 46.0
-  hx: 1.0
-  hy: 0.95
-  height: 2.1
-- x: 46.0
-  y: 66.0
-  hx: 0.95
-  hy: 1.0
-  height: 2.4
+- x: 2.51
+  y: 3.49
+  hx: 0.55
+  hy: 0.22
+  height: 1.15
+- x: 4.69
+  y: 3.71
+  hx: 0.22
+  hy: 0.55
+  height: 1.2
+- x: 4.89
+  y: 5.91
+  hx: 0.55
+  hy: 0.22
+  height: 1.25
+- x: 7.11
+  y: 6.09
+  hx: 0.22
+  hy: 0.55
+  height: 1.2
+- x: 7.12
+  y: 8.08
+  hx: 0.5
+  hy: 0.22
+  height: 1.15
+- x: 1.85
+  y: 3.75
+  hx: 0.45
+  hy: 0.16
+  height: 1.1
+- x: 3.93
+  y: 1.67
+  hx: 0.4
+  hy: 0.16
+  height: 1.05
+- x: 5.06
+  y: 2.94
+  hx: 0.45
+  hy: 0.16
+  height: 1.15
+- x: 2.76
+  y: 5.24
+  hx: 0.4
+  hy: 0.16
+  height: 1.05
+- x: 4.25
+  y: 6.15
+  hx: 0.45
+  hy: 0.16
+  height: 1.2
+- x: 6.33
+  y: 4.07
+  hx: 0.4
+  hy: 0.16
+  height: 1.05
+- x: 7.46
+  y: 5.34
+  hx: 0.45
+  hy: 0.16
+  height: 1.1
+- x: 5.16
+  y: 7.64
+  hx: 0.4
+  hy: 0.16
+  height: 1.05
+- x: 6.45
+  y: 8.35
+  hx: 0.45
+  hy: 0.16
+  height: 1.15
+- x: 8.53
+  y: 6.27
+  hx: 0.4
+  hy: 0.16
+  height: 1.05
+- x: 2.5
+  y: 4.8
+  hx: 0.22
+  hy: 0.2
+  height: 0.9
+- x: 4.8
+  y: 2.6
+  hx: 0.2
+  hy: 0.22
+  height: 0.95
+- x: 5.0
+  y: 7.2
+  hx: 0.22
+  hy: 0.2
+  height: 1.0
+- x: 7.2
+  y: 5.0
+  hx: 0.2
+  hy: 0.22
+  height: 0.95
+- x: 3.6
+  y: 6.8
+  hx: 0.18
+  hy: 0.18
+  height: 0.85
+- x: 6.8
+  y: 3.6
+  hx: 0.18
+  hy: 0.18
+  height: 0.85
 dead_ends:
-- id: alcove_sw
+- id: alcove_w
   parts:
-  - x: 20.0
-    y: 12.0
+  - x: 1.6
+    y: 3.8
+    hx: 0.12
+    hy: 0.55
+    height: 1.05
+  - x: 1.25
+    y: 4.25
     hx: 0.35
-    hy: 2.2
-    height: 2.6
-  - x: 18.4
-    y: 14.0
-    hx: 1.6
-    hy: 0.35
-    height: 2.6
-  - x: 18.4
-    y: 10.0
-    hx: 1.6
-    hy: 0.35
-    height: 2.6
-- id: alcove_mid
+    hy: 0.12
+    height: 1.05
+  - x: 1.25
+    y: 3.35
+    hx: 0.35
+    hy: 0.12
+    height: 1.05
+- id: alcove_e
   parts:
-  - x: 44.0
-    y: 36.0
-    hx: 2.8
-    hy: 0.35
-    height: 2.8
-  - x: 46.5
-    y: 34.2
+  - x: 8.4
+    y: 6.2
+    hx: 0.12
+    hy: 0.55
+    height: 1.05
+  - x: 8.75
+    y: 6.65
     hx: 0.35
-    hy: 1.5
-    height: 2.8
-  - x: 41.5
-    y: 34.2
+    hy: 0.12
+    height: 1.05
+  - x: 8.75
+    y: 5.75
     hx: 0.35
-    hy: 1.5
-    height: 2.8
-- id: alcove_ne
-  parts:
-  - x: 60.0
-    y: 66.0
-    hx: 0.35
-    hy: 2.4
-    height: 2.4
-  - x: 58.2
-    y: 68.0
-    hx: 1.8
-    hy: 0.35
-    height: 2.4
-  - x: 58.2
-    y: 64.0
-    hx: 1.8
-    hy: 0.35
-    height: 2.4
+    hy: 0.12
+    height: 1.05
