@@ -1,10 +1,10 @@
-# MuJoCo Tutorial — FRET Visual Guide (v1.0 PPP · v1.1 Dubins · v1.2 physics)
+# MuJoCo Tutorial — FRET Visual Guide (v1.1 Dubins · v1.2 physics)
 
 > **One-stop tutorial** for seeing FRET robots in MuJoCo.
 > MuJoCo is FRET's simulation engine for physics, contacts, rendering, and SITL.
 
 **Related:** [mujoco.md](mujoco.md) · [simulation.md](simulation.md) · [wsl.md](wsl.md) ·
-[releases.md](releases.md) · [robots/ppp.md](robots/ppp.md)
+[releases.md](releases.md) · [robots/dubins.md](robots/dubins.md)
 
 ---
 
@@ -34,7 +34,7 @@ the full `--help` text.
 ```bash
 git clone https://github.com/alexandrelheinen/fret.git && cd fret
 pip install -e ".[sim]"
-./scripts/view.sh --model ppp --scenario ppp_warehouse \
+./scripts/view.sh --model dubins --scenario dubins_race \
   --duration 30 --fps 60 --camera overview
 ```
 
@@ -42,11 +42,11 @@ pip install -e ".[sim]"
 
 ```bash
 # Play once and exit (still requires all base flags)
-./scripts/view.sh --model ppp --scenario ppp_warehouse \
+./scripts/view.sh --model dubins --scenario dubins_race \
   --duration 45 --fps 60 --camera overview --no-loop
 
 # CI / headless check (no window)
-python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
+python3 scripts/view_mujoco.py --model dubins --scenario dubins_race \
   --duration 30 --fps 60 --camera overview --dry-run
 ```
 
@@ -60,7 +60,7 @@ python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
 | Double-click | Select body |
 | Esc / close window | Quit |
 
-**Scene files:** `src/fret/mjcf/ppp_warehouse.xml`, `src/fret/mjcf/dubins_race.xml`
+**Scene files:** `src/fret/mjcf/dubins_race.xml`
 
 ---
 
@@ -71,9 +71,9 @@ required** — bare `./scripts/video.sh` prints `missing arguments` and `--help`
 
 ```bash
 pip install -e ".[sim]"
-./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
-  -o /tmp/fret_ppp_warehouse.mp4 --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
+./scripts/video.sh --model dubins --scenario dubins_race --camera overview \
+  -o /tmp/fret_dubins_race.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
 Release-style multi-camera export:
@@ -93,7 +93,6 @@ GitHub Actions artifact backup. Each release scenario exports two POVs:
 
 | Scenario | Model | Release duration |
 |---|---|---|
-| `ppp_warehouse` | PPP | full simulation (real-time post-process) |
 | `dubins_race` | Dubins | full simulation (real-time post-process) |
 
 ### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
@@ -109,8 +108,8 @@ sudo apt install awscli # if needed
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ```
 
-Default output: `artifacts/r2/ppp_warehouse_latest.mp4` (also gitignored).
-Use `--all` to fetch every release POV (both scenarios × overview + follow).
+Default output: `artifacts/r2/dubins_race_latest.mp4` (also gitignored).
+Use `--all` to fetch every release POV (overview + follow).
 
 ---
 
@@ -123,7 +122,6 @@ viewer above or record topics if needed.
 ./scripts/install.sh -y && ./scripts/setup.sh -y && ./scripts/build.sh
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
@@ -138,7 +136,7 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 1. **Develop algorithms** — `pytest tests/ -v --ignore=tests/integration`
 2. **Preview visually** — `./scripts/view.sh --model … --scenario … …`
-3. **Validate E2E** — `pytest tests/integration/test_scenario_ppp_warehouse.py -v`
+3. **Validate E2E** — `pytest tests/scenario/test_dubins_race_e2e.py -v`
 4. **Export video** — `./scripts/video.sh --model … --scenario … …`
 5. **Run SITL** — `ros2 launch fret sitl.py …`
 
@@ -149,9 +147,6 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 | Demo | Command |
 |---|---|
 | MuJoCo bridge I/O | `python3 scripts/demo_mujoco_bridge.py` |
-| Magnetic grasp FSM | `python3 scripts/demo_grasp.py` |
-| C-space checker | `python3 scripts/demo_ppp_checker.py` |
-| PPP controller | `python3 scripts/demo_ppp_controller.py` |
 
 ---
 
@@ -162,14 +157,14 @@ instead of kinematic pose mirroring. Release CI and showcase renders pass
 `--physics-mode`; ROS SITL enables physics by default.
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 # explicit (same as default):
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
 
 # headless physics showcase MP4
-./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
-  -o /tmp/fret_ppp_physics.mp4 --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration \
+./scripts/video.sh --model dubins --scenario dubins_race --camera overview \
+  -o /tmp/fret_dubins_physics.mp4 --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration \
   --physics-mode
 ```
 
@@ -185,7 +180,7 @@ Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 |---|---|
 | `MuJoCo is required` | `pip install mujoco` |
 | Black / empty viewer | WSL2: see [wsl.md](wsl.md); otherwise check display / Wayland |
-| `Joint not found` | Ensure `model:=ppp scenario:=ppp_warehouse` |
+| `Joint not found` | Ensure `model:=dubins scenario:=dubins_race` |
 | MP4 won't play | `pip install imageio-ffmpeg` |
 | SITL launch fails | Build workspace, source `install/setup.bash` |
 | Headless render fails | `export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl` |
@@ -194,21 +189,24 @@ Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 
 ## Visual assets and realism
 
-FRET v1.0 ships a **hybrid MJCF** scene (`ppp_warehouse.xml`):
+FRET v1.1 ships a **hybrid MJCF** scene (`dubins_race.xml`):
 
-- **Gantry:** procedural primitives (Cartesian topology, identity FK)
-- **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for shelves, box clusters, floor, and wall textures
+- **Agents:** TurtleBot3 Burger meshes (Apache-2.0) on holonomic SE(2) joints
+- **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for floor, clutter, and shelf visuals
 
-Assets live under `src/fret/mjcf/assets/aws_warehouse/`. Regenerate with:
+Assets live under `src/fret/mjcf/assets/aws_warehouse/` and
+`src/fret/mjcf/assets/dubins/`. Regenerate with:
 
 ```bash
 pip install trimesh pycollada
 python3 scripts/import_aws_warehouse_assets.py
+python3 scripts/import_dubins_assets.py
 ```
 
-Collision boxes for planning/perception are unchanged (invisible box geoms).
+Collision boxes for planning remain analytic rectangles in YAML.
 
-Reference photos and axis mapping: [robots/ppp.md](robots/ppp.md).
+Reference notes: [robots/dubins.md](robots/dubins.md) ·
+[assets/dubins/README.md](assets/dubins/README.md).
 
 ---
 

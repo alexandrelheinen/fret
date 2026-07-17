@@ -27,6 +27,7 @@ import time
 import numpy as np
 import pytest
 
+from fret.config_loader import load_algorithm_config
 from fret.control.controller_node import ControllerNode, _NodeState
 from fret.control.kinematics import Kinematics
 from fret.interfaces import (
@@ -35,7 +36,6 @@ from fret.interfaces import (
     PlanningStatus,
 )
 from fret.planning.planner_node import PlannerNode
-from fret.config_loader import load_algorithm_config
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 

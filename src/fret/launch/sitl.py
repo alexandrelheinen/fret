@@ -4,7 +4,6 @@ This is the main entry point for ``fretsim``.
 
 Usage::
 
-    ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
     ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
     ros2 launch fret sitl.py model:=scara scenario:=static_reach
     ros2 launch fret sitl.py model:=scara scenario:=straight_line
@@ -26,7 +25,6 @@ Scenario behaviour:
     arc — Launches the ``arc_injector`` node instead of ``planner_node``.
         The injector publishes a circular arc trajectory in Cartesian space
         once; the controller tracks it.
-    ppp_warehouse — v1.0 PPP warehouse pick-and-place (MuJoCo).
     dubins_race — v1.1 dual-agent Dubins race (MuJoCo).
     static_reach (and others) — standard SITL with ``planner_node`` and
         ``scene_acquisition_node``.  The planner auto-triggers at startup
@@ -81,10 +79,6 @@ def generate_launch_description() -> LaunchDescription:
 
     is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
     is_gazebo = UnlessCondition(is_mujoco)
-    is_ppp_model = EqualsSubstitution(LaunchConfiguration("model"), "ppp")
-    is_ppp_warehouse = EqualsSubstitution(
-        LaunchConfiguration("scenario"), "ppp_warehouse"
-    )
     is_dubins_model = EqualsSubstitution(
         LaunchConfiguration("model"), "dubins"
     )
@@ -124,15 +118,9 @@ def generate_launch_description() -> LaunchDescription:
     scara_controller_config = PathJoinSubstitution(
         [pkg_share, "config", "controllers", "jacobian.yml"]
     )
-    ppp_controller_config = PathJoinSubstitution(
-        [pkg_share, "config", "controllers", "ppp.yml"]
-    )
 
     default_perception_config = PathJoinSubstitution(
         [pkg_share, "config", "perception.yaml"]
-    )
-    ppp_perception_config = PathJoinSubstitution(
-        [pkg_share, "config", "perception_ppp_warehouse.yaml"]
     )
 
     sim_launch = IncludeLaunchDescription(
@@ -212,7 +200,7 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     skip_default_perception = OrSubstitution(
-        OrSubstitution(is_injector_scenario, is_ppp_warehouse),
+        is_injector_scenario,
         is_dubins_race,
     )
 
@@ -230,20 +218,6 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(skip_default_perception),
     )
 
-    perception_bridge_ppp = Node(
-        package="fret",
-        executable="perception_bridge",
-        name="perception_bridge_node",
-        output="screen",
-        parameters=[
-            {
-                "model": LaunchConfiguration("model"),
-                "config_path": ppp_perception_config,
-            }
-        ],
-        condition=IfCondition(is_ppp_warehouse),
-    )
-
     controller_scara = Node(
         package="fret",
         executable="controller_node",
@@ -256,21 +230,7 @@ def generate_launch_description() -> LaunchDescription:
         remappings=[
             ("/joint_commands", "/joint_group_velocity_controller/commands")
         ],
-        condition=UnlessCondition(
-            OrSubstitution(is_ppp_model, is_dubins_model)
-        ),
-    )
-
-    controller_ppp = Node(
-        package="fret",
-        executable="controller_node",
-        name="controller_node",
-        output="screen",
-        parameters=[
-            {"model": LaunchConfiguration("model")},
-            ppp_controller_config,
-        ],
-        condition=IfCondition(is_ppp_model),
+        condition=UnlessCondition(is_dubins_model),
     )
 
     return LaunchDescription(
@@ -287,8 +247,6 @@ def generate_launch_description() -> LaunchDescription:
             scene_acquisition_node,
             planner_node,
             perception_bridge_default,
-            perception_bridge_ppp,
             controller_scara,
-            controller_ppp,
         ]
     )

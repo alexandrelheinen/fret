@@ -54,7 +54,7 @@ Used for: fast regression, optional `--kinematic-mode` renders, `physics_mode:=f
 
 Controller velocity commands drive MuJoCo actuators. The simulation
 advances with `mj_step` each control cycle. Contacts (columns, obstacles,
-cargo weld, inter-agent) produce forces that the robot must overcome.
+inter-agent) produce forces that the robot must overcome.
 
 **No pose teleportation.** Joint state published on `/joint_states` comes from
 simulated `qpos`, not from open-loop integration.
@@ -94,7 +94,6 @@ Used for: release showcase videos, ROS SITL default, physics integration tests.
 Launch:
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
@@ -106,12 +105,10 @@ MuJoCo is the implicit backend for all SITL launches.
 
 ```
 src/fret/mjcf/
-├── ppp_unit.xml            # FR-SIM-11 Cartesian physics sandbox
 ├── diffdrive_unit.xml      # FR-SIM-11 differential-drive sandbox
-├── ppp_warehouse.xml       # v1.0 PPP gantry + warehouse
 ├── dubins_race.xml         # v1.1 dual Dubins agents (holonomic SE(2) approx.)
 ├── assets/
-│   └── aws_warehouse/      # MIT-0 meshes (PPP visuals)
+│   └── aws_warehouse/      # MIT-0 meshes (Dubins floor / clutter visuals)
 └── (v1.3+) rrp_pillars.xml, six_dof_cell.xml, …
 ```
 
@@ -126,7 +123,6 @@ physics tests (SC-v12u). Showcase worlds remain separate.
 | Units | SI (meters, radians, seconds) |
 | Collision geoms | Separate from visual geoms where possible; use `contype`/`conaffinity` |
 | Actuators | `<motor>` or `<velocity>` per joint; gains in `config/simulation/mujoco.yml` |
-| Free bodies | Welded cargo uses MJCF equality constraints or weld logic in bridge |
 | Cameras | Named geoms for `render_mujoco.py` (`overview`, `follow`, …) |
 
 ### Importing external models
@@ -135,7 +131,7 @@ FRET imports third-party assets into MJCF:
 
 | Source | Use | Script |
 |---|---|---|
-| AWS RoboMaker warehouse | PPP/Dubins floor and shelf visuals | `scripts/import_aws_warehouse_assets.py` |
+| AWS RoboMaker warehouse | Dubins floor and shelf visuals | `scripts/import_aws_warehouse_assets.py` |
 | MuJoCo Menagerie (planned v1.4) | UR arm meshes for 6-DOF | TBD |
 | URDF via `mujoco.MjModel.from_xml_path` (planned v1.3) | SCARA from existing xacro | TBD |
 
@@ -156,7 +152,7 @@ too expensive.
 | Method / symbol | Purpose |
 |---|---|
 | `resolve_mjcf_path(model, scenario)` | Map model/scenario → MJCF file |
-| `make_mujoco_bridge_core(...)` | Factory for PPP, Dubins, future arms |
+| `make_mujoco_bridge_core(...)` | Factory for Dubins, future arms |
 | `integrate_joint_velocities(...)` | Kinematic-mode Euler step + limit clip |
 | `step_physics(...)` | **v1.2** — write `ctrl`, call `mj_step`, read `qpos`/`qvel` |
 
@@ -170,7 +166,6 @@ too expensive.
 
 | `model` | MJCF | Joint names | Integration |
 |---|---|---|---|
-| `ppp` | `ppp_warehouse.xml` | `joint_x`, `joint_y`, `joint_z` | Prismatic |
 | `dubins` | `dubins_race.xml` | `rrt_joint_*`, `sst_joint_*` | SE(2) per agent |
 | `rrp` / `scara` | *(v1.3)* | `joint_arm_0`, `joint_arm_1`, `joint_extension` | Revolute + prismatic |
 | `six_dof` | *(v1.4)* | TBD | 6× revolute |
@@ -179,16 +174,11 @@ too expensive.
 
 ## Collision and planning
 
-PPP planning uses MuJoCo geometry directly:
-
-**Module:** `src/fret/planning/cspace_checker_mujoco.py`
-
-1. Set joint positions in `MjData`
-2. `mj_forward` + `mj_collision`
-3. Query contacts and `mj_geomDistance` for clearance
-
 Dubins planning uses analytic rectangular footprints + KD-tree occupancy;
 MuJoCo provides visual and (v1.2+) physical column contact.
+
+Arm releases (v1.3+) use FK → KDTree clearance; MuJoCo contacts apply during
+physics SITL execution.
 
 Scenario parameter: `collision_backend: mujoco` in scenario YAML.
 
@@ -214,7 +204,7 @@ prints `missing arguments` and `--help`.
 
 | Flag | Description |
 |---|---|
-| `--model` | Robot model (`ppp`, `dubins`, …) |
+| `--model` | Robot model (`dubins`, …) |
 | `--scenario` | Scenario stem |
 | `--duration` | Animation cycle length [s] |
 | `--fps` | Playback frame rate |
@@ -256,9 +246,9 @@ Release-tag MP4s **must** be real-time adjusted: after rendering at fixed
 
 ```bash
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
-./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
   --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
 WSL2 display notes: [wsl.md](wsl.md).
@@ -273,12 +263,6 @@ Measured baselines on CI/dev VM (`main`, 2026-07):
 | --- | --- | --- | --- |
 | Dubins race | Kinematic | `race_duration_s` | ~33 s |
 | Dubins race | Physics | `race_duration_s` | ~57 s (RTF ≈ **1.73×**) |
-| PPP warehouse | Kinematic | `max_tracking_error_m` | ~5.5 mm |
-| PPP warehouse | Physics | `max_tracking_error_m` | ~0.45–0.55 m (`ee_error_limit_physics_m`) |
-
-PPP physics tracking uses the grasp `goal_radius` (0.5 m) as the practical V12-2
-gate because prismatic velocity actuators lag the kinematic carrot. The kinematic
-10 mm gate remains the regression target for `physics_mode:=false`.
 
 1. **Baseline** — run kinematic mirror; record tracking error and path fidelity.
 2. **Enable physics** — set `physics_mode:=true` (v1.2 parameter) or pass
@@ -330,11 +314,9 @@ Optional asset import tools: `trimesh`, `pycollada`.
 | Layer | Tests |
 |---|---|
 | Bridge unit | `tests/ros/test_mujoco_bridge.py` |
-| PPP collision | `tests/planning/test_cspace_checker_mujoco.py` |
-| PPP E2E | `tests/integration/test_scenario_ppp_warehouse.py` |
 | Dubins E2E | `tests/scenario/test_dubins_race_e2e.py` |
 | Physics SITL (v1.2) | `tests/integration/test_mujoco_physics_*.py` |
-| SITL smoke | `scripts/tests/smoke.sh` — PPP + Dubins MuJoCo launch |
+| SITL smoke | `scripts/tests/smoke.sh` — Dubins MuJoCo launch |
 
 ---
 
@@ -343,7 +325,7 @@ Optional asset import tools: `trimesh`, `pycollada`.
 Full acceptance criteria: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
 
 **Implementation specification:** [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)
-(actuators, cargo weld, contact logs, regression tests).
+(actuators, contact logs, regression tests).
 
 **External model repertoire:** [mujoco_models_benchmark.md](mujoco_models_benchmark.md)
 (Menagerie, ROBOTIS TB3, Hakoniwa, what FRET already vendors).
@@ -352,9 +334,8 @@ Configuration schema: [config.md § Simulation](config.md#simulation-physics-v12
 
 | Robot | Physics work |
 |---|---|
-| PPP | Prismatic actuators; cargo weld contacts; pick-and-place validation |
 | Dubins | Body/wheel actuation; column + floor contacts; optional inter-agent blocking |
-| Shared | `mj_step` harness, contact logging, CI-green physics mode for both scenarios |
+| Shared | `mj_step` harness, contact logging, CI-green physics mode |
 
 After v1.2, all new robots (SCARA v1.3, 6-DOF v1.4) ship with physics SITL
 from day one — no kinematic-only phase.

@@ -11,11 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _EXPECTED = {
-    "ppp_warehouse": {
-        "model": "ppp",
-        "timing_file": "ppp_timing.json",
-        "primary_video": "ppp_warehouse_overview.mp4",
-    },
     "dubins_race": {
         "model": "dubins",
         "timing_file": "dubins_timing.json",

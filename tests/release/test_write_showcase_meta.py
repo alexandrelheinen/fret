@@ -19,28 +19,16 @@ def _write_timing(path: Path, clips: list[dict[str, object]]) -> None:
     )
 
 
-def test_write_showcase_meta_merges_parallel_render_outputs(tmp_path: Path) -> None:
-    """Publish step must accept PPP and Dubins artifacts merged in one folder."""
+def test_write_showcase_meta_dubins_artifacts(tmp_path: Path) -> None:
+    """Publish step must accept Dubins artifacts in the renders folder."""
     renders = tmp_path / "showcase_renders"
     renders.mkdir()
     for name in (
-        "ppp_warehouse_overview.mp4",
-        "ppp_warehouse_follow.mp4",
         "dubins_race_overview.mp4",
         "dubins_race_follow.mp4",
     ):
         (renders / name).write_bytes(b"\x00" * 128)
 
-    _write_timing(
-        renders / "ppp_timing.json",
-        [
-            {
-                "file": "ppp_warehouse_overview.mp4",
-                "sim_time_s": 7.0,
-                "real_time_factor": 1.0,
-            }
-        ],
-    )
     _write_timing(
         renders / "dubins_timing.json",
         [
@@ -62,8 +50,8 @@ def test_write_showcase_meta_merges_parallel_render_outputs(tmp_path: Path) -> N
     )
 
     assert meta["git_ref"] == "v9.9.9"
-    assert len(meta["showcases"]) == 2
-    assert meta["primary_videos"]["ppp_warehouse"] == "ppp_warehouse_overview.mp4"
+    assert len(meta["showcases"]) == 1
+    assert meta["primary_videos"]["dubins_race"] == "dubins_race_overview.mp4"
     assert (tmp_path / "meta.json").is_file()
 
 
@@ -94,6 +82,6 @@ def test_write_showcase_meta_accepts_single_scenario(tmp_path: Path) -> None:
         output_path=tmp_path / "meta.json",
     )
 
-    assert meta["partial"] is True
+    assert meta["partial"] is False
     assert len(meta["showcases"]) == 1
     assert meta["showcases"][0]["scenario"] == "dubins_race"

@@ -32,20 +32,26 @@ def test_process_returns_trajectory_with_enough_points(
     mock_kinematics: object,
 ) -> None:
     """Output JointTrajectory must have at least 2 points."""
-    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
+    gen = TrajectoryGenerator(
+        kinematics=mock_kinematics, config=_SCARA_PLANNING
+    )
     path = [np.zeros(3), np.array([0.3, 0.3, 0.05]), np.array([0.5, 0.2, 0.1])]
     traj = gen.process(path)
     assert len(traj.points) >= 2  # type: ignore[attr-defined]
 
 
 def test_single_waypoint_raises(mock_kinematics: object) -> None:
-    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
+    gen = TrajectoryGenerator(
+        kinematics=mock_kinematics, config=_SCARA_PLANNING
+    )
     with pytest.raises(ValueError):
         gen.process([np.zeros(3)])
 
 
 def test_empty_path_raises(mock_kinematics: object) -> None:
-    gen = TrajectoryGenerator(kinematics=mock_kinematics, config=_SCARA_PLANNING)
+    gen = TrajectoryGenerator(
+        kinematics=mock_kinematics, config=_SCARA_PLANNING
+    )
     with pytest.raises(ValueError):
         gen.process([])
 

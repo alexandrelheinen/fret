@@ -39,7 +39,9 @@ def test_circle_rect_clearance_outside_positive() -> None:
 
 def test_rect_structure_occupancy_blocks_near_wall() -> None:
     rect = RectObstacle(x=10.0, y=10.0, hx=0.5, hy=0.5, height=2.0)
-    occ = RectStructureOccupancy((rect,), vehicle_radius=0.42, clearance_margin=0.42)
+    occ = RectStructureOccupancy(
+        (rect,), vehicle_radius=0.42, clearance_margin=0.42
+    )
     assert occ.is_occupied(np.array([10.0, 10.0]))
     assert not occ.is_occupied(np.array([0.0, 0.0]))
 

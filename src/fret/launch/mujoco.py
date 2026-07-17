@@ -1,13 +1,13 @@
-"""Launch: MuJoCo simulator bridge for PPP SITL.
+"""Launch: MuJoCo simulator bridge for FRET SITL.
 
 Usage::
 
-    ros2 launch fret mujoco.py model:=ppp scenario:=ppp_warehouse
+    ros2 launch fret mujoco.py model:=dubins scenario:=dubins_race
 
 Arguments:
-    model (str, default: ppp)
+    model (str, default: dubins)
         Robot model name.
-    scenario (str, default: ppp_warehouse)
+    scenario (str, default: dubins_race)
         Scenario stem used for MJCF resolution.
 """
 
@@ -26,12 +26,12 @@ def generate_launch_description() -> LaunchDescription:
 
     model_arg = DeclareLaunchArgument(
         "model",
-        default_value="ppp",
+        default_value="dubins",
         description="Robot model name",
     )
     scenario_arg = DeclareLaunchArgument(
         "scenario",
-        default_value="ppp_warehouse",
+        default_value="dubins_race",
         description="Scenario stem for MJCF resolution",
     )
     physics_mode_arg = DeclareLaunchArgument(

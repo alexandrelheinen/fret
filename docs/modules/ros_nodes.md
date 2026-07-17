@@ -110,13 +110,10 @@ Arc parameters (from `config/scenarios/arc.yml`):
 These nodes are wired into `sitl.py` via scenario-conditional launch:
 
 ```python
-# sitl.py — MuJoCo SITL (T10-06)
+# sitl.py — MuJoCo SITL
 launch mujoco.py              # /joint_states publisher
 
-if scenario == "ppp_warehouse":
-    perception_ppp_warehouse.yaml
-    controller ppp.yml
-elif scenario == "dubins_race":
+if scenario == "dubins_race":
     dubins race orchestration
 elif scenario == "straight_line":
     launch StraightLineInjector

@@ -20,17 +20,11 @@ if [[ "$1" == "s3" && "$2" == "ls" ]]; then
   prefix="${prefix%/}/"
   case "${prefix}" in
     latest/)
-      echo "2026-01-01 00:00:00    1000000 ppp_warehouse_overview.mp4"
-      echo "2026-01-01 00:00:00     900000 ppp_warehouse_follow.mp4"
-      echo "2026-01-01 00:00:00     800000 ppp_warehouse.mp4"
-      ;;
-    releases/v1.0.0/)
-      echo "2026-01-01 00:00:00    1000000 ppp_warehouse_overview.mp4"
-      echo "2026-01-01 00:00:00     900000 ppp_warehouse_follow.mp4"
+      echo "2026-01-01 00:00:00    1200000 dubins_race_overview.mp4"
+      echo "2026-01-01 00:00:00    1050000 dubins_race_follow.mp4"
+      echo "2026-01-01 00:00:00     900000 dubins_race.mp4"
       ;;
     releases/v1.1.0/)
-      echo "2026-01-01 00:00:00    1100000 ppp_warehouse_overview.mp4"
-      echo "2026-01-01 00:00:00    1000000 ppp_warehouse_follow.mp4"
       echo "2026-01-01 00:00:00    1200000 dubins_race_overview.mp4"
       echo "2026-01-01 00:00:00    1050000 dubins_race_follow.mp4"
       ;;
@@ -104,23 +98,19 @@ assert_file_count() {
 echo "=== download_showcase.sh mock tests ==="
 
 list_out="$("${DOWNLOAD}" --list 2>&1)"
-assert_contains "${list_out}" "ppp_warehouse_overview.mp4" "--list latest"
-assert_contains "${list_out}" "ppp_warehouse.mp4" "--list includes legacy alias"
+assert_contains "${list_out}" "dubins_race_overview.mp4" "--list latest"
+assert_contains "${list_out}" "dubins_race.mp4" "--list includes legacy alias"
 
 all_out_dir="${OUT_DIR}/all_latest"
 "${DOWNLOAD}" --all -o "${all_out_dir}" >/dev/null
 assert_file_count "${all_out_dir}" 3 " --all on latest downloads only listed objects"
 
-tag_out_dir="${OUT_DIR}/all_v1_0"
-"${DOWNLOAD}" --all --tag v1.0.0 -o "${tag_out_dir}" >/dev/null
-assert_file_count "${tag_out_dir}" 2 " --all on v1.0.0 skips missing dubins clips"
-
 v11_out_dir="${OUT_DIR}/all_v1_1"
 "${DOWNLOAD}" --all --tag v1.1.0 -o "${v11_out_dir}" >/dev/null
-assert_file_count "${v11_out_dir}" 4 " --all on v1.1.0 downloads every listed clip"
+assert_file_count "${v11_out_dir}" 2 " --all on v1.1.0 downloads every listed clip"
 
-single_out="${OUT_DIR}/ppp_overview.mp4"
-"${DOWNLOAD}" --scenario ppp_warehouse --camera overview -o "${single_out}" >/dev/null
+single_out="${OUT_DIR}/dubins_overview.mp4"
+"${DOWNLOAD}" --scenario dubins_race --camera overview -o "${single_out}" >/dev/null
 if [[ ! -s "${single_out}" ]]; then
   echo "FAIL: single download did not create output file"
   exit 1

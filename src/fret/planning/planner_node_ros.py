@@ -39,8 +39,6 @@ Satisfies requirements FR-PLN-01 through FR-PLN-07 at the ROS level.
 
 from __future__ import annotations
 
-from typing import Any
-
 # Nanoseconds per second — used when splitting a float timestamp into
 # (sec, nanosec) fields required by builtin_interfaces/Duration.
 _NS_PER_SEC: int = 1_000_000_000
@@ -86,20 +84,7 @@ class PlannerRosNode:  # pragma: no cover
         )
         self.declare_parameter("collision_backend", "analytic")  # type: ignore[attr-defined]
         self.declare_parameter("planner_algorithm", "rrt_star")  # type: ignore[attr-defined]
-        self.declare_parameter("plan_include_cargo", False)  # type: ignore[attr-defined]
-        self.declare_parameter("grasp_config", "")  # type: ignore[attr-defined]
         self.declare_parameter("planning_config", "")  # type: ignore[attr-defined]
-        self.declare_parameter("grasp.capture_radius", 0.0)  # type: ignore[attr-defined]
-        self.declare_parameter("grasp.goal_radius", 0.0)  # type: ignore[attr-defined]
-        # weld_offset may be given as a scalar (interpreted as a Z offset) or a
-        # 3-vector in scenario YAML; parse_grasp_config accepts both, so declare
-        # it with dynamic typing to avoid a DOUBLE/DOUBLE_ARRAY type clash.
-        self.declare_parameter(  # type: ignore[attr-defined]
-            "grasp.weld_offset",
-            [],
-            ParameterDescriptor(dynamic_typing=True),
-        )
-        self.declare_parameter("grasp.box_half_extent", 0.0)  # type: ignore[attr-defined]
 
         self._model = str(
             self.get_parameter("model").get_parameter_value().string_value  # type: ignore[attr-defined]
@@ -138,13 +123,6 @@ class PlannerRosNode:  # pragma: no cover
             .get_parameter_value()
             .string_value
         )
-        self._plan_include_cargo = bool(
-            self.get_parameter("plan_include_cargo")  # type: ignore[attr-defined]
-            .get_parameter_value()
-            .bool_value
-        )
-        self._grasp_config = self._read_grasp_config()
-
         # ------------------------------------------------------------------
         # Publisher — TRANSIENT_LOCAL so late-joining controller receives it
         # ------------------------------------------------------------------
@@ -206,20 +184,6 @@ class PlannerRosNode:  # pragma: no cover
                 self._joint_states_callback,
                 be_qos,
             )
-
-    def _read_grasp_config(self) -> Any:
-        """Read PPP grasp geometry from ``grasp_config`` ROS parameter."""
-        from fret.config_loader import load_algorithm_config
-        from fret.control.grasp_magnet import parse_grasp_config
-
-        grasp_rel = (
-            self.get_parameter("grasp_config")  # type: ignore[attr-defined]
-            .get_parameter_value()
-            .string_value
-        )
-        if not grasp_rel:
-            return None
-        return parse_grasp_config(load_algorithm_config(str(grasp_rel)))
 
     # ------------------------------------------------------------------
     # Callbacks
@@ -341,10 +305,6 @@ class PlannerRosNode:  # pragma: no cover
             occupancy_adapter=self._occ_adapter,
             collision_backend=self._collision_backend,  # type: ignore[arg-type]
             planner_algorithm=self._planner_algorithm,  # type: ignore[arg-type]
-            include_cargo=self._plan_include_cargo,
-            grasp_config=(
-                self._grasp_config if self._model == "ppp" else None
-            ),
             scenario=self._scenario_id,
         )
         request = PlanningRequest(

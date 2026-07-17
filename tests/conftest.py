@@ -123,22 +123,6 @@ def scara_planning_config() -> dict[str, object]:
     return load_algorithm_config("planning/scara.yml")
 
 
-@pytest.fixture()
-def ppp_planning_config() -> dict[str, object]:
-    """Load bundled PPP planning parameters."""
-    from fret.config_loader import load_algorithm_config
-
-    return load_algorithm_config("planning/ppp.yml")
-
-
-@pytest.fixture()
-def grasp_magnetic_config() -> dict[str, object]:
-    """Load default magnetic grasp parameters."""
-    from fret.config_loader import load_algorithm_config
-
-    return load_algorithm_config("grasp/magnetic.yml")
-
-
 # ---------------------------------------------------------------------------
 # Mock OccupancyAdapter
 # ---------------------------------------------------------------------------

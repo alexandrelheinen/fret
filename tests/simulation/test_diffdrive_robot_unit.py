@@ -13,7 +13,7 @@ from fret.simulation.diffdrive_unit import (
     DiffDriveUnitRobot,
     body_velocity_to_wheel_rates,
 )
-from fret.simulation.ppp_unit import mujoco_available
+from fret.simulation.mujoco_util import mujoco_available
 
 pytestmark = pytest.mark.skipif(
     not mujoco_available(),

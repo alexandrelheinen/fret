@@ -5,9 +5,9 @@
 # All showcase parameters must be passed explicitly (no defaults).
 #
 # Examples:
-#   ./scripts/view.sh --model ppp --scenario ppp_warehouse \
+#   ./scripts/view.sh --model dubins --scenario dubins_race \
 #       --duration 30 --fps 60 --camera overview
-#   ./scripts/view.sh --model ppp --scenario ppp_warehouse \
+#   ./scripts/view.sh --model dubins --scenario dubins_race \
 #       --duration 30 --fps 60 --camera overview --dry-run
 #
 set -Eeuo pipefail

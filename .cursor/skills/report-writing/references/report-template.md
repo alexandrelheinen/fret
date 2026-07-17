@@ -29,7 +29,7 @@ Bumped `planning_timeout` default in `dubins_race.yml` (30→35 s); `bash script
 
 ```markdown
 ## Problem
-PPP `render-ppp` job timed out at 36 s with empty `qpos_history` on CI.
+Dubins `render-dubins` job timed out at 36 s with empty `qpos_history` on CI.
 
 ## Fix
 Raise physics showcase `planning_timeout` to 90 s in `render_mujoco.py` only.
@@ -37,7 +37,7 @@ Raise physics showcase `planning_timeout` to 90 s in `render_mujoco.py` only.
 ## Verification
 - `bash scripts/check/formatting.sh` — pass
 - `bash scripts/check/types.sh` — pass
-- `python3 -m pytest tests/simulation/test_render_mujoco.py -k ppp` — 12 passed
+- `python3 -m pytest tests/simulation/test_render_mujoco.py -k dubins` — 12 passed
 ```
 
 ---

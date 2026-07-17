@@ -17,7 +17,7 @@ import yaml
 from arco.mapping.occupancy import Occupancy
 
 from fret.config_loader import require_key
-from fret.planning.ppp_obstacles import BoxObstacle
+from fret.planning.box_obstacle import BoxObstacle
 from fret.sitl_config import resolve_package_file
 
 _DEFAULT_OBSTACLE_FILE = resolve_package_file(

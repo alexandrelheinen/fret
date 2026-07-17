@@ -1,12 +1,12 @@
-# MuJoCo simulation bridge configuration (v1.0 + v1.2 physics).
+# MuJoCo simulation bridge configuration (v1.1 Dubins + v1.2 physics).
 #
 # Consumed as a ROS 2 parameter file by MuJoCoBridgeNode (launch/mujoco.py).
 # Nested actuator tables live in mujoco_physics.yml (Python-only load).
 
 /**:
   ros__parameters:
-    model: ppp
-    scenario: ppp_warehouse
+    model: dubins
+    scenario: dubins_race
     update_rate: 50.0
     initial_joint_positions: [0.0, 0.0, 0.0]
     collision_backend: mujoco

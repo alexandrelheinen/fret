@@ -1,9 +1,7 @@
 name: Release
 
-# Renders PPP + Dubins MuJoCo showcase MP4s (overview + follow POV each) on
-# version tags, verifies pixels are non-blank, uploads to Cloudflare R2.
-# Each scenario publishes independently — one render failure does not block
-# the other from reaching R2.
+# Renders Dubins MuJoCo showcase MP4s (overview + follow POV) on version tags,
+# verifies pixels are non-blank, uploads to Cloudflare R2.
 
 on:
   push:
@@ -30,41 +28,6 @@ env:
   PYOPENGL_PLATFORM: egl
 
 jobs:
-  render-ppp:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install render dependencies
-        uses: ./.github/actions/release-render-setup
-
-      - name: Render PPP warehouse showcase clips
-        # Physics SITL: velocity actuators, mj_step contacts, cargo weld forces.
-        run: |
-          ./scripts/video.sh \
-            --model ppp \
-            --scenario ppp_warehouse \
-            --all-cameras \
-            --collision-backend mujoco \
-            --planner-algorithm rrt_star \
-            --full-duration \
-            --physics-mode \
-            --output-dir showcase_renders \
-            --timing-json showcase_renders/ppp_timing.json \
-            --fps 30 \
-            --width 1280 \
-            --height 720
-
-      - name: Upload PPP showcase artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: showcase-ppp
-          path: showcase_renders/
-          if-no-files-found: error
-
   render-dubins:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -100,33 +63,6 @@ jobs:
           path: showcase_renders/
           if-no-files-found: error
 
-  publish-ppp:
-    needs: render-ppp
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download PPP showcase renders
-        uses: actions/download-artifact@v4
-        with:
-          name: showcase-ppp
-          path: showcase_renders
-
-      - name: Upload PPP clips to Cloudflare R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
-        run: |
-          ./scripts/release/upload_scenario_r2.sh ppp_warehouse ppp_warehouse.mp4
-
   publish-dubins:
     needs: render-dubins
     runs-on: ubuntu-24.04
@@ -155,10 +91,10 @@ jobs:
           ./scripts/release/upload_scenario_r2.sh dubins_race dubins_race.mp4
 
   publish-meta:
-    needs: [render-ppp, render-dubins]
+    needs: [render-dubins]
     if: >-
       always() &&
-      (needs.render-ppp.result == 'success' || needs.render-dubins.result == 'success')
+      needs.render-dubins.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -168,13 +104,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Download PPP showcase renders
-        if: needs.render-ppp.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: showcase-ppp
-          path: showcase_renders
 
       - name: Download Dubins showcase renders
         if: needs.render-dubins.result == 'success'

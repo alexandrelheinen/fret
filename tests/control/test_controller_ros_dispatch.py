@@ -16,26 +16,25 @@ from fret.control.controller_node import (
     controller_update_rate_hz,
     make_controller_node,
 )
-from fret.control.controller_ppp import PPPControllerState
 from fret.control.kinematics import Kinematics
 
 
-def _ppp_config_path() -> pathlib.Path:
+def _scara_config_path() -> pathlib.Path:
     return (
         pathlib.Path(__file__).resolve().parents[2]
         / "src"
         / "fret"
         / "config"
         / "controllers"
-        / "ppp.yml"
+        / "jacobian.yml"
     )
 
 
 def _bundled_controller_params() -> dict[str, Any]:
-    return dict(load_ros_parameters_yaml(_ppp_config_path()))
+    return dict(load_ros_parameters_yaml(_scara_config_path()))
 
 
-def _write_ppp_controller_yaml(
+def _write_scara_controller_yaml(
     path: pathlib.Path,
     **overrides: Any,
 ) -> None:
@@ -47,25 +46,28 @@ def _write_ppp_controller_yaml(
     )
 
 
-def test_controller_update_rate_ppp() -> None:
-    logic = make_controller_node("ppp", _ppp_config_path())
-    assert controller_update_rate_hz(logic, "ppp") == 50.0
+def test_controller_update_rate_scara() -> None:
+    logic = make_controller_node("scara", _scara_config_path())
+    assert controller_update_rate_hz(logic, "scara") == 50.0
 
 
-def test_compute_tracking_command_ppp(tmp_path: pathlib.Path) -> None:
-    config_file = tmp_path / "ppp.yml"
-    _write_ppp_controller_yaml(config_file, kp=1.5, fault_threshold=1.0)
-    logic = make_controller_node("ppp", config_file)
-    kin = Kinematics("ppp")
+def test_compute_tracking_command_scara(tmp_path: pathlib.Path) -> None:
+    config_file = tmp_path / "jacobian.yml"
+    _write_scara_controller_yaml(config_file, kp=1.5, fault_threshold=1.0)
+    logic = make_controller_node("scara", config_file)
+    kin = Kinematics("scara")
     logic.set_trajectory([np.zeros(3), np.array([0.1, 0.0, 0.0])])
     logic._trajectory_index = 1
-    q_dot = compute_tracking_command(logic, "ppp", kin, np.zeros(3))
+    q_dot = compute_tracking_command(logic, "scara", kin, np.zeros(3))
     assert q_dot.shape == (3,)
-    assert q_dot[0] > 0.0
 
 
-def test_controller_is_halted_ppp() -> None:
-    logic = make_controller_node("ppp", _ppp_config_path())
+def test_controller_is_halted_scara() -> None:
+    logic = make_controller_node("scara", _scara_config_path())
     logic._enter_halted()
-    assert controller_is_halted(logic, "ppp") is True
-    assert logic.state == PPPControllerState.HALTED
+    assert controller_is_halted(logic, "scara") is True
+
+
+def test_make_controller_node_unknown_raises() -> None:
+    with pytest.raises(ValueError, match="Unknown controller model"):
+        make_controller_node("dubins", _scara_config_path())

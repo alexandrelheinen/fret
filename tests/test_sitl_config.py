@@ -17,14 +17,9 @@ from fret.sitl_config import (
 )
 
 
-def test_controller_config_relative_ppp() -> None:
-    assert controller_config_relative("ppp") == "config/controllers/ppp.yml"
-
-
-def test_physics_controller_config_relative_ppp() -> None:
+def test_controller_config_relative_dubins() -> None:
     assert (
-        physics_controller_config_relative("ppp")
-        == "config/controllers/ppp_physics.yml"
+        controller_config_relative("dubins") == "config/controllers/dubins.yml"
     )
 
 
@@ -40,10 +35,9 @@ def test_controller_config_relative_scara() -> None:
     )
 
 
-def test_perception_config_relative_ppp_warehouse() -> None:
+def test_perception_config_relative_dubins_race() -> None:
     assert (
-        perception_config_relative("ppp_warehouse")
-        == "config/perception_ppp_warehouse.yaml"
+        perception_config_relative("dubins_race") == "config/perception.yaml"
     )
 
 
@@ -57,42 +51,33 @@ def test_mujoco_sim_config_relative() -> None:
     assert mujoco_sim_config_relative() == "config/simulation/mujoco.yml"
 
 
-def test_load_ppp_warehouse_scenario() -> None:
+def test_load_dubins_race_scenario() -> None:
     path = (
         pathlib.Path(__file__).resolve().parents[1]
         / "src"
         / "fret"
         / "config"
         / "scenarios"
-        / "ppp_warehouse.yml"
+        / "dubins_race.yml"
     )
     params = load_scenario_parameters(path)
-    assert params["scenario_id"] == "ppp_warehouse"
-    assert params["model"] == "ppp"
+    assert params["scenario_id"] == "dubins_race"
+    assert params["model"] == "dubins"
     assert params["backend"] == "mujoco"
-    assert params["planning_config"] == "planning/ppp.yml"
-    assert params["grasp_config"] == "grasp/ppp_warehouse.yml"
-    assert params["start_configuration"] == [2.0, 1.0, 2.4]
-    assert params["goal_configuration"] == [10.5, 1.2, 0.59]
-    assert params["collision_backend"] == "analytic"
-    assert params["planner_algorithm"] == "rrt_star"
-    assert params["plan_include_cargo"] is True
-    assert params["planning_timeout"] == 30.0
+    assert params["planning_config"] == "planning/dubins.yml"
 
 
-def test_load_ppp_warehouse_scenario_bundle() -> None:
+def test_load_dubins_race_scenario_bundle() -> None:
     path = (
         pathlib.Path(__file__).resolve().parents[1]
         / "src"
         / "fret"
         / "config"
         / "scenarios"
-        / "ppp_warehouse.yml"
+        / "dubins_race.yml"
     )
     bundle = load_scenario_bundle(path)
-    assert bundle.planning["contact_radius"] == pytest.approx(0.015)
-    assert bundle.grasp is not None
-    assert bundle.grasp["capture_radius"] == pytest.approx(0.45)
+    assert "obstacle_file" in bundle.planning
 
 
 def test_load_scenario_missing_file() -> None:

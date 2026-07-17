@@ -285,7 +285,7 @@ Passed to `ros2 launch fret sitl.py` or declared in scenario YAML under
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `model` | string | `scara` | Robot model (`ppp`, `dubins`, …) |
+| `model` | string | `scara` | Robot model (`dubins`, …) |
 | `scenario` | string | `static_reach` | Scenario YAML stem |
 | `physics_mode` | bool | `false` | Enable MuJoCo actuator + `mj_step` SITL (FR-SIM-09) |
 

@@ -1,9 +1,9 @@
 # Dubins Race Visual Asset Benchmark (SC-v11)
 
 This document benchmarks **free, copy-friendly** mobile-robot and warehouse
-assets for the Dubins dual-race showcase (`dubins_race.xml`). It mirrors the
-PPP warehouse workflow: vendored meshes for visuals, analytic boxes for
-planning/collision, AWS ground texture for the floor.
+assets for the Dubins dual-race showcase (`dubins_race.xml`). Workflow:
+vendored meshes for visuals, analytic boxes for planning/collision, AWS ground
+texture for the floor.
 
 ---
 
@@ -54,7 +54,7 @@ as a warehouse / lab robot, easy to scale and tint (blue RRT*, green SST).
 | **Procedural boxes** (current) | `dubins_race_obstacles.yml` | N/A | Planning + MJCF collision | Analytic `RectStructureOccupancy` |
 | **Clutter meshes as posts** | AWS `clutter_a/c/d.obj` | MIT-0 | Visual-only replacements for `str_*` boxes | Scale to match YAML half-extents |
 
-### Pick: **Hybrid AWS warehouse (same as PPP)**
+### Pick: **Hybrid AWS warehouse**
 
 **Floor:** `assets/aws_warehouse/textures/ground.png` on an 80 × 80 m plane.
 
@@ -100,4 +100,4 @@ python3 scripts/import_aws_warehouse_assets.py
 
 - [MuJoCo Menagerie model gallery](https://mujoco.readthedocs.io/en/stable/models.html)
 - [ROBOTIS MuJoCo Menagerie (TurtleBot3)](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie)
-- FRET PPP asset pipeline: `docs/assets/ppp/README.md`
+- FRET AWS warehouse assets: `src/fret/mjcf/assets/aws_warehouse/README.md`

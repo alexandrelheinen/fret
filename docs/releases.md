@@ -18,9 +18,9 @@ robot class, one showcase scenario, and one article-ready visual demo.
 
 | Release | Robot | Scenario | Simulator |
 |---|---|---|---|
-| **v1.0** | PPP gantry (3 prismatic) | Pick-and-place box through warehouse obstacles | MuJoCo |
+| **v1.0** | *(superseded)* | Bootstrap iteration — not a product showcase | — |
 | **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo |
-| **v1.2** | PPP + Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
+| **v1.2** | Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
 | **v1.3** | RRP / SCARA (3-DOF) | Reproduce ARCO `rrp` / `rr` scenarios in FRET | MuJoCo |
 | **v1.4** | 6-DOF manipulator | Final challenge — full C-space planning + execution | MuJoCo |
 
@@ -34,82 +34,17 @@ robot class, one showcase scenario, and one article-ready visual demo.
 
 ## Engineering foundation (v0.x — complete)
 
-Before v1.0, the project validated the pipeline on a **3-DOF SCARA bootstrap robot**
-(MS-1–5): Jacobian control, C-space planning, occupancy bridge, pillar avoidance in
-pure-Python CI. That code remains as shared infrastructure; it is **not** a release
-target. v1.3 reuses and extends it for RRP.
+Before the first product showcase, the project validated the pipeline on a
+**3-DOF SCARA bootstrap robot** (MS-1–5): Jacobian control, C-space planning,
+occupancy bridge, pillar avoidance in pure-Python CI. That code remains as shared
+infrastructure; it is **not** a release target. v1.3 reuses and extends it for RRP.
 
 ---
 
-## v1.0 — PPP gantry warehouse pick-and-place
+## v1.0 — superseded
 
-### Goal
-
-A **PPP gantry robot** (three prismatic joints: X, Y, Z) moves a **cargo box** from a
-start pose to a goal pose through a **warehouse of static box obstacles**, rendered in
-**MuJoCo** with publication-quality visuals.
-
-### Grasp model (v1.0 simplification)
-
-Full gripper simulation is **out of scope**. The cargo box uses **magnetic grasping**:
-
-1. When the gantry end-effector enters a capture zone, the box **welds** to the EE frame.
-2. The welded box is included in the planner collision predicate (EE + box envelope).
-3. On goal arrival, the weld **releases** and the box remains at the goal pose.
-
-This avoids manipulator DOF while still demonstrating pick-and-place semantics.
-
-### Environment
-
-Based on ARCO `map/ppp.yml` (industrial high-bay warehouse):
-
-| Axis | Range |
-|---|---|
-| X (aisle length) | 0 – 60 m |
-| Y (bay width) | 0 – 20 m |
-| Z (height) | 0 – 6 m |
-
-Static box obstacles block corridors; the planner must find a 3-D C-space path. Scatter
-boxes and width-crossing barriers create detours (see ARCO PPP scene for reference layout).
-
-### Robot
-
-| Property | Value |
-|---|---|
-| Model name | `ppp` |
-| DOF | 3 (prismatic X, Y, Z) |
-| EE geometry | 0.5 m × 0.5 m square face |
-| Planning space | C-space (qx, qy, qz) ≡ world position |
-| ARCO reference | `arco/simulator/scenes/ppp.py`, `map/ppp.yml` |
-
-### Scenario ID
-
-**SC-v10** — `config/scenarios/ppp_warehouse.yml`
-
-### Acceptance criteria
-
-| # | Criterion |
-|---|---|
-| V10-1 | `ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp` runs without error |
-| V10-2 | ARCO RRT* finds collision-free path within 30 s (EE + welded box, MuJoCo contacts) |
-| V10-3 | Gantry tracks trajectory; EE position error ≤ 10 mm in MuJoCo |
-| V10-4 | Cargo box picked at start zone, released at goal zone |
-| V10-5 | No collision between welded box and static obstacles along executed path |
-| V10-6 | Headless MuJoCo render produces MP4 ≥ 30 s suitable for README / article |
-| V10-7 | Unit tests for PPP kinematics, magnetic weld FSM, and C-space checker |
-
-### Implementation tasks
-
-| ID | Task |
-|---|---|
-| T10-01 | PPP kinematics module (`fret/control/kinematics_ppp.py`) |
-| T10-02 | MJCF model: gantry + warehouse boxes (`src/fret/mjcf/ppp_warehouse.xml`) |
-| T10-03 | MuJoCo backend adapter (`fret/ros/mujoco_bridge.py`) |
-| T10-04 | Magnetic grasp FSM (`fret/control/grasp_magnet.py`) |
-| T10-05 | PPP C-space checker (EE box + cargo envelope) |
-| T10-06 | Scenario YAML + launch (`sitl.py`) |
-| T10-07 | Headless video render script + CI artifact |
-| T10-08 | Port/adapt ARCO `ppp.yml` obstacle layout |
+Tag `v1.0.0` was a bootstrap iteration. **Dubins race (v1.1) is the first product
+showcase.** No v1.0 acceptance criteria or tasks remain in this specification.
 
 ---
 
@@ -171,21 +106,21 @@ race format (RRT* vs SST).
 
 ### Goal
 
-Upgrade FRET from **kinematic mirroring** to **full MuJoCo physics** for all
-shipped scenarios (PPP v1.0, Dubins v1.1). Controller commands drive actuators;
-the simulation integrates dynamics and resolves contacts. Robots follow physical
+Upgrade FRET from **kinematic mirroring** to **full MuJoCo physics** for the
+shipped Dubins showcase (v1.1). Controller commands drive actuators; the
+simulation integrates dynamics and resolves contacts. Robots follow physical
 laws — no open-loop pose teleportation.
 
 This release does not add a new robot or showcase scenario. It hardens the
 simulation foundation required for v1.3+ arm releases.
 
-### Previous limitation (v1.0–v1.1, superseded)
+### Previous limitation (v1.1, superseded)
 
-| Aspect | Current behaviour |
+| Aspect | Behaviour before v1.2 |
 |---|---|
-| Motion integration | Pure Python (joint velocity / Dubins vehicle) |
+| Motion integration | Pure Python (Dubins vehicle) |
 | MuJoCo role | Visual mirror: `qpos` write + `mj_forward` |
-| Contacts | Checked for planning (PPP); not applied as forces during execution |
+| Contacts | Not applied as forces during execution |
 | `/joint_states` | Derived from integrated commands, not `mj_step` |
 
 ### Shipped behaviour (v1.2)
@@ -194,20 +129,11 @@ simulation foundation required for v1.3+ arm releases.
 |---|---|
 | Motion integration | `mj_step` at control rate (50 Hz) |
 | Actuators | `<actuator>` elements per joint / agent |
-| Contacts | Columns, floor, cargo weld, optional inter-agent blocking |
+| Contacts | Columns, floor, optional inter-agent blocking |
 | `/joint_states` | Read from simulated `qpos` / `qvel` |
 | Tuning | Documented workflow: kinematic baseline → physics gains |
 
 ### Scope by robot
-
-#### PPP gantry
-
-- Map `PPPControllerNode` velocity commands to prismatic actuators
-- Cargo magnetic weld as MJCF equality constraint or bridge-managed weld
-- Validate pick, transport, and place with contact forces
-- EE tracking error ≤ 10 mm under physics mode (kinematic gate); physics SITL uses
-  `ee_error_limit_physics_m` (0.55 m) because velocity-actuator lag dominates
-  (see `config/planning/ppp.yml` and [mujoco.md](mujoco.md#controller-tuning-workflow-v12))
 
 #### Dubins race
 
@@ -221,44 +147,40 @@ simulation foundation required for v1.3+ arm releases.
 - `physics_mode` ROS parameter on `MuJoCoBridgeNode`
 - Contact force logging and sim-time metrics
 - Regression clips when physics path diverges from kinematic baseline
-- CI smoke tests with `physics_mode:=true` for PPP and Dubins
+- CI smoke tests with `physics_mode:=true` for Dubins
 
 Full integration spec: [mujoco.md](mujoco.md) ·
 [v1.2 implementation spec](mujoco_physics_v1.2.md).
 
 ### Scenario IDs
 
-Physics validation runs against existing release scenarios:
+Physics validation runs against the shipped release scenario:
 
 | ID | Scenario | Model |
 |---|---|---|
-| SC-v10 | `ppp_warehouse.yml` | `ppp` |
 | SC-v11 | `dubins_race.yml` | `dubins` |
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V12-1 | `physics_mode:=true` SITL launches for PPP and Dubins without error |
-| V12-2 | PPP pick-and-place completes with cargo weld contacts; no obstacle penetration; final EE error ≤ `ee_error_limit_physics_m` (0.55 m, grasp `goal_radius`; kinematic gate remains 10 mm) |
-| V12-3 | Dubins agents reach B with column contact response; no ghosting through walls |
-| V12-4 | `/joint_states` timestamps match sim clock; no open-loop pose injection |
-| V12-5 | Contact log artifact produced in CI for both scenarios |
-| V12-6 | Controller tuning guide in [mujoco.md](mujoco.md) |
-| V12-7 | Physics regression tests in `tests/integration/` |
+| V12-1 | `physics_mode:=true` SITL launches for Dubins without error |
+| V12-2 | Dubins agents reach B with column contact response; no ghosting through walls |
+| V12-3 | `/joint_states` timestamps match sim clock; no open-loop pose injection |
+| V12-4 | Contact log artifact produced in CI |
+| V12-5 | Controller tuning guide in [mujoco.md](mujoco.md) |
+| V12-6 | Physics regression tests in `tests/integration/` |
 
 ### Implementation tasks
 
 | ID | Task |
 |---|---|
 | T12-01 | `step_physics()` in `MuJoCoBridgeCore` — `ctrl` → `mj_step` |
-| T12-02 | PPP MJCF actuators + gain config in `mujoco.yml` |
-| T12-03 | Dubins MJCF actuators + steering model |
-| T12-04 | Cargo weld physics (equality constraint or bridge FSM hook) |
-| T12-05 | Contact logging harness + metrics |
-| T12-06 | Physics integration tests (PPP + Dubins) |
-| T12-07 | Update showcase scripts to support physics mode (optional flag) |
-| T12-08 | Document tuning workflow in [mujoco.md](mujoco.md) and [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) |
+| T12-02 | Dubins MJCF actuators + steering model |
+| T12-03 | Contact logging harness + metrics |
+| T12-04 | Physics integration tests (Dubins) |
+| T12-05 | Update showcase scripts to support physics mode (optional flag) |
+| T12-06 | Document tuning workflow in [mujoco.md](mujoco.md) and [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) |
 
 ---
 
@@ -347,10 +269,10 @@ and trajectory execution in a cluttered environment — the capstone release.
 | Tag | Content | Prerequisite |
 |---|---|---|
 | `v0.9.0` | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done |
-| `v1.0.0` | PPP warehouse + magnetic grasp + MuJoCo video | T10-* |
-| `v1.1.0` | Dubins dual race | T11-* |
+| `v1.0.0` | Superseded bootstrap tag (not a product showcase) | — |
+| `v1.1.0` | Dubins dual race — **first product showcase** | T11-* |
 | `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
-| `v1.2.0` | MuJoCo physics SITL (PPP + Dubins) — **current** | T12-* ✅ |
+| `v1.2.0` | MuJoCo physics SITL (Dubins) — **current** | T12-* ✅ |
 | `v1.3.0` | RRP + RR ARCO reproduction | T13-* |
 | `v1.4.0` | 6-DOF challenge | T14-* |
 
@@ -363,9 +285,9 @@ v1.2.0; physics clips used `--physics-mode` during development.
 | Tag | Focus | Status |
 |---|---|---|
 | `v1.1.1` | Physics bridge checkpoint (#88) | Superseded |
-| `v1.1.2` | MJCF collision policy + PPP physics tracking baseline | ✅ |
-| `v1.1.3` | Cargo weld / floor-contact handoff | ✅ |
-| `v1.1.4` | Dubins RTF + PPP tracking gates | ✅ |
+| `v1.1.2` | MJCF collision policy + physics tracking baseline | ✅ |
+| `v1.1.3` | Floor-contact / contact-log handoff | ✅ |
+| `v1.1.4` | Dubins RTF + tracking gates | ✅ |
 | `v1.1.5` | Regression harness + CI hardening | ✅ |
 | `v1.2.0` | Product release — physics-default showcase | ✅ |
 
@@ -374,9 +296,6 @@ kinematic behaviour must not regress.
 
 **Resolved physics gaps at v1.2.0:**
 
-- **PPP (SC-v10):** widened preview obstacle corridor; physics tracking gate
-  uses `ee_error_limit_physics_m` (0.55 m) because velocity-actuator lag
-  dominates the 10 mm kinematic gate.
 - **Dubins (SC-v11):** both agents reach goal under physics; race duration
   ~1.73× kinematic on CI.
 - **Release pipeline:** `release.yml` uses `--physics-mode`.
@@ -384,10 +303,9 @@ kinematic behaviour must not regress.
 **Deferred to v1.3+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
 
 - True Dubins non-holonomic wheel actuators (holonomic X/Y slides remain)
-- Gantry leg↔floor sliding friction model (gantry frame is visual-only)
 - New robots (RRP, 6-DOF) and hardware HITL
 
-Every release-tag MP4 (PPP + Dubins, all camera POVs) **must** play back at
+Every release-tag MP4 (Dubins, all camera POVs) **must** play back at
 **real-time simulation speed**. This is a hard product requirement, independent
 of kinematic vs physics render mode.
 

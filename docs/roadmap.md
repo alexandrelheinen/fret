@@ -21,7 +21,7 @@
 v0.9  ✅  Bootstrap SCARA pipeline (MS-1–5, pure-Python CI)
   │
   ▼
-v1.0  ✅  PPP gantry — warehouse box pick-and-place (magnetic grasp, MuJoCo)
+v1.0  —   Superseded bootstrap tag (not a product showcase)
   │
   ▼
 v1.1  ✅  Dubins dual-robot race A→B through structure forest
@@ -60,63 +60,49 @@ Validated on SCARA (RRP, 3-DOF):
 - [x] Trajectory post-processing and conversion
 - [x] Pure-Python CI through pillar avoidance (MS-5)
 - [x] ROS SITL launch files (`sitl.py`, `mujoco.py`)
-
----
-
-## Phase 2 — v1.0 PPP warehouse ✅ *Complete*
-
-**Robot:** PPP gantry (3 prismatic). **Scenario:** SC-v10 magnetic box transport.
-
-- [x] PPP kinematics and joint-space controller
-- [x] Magnetic grasp FSM (weld / release)
-- [x] PPP C-space collision checker (EE + cargo envelope, MuJoCo contacts)
-- [x] MuJoCo MJCF: gantry + warehouse obstacles
 - [x] MuJoCo backend adapter (`mujoco_bridge.py`)
-- [x] Scenario `ppp_warehouse.yml` + launch
-- [x] Headless MP4 render for README / article (RRT* + prune + tracking)
-- [x] V10-1 ROS SITL smoke test
-- [x] Tag `v1.0.0`
+- [x] Headless MP4 render pipeline for README / article
 
 ---
 
-## Phase 3 — v1.1 Dubins race ✅ *Complete*
+## Phase 2 — v1.1 Dubins race ✅ *Complete*
 
 **Robot:** Dubins mobile × 2. **Scenario:** SC-v11 structure forest race.
+**First product showcase.**
 
 - [x] SE(2) planning adapter (ARCO DubinsVehicle)
 - [x] Dual-agent race orchestration
 - [x] Rectangular structure forest + dead-end alcoves
 - [x] Pure Pursuit tracking integration
-- [x] Release workflow + R2 upload (overview + follow POVs per scenario)
+- [x] Release workflow + R2 upload (overview + follow POVs)
 - [x] Tag `v1.1.0`
 
 ---
 
-## Phase 4 — v1.2 MuJoCo physics SITL ✅ *Complete*
+## Phase 3 — v1.2 MuJoCo physics SITL ✅ *Complete*
 
-**Cross-cutting release.** Applies to v1.0 PPP and v1.1 Dubins scenarios.
+**Cross-cutting release.** Applies to the v1.1 Dubins showcase.
 
 MuJoCo **physics mode** (`physics_mode:=true`) drives robots through velocity
-actuators (`mj_step`), resolves contacts (columns, obstacles, cargo weld), and
+actuators (`mj_step`), resolves contacts (columns, obstacles), and
 publishes `/joint_states` from simulated `qpos`/`qvel`. Kinematic mirroring
 remains available for fast regression (`physics_mode:=false`).
 
 | Step | Tag | Focus |
 | --- | --- | --- |
-| 1 | `v1.1.2` ✅ | PPP MJCF collision policy + physics tracking baseline |
-| 2 | `v1.1.3` ✅ | Cargo weld / floor-contact handoff |
-| 3 | `v1.1.4` ✅ | Dubins RTF + PPP E2E |
+| 1 | `v1.1.2` ✅ | MJCF collision policy + physics tracking baseline |
+| 2 | `v1.1.3` ✅ | Floor-contact / contact-log handoff |
+| 3 | `v1.1.4` ✅ | Dubins RTF + tracking gates |
 | 4 | `v1.1.5` ✅ | Regression harness + CI hardening |
 | 5 | `v1.2.0` ✅ | Physics-default release showcase |
 
 - [x] `physics_mode` parameter + `step_physics()` on MuJoCo bridge (T12-01)
-- [x] MJCF actuators + `mujoco_physics.yml` (T12-02, T12-03)
-- [x] Cargo weld physics + PPP gantry tuning (T12-04)
-- [x] Contact logging harness (T12-05); showcase `--physics-mode` flag (T12-07)
-- [x] Dubins physics race + `both_reached_goal` (T12-03)
-- [x] Physics integration tests at V12 gates (T12-06)
-- [x] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-08)
-- [x] Release CI switched to `--physics-mode` (V120-01)
+- [x] MJCF actuators + `mujoco_physics.yml` (T12-02)
+- [x] Contact logging harness (T12-03); showcase `--physics-mode` flag (T12-05)
+- [x] Dubins physics race + `both_reached_goal` (T12-02)
+- [x] Physics integration tests at V12 gates (T12-04)
+- [x] Controller tuning workflow + measured baselines ([mujoco.md](mujoco.md), T12-06)
+- [x] Release CI switched to `--physics-mode`
 - [x] Package version 1.2.0; docs updated for physics-default behaviour
 
 Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) ·
@@ -124,7 +110,7 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) 
 
 ---
 
-## Phase 5 — v1.3 RRP / SCARA 🔲
+## Phase 4 — v1.3 RRP / SCARA 🔲
 
 **Robot:** RRP (existing SCARA) + RR planar. **Scenarios:** SC-v13a, SC-v13b.
 
@@ -137,7 +123,7 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) 
 
 ---
 
-## Phase 6 — v1.4 6-DOF challenge 🔲
+## Phase 5 — v1.4 6-DOF challenge 🔲
 
 **Robot:** 6-DOF revolute manipulator. **Scenario:** SC-v14.
 
@@ -149,7 +135,7 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) 
 
 ---
 
-## Phase 7 — Hardware HITL 🔲 *Post v1.4*
+## Phase 6 — Hardware HITL 🔲 *Post v1.4*
 
 - [ ] Micro-ROS serial bridge (`hardware/bridge_node.py`)
 - [ ] Encoder feedback loop
@@ -157,7 +143,7 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl) 
 
 ---
 
-## Phase 8 — Vision 🔲 *Future*
+## Phase 7 — Vision 🔲 *Future*
 
 - [ ] Camera-based perception
 - [ ] Dynamic replanning from visual feedback

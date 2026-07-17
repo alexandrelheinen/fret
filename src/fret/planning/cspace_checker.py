@@ -151,7 +151,7 @@ def make_cspace_checker(
     contact_radius: float | None = None,
     collision_backend: CollisionBackend = "analytic",
     mjcf_path: str | pathlib.Path | None = None,
-    scenario: str = "ppp_warehouse",
+    scenario: str = "static_reach",
     workspace_bounds: (
         tuple[
             tuple[float, float],
@@ -163,59 +163,31 @@ def make_cspace_checker(
 ) -> CSpaceChecker | Any:
     """Build a model-appropriate C-space checker (FR-SYS-01).
 
-    Dispatches to ``PPPcSpaceChecker`` or ``MujocoPPPCollisionChecker`` for
-    the PPP gantry and the legacy arm-sampling ``CSpaceChecker`` for SCARA /
-    RRP models.
+    Returns the arm-sampling ``CSpaceChecker`` used by SCARA / RRP models.
+    Extra keyword arguments are accepted for API compatibility with older
+    call sites and ignored.
 
     Args:
         kinematics: Active ``Kinematics`` engine.
-        occupancy: Occupancy model for clearance queries (analytic PPP only).
-        include_cargo: When True, PPP checker includes welded cargo (FR-GSP-02).
-        grasp_config: Optional ``GraspConfig`` for cargo geometry.
-        collision_backend: ``analytic`` (AABB + occupancy) or ``mujoco``.
-        mjcf_path: Optional MJCF override for the MuJoCo backend.
-        scenario: Scenario stem for MJCF resolution.
+        occupancy: Occupancy model for clearance queries.
+        include_cargo: Unused (retained for call-site compatibility).
+        grasp_config: Unused (retained for call-site compatibility).
+        contact_radius: Unused (retained for call-site compatibility).
+        collision_backend: Unused (retained for call-site compatibility).
+        mjcf_path: Unused (retained for call-site compatibility).
+        scenario: Unused (retained for call-site compatibility).
+        workspace_bounds: Unused (retained for call-site compatibility).
 
     Returns:
         A checker exposing ``is_collision_free`` and ``clearance``.
     """
-    from fret.planning.cspace_checker_ppp import (
-        PPPCheckerConfig,
-        PPPcSpaceChecker,
+    _ = (
+        include_cargo,
+        grasp_config,
+        contact_radius,
+        collision_backend,
+        mjcf_path,
+        scenario,
+        workspace_bounds,
     )
-    from fret.planning.ppp_obstacles import is_ppp_kinematics
-
-    if is_ppp_kinematics(kinematics.joint_names):
-        if include_cargo and grasp_config is None:
-            raise ValueError(
-                "grasp_config is required when include_cargo is True for PPP"
-            )
-        if collision_backend == "mujoco":
-            if contact_radius is None:
-                raise ValueError(
-                    "contact_radius is required for the MuJoCo PPP collision backend"
-                )
-            from fret.planning.cspace_checker_mujoco import (
-                MujocoCheckerConfig,
-                MujocoPPPCollisionChecker,
-            )
-
-            mj_cfg = MujocoCheckerConfig(
-                include_cargo=include_cargo,
-                grasp_config=grasp_config,
-                contact_radius=float(contact_radius),
-                mjcf_path=(
-                    pathlib.Path(mjcf_path) if mjcf_path is not None else None
-                ),
-                scenario=scenario,
-                workspace_bounds=workspace_bounds,
-            )
-            return MujocoPPPCollisionChecker(kinematics, occupancy, mj_cfg)
-
-        cfg = PPPCheckerConfig(
-            include_cargo=include_cargo,
-            grasp_config=grasp_config,
-            workspace_bounds=workspace_bounds,
-        )
-        return PPPcSpaceChecker(kinematics, occupancy, cfg)
     return CSpaceChecker(kinematics, occupancy)
