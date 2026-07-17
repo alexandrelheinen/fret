@@ -207,6 +207,7 @@ class DubinsRaceSimulation:
             dt=self.dt,
             agent_finished=self.rrt_finish is not None,
             max_speed=self.vehicle_cfg.max_speed,
+            cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
             occupancy=self.occupancy,
             lookahead_distance=self.vehicle_cfg.lookahead_distance,
@@ -218,6 +219,7 @@ class DubinsRaceSimulation:
             dt=self.dt,
             agent_finished=self.sst_finish is not None,
             max_speed=self.vehicle_cfg.max_speed,
+            cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
             occupancy=self.occupancy,
             lookahead_distance=self.vehicle_cfg.lookahead_distance,
@@ -630,16 +632,15 @@ def _min_pose_history_clearance(
 
 _PHYSICS_KP_POSITION: float = 6.8
 _PHYSICS_KP_YAW: float = 3.2
-_PHYSICS_MAX_POSITION_LAG_M: float = 0.82
-_PHYSICS_REFERENCE_BLEND: float = 0.73
+_PHYSICS_MAX_POSITION_LAG_M: float = 0.28
 _PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
 _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE: float = 3.0
-_PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.15
+_PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.05
 _PHYSICS_GOAL_DWELL_TICKS: int = 6
 _PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
-_PHYSICS_BEARING_MIN_LAG_M: float = 0.08
-_PHYSICS_WORKSPACE_MAX_M: float = 80.0
-_PHYSICS_WORKSPACE_MARGIN_M: float = 2.0
+_PHYSICS_BEARING_MIN_LAG_M: float = 0.05
+_PHYSICS_WORKSPACE_MAX_M: float = 10.0
+_PHYSICS_WORKSPACE_MARGIN_M: float = 0.45
 _PHYSICS_HEADING_GATE_FLOOR: float = 0.20
 _PHYSICS_PP_CURVATURE_GAIN: float = 2.0
 
@@ -724,7 +725,7 @@ def _physics_forward_blocked(
     pose: tuple[float, float, float],
     *,
     occupancy: RectStructureOccupancy,
-    probe_m: float = 0.40,
+    probe_m: float = 0.18,
 ) -> bool:
     """Return True when the body centre cannot advance into occupied space."""
     x, y, theta = pose
@@ -749,6 +750,7 @@ def _agent_physics_velocity_command(
     dt: float,
     agent_finished: bool,
     max_speed: float,
+    cruise_speed: float,
     max_turn_rate: float,
     occupancy: RectStructureOccupancy,
     lookahead_distance: float,
@@ -756,7 +758,7 @@ def _agent_physics_velocity_command(
     kp_yaw: float = _PHYSICS_KP_YAW,
     max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
 ) -> tuple[tuple[float, float, float], dict[str, Any]]:
-    """Return closed-loop physics velocity toward a kinematic PP reference."""
+    """Return closed-loop body twist for true differential-drive physics."""
     if agent_finished:
         return (0.0, 0.0, 0.0), {
             "cross_track_error": 0.0,
@@ -773,49 +775,26 @@ def _agent_physics_velocity_command(
     vehicle.y = float(sim_y)
     vehicle.heading = float(sim_theta)
 
+    # ARCO PP for metrics / repulsion only — not as the speed reference.
     metrics = loop.step(path, dt)
-    ref_x, ref_y, _ref_theta = vehicle.pose
-
     vehicle.x = float(sim_x)
     vehicle.y = float(sim_y)
     vehicle.heading = float(sim_theta)
 
-    ref_x = sim_x + _PHYSICS_REFERENCE_BLEND * (ref_x - sim_x)
-    ref_y = sim_y + _PHYSICS_REFERENCE_BLEND * (ref_y - sim_y)
-
-    dx = ref_x - sim_x
-    dy = ref_y - sim_y
-    lag = math.hypot(dx, dy)
-    if lag > max_position_lag_m:
-        scale = max_position_lag_m / lag
-        ref_x = sim_x + dx * scale
-        ref_y = sim_y + dy * scale
-        dx = ref_x - sim_x
-        dy = ref_y - sim_y
-        lag = math.hypot(dx, dy)
-
-    # Classic Pure Pursuit bearing on a path lookahead — works for true
-    # differential-drive where a one-tick kinematic heading lead is too weak.
     look_x, look_y = _path_lookahead_point(
         path,
         (sim_x, sim_y),
-        lookahead_m=max(lookahead_distance, 1.0),
+        lookahead_m=max(lookahead_distance, 0.35),
     )
     look_dx = look_x - sim_x
     look_dy = look_y - sim_y
     look_range = math.hypot(look_dx, look_dy)
     if look_range >= _PHYSICS_BEARING_MIN_LAG_M:
         yaw_err = _wrap_heading(math.atan2(look_dy, look_dx) - sim_theta)
-        pp_L = max(look_range, 0.5)
-    elif lag >= _PHYSICS_BEARING_MIN_LAG_M:
-        yaw_err = _wrap_heading(math.atan2(dy, dx) - sim_theta)
-        pp_L = max(lag, 0.5)
+        pp_L = max(look_range, 0.35)
     else:
         yaw_err = 0.0
-        pp_L = max(lookahead_distance, 0.5)
-
-    vx = kp_position * dx
-    vy = kp_position * dy
+        pp_L = max(lookahead_distance, 0.35)
 
     dist, _closest = occupancy.nearest_obstacle(
         np.array([sim_x, sim_y], dtype=np.float64)
@@ -823,20 +802,21 @@ def _agent_physics_velocity_command(
     clearance = float(occupancy.clearance)
     influence_radius = _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE * clearance
 
-    forward = vx * math.cos(sim_theta) + vy * math.sin(sim_theta)
+    heading_gate = _PHYSICS_HEADING_GATE_FLOOR + (
+        1.0 - _PHYSICS_HEADING_GATE_FLOOR
+    ) * max(0.0, math.cos(yaw_err))
+    lag_speed = min(
+        max_speed, kp_position * min(look_range, max_position_lag_m)
+    )
+    forward = max(float(cruise_speed), lag_speed) * heading_gate
+    forward *= _PHYSICS_FORWARD_SPEED_SCALE
     if _physics_forward_blocked(
         (sim_x, sim_y, sim_theta),
         occupancy=occupancy,
     ):
         forward = min(forward, 0.0)
-    heading_gate = _PHYSICS_HEADING_GATE_FLOOR + (
-        1.0 - _PHYSICS_HEADING_GATE_FLOOR
-    ) * max(0.0, math.cos(yaw_err))
-    forward = max(0.0, forward) * _PHYSICS_FORWARD_SPEED_SCALE * heading_gate
-    if forward > max_speed:
-        forward = max_speed
+    forward = max(0.0, min(max_speed, forward))
 
-    # ω = (2 v sin α) / L  plus a mild heading P-term for standing turns.
     omega = _PHYSICS_PP_CURVATURE_GAIN * forward * math.sin(
         yaw_err
     ) / pp_L + kp_yaw * yaw_err * (1.0 - heading_gate)
