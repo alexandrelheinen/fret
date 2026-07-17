@@ -80,8 +80,8 @@ def generate_structure_geoms(structures: list[dict[str, float]]) -> str:
         sx, sy, sz = _mesh_scale(mesh, hx, hy, height)
         name = f"str_{idx:03d}"
         lines.append(
-            f'    <geom name="{name}_col" type="box" pos="{x} {y} {half_z:.2f}" '
-            f'size="{hx} {hy} {half_z:.2f}" rgba="0 0 0 0"/>'
+            f'    <geom name="{name}_col" class="structure_col" '
+            f'pos="{x} {y} {half_z:.2f}" size="{hx} {hy} {half_z:.2f}"/>'
         )
         corner_x = x - hx
         corner_y = y - hy
