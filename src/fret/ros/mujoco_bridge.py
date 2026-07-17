@@ -17,6 +17,7 @@ Satisfies requirements FR-SIM-01, FR-SIM-02, and FR-SIM-09.
 
 from __future__ import annotations
 
+import math
 import os
 import pathlib
 from dataclasses import dataclass
@@ -25,12 +26,12 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.dubins_wheel_model import enforce_slide_yaw_nonholonomic_qvel
 from fret.ros.mujoco_physics_log import (
     ContactLogConfig,
     PhysicsContactLogger,
     contact_log_config_from_bridge_yaml,
 )
+from fret.simulation.turtlebot3_unit import body_velocity_to_wheel_rates
 
 # Dubins race workspace limits for dubins_race.xml.
 _DUBINS_RACE_LIMITS: npt.NDArray[np.float64] = np.array(
@@ -42,25 +43,47 @@ _DUBINS_RACE_LIMITS: npt.NDArray[np.float64] = np.array(
     dtype=np.float64,
 )
 
-_RRT_JOINT_NAMES: list[str] = [
-    "rrt_joint_x",
-    "rrt_joint_y",
-    "rrt_joint_yaw",
-]
-_SST_JOINT_NAMES: list[str] = [
-    "sst_joint_x",
-    "sst_joint_y",
-    "sst_joint_yaw",
-]
-_DUMMY_JOINT_NAMES: list[str] = [
-    "dummy_joint_x",
-    "dummy_joint_y",
-    "dummy_joint_yaw",
-]
+# Freejoint bases for the three TurtleBot3 race agents (7-DoF qpos each).
+_RRT_BASE_JOINT: str = "rrt_base_joint"
+_SST_BASE_JOINT: str = "sst_base_joint"
+_DUMMY_BASE_JOINT: str = "dummy_base_joint"
+_DUBINS_BASE_JOINTS: tuple[str, str, str] = (
+    _RRT_BASE_JOINT,
+    _SST_BASE_JOINT,
+    _DUMMY_BASE_JOINT,
+)
+
+# Match fret.simulation.turtlebot3_unit geometry / actuator limits.
+_AGENT_BASE_Z_M: float = 0.033
+_WHEEL_RADIUS_M: float = 0.033
+_TRACK_WIDTH_M: float = 0.16
+_WHEEL_CTRL_LIMIT_RAD_S: float = 6.67
 
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
 _DEFAULT_MJCF_TIMESTEP_S: float = 0.002
 _DEFAULT_SUBSTEPS_PER_TICK: int = 25
+
+
+def _yaw_to_quat_wxyz(yaw: float) -> tuple[float, float, float, float]:
+    """Planar yaw (about +z) to MuJoCo quaternion ``(w, x, y, z)``."""
+    half = 0.5 * float(yaw)
+    return (math.cos(half), 0.0, 0.0, math.sin(half))
+
+
+def _quat_wxyz_to_yaw(qw: float, qx: float, qy: float, qz: float) -> float:
+    """Extract planar yaw from a MuJoCo quaternion ``(w, x, y, z)``."""
+    sin_y = 2.0 * (qw * qz + qx * qy)
+    cos_y = 1.0 - 2.0 * (qy * qy + qz * qz)
+    return math.atan2(sin_y, cos_y)
+
+
+def _world_velocity_to_body_forward(
+    vx: float,
+    vy: float,
+    yaw: float,
+) -> float:
+    """Project world-frame ``(vx, vy)`` onto the body forward axis."""
+    return float(vx * math.cos(yaw) + vy * math.sin(yaw))
 
 
 @dataclass(frozen=True)
@@ -586,18 +609,19 @@ class MuJoCoBridgeCore:
 
 
 class DubinsRaceBridgeCore:
-    """MuJoCo state mirror for the dual-agent Dubins race scene.
+    """MuJoCo state mirror for the triple-agent Dubins race scene.
 
-    In kinematic mode, writes RRT* and SST vehicle poses into
-    ``dubins_race.xml`` joint coordinates without integrating dynamics.
+    In kinematic mode, writes RRT*, SST, and dummy poses into
+    ``dubins_race.xml`` freejoint coordinates (planar ``x, y, yaw``) without
+    integrating dynamics.
 
-    In physics mode (v1.2), six velocity actuators are driven via
-    :meth:`step_physics` and poses are read from simulated ``qpos``.
+    In physics mode (v1.2), six wheel velocity actuators are driven via
+    :meth:`step_physics`. The race runner still supplies a length-9
+    world-frame command ``(vx, vy, ω)×3``; each agent's command is converted
+    to body forward speed and yaw rate, then to left/right wheel rates.
+    Poses are read from freejoint ``qpos``. Non-holonomy comes from wheel
+    contact only (pure ``mj_step``, no SE(2) qvel projection).
     """
-
-    _JOINT_NAMES: tuple[str, ...] = tuple(
-        _RRT_JOINT_NAMES + _SST_JOINT_NAMES + _DUMMY_JOINT_NAMES
-    )
 
     def __init__(
         self,
@@ -641,8 +665,7 @@ class DubinsRaceBridgeCore:
         self._mujoco: Any | None = None
         self._model: Any | None = None
         self._data: Any | None = None
-        self._joint_adrs: dict[str, int] = {}
-        self._qvel_adrs: dict[str, int] = {}
+        self._qpos_adrs: dict[str, int] = {}
         self._physics_mode = False
         self._substeps_per_tick = _DEFAULT_SUBSTEPS_PER_TICK
         self._actuator_ids: list[int] = []
@@ -675,6 +698,10 @@ class DubinsRaceBridgeCore:
             self._mujoco,
             config.actuators.names,
         )
+        if len(self._actuator_ids) != 6:
+            raise RuntimeError(
+                "Dubins race MJCF must expose six wheel actuators"
+            )
         _apply_actuator_gains(self._model, config.actuators)
 
     def configure_contact_logging(self, config: ContactLogConfig) -> None:
@@ -758,7 +785,7 @@ class DubinsRaceBridgeCore:
         return self._dummy.copy()
 
     def get_joint_velocities(self) -> npt.NDArray[np.float64]:
-        """Return the most recent nine-DOF velocity commands."""
+        """Return the most recent nine-vector world-frame command."""
         return self._velocities.copy()
 
     def step_physics(
@@ -767,19 +794,58 @@ class DubinsRaceBridgeCore:
         *,
         substeps: int | None = None,
     ) -> npt.NDArray[np.float64]:
-        """Advance all three agents with nine velocity actuator commands."""
+        """Advance agents from a length-9 world-frame command ``(vx,vy,ω)×3``.
+
+        Converts each agent's world velocity to body ``(v, ω)``, maps to
+        wheel rates, writes the six wheel actuators, then runs pure
+        ``mj_step`` substeps.
+        """
         if not self._physics_mode:
             raise RuntimeError("step_physics() requires physics_mode=True")
         if self._model is None or self._data is None or self._mujoco is None:
             raise RuntimeError("step_physics() requires the mujoco package")
 
         v = np.asarray(velocities, dtype=np.float64).reshape(9)
-        if len(self._actuator_ids) != 9:
-            raise RuntimeError("Dubins race MJCF must expose nine actuators")
+        if len(self._actuator_ids) != 6:
+            raise RuntimeError(
+                "Dubins race MJCF must expose six wheel actuators"
+            )
 
         self._velocities = v.copy()
+        poses = (self._rrt, self._sst, self._dummy)
+        wheel_ctrl = np.empty(6, dtype=np.float64)
+        for agent_idx, pose in enumerate(poses):
+            base = 3 * agent_idx
+            yaw = float(pose[2])
+            forward = _world_velocity_to_body_forward(
+                float(v[base]),
+                float(v[base + 1]),
+                yaw,
+            )
+            omega = float(v[base + 2])
+            omega_l, omega_r = body_velocity_to_wheel_rates(
+                forward,
+                omega,
+                wheel_radius_m=_WHEEL_RADIUS_M,
+                track_width_m=_TRACK_WIDTH_M,
+            )
+            wheel_ctrl[2 * agent_idx] = float(
+                np.clip(
+                    omega_l,
+                    -_WHEEL_CTRL_LIMIT_RAD_S,
+                    _WHEEL_CTRL_LIMIT_RAD_S,
+                )
+            )
+            wheel_ctrl[2 * agent_idx + 1] = float(
+                np.clip(
+                    omega_r,
+                    -_WHEEL_CTRL_LIMIT_RAD_S,
+                    _WHEEL_CTRL_LIMIT_RAD_S,
+                )
+            )
+
         for idx, act_id in enumerate(self._actuator_ids):
-            self._data.ctrl[act_id] = float(v[idx])
+            self._data.ctrl[act_id] = float(wheel_ctrl[idx])
 
         step_count = (
             self._substeps_per_tick if substeps is None else int(substeps)
@@ -787,27 +853,8 @@ class DubinsRaceBridgeCore:
         if step_count <= 0:
             raise ValueError("substeps must be positive")
 
-        agent_joint_groups: tuple[tuple[str, str, str], ...] = (
-            (_RRT_JOINT_NAMES[0], _RRT_JOINT_NAMES[1], _RRT_JOINT_NAMES[2]),
-            (_SST_JOINT_NAMES[0], _SST_JOINT_NAMES[1], _SST_JOINT_NAMES[2]),
-            (
-                _DUMMY_JOINT_NAMES[0],
-                _DUMMY_JOINT_NAMES[1],
-                _DUMMY_JOINT_NAMES[2],
-            ),
-        )
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
-            # Showcase race agents still use holonomic SE(2) slides; the
-            # unit sandbox (fret.simulation.DiffDriveUnitRobot) must NOT
-            # call this projection — wheel friction provides non-holonomy.
-            for joint_names in agent_joint_groups:
-                enforce_slide_yaw_nonholonomic_qvel(
-                    self._data,
-                    self._joint_adrs,
-                    self._qvel_adrs,
-                    joint_names,
-                )
 
         if self._contact_logger is not None:
             self._contact_logger.record_tick(
@@ -831,55 +878,65 @@ class DubinsRaceBridgeCore:
             self._mujoco = mujoco
             self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
             self._data = mujoco.MjData(self._model)
-            qpos_adrs, qvel_adrs = _bind_joint_addresses(
+            qpos_adrs, _qvel_adrs = _bind_joint_addresses(
                 self._model,
                 mujoco,
-                list(self._JOINT_NAMES),
+                list(_DUBINS_BASE_JOINTS),
             )
-            for name, adr in zip(self._JOINT_NAMES, qpos_adrs, strict=True):
-                self._joint_adrs[name] = adr
-            for name, adr in zip(self._JOINT_NAMES, qvel_adrs, strict=True):
-                self._qvel_adrs[name] = adr
+            for name, adr in zip(_DUBINS_BASE_JOINTS, qpos_adrs, strict=True):
+                self._qpos_adrs[name] = adr
         except Exception:
             self._mujoco = None
             self._model = None
             self._data = None
-            self._joint_adrs = {}
-            self._qvel_adrs = {}
+            self._qpos_adrs = {}
+
+    def _write_freejoint_pose(
+        self,
+        joint_name: str,
+        pose: npt.NDArray[np.float64],
+    ) -> None:
+        """Write planar ``(x, y, yaw)`` into a freejoint qpos block."""
+        if self._data is None:
+            return
+        adr = self._qpos_adrs.get(joint_name)
+        if adr is None:
+            return
+        qw, qx, qy, qz = _yaw_to_quat_wxyz(float(pose[2]))
+        self._data.qpos[adr] = float(pose[0])
+        self._data.qpos[adr + 1] = float(pose[1])
+        self._data.qpos[adr + 2] = _AGENT_BASE_Z_M
+        self._data.qpos[adr + 3] = qw
+        self._data.qpos[adr + 4] = qx
+        self._data.qpos[adr + 5] = qy
+        self._data.qpos[adr + 6] = qz
+
+    def _read_freejoint_pose(self, joint_name: str) -> npt.NDArray[np.float64]:
+        """Read planar ``(x, y, yaw)`` from a freejoint qpos block."""
+        if self._data is None:
+            return np.zeros(3, dtype=np.float64)
+        adr = self._qpos_adrs[joint_name]
+        x = float(self._data.qpos[adr])
+        y = float(self._data.qpos[adr + 1])
+        qw, qx, qy, qz = (float(v) for v in self._data.qpos[adr + 3 : adr + 7])
+        yaw = _quat_wxyz_to_yaw(qw, qx, qy, qz)
+        return np.array([x, y, yaw], dtype=np.float64)
 
     def _seed_mujoco_state(self) -> None:
         """Write initial agent poses once at construction."""
         if self._model is None or self._data is None or self._mujoco is None:
             return
-        mapping = {
-            "rrt_joint_x": float(self._rrt[0]),
-            "rrt_joint_y": float(self._rrt[1]),
-            "rrt_joint_yaw": float(self._rrt[2]),
-            "sst_joint_x": float(self._sst[0]),
-            "sst_joint_y": float(self._sst[1]),
-            "sst_joint_yaw": float(self._sst[2]),
-            "dummy_joint_x": float(self._dummy[0]),
-            "dummy_joint_y": float(self._dummy[1]),
-            "dummy_joint_yaw": float(self._dummy[2]),
-        }
-        for name, value in mapping.items():
-            adr = self._joint_adrs.get(name)
-            if adr is not None:
-                self._data.qpos[adr] = value
+        self._write_freejoint_pose(_RRT_BASE_JOINT, self._rrt)
+        self._write_freejoint_pose(_SST_BASE_JOINT, self._sst)
+        self._write_freejoint_pose(_DUMMY_BASE_JOINT, self._dummy)
         self._mujoco.mj_forward(self._model, self._data)
 
     def _read_state_from_mujoco(self) -> None:
-        if self._data is None:
+        if self._data is None or not self._qpos_adrs:
             return
-        rrt = np.empty(3, dtype=np.float64)
-        sst = np.empty(3, dtype=np.float64)
-        for idx, name in enumerate(_RRT_JOINT_NAMES):
-            rrt[idx] = float(self._data.qpos[self._joint_adrs[name]])
-        for idx, name in enumerate(_SST_JOINT_NAMES):
-            sst[idx] = float(self._data.qpos[self._joint_adrs[name]])
-        dummy = np.empty(3, dtype=np.float64)
-        for idx, name in enumerate(_DUMMY_JOINT_NAMES):
-            dummy[idx] = float(self._data.qpos[self._joint_adrs[name]])
+        rrt = self._read_freejoint_pose(_RRT_BASE_JOINT)
+        sst = self._read_freejoint_pose(_SST_BASE_JOINT)
+        dummy = self._read_freejoint_pose(_DUMMY_BASE_JOINT)
         self._rrt = np.clip(rrt, self._limits[:, 0], self._limits[:, 1])
         self._sst = np.clip(sst, self._limits[:, 0], self._limits[:, 1])
         self._dummy = np.clip(dummy, self._limits[:, 0], self._limits[:, 1])
@@ -891,21 +948,9 @@ class DubinsRaceBridgeCore:
             raise RuntimeError(
                 "pose injection is forbidden while physics_mode is active"
             )
-        mapping = {
-            "rrt_joint_x": float(self._rrt[0]),
-            "rrt_joint_y": float(self._rrt[1]),
-            "rrt_joint_yaw": float(self._rrt[2]),
-            "sst_joint_x": float(self._sst[0]),
-            "sst_joint_y": float(self._sst[1]),
-            "sst_joint_yaw": float(self._sst[2]),
-            "dummy_joint_x": float(self._dummy[0]),
-            "dummy_joint_y": float(self._dummy[1]),
-            "dummy_joint_yaw": float(self._dummy[2]),
-        }
-        for name, value in mapping.items():
-            adr = self._joint_adrs.get(name)
-            if adr is not None:
-                self._data.qpos[adr] = value
+        self._write_freejoint_pose(_RRT_BASE_JOINT, self._rrt)
+        self._write_freejoint_pose(_SST_BASE_JOINT, self._sst)
+        self._write_freejoint_pose(_DUMMY_BASE_JOINT, self._dummy)
         self._mujoco.mj_forward(self._model, self._data)
 
 

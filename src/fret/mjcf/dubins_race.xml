@@ -170,7 +170,8 @@
     <body name="car_rrt" pos="0 0 0">
       <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
       <freejoint name="rrt_base_joint"/>
-      <geom name="rrt_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+      <!-- Raised so the box does not skid on the floor (wheels provide contact). -->
+      <geom name="rrt_collision" type="box" pos="-0.032 0 0.08" size="0.10 0.09 0.05"
             rgba="0 0 0 0" contype="2" conaffinity="1"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_rrt" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>
@@ -202,7 +203,7 @@
     <body name="car_sst" pos="0 0 0">
       <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
       <freejoint name="sst_base_joint"/>
-      <geom name="sst_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+      <geom name="sst_collision" type="box" pos="-0.032 0 0.08" size="0.10 0.09 0.05"
             rgba="0 0 0 0" contype="2" conaffinity="1"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_sst" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>
@@ -234,7 +235,7 @@
     <body name="car_dummy" pos="0 0 0">
       <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
       <freejoint name="dummy_base_joint"/>
-      <geom name="dummy_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+      <geom name="dummy_collision" type="box" pos="-0.032 0 0.08" size="0.10 0.09 0.05"
             rgba="0 0 0 0" contype="2" conaffinity="1"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_dummy" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>

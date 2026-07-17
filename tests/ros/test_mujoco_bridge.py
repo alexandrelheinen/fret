@@ -29,21 +29,43 @@ _DUBINS_LIMITS = np.array(
     dtype=np.float64,
 )
 
+# Minimal SE(2) scene for MuJoCoBridgeCore kinematic tests (race MJCF is freejoint).
+_MINIMAL_SE2_MJCF = """\
+<mujoco model="se2_kinematic_test">
+  <worldbody>
+    <body name="agent" pos="0 0 0">
+      <joint name="joint_x" type="slide" axis="1 0 0"/>
+      <joint name="joint_y" type="slide" axis="0 1 0"/>
+      <joint name="joint_yaw" type="hinge" axis="0 0 1"/>
+      <geom type="sphere" size="0.05" rgba="0.2 0.4 0.8 1"/>
+    </body>
+  </worldbody>
+</mujoco>
+"""
+
+
+@pytest.fixture()
+def se2_mjcf_path(tmp_path: pathlib.Path) -> pathlib.Path:
+    """Write a tiny three-slide MJCF for generic bridge-core tests."""
+    path = tmp_path / "se2_kinematic_test.xml"
+    path.write_text(_MINIMAL_SE2_MJCF, encoding="utf-8")
+    return path
+
 
 def _single_agent_core(
+    mjcf_path: pathlib.Path,
     *,
     initial: npt.NDArray[np.float64] | None = None,
 ) -> MuJoCoBridgeCore:
-    """Build a generic MuJoCoBridgeCore on the Dubins race MJCF (RRT joints)."""
-    mjcf = resolve_mjcf_path("dubins", "dubins_race", None)
+    """Build a kinematic MuJoCoBridgeCore on a minimal SE(2) MJCF."""
     q0 = (
         np.zeros(3, dtype=np.float64)
         if initial is None
         else np.asarray(initial, dtype=np.float64)
     )
     return MuJoCoBridgeCore(
-        mjcf_path=mjcf,
-        joint_names=["rrt_joint_x", "rrt_joint_y", "rrt_joint_yaw"],
+        mjcf_path=mjcf_path,
+        joint_names=["joint_x", "joint_y", "joint_yaw"],
         limits=_DUBINS_LIMITS,
         initial_positions=q0,
     )
@@ -95,16 +117,20 @@ def test_make_mujoco_bridge_core_unknown_model() -> None:
         make_mujoco_bridge_core("scara", "static_reach")
 
 
-def test_bridge_core_step_integrates_velocity() -> None:
+def test_bridge_core_step_integrates_velocity(
+    se2_mjcf_path: pathlib.Path,
+) -> None:
     """Velocity commands should advance joint positions."""
-    core = _single_agent_core()
+    core = _single_agent_core(se2_mjcf_path)
     q_next = core.step(np.array([1.0, 0.5, 0.2]), dt=0.02)
     np.testing.assert_allclose(q_next, np.array([0.02, 0.01, 0.004]))
 
 
-def test_bridge_core_respects_joint_limits() -> None:
+def test_bridge_core_respects_joint_limits(
+    se2_mjcf_path: pathlib.Path,
+) -> None:
     """Repeated large velocity commands must not exceed MJCF limits."""
-    core = _single_agent_core()
+    core = _single_agent_core(se2_mjcf_path)
     for _ in range(1000):
         core.step(np.array([10.0, 10.0, 10.0]), dt=0.02)
     q = core.get_positions()
@@ -112,9 +138,9 @@ def test_bridge_core_respects_joint_limits() -> None:
     assert np.all(q <= core.limits[:, 1])
 
 
-def test_bridge_core_set_positions() -> None:
+def test_bridge_core_set_positions(se2_mjcf_path: pathlib.Path) -> None:
     """Direct position writes should be clipped to limits."""
-    core = _single_agent_core()
+    core = _single_agent_core(se2_mjcf_path)
     core.set_positions(np.array([200.0, 200.0, 10.0]))
     np.testing.assert_array_equal(
         core.get_positions(),
@@ -187,8 +213,16 @@ def test_physics_config_from_yaml_physics_mode() -> None:
     physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
     assert physics.physics_mode is True
     assert physics.actuators is not None
-    assert physics.actuators.names[0] == "act_rrt_x"
-    assert len(physics.actuators.names) == 9
+    assert physics.actuators.names[0] == "rrt_wheel_left"
+    assert physics.actuators.names == (
+        "rrt_wheel_left",
+        "rrt_wheel_right",
+        "sst_wheel_left",
+        "sst_wheel_right",
+        "dummy_wheel_left",
+        "dummy_wheel_right",
+    )
+    assert len(physics.actuators.names) == 6
 
 
 @pytest.mark.skipif(
