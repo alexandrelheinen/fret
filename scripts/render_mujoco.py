@@ -37,16 +37,18 @@ RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
 
 _DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
 
-_DUBINS_JOINT_NAMES: tuple[tuple[str, str, str], ...] = (
-    ("rrt_joint_x", "rrt_joint_y", "rrt_joint_yaw"),
-    ("sst_joint_x", "sst_joint_y", "sst_joint_yaw"),
-    ("dummy_joint_x", "dummy_joint_y", "dummy_joint_yaw"),
+# Freejoint base names in dubins_race.xml (TurtleBot3 agents).
+_DUBINS_BASE_JOINTS: tuple[str, str, str] = (
+    "rrt_base_joint",
+    "sst_base_joint",
+    "dummy_base_joint",
 )
+_DUBINS_AGENT_BASE_Z_M = 0.033
 
 _DUBINS_LIMITS = np.array(
     [
-        [0.0, 80.0],
-        [0.0, 80.0],
+        [0.0, 10.0],
+        [0.0, 10.0],
         [-np.pi, np.pi],
     ],
     dtype=np.float64,
@@ -354,19 +356,32 @@ def _require_mujoco() -> tuple[object, object]:
     return mujoco, iio
 
 
-def _set_joint_position(
+def _yaw_to_quat_wxyz(yaw: float) -> tuple[float, float, float, float]:
+    """Planar yaw (about +z) to MuJoCo quaternion ``(w, x, y, z)``."""
+    half = 0.5 * float(yaw)
+    return (math.cos(half), 0.0, 0.0, math.sin(half))
+
+
+def _set_freejoint_pose(
     mujoco: object,
     model: object,
     data: object,
     joint_name: str,
-    value: float,
+    pose: npt.NDArray[np.float64],
 ) -> None:
-    """Write a scalar position into a joint's qpos slot."""
+    """Write planar ``(x, y, yaw)`` into a freejoint qpos block."""
     joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
     if joint_id < 0:
         raise ValueError(f"Joint not found in MJCF: {joint_name}")
-    qpos_adr = model.jnt_qposadr[joint_id]
-    data.qpos[qpos_adr] = value
+    adr = int(model.jnt_qposadr[joint_id])
+    qw, qx, qy, qz = _yaw_to_quat_wxyz(float(pose[2]))
+    data.qpos[adr] = float(pose[0])
+    data.qpos[adr + 1] = float(pose[1])
+    data.qpos[adr + 2] = _DUBINS_AGENT_BASE_Z_M
+    data.qpos[adr + 3] = qw
+    data.qpos[adr + 4] = qx
+    data.qpos[adr + 5] = qy
+    data.qpos[adr + 6] = qz
 
 
 def _resample_pose_history(
@@ -577,20 +592,13 @@ def _apply_dubins_poses(
     sst_q: npt.NDArray[np.float64],
     dummy_q: npt.NDArray[np.float64],
 ) -> None:
-    """Write RRT*, SST, and dummy poses into MuJoCo joint state."""
-    for values, joint_names in (
-        (rrt_q, _DUBINS_JOINT_NAMES[0]),
-        (sst_q, _DUBINS_JOINT_NAMES[1]),
-        (dummy_q, _DUBINS_JOINT_NAMES[2]),
+    """Write RRT*, SST, and dummy SE(2) poses into freejoint qpos."""
+    for values, joint_name in (
+        (rrt_q, _DUBINS_BASE_JOINTS[0]),
+        (sst_q, _DUBINS_BASE_JOINTS[1]),
+        (dummy_q, _DUBINS_BASE_JOINTS[2]),
     ):
-        for idx, joint_name in enumerate(joint_names):
-            _set_joint_position(
-                mujoco,
-                model,
-                data,
-                joint_name,
-                float(values[idx]),
-            )
+        _set_freejoint_pose(mujoco, model, data, joint_name, values)
     mujoco.mj_forward(model, data)
 
 
