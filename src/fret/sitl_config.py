@@ -133,6 +133,12 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         "diffdrive",
     }:
         return resolve_package_file("mjcf", "diffdrive_unit.xml")
+    if model in {"turtlebot3", "tb3"} and scenario in {
+        "turtlebot3_unit",
+        "turtlebot3",
+        "tb3",
+    }:
+        return resolve_package_file("mjcf", "turtlebot3_unit.xml")
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"
