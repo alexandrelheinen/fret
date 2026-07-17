@@ -1,8 +1,7 @@
 # MuJoCo physics SITL tables (v1.2) — loaded by Python only, not as ROS params.
 #
-# Consumed by: DubinsRaceBridgeCore via mujoco_bridge.py
-# TurtleBot3 race agents: six wheel velocity actuators (true differential drive).
-# kv / forcerange are showcase-scaled so warehouse cruise speeds stay reachable.
+# TurtleBot3 race agents: six wheel velocity actuators at Menagerie limits
+# (ctrl ±6.67 rad/s ≈ 0.22 m/s linear).
 
 /**:
   ros__parameters:
@@ -15,11 +14,11 @@
           - sst_wheel_right
           - dummy_wheel_left
           - dummy_wheel_right
-        kv: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        kv: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
         forcerange:
-          - [-80, 80]
-          - [-80, 80]
-          - [-80, 80]
-          - [-80, 80]
-          - [-80, 80]
-          - [-80, 80]
+          - [-5, 5]
+          - [-5, 5]
+          - [-5, 5]
+          - [-5, 5]
+          - [-5, 5]
+          - [-5, 5]

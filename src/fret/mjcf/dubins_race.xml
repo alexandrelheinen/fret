@@ -2,11 +2,12 @@
   <!--
     Dubins dual-robot warehouse race (SC-v11 / T11-02).
 
-    Floor: 80 m × 80 m AWS RoboMaker ground texture.
+    Floor: 10 m × 10 m AWS RoboMaker ground texture (lab-scale).
     Obstacles: analytic boxes from config/worlds/dubins_race_obstacles.yml
                 with AWS clutter mesh visuals (regenerate via
                 scripts/generate_dubins_race_mjcf.py).
-    Agents: TurtleBot3 Burger meshes (RRT* blue, SST green, dummy grey).
+    Agents: real-scale TurtleBot3 Burger (RRT* blue, SST green, dummy grey)
+            with Menagerie wheel actuators (±6.67 rad/s).
     Dummy follows a straight start→goal line and collides (showcase foil).
   -->
   <compiler angle="radian" coordinate="local"
@@ -46,7 +47,7 @@
     <texture type="skybox" builtin="gradient" rgb1="0.78 0.80 0.84" rgb2="0.58 0.61 0.66" width="512" height="1536"/>
     <texture name="ground_tex" type="2d" file="ground.png"/>
 
-    <material name="floor" texture="ground_tex" texuniform="true" texrepeat="12 12" reflectance="0.01"/>
+    <material name="floor" texture="ground_tex" texuniform="true" texrepeat="4 4" reflectance="0.01"/>
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="car_rrt" rgba="0.267 0.467 0.800 1" specular="0.15" shininess="0.08"/>
@@ -59,14 +60,13 @@
     <material name="clutter_crate" rgba="0.55 0.38 0.22 1" specular="0.05" shininess="0.04"/>
     <material name="clutter_pallet" rgba="0.48 0.42 0.36 1" specular="0.04" shininess="0.03"/>
 
-    <mesh name="shelf" file="aws_warehouse/meshes/shelf.obj" scale="0.012 0.012 0.012"/>
+    <mesh name="shelf" file="aws_warehouse/meshes/shelf.obj" scale="0.003 0.003 0.003"/>
     <mesh name="clutter_a" file="aws_warehouse/meshes/clutter_a.obj"/>
     <mesh name="clutter_c" file="aws_warehouse/meshes/clutter_c.obj"/>
     <mesh name="clutter_d" file="aws_warehouse/meshes/clutter_d.obj"/>
 
-    <!-- TurtleBot3 Burger chassis (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint.
-         Paintable plates use agent tint; wheels stay black; standoffs use tb3_hardware. -->
-    <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.004 0.004 0.004"/>
+    <!-- TurtleBot3 Burger (ROBOTIS Menagerie, Apache-2.0) — real scale (mm STL → m). -->
+    <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="burger_base" file="turtlebot3/burger_base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="left_tire" file="turtlebot3/left_tire.stl" scale="0.001 0.001 0.001"/>
     <mesh name="right_tire" file="turtlebot3/right_tire.stl" scale="0.001 0.001 0.001"/>
@@ -74,108 +74,74 @@
   </asset>
 
   <worldbody>
-    <light name="key" pos="40 30 18" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
-    <light name="fill" pos="10 70 14" dir="0.2 -0.6 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
+    <light name="key" pos="5 4 6" dir="0 0 -1" directional="true" diffuse="0.42 0.44 0.47" specular="0.06 0.06 0.06" castshadow="false"/>
+    <light name="fill" pos="2 8 5" dir="0.2 -0.6 -1" directional="true" diffuse="0.16 0.17 0.20" specular="0 0 0"/>
 
-    <geom name="floor" type="plane" pos="40 40 0" size="0 0 0.05" material="floor"
+    <geom name="floor" type="plane" pos="5 5 0" size="0 0 0.05" material="floor"
           friction="1.5 0.05 0.001" contype="1" conaffinity="1"/>
-    <geom name="start_zone" type="cylinder" pos="6 6 0.02" size="1.1 0.02" material="start_zone" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="cylinder" pos="74 74 0.02" size="1.1 0.02" material="goal_zone" contype="0" conaffinity="0"/>
+    <geom name="start_zone" type="cylinder" pos="1.2 1.2 0.02" size="0.45 0.02" material="start_zone" contype="0" conaffinity="0"/>
+    <geom name="goal_zone" type="cylinder" pos="8.8 8.8 0.02" size="0.45 0.02" material="goal_zone" contype="0" conaffinity="0"/>
 
-    <!-- Back-wall shelf visuals -->
-    <geom name="shelf_a" type="mesh" mesh="shelf" pos="18 76 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="shelf_b" type="mesh" mesh="shelf" pos="40 76 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="shelf_c" type="mesh" mesh="shelf" pos="62 76 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+    <!-- Back-wall shelf visuals (lab-scale) -->
+    <geom name="shelf_a" type="mesh" mesh="shelf" pos="2.5 9.5 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="shelf_b" type="mesh" mesh="shelf" pos="5.0 9.5 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="shelf_c" type="mesh" mesh="shelf" pos="7.5 9.5 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
 
     <!-- Warehouse structure block (auto-generated) -->
-    <geom name="str_000_col" class="structure_col" pos="18.0 18.0 1.30" size="2.4 2.4 1.30"/>
-    <geom name="str_000_vis" type="mesh" mesh="clutter_c" pos="15.600 15.600 0" size="2.2150 3.0341 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_001_col" class="structure_col" pos="26.9 29.1 1.40" size="2.8 1.2 1.40"/>
-    <geom name="str_001_vis" type="mesh" mesh="clutter_c" pos="24.100 27.900 0" size="2.5842 1.5171 1.5556" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_002_col" class="structure_col" pos="37.1 34.9 1.35" size="1.2 2.8 1.35"/>
-    <geom name="str_002_vis" type="mesh" mesh="clutter_c" pos="35.900 32.100 0" size="1.1075 3.5398 1.5000" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_003_col" class="structure_col" pos="46.0 46.0 1.45" size="2.6 2.6 1.45"/>
-    <geom name="str_003_vis" type="mesh" mesh="clutter_c" pos="43.400 43.400 0" size="2.3996 3.2870 1.6111" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_004_col" class="structure_col" pos="55.1 52.9 1.40" size="2.8 1.2 1.40"/>
-    <geom name="str_004_vis" type="mesh" mesh="clutter_c" pos="52.300 51.700 0" size="2.5842 1.5171 1.5556" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_005_col" class="structure_col" pos="60.9 63.1 1.35" size="1.2 2.8 1.35"/>
-    <geom name="str_005_vis" type="mesh" mesh="clutter_c" pos="59.700 60.300 0" size="1.1075 3.5398 1.5000" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_006_col" class="structure_col" pos="70.0 70.0 1.25" size="2.2 2.2 1.25"/>
-    <geom name="str_006_vis" type="mesh" mesh="clutter_c" pos="67.800 67.800 0" size="2.0305 2.7813 1.3889" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_007_col" class="structure_col" pos="11.6 16.4 1.20" size="2.6 0.45 1.20"/>
-    <geom name="str_007_vis" type="mesh" mesh="clutter_c" pos="9.000 15.950 0" size="2.3996 0.5689 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_008_col" class="structure_col" pos="17.3 10.7 1.30" size="2.6 0.45 1.30"/>
-    <geom name="str_008_vis" type="mesh" mesh="clutter_c" pos="14.700 10.250 0" size="2.3996 0.5689 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_009_col" class="structure_col" pos="24.0 18.0 1.30" size="3.0 0.45 1.30"/>
-    <geom name="str_009_vis" type="mesh" mesh="clutter_c" pos="21.000 17.550 0" size="2.7688 0.5689 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_010_col" class="structure_col" pos="17.2 24.8 1.45" size="3.0 0.45 1.45"/>
-    <geom name="str_010_vis" type="mesh" mesh="clutter_c" pos="14.200 24.350 0" size="2.7688 0.5689 1.6111" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_011_col" class="structure_col" pos="24.5 31.5 1.45" size="2.6 0.45 1.45"/>
-    <geom name="str_011_vis" type="mesh" mesh="clutter_c" pos="21.900 31.050 0" size="2.3996 0.5689 1.6111" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_012_col" class="structure_col" pos="32.4 23.6 1.55" size="2.6 0.45 1.55"/>
-    <geom name="str_012_vis" type="mesh" mesh="clutter_d" pos="29.800 23.150 0" size="2.8400 0.8704 1.7435" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_013_col" class="structure_col" pos="37.4 32.6 1.55" size="3.0 0.45 1.55"/>
-    <geom name="str_013_vis" type="mesh" mesh="clutter_d" pos="34.400 32.150 0" size="3.2769 0.8704 1.7435" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_014_col" class="structure_col" pos="31.7 38.3 1.70" size="3.0 0.45 1.70"/>
-    <geom name="str_014_vis" type="mesh" mesh="clutter_d" pos="28.700 37.850 0" size="3.2769 0.8704 1.9123" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_015_col" class="structure_col" pos="39.0 45.0 1.20" size="2.6 0.45 1.20"/>
-    <geom name="str_015_vis" type="mesh" mesh="clutter_c" pos="36.400 44.550 0" size="2.3996 0.5689 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_016_col" class="structure_col" pos="45.8 38.2 1.30" size="2.6 0.45 1.30"/>
-    <geom name="str_016_vis" type="mesh" mesh="clutter_c" pos="43.200 37.750 0" size="2.3996 0.5689 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_017_col" class="structure_col" pos="52.5 45.5 1.30" size="3.0 0.45 1.30"/>
-    <geom name="str_017_vis" type="mesh" mesh="clutter_c" pos="49.500 45.050 0" size="2.7688 0.5689 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_018_col" class="structure_col" pos="44.6 53.4 1.45" size="3.0 0.45 1.45"/>
-    <geom name="str_018_vis" type="mesh" mesh="clutter_c" pos="41.600 52.950 0" size="2.7688 0.5689 1.6111" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_019_col" class="structure_col" pos="53.6 58.4 1.45" size="2.6 0.45 1.45"/>
-    <geom name="str_019_vis" type="mesh" mesh="clutter_c" pos="51.000 57.950 0" size="2.3996 0.5689 1.6111" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_020_col" class="structure_col" pos="59.3 52.7 1.55" size="2.6 0.45 1.55"/>
-    <geom name="str_020_vis" type="mesh" mesh="clutter_d" pos="56.700 52.250 0" size="2.8400 0.8704 1.7435" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_021_col" class="structure_col" pos="66.0 60.0 1.55" size="3.0 0.45 1.55"/>
-    <geom name="str_021_vis" type="mesh" mesh="clutter_d" pos="63.000 59.550 0" size="3.2769 0.8704 1.7435" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_022_col" class="structure_col" pos="59.2 66.8 1.70" size="3.0 0.45 1.70"/>
-    <geom name="str_022_vis" type="mesh" mesh="clutter_d" pos="56.200 66.350 0" size="3.2769 0.8704 1.9123" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_023_col" class="structure_col" pos="18.5 25.5 0.95" size="0.95 0.85 0.95"/>
-    <geom name="str_023_vis" type="mesh" mesh="clutter_a" pos="17.550 24.650 0" size="0.6993 0.6773 1.4190" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_024_col" class="structure_col" pos="33.3 26.7 1.10" size="0.95 0.85 1.10"/>
-    <geom name="str_024_vis" type="mesh" mesh="clutter_a" pos="32.350 25.850 0" size="0.6993 0.6773 1.6430" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_025_col" class="structure_col" pos="36.2 43.8 1.25" size="0.95 0.85 1.25"/>
-    <geom name="str_025_vis" type="mesh" mesh="clutter_c" pos="35.250 42.950 0" size="0.8768 1.0746 1.3889" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_026_col" class="structure_col" pos="51.4 44.6 1.00" size="0.95 0.85 1.00"/>
-    <geom name="str_026_vis" type="mesh" mesh="clutter_a" pos="50.450 43.750 0" size="0.6993 0.6773 1.4937" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_027_col" class="structure_col" pos="54.3 61.7 1.15" size="0.95 0.85 1.15"/>
-    <geom name="str_027_vis" type="mesh" mesh="clutter_c" pos="53.350 60.850 0" size="0.8768 1.0746 1.2778" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_028_col" class="structure_col" pos="69.1 62.9 1.30" size="0.95 0.85 1.30"/>
-    <geom name="str_028_vis" type="mesh" mesh="clutter_c" pos="68.150 62.050 0" size="0.8768 1.0746 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_029_col" class="structure_col" pos="20.0 50.0 1.10" size="1.2 1.0 1.10"/>
-    <geom name="str_029_vis" type="mesh" mesh="clutter_a" pos="18.800 49.000 0" size="0.8833 0.7968 1.6430" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_030_col" class="structure_col" pos="50.0 20.0 1.05" size="1.0 1.2 1.05"/>
-    <geom name="str_030_vis" type="mesh" mesh="clutter_a" pos="49.000 18.800 0" size="0.7361 0.9562 1.5683" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_031_col" class="structure_col" pos="28.0 60.0 1.00" size="1.1 0.9 1.00"/>
-    <geom name="str_031_vis" type="mesh" mesh="clutter_a" pos="26.900 59.100 0" size="0.8097 0.7171 1.4937" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_032_col" class="structure_col" pos="60.0 28.0 1.15" size="0.9 1.1 1.15"/>
-    <geom name="str_032_vis" type="mesh" mesh="clutter_c" pos="59.100 26.900 0" size="0.8306 1.3906 1.2778" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_033_col" class="structure_col" pos="66.0 46.0 1.05" size="1.0 0.95 1.05"/>
-    <geom name="str_033_vis" type="mesh" mesh="clutter_a" pos="65.000 45.050 0" size="0.7361 0.7570 1.5683" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_034_col" class="structure_col" pos="46.0 66.0 1.20" size="0.95 1.0 1.20"/>
-    <geom name="str_034_vis" type="mesh" mesh="clutter_c" pos="45.050 65.000 0" size="0.8768 1.2642 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_035_col" class="structure_col" pos="20.0 12.0 1.30" size="0.35 2.2 1.30"/>
-    <geom name="str_035_vis" type="mesh" mesh="clutter_c" pos="19.650 9.800 0" size="0.3230 2.7813 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_036_col" class="structure_col" pos="18.4 14.0 1.30" size="1.6 0.35 1.30"/>
-    <geom name="str_036_vis" type="mesh" mesh="clutter_c" pos="16.800 13.650 0" size="1.4767 0.4425 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_037_col" class="structure_col" pos="18.4 10.0 1.30" size="1.6 0.35 1.30"/>
-    <geom name="str_037_vis" type="mesh" mesh="clutter_c" pos="16.800 9.650 0" size="1.4767 0.4425 1.4444" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_038_col" class="structure_col" pos="44.0 36.0 1.40" size="2.8 0.35 1.40"/>
-    <geom name="str_038_vis" type="mesh" mesh="clutter_c" pos="41.200 35.650 0" size="2.5842 0.4425 1.5556" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_039_col" class="structure_col" pos="46.5 34.2 1.40" size="0.35 1.5 1.40"/>
-    <geom name="str_039_vis" type="mesh" mesh="clutter_c" pos="46.150 32.700 0" size="0.3230 1.8963 1.5556" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_040_col" class="structure_col" pos="41.5 34.2 1.40" size="0.35 1.5 1.40"/>
-    <geom name="str_040_vis" type="mesh" mesh="clutter_c" pos="41.150 32.700 0" size="0.3230 1.8963 1.5556" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_041_col" class="structure_col" pos="60.0 66.0 1.20" size="0.35 2.4 1.20"/>
-    <geom name="str_041_vis" type="mesh" mesh="clutter_c" pos="59.650 63.600 0" size="0.3230 3.0341 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_042_col" class="structure_col" pos="58.2 68.0 1.20" size="1.8 0.35 1.20"/>
-    <geom name="str_042_vis" type="mesh" mesh="clutter_c" pos="56.400 67.650 0" size="1.6613 0.4425 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_043_col" class="structure_col" pos="58.2 64.0 1.20" size="1.8 0.35 1.20"/>
-    <geom name="str_043_vis" type="mesh" mesh="clutter_c" pos="56.400 63.650 0" size="1.6613 0.4425 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_000_col" class="structure_col" pos="2.51 3.49 0.57" size="0.55 0.22 0.57"/>
+    <geom name="str_000_vis" type="mesh" mesh="clutter_a" pos="1.960 3.270 0" size="0.4049 0.1753 0.8588" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_001_col" class="structure_col" pos="4.69 3.71 0.60" size="0.22 0.55 0.60"/>
+    <geom name="str_001_vis" type="mesh" mesh="clutter_a" pos="4.470 3.160 0" size="0.1619 0.4382 0.8962" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_002_col" class="structure_col" pos="4.89 5.91 0.62" size="0.55 0.22 0.62"/>
+    <geom name="str_002_vis" type="mesh" mesh="clutter_a" pos="4.340 5.690 0" size="0.4049 0.1753 0.9335" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_003_col" class="structure_col" pos="7.11 6.09 0.60" size="0.22 0.55 0.60"/>
+    <geom name="str_003_vis" type="mesh" mesh="clutter_a" pos="6.890 5.540 0" size="0.1619 0.4382 0.8962" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_004_col" class="structure_col" pos="7.12 8.08 0.57" size="0.5 0.22 0.57"/>
+    <geom name="str_004_vis" type="mesh" mesh="clutter_a" pos="6.620 7.860 0" size="0.3681 0.1753 0.8588" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_005_col" class="structure_col" pos="1.85 3.75 0.55" size="0.45 0.16 0.55"/>
+    <geom name="str_005_vis" type="mesh" mesh="clutter_a" pos="1.400 3.590 0" size="0.3312 0.1275 0.8215" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_006_col" class="structure_col" pos="3.93 1.67 0.53" size="0.4 0.16 0.53"/>
+    <geom name="str_006_vis" type="mesh" mesh="clutter_a" pos="3.530 1.510 0" size="0.2944 0.1275 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_007_col" class="structure_col" pos="5.06 2.94 0.57" size="0.45 0.16 0.57"/>
+    <geom name="str_007_vis" type="mesh" mesh="clutter_a" pos="4.610 2.780 0" size="0.3312 0.1275 0.8588" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_008_col" class="structure_col" pos="2.76 5.24 0.53" size="0.4 0.16 0.53"/>
+    <geom name="str_008_vis" type="mesh" mesh="clutter_a" pos="2.360 5.080 0" size="0.2944 0.1275 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_009_col" class="structure_col" pos="4.25 6.15 0.60" size="0.45 0.16 0.60"/>
+    <geom name="str_009_vis" type="mesh" mesh="clutter_a" pos="3.800 5.990 0" size="0.3312 0.1275 0.8962" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_010_col" class="structure_col" pos="6.33 4.07 0.53" size="0.4 0.16 0.53"/>
+    <geom name="str_010_vis" type="mesh" mesh="clutter_a" pos="5.930 3.910 0" size="0.2944 0.1275 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_011_col" class="structure_col" pos="7.46 5.34 0.55" size="0.45 0.16 0.55"/>
+    <geom name="str_011_vis" type="mesh" mesh="clutter_a" pos="7.010 5.180 0" size="0.3312 0.1275 0.8215" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_012_col" class="structure_col" pos="5.16 7.64 0.53" size="0.4 0.16 0.53"/>
+    <geom name="str_012_vis" type="mesh" mesh="clutter_a" pos="4.760 7.480 0" size="0.2944 0.1275 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_013_col" class="structure_col" pos="6.45 8.35 0.57" size="0.45 0.16 0.57"/>
+    <geom name="str_013_vis" type="mesh" mesh="clutter_a" pos="6.000 8.190 0" size="0.3312 0.1275 0.8588" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_014_col" class="structure_col" pos="8.53 6.27 0.53" size="0.4 0.16 0.53"/>
+    <geom name="str_014_vis" type="mesh" mesh="clutter_a" pos="8.130 6.110 0" size="0.2944 0.1275 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_015_col" class="structure_col" pos="2.5 4.8 0.45" size="0.22 0.2 0.45"/>
+    <geom name="str_015_vis" type="mesh" mesh="clutter_a" pos="2.280 4.600 0" size="0.1619 0.1594 0.6721" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_016_col" class="structure_col" pos="4.8 2.6 0.47" size="0.2 0.22 0.47"/>
+    <geom name="str_016_vis" type="mesh" mesh="clutter_a" pos="4.600 2.380 0" size="0.1472 0.1753 0.7095" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_017_col" class="structure_col" pos="5.0 7.2 0.50" size="0.22 0.2 0.50"/>
+    <geom name="str_017_vis" type="mesh" mesh="clutter_a" pos="4.780 7.000 0" size="0.1619 0.1594 0.7468" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_018_col" class="structure_col" pos="7.2 5.0 0.47" size="0.2 0.22 0.47"/>
+    <geom name="str_018_vis" type="mesh" mesh="clutter_a" pos="7.000 4.780 0" size="0.1472 0.1753 0.7095" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_019_col" class="structure_col" pos="3.6 6.8 0.42" size="0.18 0.18 0.42"/>
+    <geom name="str_019_vis" type="mesh" mesh="clutter_a" pos="3.420 6.620 0" size="0.1325 0.1434 0.6348" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_020_col" class="structure_col" pos="6.8 3.6 0.42" size="0.18 0.18 0.42"/>
+    <geom name="str_020_vis" type="mesh" mesh="clutter_a" pos="6.620 3.420 0" size="0.1325 0.1434 0.6348" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_021_col" class="structure_col" pos="1.6 3.8 0.53" size="0.12 0.55 0.53"/>
+    <geom name="str_021_vis" type="mesh" mesh="clutter_a" pos="1.480 3.250 0" size="0.0883 0.4382 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_022_col" class="structure_col" pos="1.25 4.25 0.53" size="0.35 0.12 0.53"/>
+    <geom name="str_022_vis" type="mesh" mesh="clutter_a" pos="0.900 4.130 0" size="0.2576 0.0956 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_023_col" class="structure_col" pos="1.25 3.35 0.53" size="0.35 0.12 0.53"/>
+    <geom name="str_023_vis" type="mesh" mesh="clutter_a" pos="0.900 3.230 0" size="0.2576 0.0956 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_024_col" class="structure_col" pos="8.4 6.2 0.53" size="0.12 0.55 0.53"/>
+    <geom name="str_024_vis" type="mesh" mesh="clutter_a" pos="8.280 5.650 0" size="0.0883 0.4382 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_025_col" class="structure_col" pos="8.75 6.65 0.53" size="0.35 0.12 0.53"/>
+    <geom name="str_025_vis" type="mesh" mesh="clutter_a" pos="8.400 6.530 0" size="0.2576 0.0956 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_026_col" class="structure_col" pos="8.75 5.75 0.53" size="0.35 0.12 0.53"/>
+    <geom name="str_026_vis" type="mesh" mesh="clutter_a" pos="8.400 5.630 0" size="0.2576 0.0956 0.7842" material="clutter_cardboard" contype="0" conaffinity="0"/>
     <!-- End warehouse structure block -->
 
 
@@ -273,26 +239,26 @@
       </body>
     </body>
 
-    <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
-    <camera name="topdown" pos="40 40 55" xyaxes="1 0 0 0 1 0" fovy="40"/>
-    <camera name="follow" pos="18 14 8" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
-    <camera name="finish" pos="74 58 10" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
+    <camera name="overview" pos="2.5 6.5 5.5" xyaxes="-0.75 -0.66 0 0.35 -0.40 0.85" fovy="55"/>
+    <camera name="topdown" pos="5 5 12" xyaxes="1 0 0 0 1 0" fovy="45"/>
+    <camera name="follow" pos="2.5 1.8 1.6" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
+    <camera name="finish" pos="8.8 7.0 2.5" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
   </worldbody>
 
 <actuator>
-    <!-- Showcase-scale wheel rates: ±120 rad/s ≈ 4 m/s at r=0.033 m. -->
-    <velocity name="rrt_wheel_left" joint="rrt_wheel_left" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
-    <velocity name="rrt_wheel_right" joint="rrt_wheel_right" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
-    <velocity name="sst_wheel_left" joint="sst_wheel_left" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
-    <velocity name="sst_wheel_right" joint="sst_wheel_right" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
-    <velocity name="dummy_wheel_left" joint="dummy_wheel_left" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
-    <velocity name="dummy_wheel_right" joint="dummy_wheel_right" kv="2.0"
-              ctrlrange="-120 120" ctrllimited="true"/>
+    <!-- Real Menagerie TB3 wheel rates: ±6.67 rad/s ≈ 0.22 m/s. -->
+    <velocity name="rrt_wheel_left" joint="rrt_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="rrt_wheel_right" joint="rrt_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="sst_wheel_left" joint="sst_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="sst_wheel_right" joint="sst_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="dummy_wheel_left" joint="dummy_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="dummy_wheel_right" joint="dummy_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
   </actuator>
 
 
