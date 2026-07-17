@@ -73,24 +73,21 @@ joint bindings only; numeric gains must not be hardcoded in XML.
 
 **Command mapping** (`DubinsRaceBridgeCore` physics path):
 
-Pure Pursuit / `DubinsVehicle` integrate holonomically in SE(2) today. The bridge
-maps each agent's world-frame velocity `(v_x, v_y, ω)` to the three joint
-actuators — the same joint layout used for kinematic mirroring in v1.1.
+ARCO Dubins / Pure Pursuit still plan and track in SE(2). Controllers emit
+body-frame twist `(v, ω)` (or world `(v_x, v_y, ω)` which the bridge rotates into
+body frame). The bridge maps that twist to left/right wheel rates and writes the
+six wheel velocity actuators before `mj_step` — no post-step `qvel` surgery.
 
-| Agent | `ctrl` indices | Source |
+| Agent | `ctrl` actuators | Source |
 | --- | --- | --- |
-| RRT* | 0–2 | world `(v_x, v_y, ω)` from tracking loop |
-| SST | 3–5 | world `(v_x, v_y, ω)` from tracking loop |
+| RRT* | `rrt_wheel_left`, `rrt_wheel_right` | body `(v, ω)` → wheel rates |
+| SST | `sst_wheel_left`, `sst_wheel_right` | body `(v, ω)` → wheel rates |
+| Dummy | `dummy_wheel_left`, `dummy_wheel_right` | body `(v, ω)` → wheel rates |
 
-**Holonomic approximation (race showcase only):** independent X/Y slides do not
-enforce a non-holonomic constraint at the physics layer. Planning still uses
-ARCO `DubinsVehicle`; race execution uses the three-DOF joint mirror with
-**contact-rich** dynamics plus optional post-step `qvel` projection
-(`fret.control.dubins_wheel_model`).
-
-**Unit sandbox (FR-SIM-11):** `mjcf/diffdrive_unit.xml` +
-`fret.simulation.DiffDriveUnitRobot` is the true two-wheel model. It must never
-call the race `qvel` projection — wheel friction alone provides non-holonomy.
+**Unit sandbox (FR-SIM-11):** `mjcf/turtlebot3_unit.xml` +
+`fret.simulation.TurtleBot3UnitRobot` is the primary true two-wheel model
+(`diffdrive_unit` remains a procedural twin). Neither path calls
+`enforce_slide_yaw_nonholonomic_qvel` — wheel friction alone provides non-holonomy.
 
 **Collision geoms:** `rrt_collision`, `sst_collision`, and all `str_*_col` boxes
 must use matching `contype` / `conaffinity` (default contact). Visual meshes stay

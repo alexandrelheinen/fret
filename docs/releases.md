@@ -302,7 +302,7 @@ kinematic behaviour must not regress.
 
 **Deferred to v1.3+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
 
-- True Dubins non-holonomic wheel actuators (holonomic X/Y slides remain)
+- Race showcase controller RTF / finish-time tuning on true TB3 wheel actuators
 - New robots (RRP, 6-DOF) and hardware HITL
 
 Every release-tag MP4 (Dubins, all camera POVs) **must** play back at
