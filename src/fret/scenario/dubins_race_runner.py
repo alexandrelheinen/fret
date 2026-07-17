@@ -209,6 +209,7 @@ class DubinsRaceSimulation:
             max_speed=self.vehicle_cfg.max_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
             occupancy=self.occupancy,
+            lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         sst_cmd, sst_metrics = _agent_physics_velocity_command(
             self.sst_loop,
@@ -219,6 +220,7 @@ class DubinsRaceSimulation:
             max_speed=self.vehicle_cfg.max_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
             occupancy=self.occupancy,
+            lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         dummy_cmd, self.dummy_stopped = _dummy_physics_velocity_command(
             self.dummy_pose,
@@ -627,20 +629,82 @@ def _min_pose_history_clearance(
 
 
 _PHYSICS_KP_POSITION: float = 6.8
-_PHYSICS_KP_YAW: float = 4.9
+_PHYSICS_KP_YAW: float = 3.2
 _PHYSICS_MAX_POSITION_LAG_M: float = 0.82
-_PHYSICS_MAX_YAW_LAG_RAD: float = 0.65
 _PHYSICS_REFERENCE_BLEND: float = 0.73
 _PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
 _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE: float = 3.0
 _PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.15
 _PHYSICS_GOAL_DWELL_TICKS: int = 6
 _PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
+_PHYSICS_BEARING_MIN_LAG_M: float = 0.08
+_PHYSICS_WORKSPACE_MAX_M: float = 80.0
+_PHYSICS_WORKSPACE_MARGIN_M: float = 2.0
+_PHYSICS_HEADING_GATE_FLOOR: float = 0.20
+_PHYSICS_PP_CURVATURE_GAIN: float = 2.0
 
 
 def _wrap_heading(angle: float) -> float:
     """Wrap a heading angle to ``[-pi, pi]``."""
     return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _path_lookahead_point(
+    path: list[tuple[float, float]],
+    pose_xy: tuple[float, float],
+    *,
+    lookahead_m: float,
+) -> tuple[float, float]:
+    """Return a point ``lookahead_m`` ahead of the closest path projection.
+
+    Projects onto polyline segments (not vertices only) so the lookahead cannot
+    collapse onto the robot when it catches a coarse waypoint.
+    """
+    if not path:
+        return pose_xy
+    if len(path) == 1:
+        return (float(path[0][0]), float(path[0][1]))
+
+    px, py = pose_xy
+    best_dist = float("inf")
+    best_seg = 0
+    best_t = 0.0
+    for i in range(len(path) - 1):
+        x0, y0 = float(path[i][0]), float(path[i][1])
+        x1, y1 = float(path[i + 1][0]), float(path[i + 1][1])
+        dx, dy = x1 - x0, y1 - y0
+        seg_len_sq = dx * dx + dy * dy
+        if seg_len_sq <= 1e-12:
+            t = 0.0
+            proj_x, proj_y = x0, y0
+        else:
+            t = max(
+                0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / seg_len_sq)
+            )
+            proj_x = x0 + t * dx
+            proj_y = y0 + t * dy
+        dist = math.hypot(proj_x - px, proj_y - py)
+        if dist < best_dist:
+            best_dist = dist
+            best_seg = i
+            best_t = t
+
+    # Distance already consumed along the chosen segment.
+    x0, y0 = float(path[best_seg][0]), float(path[best_seg][1])
+    x1, y1 = float(path[best_seg + 1][0]), float(path[best_seg + 1][1])
+    seg_len = math.hypot(x1 - x0, y1 - y0)
+    remaining = float(lookahead_m) + best_t * seg_len
+    for i in range(best_seg, len(path) - 1):
+        x0, y0 = float(path[i][0]), float(path[i][1])
+        x1, y1 = float(path[i + 1][0]), float(path[i + 1][1])
+        seg = math.hypot(x1 - x0, y1 - y0)
+        if seg <= 1e-9:
+            continue
+        if remaining <= seg:
+            t = remaining / seg
+            return (x0 + t * (x1 - x0), y0 + t * (y1 - y0))
+        remaining -= seg
+    return (float(path[-1][0]), float(path[-1][1]))
 
 
 def _physics_goal_dwell_update(
@@ -687,6 +751,7 @@ def _agent_physics_velocity_command(
     max_speed: float,
     max_turn_rate: float,
     occupancy: RectStructureOccupancy,
+    lookahead_distance: float,
     kp_position: float = _PHYSICS_KP_POSITION,
     kp_yaw: float = _PHYSICS_KP_YAW,
     max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
@@ -709,7 +774,7 @@ def _agent_physics_velocity_command(
     vehicle.heading = float(sim_theta)
 
     metrics = loop.step(path, dt)
-    ref_x, ref_y, ref_theta = vehicle.pose
+    ref_x, ref_y, _ref_theta = vehicle.pose
 
     vehicle.x = float(sim_x)
     vehicle.y = float(sim_y)
@@ -717,9 +782,6 @@ def _agent_physics_velocity_command(
 
     ref_x = sim_x + _PHYSICS_REFERENCE_BLEND * (ref_x - sim_x)
     ref_y = sim_y + _PHYSICS_REFERENCE_BLEND * (ref_y - sim_y)
-    ref_theta = sim_theta + _PHYSICS_REFERENCE_BLEND * _wrap_heading(
-        ref_theta - sim_theta
-    )
 
     dx = ref_x - sim_x
     dy = ref_y - sim_y
@@ -728,21 +790,32 @@ def _agent_physics_velocity_command(
         scale = max_position_lag_m / lag
         ref_x = sim_x + dx * scale
         ref_y = sim_y + dy * scale
+        dx = ref_x - sim_x
+        dy = ref_y - sim_y
+        lag = math.hypot(dx, dy)
 
-    yaw_err = _wrap_heading(ref_theta - sim_theta)
-    if abs(yaw_err) > _PHYSICS_MAX_YAW_LAG_RAD:
-        ref_theta = sim_theta + math.copysign(
-            _PHYSICS_MAX_YAW_LAG_RAD,
-            yaw_err,
-        )
-        yaw_err = _wrap_heading(ref_theta - sim_theta)
+    # Classic Pure Pursuit bearing on a path lookahead — works for true
+    # differential-drive where a one-tick kinematic heading lead is too weak.
+    look_x, look_y = _path_lookahead_point(
+        path,
+        (sim_x, sim_y),
+        lookahead_m=max(lookahead_distance, 1.0),
+    )
+    look_dx = look_x - sim_x
+    look_dy = look_y - sim_y
+    look_range = math.hypot(look_dx, look_dy)
+    if look_range >= _PHYSICS_BEARING_MIN_LAG_M:
+        yaw_err = _wrap_heading(math.atan2(look_dy, look_dx) - sim_theta)
+        pp_L = max(look_range, 0.5)
+    elif lag >= _PHYSICS_BEARING_MIN_LAG_M:
+        yaw_err = _wrap_heading(math.atan2(dy, dx) - sim_theta)
+        pp_L = max(lag, 0.5)
+    else:
+        yaw_err = 0.0
+        pp_L = max(lookahead_distance, 0.5)
 
-    vx = kp_position * (ref_x - sim_x)
-    vy = kp_position * (ref_y - sim_y)
-    omega = kp_yaw * yaw_err
-
-    repulsion_turn = loop._repulsion_turn_rate(sim_x, sim_y, sim_theta)
-    omega += repulsion_turn
+    vx = kp_position * dx
+    vy = kp_position * dy
 
     dist, _closest = occupancy.nearest_obstacle(
         np.array([sim_x, sim_y], dtype=np.float64)
@@ -756,22 +829,42 @@ def _agent_physics_velocity_command(
         occupancy=occupancy,
     ):
         forward = min(forward, 0.0)
-    forward = max(0.0, forward) * _PHYSICS_FORWARD_SPEED_SCALE
-    vx = forward * math.cos(sim_theta)
-    vy = forward * math.sin(sim_theta)
-    speed = forward
-    if speed > max_speed:
-        scale = max_speed / speed
-        vx *= scale
-        vy *= scale
+    heading_gate = _PHYSICS_HEADING_GATE_FLOOR + (
+        1.0 - _PHYSICS_HEADING_GATE_FLOOR
+    ) * max(0.0, math.cos(yaw_err))
+    forward = max(0.0, forward) * _PHYSICS_FORWARD_SPEED_SCALE * heading_gate
+    if forward > max_speed:
+        forward = max_speed
+
+    # ω = (2 v sin α) / L  plus a mild heading P-term for standing turns.
+    omega = _PHYSICS_PP_CURVATURE_GAIN * forward * math.sin(
+        yaw_err
+    ) / pp_L + kp_yaw * yaw_err * (1.0 - heading_gate)
+    repulsion_turn = loop._repulsion_turn_rate(sim_x, sim_y, sim_theta)
+    omega += repulsion_turn
     omega = max(-max_turn_rate, min(max_turn_rate, omega))
 
-    workspace_margin = 2.0
-    for coord in (sim_x, sim_y):
-        if coord < workspace_margin:
-            scale = max(0.0, coord / workspace_margin)
-            vx *= scale
-            vy *= scale
+    vx = forward * math.cos(sim_theta)
+    vy = forward * math.sin(sim_theta)
+
+    margin = _PHYSICS_WORKSPACE_MARGIN_M
+    workspace_max = _PHYSICS_WORKSPACE_MAX_M
+    if sim_x < margin:
+        scale = max(0.0, sim_x / margin)
+        vx *= scale
+        vy *= scale
+    elif sim_x > workspace_max - margin:
+        outward = max(0.0, vx)
+        scale = max(0.0, (workspace_max - sim_x) / margin)
+        vx = vx - outward * (1.0 - scale)
+    if sim_y < margin:
+        scale = max(0.0, sim_y / margin)
+        vx *= scale
+        vy *= scale
+    elif sim_y > workspace_max - margin:
+        outward = max(0.0, vy)
+        scale = max(0.0, (workspace_max - sim_y) / margin)
+        vy = vy - outward * (1.0 - scale)
 
     if float(dist) < influence_radius:
         proximity_scale = max(
@@ -786,6 +879,7 @@ def _agent_physics_velocity_command(
         {
             **metrics,
             "repulsion_turn_rate": repulsion_turn,
+            "heading_error": yaw_err,
         },
     )
 

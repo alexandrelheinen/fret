@@ -42,7 +42,7 @@ def test_physics_pose_history_non_negative_clearance() -> None:
 
 
 def test_physics_agents_finish_without_lateral_skid() -> None:
-    """Holonomic slides must not produce sustained sideways wheel motion."""
+    """True wheel agents must not produce sustained body-lateral skid."""
     result = DubinsRaceRunner().run(
         record_poses=True,
         physics_mode=True,
