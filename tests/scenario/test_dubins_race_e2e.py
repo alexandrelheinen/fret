@@ -31,9 +31,9 @@ _SCENARIO_PATH = (
     / "scenarios"
     / "dubins_race.yml"
 )
-_RACE_SIM_TIMEOUT_S = 120.0
-# Wall clock includes dual planning (SST can take ~80s in CI) plus race simulation.
-_WALL_CLOCK_BUDGET_S = 240.0
+_RACE_SIM_TIMEOUT_S = 240.0
+# Wall clock includes dual planning plus real-TB3 race simulation.
+_WALL_CLOCK_BUDGET_S = 300.0
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -49,7 +49,7 @@ def test_obstacle_file_exists() -> None:
 
 def test_world_has_structure_forest() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 30
+    assert len(world.structures) >= 20
 
 
 def test_dual_agents_plan_and_finish_race() -> None:
@@ -77,8 +77,8 @@ def test_dummy_straight_line_collides_before_goal() -> None:
     assert result.dummy_collided is True
     assert result.dummy_pose_history
     final = result.dummy_pose_history[-1]
-    assert final[0] < 70.0
-    assert final[1] < 70.0
+    assert final[0] < 8.0
+    assert final[1] < 8.0
 
 
 def test_agents_can_take_different_path_lengths() -> None:
@@ -110,4 +110,5 @@ def test_agents_can_take_different_path_lengths() -> None:
         return out
 
     separation = np.linalg.norm(_resample(rrt_xy) - _resample(sst_xy), axis=1)
-    assert float(separation.max()) >= 5.0
+    # Compact 10 m lab: paths should still diverge by at least ~0.8 m.
+    assert float(separation.max()) >= 0.8

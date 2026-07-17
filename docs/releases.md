@@ -60,11 +60,11 @@ race format (RRT* vs SST).
 
 | Element | Description |
 |---|---|
-| Floor | 80 m × 80 m warehouse plane |
-| Structures | Rectangular posts/walls; U-shaped dead-end alcoves with single entrances |
-| Start A | Lower-left region (6, 6) |
-| Goal B | Upper-right region (74, 74) |
-| Visual | Varied structure heights for depth in MuJoCo |
+| Floor | 10 m × 10 m lab plane (AWS ground texture) |
+| Structures | Narrow aisles + alcoves sized for real TurtleBot3 Burger |
+| Start A | (1.2, 1.2) |
+| Goal B | (8.8, 8.8) |
+| Visual | AWS clutter meshes on analytic boxes; real-scale TB3 |
 
 ### Robots
 

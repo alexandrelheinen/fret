@@ -20,16 +20,17 @@ Full release spec: [releases.md](releases.md).
 **File:** `config/scenarios/dubins_race.yml`  
 **Model:** `dubins`
 
-**Purpose:** Two Dubins robots race A → B through a warehouse structure forest
-(RRT* blue vs SST green). Rectangular posts, walls, and U-shaped dead-end alcoves
-create multiple corridors — only proper planning avoids traps.
+**Purpose:** Two real-scale TurtleBot3 agents race A → B through a compact lab
+structure forest (RRT* blue vs SST green). Narrow aisles force planning; wheel
+actuators use Menagerie limits (≈ 0.22 m/s).
 
 | Parameter | Value |
 |---|---|
-| Agents | 2 (RRT* + SST) |
-| Environment | AWS warehouse floor + rectangular structure forest |
-| Workspace | 80 × 80 m |
-| Control | ARCO Pure Pursuit + DubinsVehicle |
+| Agents | 2 (RRT* + SST) on freejoint TB3 bodies |
+| Environment | 10 m × 10 m floor + AWS clutter visuals on analytic boxes |
+| Workspace | 10 × 10 m · start (1.2, 1.2) · goal (8.8, 8.8) |
+| Speeds | cruise 0.18 m/s · max 0.22 m/s (real TB3) |
+| Control | ARCO Pure Pursuit (SE(2)) → FRET wheel bridge |
 | Planner | ARCO RRT* (agent 1) + SST (agent 2) |
 | Sim mode | Physics SITL (v1.2 default); kinematic mirror via `physics_mode:=false` |
 
@@ -153,8 +154,8 @@ loaded by launch, runners, and tests.
     model: "dubins"
     backend: "mujoco"
 
-    start_configuration: [6.0, 6.0, 0.785]
-    goal_configuration: [74.0, 74.0, 0.0]
+    start_configuration: [1.2, 1.2, 0.785]
+    goal_configuration: [8.8, 8.8, 0.0]
 
     planning_timeout: 30.0
     duration: 35.0
