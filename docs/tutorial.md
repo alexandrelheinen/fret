@@ -191,16 +191,16 @@ Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 
 FRET v1.1 ships a **hybrid MJCF** scene (`dubins_race.xml`):
 
-- **Agents:** TurtleBot3 Burger meshes (Apache-2.0) on holonomic SE(2) joints
+- **Agents:** ROBOTIS TurtleBot3 Burger MJCF (Apache-2.0) with true wheel hinges + velocity actuators on freejoints
 - **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for floor, clutter, and shelf visuals
 
 Assets live under `src/fret/mjcf/assets/aws_warehouse/` and
-`src/fret/mjcf/assets/dubins/`. Regenerate with:
+`src/fret/mjcf/assets/turtlebot3/`. Regenerate with:
 
 ```bash
 pip install trimesh pycollada
 python3 scripts/import_aws_warehouse_assets.py
-python3 scripts/import_dubins_assets.py
+python3 scripts/import_turtlebot3_assets.py
 ```
 
 Collision boxes for planning remain analytic rectangles in YAML.

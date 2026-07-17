@@ -7,10 +7,10 @@
 >
 > **Related:** FR-SIM-11 unit sandboxes · [robots/README.md](robots/README.md)
 
-FRET keeps **thin custom MJCF** for foundational unit robots (`diffdrive_unit`)
-and showcase worlds (`dubins_race`). External packs are preferred for **meshes**,
-**validated wheel/arm kinematics**, and **reference actuators** — not as a
-replacement for the FRET bridge/ROS layer.
+FRET vendors the ROBOTIS TurtleBot3 Burger MJCF for unit physics
+(`turtlebot3_unit`) and race agents (`dubins_race`). External packs remain the
+source of meshes and validated wheel actuators — not a replacement for the FRET
+bridge/ROS layer.
 
 ---
 
@@ -29,7 +29,7 @@ replacement for the FRET bridge/ROS layer.
 | Project | License | What it provides | FRET use today | Fit | Adopt? |
 |---|---|---|---|---|---|
 | [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Per-model (often Apache-2.0 / BSD) | Arms, humanoids, mobile manipulators, props | Planned for 6-DOF meshes ([robots/six_dof.md](robots/six_dof.md)); Stretch/TidyBot cited in Dubins asset notes | High for arms / props | **Yes** — import meshes for v1.4; do not take whole stack |
-| [ROBOTIS MuJoCo Menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie) (`robotis_tb3`) | Apache-2.0 | TurtleBot3 Burger / Waffle with **real wheel joints + actuators** | TB3 **meshes** vendored via `scripts/import_dubins_assets.py`; race MJCF still holonomic SE(2) | **Best** for true diff-drive | **Yes** — prefer TB3 physics MJCF (or patterns) when upgrading race agents beyond `diffdrive_unit` |
+| [ROBOTIS MuJoCo Menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie) (`robotis_tb3`) | Apache-2.0 | TurtleBot3 Burger / Waffle with **real wheel joints + actuators** | **In use** — `turtlebot3_burger.xml` / `turtlebot3_unit.xml` + race agents; import via `scripts/import_turtlebot3_assets.py` | **Best** for true diff-drive | **Done** for unit + race wheel physics |
 | [AuTURBO/robotis_mujoco_menagerie](https://github.com/AuTURBO/robotis_mujoco_menagerie) | Apache-2.0 | Community mirror / extensions of ROBOTIS models | Not used | Same as ROBOTIS | Optional mirror if upstream layout changes |
 
 ---
@@ -51,8 +51,8 @@ replacement for the FRET bridge/ROS layer.
 | Asset | Source | License | FRET path | Notes |
 |---|---|---|---|---|
 | AWS RoboMaker warehouse meshes + ground | AWS RoboMaker | MIT-0 | `mjcf/assets/aws_warehouse/` | Used by Dubins showcase; import via `scripts/import_aws_warehouse_assets.py` |
-| TurtleBot3 Burger chassis STL | ROBOTIS Menagerie | Apache-2.0 | `mjcf/assets/dubins/turtlebot3/` | Visual only on race agents today |
-| Unit diff-drive | FRET | — | `mjcf/diffdrive_unit.xml` | Minimal freejoint + 2 wheels; foundation before race upgrade |
+| TurtleBot3 Burger MJCF + meshes | ROBOTIS Menagerie | Apache-2.0 | `mjcf/turtlebot3_*.xml`, `mjcf/assets/turtlebot3/` | Full physics model (wheels + actuators) |
+| Procedural diff-drive twin | FRET | — | `mjcf/diffdrive_unit.xml` | Legacy open-loop twin; TB3 is primary |
 
 ---
 
@@ -60,7 +60,7 @@ replacement for the FRET bridge/ROS layer.
 
 | FRET robot | Preferred external source | Current FRET MJCF | Gap |
 |---|---|---|---|
-| Diff-drive / “Dubins” mobile | ROBOTIS TB3 Menagerie | `diffdrive_unit.xml` (true wheels); `dubins_race.xml` (holonomic slides + visual wheels) | Race scene not yet on true wheel actuators |
+| Diff-drive / “Dubins” mobile | ROBOTIS TB3 Menagerie | `turtlebot3_unit.xml` + `dubins_race.xml` (true wheel actuators) | Race E2E controller tuning may still need work; unit physics is green |
 | RRP / SCARA (v1.3) | URDF→MJCF or custom | Planned | — |
 | 6-DOF (v1.4) | MuJoCo Menagerie (UR / similar) | Planned | Mesh import only |
 
@@ -79,7 +79,8 @@ replacement for the FRET bridge/ROS layer.
 | Script | Purpose |
 |---|---|
 | `scripts/import_aws_warehouse_assets.py` | AWS warehouse meshes + textures |
-| `scripts/import_dubins_assets.py` | TurtleBot3 meshes from ROBOTIS Menagerie |
+| `scripts/import_turtlebot3_assets.py` | TurtleBot3 physics meshes from ROBOTIS Menagerie |
+| `scripts/import_dubins_assets.py` | Legacy scaled TB3 visual meshes for older race assets |
 | `scripts/generate_dubins_race_mjcf.py` | Rebuild race obstacle visual block |
 
 ---

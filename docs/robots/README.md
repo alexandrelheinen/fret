@@ -13,6 +13,7 @@ as the foundation for v1.3.
 
 All robots run on **MuJoCo** for physics, rendering, and SITL. See [mujoco.md](../mujoco.md).
 
-Unit physics sandboxes (no race): `diffdrive_unit` via `fret.simulation` (FR-SIM-11).
-External MJCF sources and reuse policy:
+Unit physics sandboxes (no race): `turtlebot3_unit` via
+`fret.simulation.TurtleBot3UnitRobot` (FR-SIM-11); procedural `diffdrive_unit`
+remains as a lightweight twin. External MJCF sources and reuse policy:
 [mujoco_models_benchmark.md](../mujoco_models_benchmark.md).

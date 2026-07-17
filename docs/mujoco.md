@@ -105,15 +105,18 @@ MuJoCo is the implicit backend for all SITL launches.
 
 ```
 src/fret/mjcf/
-├── diffdrive_unit.xml      # FR-SIM-11 differential-drive sandbox
-├── dubins_race.xml         # v1.1 dual Dubins agents (holonomic SE(2) approx.)
+├── turtlebot3_burger.xml   # ROBOTIS TB3 robot (wheel hinges + actuators)
+├── turtlebot3_unit.xml     # FR-SIM-11 open-floor TB3 physics sandbox
+├── diffdrive_unit.xml      # Procedural diff-drive sandbox (legacy twin)
+├── dubins_race.xml         # Dual-agent race with true TB3 wheel bodies
 ├── assets/
-│   └── aws_warehouse/      # MIT-0 meshes (Dubins floor / clutter visuals)
+│   ├── turtlebot3/         # Apache-2.0 ROBOTIS Menagerie meshes
+│   └── aws_warehouse/      # MIT-0 warehouse visuals (Dubins)
 └── (v1.3+) rrp_pillars.xml, six_dof_cell.xml, …
 ```
 
-Unit sandboxes (`*_unit.xml`) are loaded by `fret.simulation` for open-loop
-physics tests (SC-v12u). Showcase worlds remain separate.
+Unit sandboxes are loaded by `fret.simulation.TurtleBot3UnitRobot` for open-loop
+physics tests (SC-v12u). Race agents use the same wheel physics via the bridge.
 
 ### MJCF conventions
 

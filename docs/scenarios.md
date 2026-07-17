@@ -55,16 +55,16 @@ Config: [config.md § Simulation](config.md#simulation-physics-v12).
 
 ### SC-v12u — Unit robot physics sandboxes (foundation)
 
-**Assets:** `mjcf/diffdrive_unit.xml`  
-**API:** `fret.simulation.DiffDriveUnitRobot`  
+**Assets:** `mjcf/turtlebot3_unit.xml` (primary), `mjcf/diffdrive_unit.xml` (procedural twin)  
+**API:** `fret.simulation.TurtleBot3UnitRobot`  
 **Requirement:** FR-SIM-11
 
-**Purpose:** Prove foundational physical robots work under pure MuJoCo physics
+**Purpose:** Prove the TurtleBot3 physical model works under pure MuJoCo physics
 with open-loop commands — before race orchestration.
 
 | Robot | Commands | Pass criteria |
 |---|---|---|
-| Diff-drive unit | `(v, ω)` → wheel speeds | Forward travel; spin-in-place with translation ≤ 5 cm over 2 s; constant `(v, ω)` produces sustained yaw change (arc) |
+| TurtleBot3 unit | `(v, ω)` → wheel speeds | Forward travel; spin-in-place with translation ≤ 5 cm over 2 s; constant `(v, ω)` produces sustained yaw change (arc) |
 
 **CI policy:** optional / local (`tests/simulation/test_*_robot_unit.py`); not required
 on every PR gate.

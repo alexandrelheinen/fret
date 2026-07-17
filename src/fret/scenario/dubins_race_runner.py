@@ -188,7 +188,7 @@ class DubinsRaceSimulation:
         Steps each agent's kinematic Pure Pursuit reference, then drives
         velocity actuators with softened P-tracking toward that reference.
         Forward-only projection, heading-error speed gating, and goal dwell
-        keep physics holonomic slides from reversing into workspace bounds.
+        keep differential-drive agents from reversing into workspace bounds.
 
         Args:
             bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
