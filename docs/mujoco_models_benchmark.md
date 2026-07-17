@@ -51,7 +51,7 @@ bridge/ROS layer.
 | Asset | Source | License | FRET path | Notes |
 |---|---|---|---|---|
 | AWS RoboMaker warehouse meshes + ground | AWS RoboMaker | MIT-0 | `mjcf/assets/aws_warehouse/` | Used by Dubins showcase; import via `scripts/import_aws_warehouse_assets.py` |
-| TurtleBot3 Burger MJCF + meshes | ROBOTIS Menagerie | Apache-2.0 | `mjcf/turtlebot3_*.xml`, `mjcf/assets/turtlebot3/` | Full physics model (wheels + actuators) |
+| TurtleBot3 Burger MJCF + meshes | ROBOTIS Menagerie submodule | Apache-2.0 | `mjcf/turtlebot3_*.xml` + `third_party/robotis_mujoco_menagerie/` | Full physics model (wheels + actuators) |
 | Procedural diff-drive twin | FRET | — | `mjcf/diffdrive_unit.xml` | Legacy open-loop twin; TB3 is primary |
 
 ---
@@ -80,7 +80,7 @@ bridge/ROS layer.
 |---|---|
 | `scripts/import_aws_warehouse_assets.py` | AWS warehouse meshes + textures |
 | `scripts/import_turtlebot3_assets.py` | TurtleBot3 physics meshes from ROBOTIS Menagerie |
-| `scripts/import_dubins_assets.py` | Legacy scaled TB3 visual meshes for older race assets |
+| `scripts/import_turtlebot3_assets.py` | Verifies Menagerie submodule meshes (no local STL copy) |
 | `scripts/generate_dubins_race_mjcf.py` | Rebuild race obstacle visual block |
 
 ---

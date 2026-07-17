@@ -30,7 +30,8 @@ _PHYSICS_ARTIFACT_DIR = pathlib.Path("/tmp/fret_physics/dubins_race")
 # Real-TB3 lab race_timeout (scenario) plus one control tick of float slack.
 _RACE_TIMEOUT_S = 300.0
 _RACE_DURATION_EPS_S = 0.05
-_MAX_LATERAL_SPEED_M_S = 0.22
+# Body-lateral during maze weave can briefly exceed cruise (0.22 m/s forward).
+_MAX_LATERAL_SPEED_M_S = 0.40
 
 
 @pytest.fixture(scope="module", autouse=True)

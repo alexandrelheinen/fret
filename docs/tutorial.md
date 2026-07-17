@@ -195,7 +195,7 @@ FRET v1.1 ships a **hybrid MJCF** scene (`dubins_race.xml`):
 - **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for floor, clutter, and shelf visuals
 
 Assets live under `src/fret/mjcf/assets/aws_warehouse/` and
-`src/fret/mjcf/assets/turtlebot3/`. Regenerate with:
+`third_party/robotis_mujoco_menagerie/` (git submodule). Regenerate with:
 
 ```bash
 pip install trimesh pycollada
