@@ -22,8 +22,8 @@ from fret.ros.mujoco_bridge import (
 
 _DUBINS_LIMITS = np.array(
     [
-        [0.0, 80.0],
-        [0.0, 80.0],
+        [0.0, 10.0],
+        [0.0, 10.0],
         [-np.pi, np.pi],
     ],
     dtype=np.float64,
@@ -144,7 +144,7 @@ def test_bridge_core_set_positions(se2_mjcf_path: pathlib.Path) -> None:
     core.set_positions(np.array([200.0, 200.0, 10.0]))
     np.testing.assert_array_equal(
         core.get_positions(),
-        np.array([80.0, 80.0, np.pi]),
+        np.array([10.0, 10.0, np.pi]),
     )
 
 
@@ -241,12 +241,12 @@ def test_bridge_core_step_physics_advances_position() -> None:
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
     core = make_dubins_race_bridge_core(
-        initial_rrt=np.array([6.0, 6.0, 0.0]),
-        initial_sst=np.array([6.0, 6.4, 0.0]),
+        initial_rrt=np.array([1.2, 1.2, 0.0]),
+        initial_sst=np.array([1.2, 1.5, 0.0]),
         physics_config=physics,
     )
     q0 = core.get_rrt_pose().copy()
-    core.step_physics(np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    core.step_physics(np.array([0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
     assert core.physics_mode is True
     assert core.get_rrt_pose()[0] > q0[0]
 
@@ -287,19 +287,19 @@ def test_dubins_bridge_step_physics_runs() -> None:
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
     core = make_dubins_race_bridge_core(
-        initial_rrt=np.array([6.0, 6.0, 0.0]),
-        initial_sst=np.array([6.0, 6.4, 0.0]),
+        initial_rrt=np.array([1.2, 1.2, 0.0]),
+        initial_sst=np.array([1.2, 1.5, 0.0]),
         physics_config=physics,
     )
     result = core.step_physics(
-        np.array([0.4, 0.0, 0.0, 0.4, 0.0, 0.0, 0.4, 0.0, 0.0])
+        np.array([0.15, 0.0, 0.0, 0.15, 0.0, 0.0, 0.15, 0.0, 0.0])
     )
     assert result.shape == (9,)
     np.testing.assert_allclose(
         core.get_joint_velocities(),
-        [0.4, 0.0, 0.0, 0.4, 0.0, 0.0, 0.4, 0.0, 0.0],
+        [0.15, 0.0, 0.0, 0.15, 0.0, 0.0, 0.15, 0.0, 0.0],
     )
-    assert core.get_rrt_pose()[0] > 6.0
-    assert core.get_sst_pose()[0] > 6.0
+    assert core.get_rrt_pose()[0] > 1.2
+    assert core.get_sst_pose()[0] > 1.2
     with pytest.raises(RuntimeError, match="set_rrt_pose"):
         core.set_rrt_pose((0.0, 0.0, 0.0))

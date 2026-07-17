@@ -129,8 +129,8 @@ def test_dubins_physics_planners_succeed() -> None:
 def test_dubins_physics_race_duration_within_v114_limit(
     dubins_physics_contact_run: DubinsRaceRunResult,
 ) -> None:
-    """V114-01: physics race duration ≤ 180 s (CI runner headroom; ~90 s on dev VM)."""
+    """V114-01: physics race duration ≤ race_timeout (240 s for real-TB3 lab)."""
     result = dubins_physics_contact_run
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
-    assert result.race_duration_s <= 180.0
+    assert result.race_duration_s <= 240.0
