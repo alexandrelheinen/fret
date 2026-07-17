@@ -1,6 +1,6 @@
-# Scenario SC-v11: Dubins dual-robot race (v1.1)
+# Scenario SC-v11: Dubins dual-robot race (compact real-TB3 lab).
 #
-# Two warehouse-floor agents race A → B through a column forest.
+# Two agents race A → B on a 10 m × 10 m floor through narrow aisles.
 # Agent 1: ARCO RRT* (blue).  Agent 2: ARCO SST (green).
 #
 # Pass criteria (releases.md V11-1):
@@ -13,12 +13,12 @@
     backend: "mujoco"
     planning_config: planning/dubins.yml
 
-    start_configuration: [6.0, 6.0, 0.785]
-    goal_configuration: [74.0, 74.0, 0.0]
+    start_configuration: [1.2, 1.2, 0.785]
+    goal_configuration: [8.8, 8.8, 0.0]
 
-    planning_timeout: 30.0
-    duration: 55.0
-    race_timeout: 300.0
+    planning_timeout: 20.0
+    duration: 120.0
+    race_timeout: 240.0
     simulation_dt: 0.05
 
     agents:
