@@ -16,6 +16,12 @@
 
   <default>
     <geom friction="1 0.2 0.005" solref="0.01 1" solimp="0.9 0.95 0.001"/>
+    <default class="tb3_visual">
+      <geom type="mesh" contype="0" conaffinity="0" density="0" group="2"/>
+    </default>
+    <default class="tb3_collision">
+      <geom group="3" type="mesh"/>
+    </default>
   </default>
 
   <visual>
@@ -49,6 +55,10 @@
     <!-- TurtleBot3 Burger chassis (ROBOTIS Menagerie, Apache-2.0). Scale ≈4× for 0.72 m footprint.
          Paintable plates use agent tint; wheels stay black; standoffs use tb3_hardware. -->
     <mesh name="tb3_base" file="dubins/turtlebot3/burger_base.stl" scale="0.004 0.004 0.004"/>
+    <mesh name="burger_base" file="turtlebot3/burger_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="left_tire" file="turtlebot3/left_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="right_tire" file="turtlebot3/right_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="lds" file="turtlebot3/lds.stl" scale="0.001 0.001 0.001"/>
   </asset>
 
   <worldbody>
@@ -155,49 +165,101 @@
     <geom name="str_043_vis" type="mesh" mesh="clutter_c" pos="56.400 63.650 0" size="1.6613 0.4425 1.3333" material="clutter_crate" contype="0" conaffinity="0"/>
     <!-- End warehouse structure block -->
 
-    <!-- Agent 1: RRT* (blue TurtleBot3) -->
-    <body name="car_rrt" pos="0 0 0.05">
-      <joint name="rrt_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
-      <joint name="rrt_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
-      <joint name="rrt_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
-      <geom name="rrt_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0" contype="2" conaffinity="1"/>
-      <geom name="rrt_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_rrt" contype="0" conaffinity="0"/>
-      <geom name="rrt_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="rrt_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="rrt_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="rrt_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="rrt_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+
+    <!-- Agent rrt: true TB3 differential-drive -->
+    <body name="car_rrt" pos="0 0 0">
+      <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
+      <freejoint name="rrt_base_joint"/>
+      <geom name="rrt_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+            rgba="0 0 0 0" contype="2" conaffinity="1"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_rrt" class="tb3_visual"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>
+      <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
+            friction="0.0001 0.0001 0.0001" solref="0.02 1"
+            solimp="0.95 0.99 0.001" condim="1"/>
+      <geom pos="-0.032 0 0.182" mesh="lds" material="car_rrt" class="tb3_visual"/>
+      <body name="rrt_wheel_left" pos="0 0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="rrt_wheel_left" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" class="tb3_collision"/>
+      </body>
+      <body name="rrt_wheel_right" pos="0 -0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="rrt_wheel_right" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" class="tb3_collision"/>
+      </body>
     </body>
 
-    <!-- Agent 2: SST (green TurtleBot3) -->
-    <body name="car_sst" pos="0 0 0.05">
-      <joint name="sst_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
-      <joint name="sst_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
-      <joint name="sst_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
-      <geom name="sst_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0" contype="2" conaffinity="1"/>
-      <geom name="sst_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_sst" contype="0" conaffinity="0"/>
-      <geom name="sst_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="sst_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="sst_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="sst_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="sst_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+    <!-- Agent sst: true TB3 differential-drive -->
+    <body name="car_sst" pos="0 0 0">
+      <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
+      <freejoint name="sst_base_joint"/>
+      <geom name="sst_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+            rgba="0 0 0 0" contype="2" conaffinity="1"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_sst" class="tb3_visual"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>
+      <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
+            friction="0.0001 0.0001 0.0001" solref="0.02 1"
+            solimp="0.95 0.99 0.001" condim="1"/>
+      <geom pos="-0.032 0 0.182" mesh="lds" material="car_sst" class="tb3_visual"/>
+      <body name="sst_wheel_left" pos="0 0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="sst_wheel_left" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" class="tb3_collision"/>
+      </body>
+      <body name="sst_wheel_right" pos="0 -0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="sst_wheel_right" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" class="tb3_collision"/>
+      </body>
     </body>
 
-    <!-- Agent 3: straight-line dummy (grey) — collides with mid-field structures -->
-    <body name="car_dummy" pos="0 0 0.05">
-      <joint name="dummy_joint_x" type="slide" axis="1 0 0" range="0 80" damping="50"/>
-      <joint name="dummy_joint_y" type="slide" axis="0 1 0" range="0 80" damping="50"/>
-      <joint name="dummy_joint_yaw" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="12"/>
-      <geom name="dummy_collision" type="box" pos="0 0 0.04" size="0.36 0.22 0.09" rgba="0 0 0 0" contype="2" conaffinity="1"/>
-      <geom name="dummy_base" type="mesh" mesh="tb3_base" pos="-0.13 0 0.04" euler="0 0 1.5708" material="car_dummy" contype="0" conaffinity="0"/>
-      <geom name="dummy_standoff_fl" type="cylinder" pos="0.05 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="dummy_standoff_fr" type="cylinder" pos="0.05 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="dummy_standoff_rl" type="cylinder" pos="-0.15 0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="dummy_standoff_rr" type="cylinder" pos="-0.15 -0.18 0.22" size="0.014 0.055" material="tb3_hardware" contype="0" conaffinity="0"/>
-      <geom name="dummy_wheel_l" type="cylinder" pos="0 0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
-      <geom name="dummy_wheel_r" type="cylinder" pos="0 -0.32 0.13" size="0.085 0.028" euler="1.5708 0 0" material="wheel" contype="0" conaffinity="0"/>
+    <!-- Agent dummy: true TB3 differential-drive -->
+    <body name="car_dummy" pos="0 0 0">
+      <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
+      <freejoint name="dummy_base_joint"/>
+      <geom name="dummy_collision" type="box" pos="-0.032 0 0.05" size="0.10 0.09 0.06"
+            rgba="0 0 0 0" contype="2" conaffinity="1"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_dummy" class="tb3_visual"/>
+      <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_collision"/>
+      <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
+            friction="0.0001 0.0001 0.0001" solref="0.02 1"
+            solimp="0.95 0.99 0.001" condim="1"/>
+      <geom pos="-0.032 0 0.182" mesh="lds" material="car_dummy" class="tb3_visual"/>
+      <body name="dummy_wheel_left" pos="0 0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="dummy_wheel_left" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" class="tb3_collision"/>
+      </body>
+      <body name="dummy_wheel_right" pos="0 -0.08 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326"
+                  mass="0.0284989"
+                  diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="dummy_wheel_right" type="hinge" axis="0 0 1"
+               limited="false" frictionloss="0.1" armature="0.01"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" material="wheel" class="tb3_visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" class="tb3_collision"/>
+      </body>
     </body>
 
     <camera name="overview" pos="21.90 52.76 15.91" xyaxes="-0.574 -0.819 0 0.473 -0.331 0.816" fovy="55"/>
@@ -206,15 +268,28 @@
     <camera name="finish" pos="74 58 10" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
   </worldbody>
 
-  <actuator>
-    <velocity name="act_rrt_x" joint="rrt_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_rrt_y" joint="rrt_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_rrt_yaw" joint="rrt_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
-    <velocity name="act_sst_x" joint="sst_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_sst_y" joint="sst_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_sst_yaw" joint="sst_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
-    <velocity name="act_dummy_x" joint="dummy_joint_x" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_dummy_y" joint="dummy_joint_y" kv="1" forcelimited="true" forcerange="-2000 2000"/>
-    <velocity name="act_dummy_yaw" joint="dummy_joint_yaw" kv="1" forcelimited="true" forcerange="-500 500"/>
+<actuator>
+    <velocity name="rrt_wheel_left" joint="rrt_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="rrt_wheel_right" joint="rrt_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="sst_wheel_left" joint="sst_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="sst_wheel_right" joint="sst_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="dummy_wheel_left" joint="dummy_wheel_left" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+    <velocity name="dummy_wheel_right" joint="dummy_wheel_right" kv="0.2"
+              ctrlrange="-6.67 6.67" ctrllimited="true"/>
   </actuator>
+
+
+  <contact>
+    <exclude body1="car_rrt" body2="rrt_wheel_left"/>
+    <exclude body1="car_rrt" body2="rrt_wheel_right"/>
+    <exclude body1="car_sst" body2="sst_wheel_left"/>
+    <exclude body1="car_sst" body2="sst_wheel_right"/>
+    <exclude body1="car_dummy" body2="dummy_wheel_left"/>
+    <exclude body1="car_dummy" body2="dummy_wheel_right"/>
+  </contact>
 </mujoco>
