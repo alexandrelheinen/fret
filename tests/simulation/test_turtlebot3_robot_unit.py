@@ -13,6 +13,7 @@ from fret.simulation.mujoco_util import mujoco_available
 from fret.simulation.turtlebot3_unit import (
     TurtleBot3UnitRobot,
     body_velocity_to_wheel_rates,
+    clip_wheel_rates,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -33,6 +34,13 @@ def test_tb3_body_velocity_to_wheel_rates_spin_opposite() -> None:
     left, right = body_velocity_to_wheel_rates(0.0, 1.0)
     assert left == pytest.approx(-right)
     assert left < 0.0 < right
+
+
+def test_tb3_clip_wheel_rates_preserves_ratio() -> None:
+    """Saturation scales both wheels so yaw is not erased."""
+    left, right = clip_wheel_rates(200.0, 220.0, limit_rad_s=120.0)
+    assert max(abs(left), abs(right)) == pytest.approx(120.0)
+    assert left / right == pytest.approx(200.0 / 220.0)
 
 
 def test_tb3_unit_moves_forward() -> None:

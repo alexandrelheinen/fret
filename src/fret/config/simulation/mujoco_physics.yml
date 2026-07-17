@@ -2,6 +2,7 @@
 #
 # Consumed by: DubinsRaceBridgeCore via mujoco_bridge.py
 # TurtleBot3 race agents: six wheel velocity actuators (true differential drive).
+# kv / forcerange are showcase-scaled so warehouse cruise speeds stay reachable.
 
 /**:
   ros__parameters:
@@ -14,11 +15,11 @@
           - sst_wheel_right
           - dummy_wheel_left
           - dummy_wheel_right
-        kv: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+        kv: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
         forcerange:
-          - [-5, 5]
-          - [-5, 5]
-          - [-5, 5]
-          - [-5, 5]
-          - [-5, 5]
-          - [-5, 5]
+          - [-80, 80]
+          - [-80, 80]
+          - [-80, 80]
+          - [-80, 80]
+          - [-80, 80]
+          - [-80, 80]
