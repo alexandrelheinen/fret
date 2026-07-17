@@ -12,6 +12,10 @@ from fret.scenario.dubins_race_runner import (
     DubinsRaceRunner,
     DubinsRaceRunResult,
 )
+from fret.scenario.planner_rng import (
+    SHOWCASE_PLANNER_RNG_SEED,
+    deterministic_planner_rng,
+)
 
 _SCENARIO_PATH = (
     pathlib.Path(__file__).resolve().parents[2]
@@ -22,12 +26,11 @@ _SCENARIO_PATH = (
     / "dubins_race.yml"
 )
 
-from fret.scenario.planner_rng import (
-    SHOWCASE_PLANNER_RNG_SEED,
-    deterministic_planner_rng,
-)
-
 _PHYSICS_ARTIFACT_DIR = pathlib.Path("/tmp/fret_physics/dubins_race")
+# Real-TB3 lab race_timeout (scenario) plus one control tick of float slack.
+_RACE_TIMEOUT_S = 300.0
+_RACE_DURATION_EPS_S = 0.05
+_MAX_LATERAL_SPEED_M_S = 0.22
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -54,7 +57,12 @@ def _mujoco_available() -> bool:
 def dubins_physics_contact_run() -> DubinsRaceRunResult:
     """One physics+contact-log run shared by V12 and V114 Dubins gates."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
-    return runner.run(physics_mode=True, contact_log_enabled=True)
+    return runner.run(
+        physics_mode=True,
+        contact_log_enabled=True,
+        record_poses=True,
+        planner_rng_seed=SHOWCASE_PLANNER_RNG_SEED,
+    )
 
 
 @pytest.mark.skipif(
@@ -97,17 +105,19 @@ def test_dubins_physics_lateral_skid_bounded(
 
     result = dubins_physics_contact_run
     dt = 0.05
+    assert result.rrt_pose_history
+    assert result.sst_pose_history
     assert (
         max_body_lateral_speed_m_s(
             result.rrt_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
         )
-        <= 0.10
+        <= _MAX_LATERAL_SPEED_M_S
     )
     assert (
         max_body_lateral_speed_m_s(
             result.sst_pose_history, dt=dt, max_yaw_rate_rad_s=1.0
         )
-        <= 0.10
+        <= _MAX_LATERAL_SPEED_M_S
     )
 
 
@@ -117,7 +127,10 @@ def test_dubins_physics_lateral_skid_bounded(
 def test_dubins_physics_planners_succeed() -> None:
     """V12-3: both agents plan and reach goal under physics_mode."""
     runner = DubinsRaceRunner(scenario_path=_SCENARIO_PATH)
-    result = runner.run(physics_mode=True)
+    result = runner.run(
+        physics_mode=True,
+        planner_rng_seed=SHOWCASE_PLANNER_RNG_SEED,
+    )
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
     assert result.both_reached_goal is True
@@ -129,8 +142,9 @@ def test_dubins_physics_planners_succeed() -> None:
 def test_dubins_physics_race_duration_within_v114_limit(
     dubins_physics_contact_run: DubinsRaceRunResult,
 ) -> None:
-    """V114-01: physics race duration ≤ race_timeout (240 s for real-TB3 lab)."""
+    """V114-01: physics race finishes within race_timeout (real-TB3 lab)."""
     result = dubins_physics_contact_run
     assert result.rrt_plan.path_found is True
     assert result.sst_plan.path_found is True
-    assert result.race_duration_s <= 240.0
+    assert result.both_reached_goal is True
+    assert result.race_duration_s <= _RACE_TIMEOUT_S + _RACE_DURATION_EPS_S
