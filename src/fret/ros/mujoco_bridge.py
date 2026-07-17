@@ -31,7 +31,10 @@ from fret.ros.mujoco_physics_log import (
     PhysicsContactLogger,
     contact_log_config_from_bridge_yaml,
 )
-from fret.simulation.turtlebot3_unit import body_velocity_to_wheel_rates
+from fret.simulation.turtlebot3_unit import (
+    body_velocity_to_wheel_rates,
+    clip_wheel_rates,
+)
 
 # Dubins race workspace limits for dubins_race.xml.
 _DUBINS_RACE_LIMITS: npt.NDArray[np.float64] = np.array(
@@ -53,11 +56,13 @@ _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     _DUMMY_BASE_JOINT,
 )
 
-# Match fret.simulation.turtlebot3_unit geometry / actuator limits.
+# Match TurtleBot3 Burger geometry. Race actuators use a higher wheel-rate
+# ceiling so warehouse cruise speeds (~3.6 m/s) remain reachable while still
+# commanding true differential-drive hinges (not SE(2) slides).
 _AGENT_BASE_Z_M: float = 0.033
 _WHEEL_RADIUS_M: float = 0.033
 _TRACK_WIDTH_M: float = 0.16
-_WHEEL_CTRL_LIMIT_RAD_S: float = 6.67
+_WHEEL_CTRL_LIMIT_RAD_S: float = 120.0
 
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
 _DEFAULT_MJCF_TIMESTEP_S: float = 0.002
@@ -829,20 +834,13 @@ class DubinsRaceBridgeCore:
                 wheel_radius_m=_WHEEL_RADIUS_M,
                 track_width_m=_TRACK_WIDTH_M,
             )
-            wheel_ctrl[2 * agent_idx] = float(
-                np.clip(
-                    omega_l,
-                    -_WHEEL_CTRL_LIMIT_RAD_S,
-                    _WHEEL_CTRL_LIMIT_RAD_S,
-                )
+            omega_l, omega_r = clip_wheel_rates(
+                omega_l,
+                omega_r,
+                limit_rad_s=_WHEEL_CTRL_LIMIT_RAD_S,
             )
-            wheel_ctrl[2 * agent_idx + 1] = float(
-                np.clip(
-                    omega_r,
-                    -_WHEEL_CTRL_LIMIT_RAD_S,
-                    _WHEEL_CTRL_LIMIT_RAD_S,
-                )
-            )
+            wheel_ctrl[2 * agent_idx] = omega_l
+            wheel_ctrl[2 * agent_idx + 1] = omega_r
 
         for idx, act_id in enumerate(self._actuator_ids):
             self._data.ctrl[act_id] = float(wheel_ctrl[idx])
@@ -934,12 +932,32 @@ class DubinsRaceBridgeCore:
     def _read_state_from_mujoco(self) -> None:
         if self._data is None or not self._qpos_adrs:
             return
-        rrt = self._read_freejoint_pose(_RRT_BASE_JOINT)
-        sst = self._read_freejoint_pose(_SST_BASE_JOINT)
-        dummy = self._read_freejoint_pose(_DUMMY_BASE_JOINT)
-        self._rrt = np.clip(rrt, self._limits[:, 0], self._limits[:, 1])
-        self._sst = np.clip(sst, self._limits[:, 0], self._limits[:, 1])
-        self._dummy = np.clip(dummy, self._limits[:, 0], self._limits[:, 1])
+        # Freejoint agents: keep raw XY (workspace clip desyncs control from
+        # physics). Only wrap yaw into ``[-pi, pi]``.
+        self._rrt = self._clamp_freejoint_pose(
+            self._read_freejoint_pose(_RRT_BASE_JOINT)
+        )
+        self._sst = self._clamp_freejoint_pose(
+            self._read_freejoint_pose(_SST_BASE_JOINT)
+        )
+        self._dummy = self._clamp_freejoint_pose(
+            self._read_freejoint_pose(_DUMMY_BASE_JOINT)
+        )
+
+    @staticmethod
+    def _clamp_freejoint_pose(
+        pose: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        """Return ``(x, y, wrap(yaw))`` without inventing workspace walls."""
+        yaw = float(pose[2])
+        return np.array(
+            [
+                float(pose[0]),
+                float(pose[1]),
+                math.atan2(math.sin(yaw), math.cos(yaw)),
+            ],
+            dtype=np.float64,
+        )
 
     def _write_mujoco_state(self) -> None:
         if self._model is None or self._data is None or self._mujoco is None:

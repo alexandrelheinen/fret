@@ -47,6 +47,26 @@ def body_velocity_to_wheel_rates(
     return float(omega_l), float(omega_r)
 
 
+def clip_wheel_rates(
+    omega_left_rad_s: float,
+    omega_right_rad_s: float,
+    *,
+    limit_rad_s: float = _CTRL_LIMIT_RAD_S,
+) -> tuple[float, float]:
+    """Scale wheel rates into ``±limit`` while preserving left/right ratio.
+
+    Independent per-wheel clipping would equalize saturated rates and erase
+    yaw. Uniform scaling keeps the commanded curvature at a lower speed.
+    """
+    if limit_rad_s <= 0.0:
+        raise ValueError("limit_rad_s must be positive")
+    peak = max(abs(omega_left_rad_s), abs(omega_right_rad_s))
+    if peak <= limit_rad_s:
+        return float(omega_left_rad_s), float(omega_right_rad_s)
+    scale = limit_rad_s / peak
+    return float(omega_left_rad_s * scale), float(omega_right_rad_s * scale)
+
+
 class TurtleBot3UnitRobot:
     """ROBOTIS TurtleBot3 Burger under pure MuJoCo wheel physics.
 
@@ -130,11 +150,10 @@ class TurtleBot3UnitRobot:
         if dt <= 0.0:
             raise ValueError("dt must be positive")
         step_count = max(1, int(round(dt / self.timestep_s)))
-        left = float(
-            np.clip(omega_left_rad_s, -_CTRL_LIMIT_RAD_S, _CTRL_LIMIT_RAD_S)
-        )
-        right = float(
-            np.clip(omega_right_rad_s, -_CTRL_LIMIT_RAD_S, _CTRL_LIMIT_RAD_S)
+        left, right = clip_wheel_rates(
+            omega_left_rad_s,
+            omega_right_rad_s,
+            limit_rad_s=_CTRL_LIMIT_RAD_S,
         )
         self._data.ctrl[self._actuator_ids[0]] = left
         self._data.ctrl[self._actuator_ids[1]] = right
