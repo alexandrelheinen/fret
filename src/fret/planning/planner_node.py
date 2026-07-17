@@ -29,7 +29,6 @@ from typing import Any, Literal
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.grasp_magnet import GraspConfig
 from fret.interfaces import (
     ErrorCode,
     PlanningRequest,
@@ -89,10 +88,10 @@ class PlannerNode:
             kinematics engine.
         occupancy_adapter: Pre-constructed adapter providing the live
             occupancy model.
-        collision_backend: PPP collision backend (``analytic`` or ``mujoco``).
+        collision_backend: Collision backend (``analytic`` or ``mujoco``).
         planner_algorithm: ARCO planner (``rrt_star`` or ``sst``).
-        include_cargo: When True, PPP planning includes welded cargo (FR-GSP-02).
-        grasp_config: Cargo geometry for PPP cargo-inclusive checks.
+        include_cargo: Unused (retained for call-site compatibility).
+        grasp_config: Unused (retained for call-site compatibility).
         scenario: Scenario stem for MJCF resolution (MuJoCo backend).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
     """
@@ -106,8 +105,8 @@ class PlannerNode:
         collision_backend: CollisionBackend = "analytic",
         planner_algorithm: PlannerAlgorithm = "rrt_star",
         include_cargo: bool = False,
-        grasp_config: GraspConfig | None = None,
-        scenario: str = "ppp_warehouse",
+        grasp_config: Any | None = None,
+        scenario: str = "static_reach",
         mjcf_path: str | pathlib.Path | None = None,
         workspace_bounds: (
             tuple[

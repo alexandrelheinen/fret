@@ -11,23 +11,20 @@ from typing import Any
 
 import yaml
 
-_PPP_WAREHOUSE_SCENARIO = "ppp_warehouse"
 _DUBINS_RACE_SCENARIO = "dubins_race"
-_PPP_MODEL = "ppp"
 _DUBINS_MODEL = "dubins"
+_DIFFDRIVE_MODEL = "diffdrive"
 
 
 def controller_config_relative(model: str) -> str:
     """Return package-relative controller YAML path for a robot model.
 
     Args:
-        model: Robot model name (``ppp``, ``scara``, …).
+        model: Robot model name (``dubins``, ``scara``, …).
 
     Returns:
         Path relative to the ``fret`` package share root.
     """
-    if model == _PPP_MODEL:
-        return "config/controllers/ppp.yml"
     if model == _DUBINS_MODEL:
         return "config/controllers/dubins.yml"
     return "config/controllers/jacobian.yml"
@@ -37,7 +34,7 @@ def physics_controller_config_relative(model: str) -> str:
     """Return package-relative physics SITL controller YAML for a model.
 
     Args:
-        model: Robot model name (``ppp`` today; others may follow in v1.2).
+        model: Robot model name.
 
     Returns:
         Path relative to the ``fret`` package share root.
@@ -45,8 +42,6 @@ def physics_controller_config_relative(model: str) -> str:
     Raises:
         ValueError: When no physics profile exists for the model.
     """
-    if model == _PPP_MODEL:
-        return "config/controllers/ppp_physics.yml"
     raise ValueError(f"No physics controller profile for model: {model!r}")
 
 
@@ -54,13 +49,11 @@ def perception_config_relative(scenario: str) -> str:
     """Return package-relative perception YAML for a scenario.
 
     Args:
-        scenario: Scenario stem (e.g. ``ppp_warehouse``).
+        scenario: Scenario stem (e.g. ``dubins_race``).
 
     Returns:
         Path relative to the ``fret`` package share root.
     """
-    if scenario == _PPP_WAREHOUSE_SCENARIO:
-        return "config/perception_ppp_warehouse.yaml"
     if scenario == _DUBINS_RACE_SCENARIO:
         return "config/perception.yaml"
     return "config/perception.yaml"
@@ -130,20 +123,15 @@ def physics_controller_config_path(model: str) -> pathlib.Path:
 
 def mjcf_path(model: str, scenario: str) -> pathlib.Path:
     """Return the MJCF scene file for a model/scenario pair."""
-    if model == _PPP_MODEL and scenario in {
-        _PPP_WAREHOUSE_SCENARIO,
-        "ppp",
-        "ppp_unit",
-    }:
-        if scenario == "ppp_unit":
-            return resolve_package_file("mjcf", "ppp_unit.xml")
-        return resolve_package_file("mjcf", "ppp_warehouse.xml")
     if model == _DUBINS_MODEL and scenario in {
         _DUBINS_RACE_SCENARIO,
         "dubins",
     }:
         return resolve_package_file("mjcf", "dubins_race.xml")
-    if model == "diffdrive" and scenario in {"diffdrive_unit", "diffdrive"}:
+    if model == _DIFFDRIVE_MODEL and scenario in {
+        "diffdrive_unit",
+        "diffdrive",
+    }:
         return resolve_package_file("mjcf", "diffdrive_unit.xml")
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "

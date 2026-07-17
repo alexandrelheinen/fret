@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.2** — PPP warehouse pick-and-place, dual-agent Dubins race, and
-**MuJoCo physics SITL** (actuator-driven `mj_step`, contact dynamics, cargo weld).
-Release showcase videos and CI renders use `--physics-mode` by default.
+**Current release: v1.2** — dual-agent Dubins race and **MuJoCo physics SITL**
+(actuator-driven `mj_step`, contact dynamics). Release showcase videos and CI
+renders use `--physics-mode` by default.
 
 <br clear="left">
 
@@ -17,17 +17,17 @@ Release showcase videos and CI renders use `--physics-mode` by default.
 
 ## What FRET provides
 
-| Capability | v1.0 PPP gantry | v1.1 Dubins race | v1.2 physics SITL |
-|---|---|---|---|
-| Robot model | 3-axis prismatic gantry (`ppp`) | Two SE(2) car-like agents (`dubins`) | Both — actuator-driven |
-| Scenario | Warehouse box pick-and-place | Independent RRT* vs SST race A→B | SC-v10 + SC-v11 under `physics_mode` |
-| Planning | ARCO RRT* in 3-D C-space | ARCO RRT* + SST in 2-D with structure occupancy | Same planners; contacts during execution |
-| Control | Per-axis P-control + magnetic grasp FSM | ARCO Pure Pursuit + DubinsVehicle | Velocity actuators → `mj_step` |
-| Visual backend | MuJoCo MJCF (`ppp_warehouse.xml`) | MuJoCo MJCF (`dubins_race.xml`) | Physics-integrated motion in release MP4s |
-| Showcase output | Overview + follow MP4 | Split-screen follow + overview MP4 | Real-time physics showcase (release CI) |
+| Capability | v1.1 Dubins race | v1.2 physics SITL |
+|---|---|---|
+| Robot model | Two SE(2) car-like agents (`dubins`) | Actuator-driven Dubins |
+| Scenario | Independent RRT* vs SST race A→B | SC-v11 under `physics_mode` |
+| Planning | ARCO RRT* + SST in 2-D with structure occupancy | Same planners; contacts during execution |
+| Control | ARCO Pure Pursuit + DubinsVehicle | Velocity actuators → `mj_step` |
+| Visual backend | MuJoCo MJCF (`dubins_race.xml`) | Physics-integrated motion in release MP4s |
+| Showcase output | Split-screen follow + overview MP4 | Real-time physics showcase (release CI) |
 
-Both scenarios ship with headless render scripts, pure-Python E2E tests (no ROS required
-for CI validation), and optional ROS 2 SITL launch files.
+The Dubins showcase ships with headless render scripts, pure-Python E2E tests (no ROS
+required for CI validation), and optional ROS 2 SITL launch files.
 
 **Coming next:** RRP/SCARA ARCO reproduction (v1.3), 6-DOF challenge (v1.4).
 See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
@@ -38,17 +38,16 @@ See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ```
 src/fret/
-├── control/           # Per-robot kinematics, controllers, magnetic grasp FSM
+├── control/           # Per-robot kinematics and controllers
 ├── planning/          # PlannerNode, C-space checkers, trajectory post-processing
-├── scenario/          # Pure-Python E2E orchestrators (PPP warehouse, Dubins race)
+├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
 ├── scene/             # Scene acquisition → occupancy adapter
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
 ├── config/
 │   ├── scenarios/     # Run definitions (start/goal, duration, config refs)
 │   ├── planning/      # Algorithm tunables (clearance, trajectory, replanning)
-│   ├── grasp/         # Magnetic grasp geometry and thresholds
-│   ├── controllers/   # Per-model gains (ppp.yml, dubins.yml, …)
+│   ├── controllers/   # Per-model gains (dubins.yml, …)
 │   ├── worlds/        # Obstacle layouts + Dubins vehicle/planner tuning
 │   └── simulation/    # MuJoCo bridge settings
 ├── mjcf/              # MuJoCo scenes (primary visual backend)
@@ -75,8 +74,8 @@ target.
   or `--kinematic-mode`).
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
 - **Configuration over code:** every tunable algorithm parameter (planning clearance,
-  controller gains, grasp radii, trajectory limits, replanning thresholds, Dubins
-  vehicle margins, and similar) **must live in YAML under `src/fret/config/`**.
+  controller gains, trajectory limits, replanning thresholds, Dubins vehicle
+  margins, and similar) **must live in YAML under `src/fret/config/`**.
   Python and MJCF must not embed numeric defaults for those values — missing keys
   fail at load time. Rendering-only constants (camera presets, mesh colours, UI
   layout) may stay hardcoded. Full reference: [docs/config.md](docs/config.md).
@@ -89,7 +88,6 @@ FRET uses a layered YAML config system loaded by `fret.config_loader`:
 |---|---|---|
 | Scenario | `config/scenarios/*.yml` | start/goal, `planning_timeout`, `planning_config` ref |
 | Planning | `config/planning/*.yml` | `contact_radius`, `max_interp_step_m`, replanning |
-| Grasp | `config/grasp/*.yml` | `capture_radius`, `weld_offset` |
 | Controller | `config/controllers/*.yml` | `kp`, `fault_threshold`, `max_joint_velocity` |
 | World | `config/worlds/*.yml` | box obstacles, Dubins `vehicle.clearance_margin` |
 
@@ -98,8 +96,7 @@ Each scenario declares which algorithm configs to use:
 ```yaml
 /**:
   ros__parameters:
-    planning_config: planning/ppp.yml
-    grasp_config: grasp/ppp_warehouse.yml   # PPP only
+    planning_config: planning/dubins.yml
 ```
 
 Per-scenario overrides merge into the referenced files (no Python edits required):
@@ -109,7 +106,7 @@ Per-scenario overrides merge into the referenced files (no Python edits required
       contact_radius: 0.020
 ```
 
-**Policy:** if changing a value alters planning, control, or grasp behavior, change
+**Policy:** if changing a value alters planning or control behavior, change
 YAML only. Do not add fallbacks like `.get("key", 0.015)` in source. CI and code
 review treat hardcoded tunables as defects.
 
@@ -117,24 +114,23 @@ review treat hardcoded tunables as defects.
 
 | Goal | Edit |
 |---|---|
-| PPP obstacle clearance | `config/planning/ppp.yml` → `contact_radius` |
 | Dubins safety margin | `config/worlds/dubins_race_obstacles.yml` → `vehicle.clearance_margin` |
-| PPP controller fault limit | `config/controllers/ppp.yml` → `fault_threshold` |
+| Dubins controller gains | `config/controllers/dubins.yml` |
 
 Load in Python:
 
 ```python
 from fret.config_loader import load_scenario_bundle
 
-bundle = load_scenario_bundle("config/scenarios/ppp_warehouse.yml")
-contact_radius = bundle.planning["contact_radius"]
+bundle = load_scenario_bundle("config/scenarios/dubins_race.yml")
+# scenario + planning/world overlays available on bundle
 ```
 
 ### Layer stack
 
 ```mermaid
 flowchart TB
-    TASK["TASK<br/>scenario YAML → planning / grasp / world"]
+    TASK["TASK<br/>scenario YAML → planning / world"]
     PLANNING["PLANNING<br/>ARCO RRT* / SST, occupancy, pruner"]
     CONTROL["CONTROL<br/>per-robot kinematics + tracking loops"]
     SIMULATOR["SIMULATOR<br/>MuJoCo (physics, contacts, rendering)"]
@@ -142,64 +138,7 @@ flowchart TB
     TASK --> PLANNING --> CONTROL --> SIMULATOR
 ```
 
-### PPP warehouse data flow (v1.0)
-
-Scenario YAML references `planning/ppp.yml` and `grasp/ppp_warehouse.yml` for all
-tunable parameters (clearance, cruise heights, grasp radii). Obstacle geometry
-comes from the path in `planning/ppp.yml` → `obstacle_file`
-(`config/worlds/ppp_warehouse_preview_obstacles.yml`, MJCF 1:5 scale). The
-magnetic grasp FSM welds the cargo box to the end-effector during transport so the
-planner checks an enlarged EE envelope.
-
-```mermaid
-flowchart TB
-    subgraph config
-        SY[scenario YAML]
-        PL[planning/ppp.yml]
-        GY[grasp/ppp_warehouse.yml]
-        OY[obstacle YAML]
-    end
-
-    subgraph fret_scenario
-        RUN[PPPWarehouseRunner / render_mujoco]
-    end
-
-    subgraph fret_planning
-        PN[PlannerNode / RRT*]
-        CC[CSpaceChecker PPP]
-        TG[TrajectoryGenerator + pruner]
-    end
-
-    subgraph fret_control
-        KN[PPP Kinematics]
-        GR[MagneticGrasp FSM]
-        CN[PPPControllerNode]
-    end
-
-    subgraph fret_ros
-        MB[mujoco_bridge]
-    end
-
-    subgraph MuJoCo
-        MJ[ppp_warehouse.xml]
-    end
-
-    SY --> RUN
-    PL --> PN
-    PL --> CC
-    GY --> GR
-    OY --> CC
-    CC --> PN
-    PN --> TG --> CN
-    KN --> CN
-    GR --> CC
-    GR --> RUN
-    CN --> MB
-    MB <-->|joint I/O| MJ
-    RUN --> MB
-```
-
-### Dubins race data flow (v1.1)
+### Dubins race data flow (v1.1 — first product showcase)
 
 Scenario YAML references `planning/dubins.yml`; vehicle footprint and planner ARCO
 tunables live in `config/worlds/dubins_race_obstacles.yml`. Two agents share one
@@ -258,13 +197,11 @@ Launch selects kinematics, collision checker, MJCF, and controller config via
 `model:=` and `scenario:=`:
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
 | `model` | Release | Control strategy |
 |---|---|---|
-| `ppp` | v1.0 | Per-axis prismatic P-control |
 | `dubins` | v1.1 | ARCO Pure Pursuit + DubinsVehicle |
 | `rrp` / `scara` | v1.3 | Jacobian pseudoinverse (bootstrap exists) |
 | `six_dof` | v1.4 | Jacobian + numerical IK (planned) |
@@ -276,7 +213,7 @@ Robot details: [docs/robots/README.md](docs/robots/README.md).
 | Owner | Responsibility |
 |---|---|
 | **ARCO** | KDTree occupancy, RRT* / SST, trajectory pruner, Dubins vehicle + Pure Pursuit |
-| **FRET** | Scene acquisition, per-robot kinematics, grasp FSM, ROS I/O, MJCF worlds, E2E runners |
+| **FRET** | Scene acquisition, per-robot kinematics, ROS I/O, MJCF worlds, E2E runners |
 
 See [docs/arco.md](docs/arco.md) for integration notes.
 
@@ -324,12 +261,6 @@ python3 -m pytest tests/ --ignore=tests/integration \
   -p no:launch_testing -p no:launch_ros -q
 ```
 
-**PPP E2E only:**
-
-```bash
-python3 -m pytest tests/integration/test_scenario_ppp_warehouse.py -v
-```
-
 **Dubins race E2E only:**
 
 ```bash
@@ -344,14 +275,14 @@ prints `missing arguments` and `--help`. With `.venv` activated:
 ```bash
 source .venv/bin/activate
 pip install -e ".[sim]"
-./scripts/view.sh --model ppp --scenario ppp_warehouse \
+./scripts/view.sh --model dubins --scenario dubins_race \
   --duration 30 --fps 60 --camera overview
 ```
 
 Headless MJCF check (CI-friendly):
 
 ```bash
-python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
+python3 scripts/view_mujoco.py --model dubins --scenario dubins_race \
   --duration 30 --fps 60 --camera overview --dry-run
 ```
 
@@ -360,27 +291,13 @@ python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \
 Renders MP4 clips using the same planners and controllers as release CI. With
 `.venv` activated:
 
-**PPP warehouse** — pick, cruise over obstacles, place (magnetic grasp visuals):
+**Dubins race** — dual-agent RRT* vs SST with overview + split-screen follow:
 
 ```bash
 source .venv/bin/activate
 pip install -e ".[sim]"
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl   # headless Linux / CI
 
-./scripts/video.sh \
-  --model ppp \
-  --scenario ppp_warehouse \
-  --collision-backend mujoco \
-  --planner-algorithm rrt_star \
-  --full-duration \
-  --all-cameras \
-  --output-dir /tmp/fret_ppp \
-  --fps 30 --width 1280 --height 720
-```
-
-**Dubins race** — dual-agent RRT* vs SST with overview + split-screen follow:
-
-```bash
 ./scripts/video.sh \
   --model dubins \
   --scenario dubins_race \
@@ -395,9 +312,6 @@ export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl   # headless Linux / CI
 Single-camera Python API:
 
 ```bash
-python3 scripts/render_mujoco.py --model ppp --scenario ppp_warehouse \
-  --camera overview -o /tmp/ppp.mp4 --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 python3 scripts/render_mujoco.py --model dubins --scenario dubins_race \
   --camera overview -o /tmp/dubins.mp4 --fps 30 --width 1280 --height 720 \
   --collision-backend mujoco --planner-algorithm sst --full-duration
@@ -434,14 +348,11 @@ pip install -e ".[dev,sim]"
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-# PPP warehouse MuJoCo SITL (physics default from v1.2)
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
-
-# Dubins dual-agent race
+# Dubins dual-agent race (physics default from v1.2)
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 # Kinematic mirror (fast regression)
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=false
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=false
 ```
 
 Pre-push quality gate (matches CI; `.venv` must be active):
@@ -461,7 +372,6 @@ bash scripts/check/pre_push.sh
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |
-| PPP gantry | [docs/robots/ppp.md](docs/robots/ppp.md) |
 | Dubins race | [docs/robots/dubins.md](docs/robots/dubins.md) |
 | MuJoCo integration | [docs/mujoco.md](docs/mujoco.md) |
 | Simulation guide | [docs/simulation.md](docs/simulation.md) |
@@ -474,7 +384,7 @@ bash scripts/check/pre_push.sh
 
 | Topic | Document |
 |---|---|
-| Release specification (v1.0–v1.4) | [docs/releases.md](docs/releases.md) |
+| Release specification (v1.1–v1.4) | [docs/releases.md](docs/releases.md) |
 | Roadmap & milestones | [docs/roadmap.md](docs/roadmap.md) |
 | Contributing & V-cycle | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Coding guidelines | [docs/guidelines.md](docs/guidelines.md) |
@@ -495,7 +405,7 @@ bash scripts/check/pre_push.sh
 | `tests.yml` | Parallel: unit shards (4×), coverage gate, smoke, integration |
 | `formatting.yml` | Black, isort, clang-format |
 | `type_check.yml` | mypy strict |
-| `release.yml` | Parallel showcase renders (PPP + Dubins) + R2 publish on version tags |
+| `release.yml` | Dubins showcase renders + R2 publish on version tags |
 
 ---
 

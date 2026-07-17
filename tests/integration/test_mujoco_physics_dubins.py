@@ -8,7 +8,10 @@ from collections.abc import Iterator
 
 import pytest
 
-from fret.scenario.dubins_race_runner import DubinsRaceRunner, DubinsRaceRunResult
+from fret.scenario.dubins_race_runner import (
+    DubinsRaceRunner,
+    DubinsRaceRunResult,
+)
 
 _SCENARIO_PATH = (
     pathlib.Path(__file__).resolve().parents[2]

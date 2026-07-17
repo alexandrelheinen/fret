@@ -10,9 +10,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _VIEW_SCRIPT = _REPO_ROOT / "scripts" / "view_mujoco.py"
 _VIEW_CLI = [
     "--model",
-    "ppp",
+    "dubins",
     "--scenario",
-    "ppp_warehouse",
+    "dubins_race",
     "--duration",
     "30",
     "--fps",
@@ -33,7 +33,7 @@ def test_dry_run_exits_zero() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "dry-run ok" in result.stdout
-    assert "ppp_warehouse" in result.stdout or "frames=" in result.stdout
+    assert "dubins_race" in result.stdout or "frames=" in result.stdout
 
 
 def test_view_cli_requires_explicit_args() -> None:

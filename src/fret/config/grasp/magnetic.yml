@@ -1,6 +1,0 @@
-# Default magnetic grasp parameters (SCARA / generic docs baseline).
-
-capture_radius: 0.3
-goal_radius: 0.5
-weld_offset: [0.0, 0.0, 0.25]
-box_half_extent: 0.25

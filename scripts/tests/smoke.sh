@@ -89,7 +89,7 @@ echo "=== ROS 2 launch smoke tests ==="
 
 # MuJoCo viewer dry-run (no ROS, no display required).
 run_smoke_test "mujoco_view_dry_run" -- python3 scripts/view_mujoco.py \
-    --model ppp --scenario ppp_warehouse --duration 30 --fps 60 \
+    --model dubins --scenario dubins_race --duration 30 --fps 60 \
     --camera overview --dry-run \
     || FAILED=1
 
@@ -102,19 +102,6 @@ else
     fail "showcase_release_cli: FAILED"
     FAILED=1
 fi
-
-# v1.0 V10-1: PPP warehouse MuJoCo SITL.
-run_smoke_test "sitl_ppp_warehouse_mujoco" 30 -- \
-    env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
-    xvfb-run -a ros2 launch fret sitl.py \
-    scenario:=ppp_warehouse model:=ppp backend:=mujoco \
-    || FAILED=1
-
-run_smoke_test "sitl_ppp_warehouse_physics" 30 -- \
-    env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \
-    xvfb-run -a ros2 launch fret sitl.py \
-    scenario:=ppp_warehouse model:=ppp backend:=mujoco physics_mode:=true \
-    || FAILED=1
 
 run_smoke_test "sitl_dubins_race_physics" 30 -- \
     env MUJOCO_GL=egl PYOPENGL_PLATFORM=egl \

@@ -6,7 +6,7 @@ Scenarios are defined in `src/fret/config/scenarios/` and launched via:
 ros2 launch fret sitl.py scenario:=<name> model:=<model>
 ```
 
-**Release scenarios** (product targets): SC-v10 – SC-v14.
+**Release scenarios** (product targets): SC-v11 – SC-v14.
 **Regression scenarios** (bootstrap SCARA): SC-01 – SC-05.
 
 Full release spec: [releases.md](releases.md).
@@ -14,28 +14,6 @@ Full release spec: [releases.md](releases.md).
 ---
 
 ## Release scenarios
-
-### SC-v10 — PPP warehouse pick-and-place (v1.0)
-
-**File:** `config/scenarios/ppp_warehouse.yml`  
-**Model:** `ppp`
-
-**Purpose:** Gantry moves a cargo box from start to goal through warehouse box obstacles
-using magnetic grasp.
-
-| Parameter | Value |
-|---|---|
-| Workspace | 12 × 4 × 3 m (1:5 MJCF preview; full ARCO layout in `ppp_warehouse_obstacles.yml`) |
-| Obstacles | Static boxes + shelf racks (ARCO `ppp.yml` preview layout) |
-| Grasp | Magnetic weld |
-| Planner | ARCO RRT* (MuJoCo collision contacts) |
-| Collision | `collision_backend:=mujoco`, `plan_include_cargo:=true` |
-| Timeout | 30 s |
-| Sim mode | Physics SITL (v1.2 default); kinematic mirror via `physics_mode:=false` |
-
-**Pass criteria:** See [releases.md § v1.0](releases.md#v10--ppp-gantry-warehouse-pick-and-place).
-
----
 
 ### SC-v11 — Dubins dual race (v1.1)
 
@@ -62,10 +40,11 @@ Robot details: [robots/dubins.md](robots/dubins.md).
 
 ### SC-v12 — MuJoCo physics validation (v1.2)
 
-**Scenarios:** SC-v10 + SC-v11 with `physics_mode:=true`
+**Scenarios:** SC-v11 with `physics_mode:=true`
 
-**Purpose:** Validate actuator-driven SITL with contact dynamics for all shipped
-robots. No new scenario YAML — physics mode is a parameter on existing scenarios.
+**Purpose:** Validate actuator-driven SITL with contact dynamics for the shipped
+Dubins showcase. No new scenario YAML — physics mode is a parameter on the
+existing scenario.
 
 **Pass criteria:** See [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
 
@@ -76,16 +55,15 @@ Config: [config.md § Simulation](config.md#simulation-physics-v12).
 
 ### SC-v12u — Unit robot physics sandboxes (foundation)
 
-**Assets:** `mjcf/ppp_unit.xml`, `mjcf/diffdrive_unit.xml`  
-**API:** `fret.simulation.PPPUnitRobot`, `fret.simulation.DiffDriveUnitRobot`  
+**Assets:** `mjcf/diffdrive_unit.xml`  
+**API:** `fret.simulation.DiffDriveUnitRobot`  
 **Requirement:** FR-SIM-11
 
 **Purpose:** Prove foundational physical robots work under pure MuJoCo physics
-with open-loop commands — before warehouse/race orchestration.
+with open-loop commands — before race orchestration.
 
 | Robot | Commands | Pass criteria |
 |---|---|---|
-| PPP unit | `(vx, vy, vz)` | ±X/±Y/±Z displace within 15% of commanded distance over 1 s; zero command holds Z within 2 cm for 2 s |
 | Diff-drive unit | `(v, ω)` → wheel speeds | Forward travel; spin-in-place with translation ≤ 5 cm over 2 s; constant `(v, ω)` produces sustained yaw change (arc) |
 
 **CI policy:** optional / local (`tests/simulation/test_*_robot_unit.py`); not required
@@ -151,7 +129,7 @@ loaded by launch, runners, and tests.
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
 | `scenario_id` | string | yes | Stable identifier (matches filename stem) |
-| `model` | string | yes* | Robot model (`ppp`, `dubins`, `scara`, …) |
+| `model` | string | yes* | Robot model (`dubins`, `scara`, …) |
 | `backend` | string | no | Simulator backend (`mujoco` for release scenarios) |
 | `start_configuration` | float[] | yes† | Start joint / SE(2) state |
 | `goal_configuration` | float[] | yes† | Goal joint / SE(2) state |
@@ -165,44 +143,6 @@ loaded by launch, runners, and tests.
 
 † Some regression scenarios use `goal_position` + IK instead of explicit
 `start_configuration` (see `static_reach.yml`).
-
-### PPP warehouse (`ppp_warehouse.yml`)
-
-```yaml
-/**:
-  ros__parameters:
-    scenario_id: "ppp_warehouse"
-    model: "ppp"
-    backend: "mujoco"
-
-    start_configuration: [2.0, 1.0, 2.4]
-    goal_configuration: [10.5, 1.2, 0.59]
-
-    planning_timeout: 30.0
-    duration: 60.0
-
-    collision_backend: analytic      # analytic | mujoco
-    planner_algorithm: rrt_star
-    plan_include_cargo: true
-
-    physics_mode: false              # true for SC-v12
-
-    grasp:
-      capture_radius: 0.45
-      goal_radius: 0.5
-      weld_offset: [0.0, 0.0, -0.34]
-      box_half_extent: 0.25
-
-    recording:
-      enabled: true
-      topics:
-        - /joint_states
-        - /joint_commands
-        - /joint_trajectory
-```
-
-Grasp keys must match [mujoco_physics_v1.2.md §2](mujoco_physics_v1.2.md#2-cargo-weld-physics-ppp)
-for physics weld `relpose`.
 
 ### Dubins race (`dubins_race.yml`)
 
@@ -263,7 +203,7 @@ Obstacle layout and Dubins vehicle margins: `config/worlds/dubins_race_obstacles
 
 ### v1.2 physics overlay (SC-v12)
 
-No separate scenario file. Enable physics on existing release scenarios:
+No separate scenario file. Enable physics on the release scenario:
 
 ```yaml
     physics_mode: true
@@ -281,14 +221,11 @@ Full simulation parameter schema: [config.md](config.md#simulation-physics-v12).
 ```bash
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-# v1.0 PPP warehouse
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
-
 # v1.1 Dubins race
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
-# v1.2 physics mode (when implemented)
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp physics_mode:=true
+# v1.2 physics mode
+ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
 ```
 
 Pure-Python regression (no ROS):

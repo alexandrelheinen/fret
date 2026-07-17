@@ -5,7 +5,6 @@
 #   upload_scenario_r2.sh <scenario_prefix> <latest_alias_basename>
 #
 # Example:
-#   upload_scenario_r2.sh ppp_warehouse ppp_warehouse.mp4
 #   upload_scenario_r2.sh dubins_race dubins_race.mp4
 #
 # Requires: awscli, R2_ENDPOINT, R2_BUCKET, AWS_ACCESS_KEY_ID,

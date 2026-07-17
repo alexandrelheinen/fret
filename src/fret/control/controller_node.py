@@ -346,7 +346,6 @@ class ControllerRosNode:  # pragma: no cover
             model=model, config_path=config_path
         )
         self._model = model
-        self._is_ppp = model == "ppp"
         self._kinematics = Kinematics(model=model)
         self._state_estimator = StateEstimator(
             node=self,
@@ -488,10 +487,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     model = loader.get_parameter("model").get_parameter_value().string_value
     loader.destroy_node()
 
-    if model == "ppp":
-        config_path = str(controllers_dir / "ppp.yml")
-    else:
-        config_path = str(controllers_dir)
+    config_path = str(controllers_dir)
 
     node = _make_controller_ros_node(model=model, config_path=config_path)
     try:
@@ -510,24 +506,19 @@ def make_controller_node(
 ) -> ControllerNode | Any:
     """Build a model-appropriate Level-3 controller (FR-SYS-01).
 
-    Dispatches to ``PPPControllerNode`` for the PPP gantry and the legacy
-    Jacobian ``ControllerNode`` for SCARA / RRP models.
+    Dispatches to the Jacobian ``ControllerNode`` for SCARA / RRP models.
 
     Args:
-        model: Robot model name (``"ppp"`` or ``"scara"``).
+        model: Robot model name (``"scara"``).
         config_path: Path to controller YAML or the controllers directory.
 
     Returns:
-        ``PPPControllerNode`` or ``ControllerNode`` instance.
+        ``ControllerNode`` instance.
 
     Raises:
         ValueError: If ``model`` is not recognised.
     """
     path = str(config_path)
-    if model == "ppp":
-        from fret.control.controller_ppp import PPPControllerNode
-
-        return PPPControllerNode(path)
     if model == "scara":
         return ControllerNode(model=model, config_path=path)
     raise ValueError(f"Unknown controller model: {model!r}")
@@ -535,17 +526,11 @@ def make_controller_node(
 
 def controller_update_rate_hz(logic: Any, model: str) -> float:
     """Return the active controller update rate [Hz]."""
-    if model == "ppp":
-        return float(logic.update_rate)
     return float(logic._update_rate)
 
 
 def controller_is_halted(logic: Any, model: str) -> bool:
     """Return ``True`` when the controller logic core is in ``HALTED``."""
-    if model == "ppp":
-        from fret.control.controller_ppp import PPPControllerState
-
-        return bool(logic.state == PPPControllerState.HALTED)
     return bool(logic._state == _NodeState.HALTED)
 
 
@@ -555,15 +540,7 @@ def compute_tracking_command(
     kinematics: Kinematics,
     current_positions: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
-    """Dispatch to Jacobian or PPP prismatic tracking."""
-    if model == "ppp":
-        return cast(
-            npt.NDArray[np.float64],
-            np.asarray(
-                logic.compute_prismatic_command(kinematics, current_positions),
-                dtype=np.float64,
-            ),
-        )
+    """Dispatch Jacobian tracking for the active controller model."""
     return cast(
         npt.NDArray[np.float64],
         np.asarray(

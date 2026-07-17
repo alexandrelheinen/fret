@@ -13,32 +13,36 @@ from __future__ import annotations
 
 import numpy as np
 
-from fret.ros.mujoco_bridge import make_mujoco_bridge_core
+from fret.ros.mujoco_bridge import make_dubins_race_bridge_core
 
 
 def main() -> None:
-    """Step the PPP MuJoCo bridge with a simple pick-like motion."""
-    core = make_mujoco_bridge_core("ppp", "ppp_warehouse")
+    """Step the Dubins race MuJoCo bridge with a short SE(2) motion."""
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([6.0, 6.0, 0.0]),
+        initial_sst=np.array([6.0, 6.4, 0.0]),
+        initial_dummy=np.array([6.0, 5.6, 0.0]),
+    )
     print("MuJoCo bridge core demo (T10-03)")
     print(f"  mjcf: {core.mjcf_path.name}")
     print(f"  mujoco runtime: {core.has_mujoco_runtime}")
-    print(f"  joints: {core.joint_names}")
-    print(f"  start q: {core.get_positions().round(3)}")
+    print(f"  start rrt: {core.get_rrt_pose().round(3)}")
+    print(f"  start sst: {core.get_sst_pose().round(3)}")
 
-    dt = 0.02
-    segments = [
-        ("lower Z", np.array([0.0, 0.0, -0.5])),
-        ("raise Z", np.array([0.0, 0.0, 0.5])),
-        ("traverse +X", np.array([0.8, 0.0, 0.0])),
-        ("traverse +Y", np.array([0.0, 0.4, 0.0])),
-        ("stop", np.array([0.0, 0.0, 0.0])),
+    poses = [
+        ("advance RRT +X", (8.0, 6.0, 0.0), (6.0, 6.4, 0.0)),
+        ("advance SST +X", (8.0, 6.0, 0.0), (8.0, 6.4, 0.0)),
+        ("yaw RRT", (8.0, 6.0, 0.5), (8.0, 6.4, 0.0)),
     ]
 
-    for label, cmd in segments:
-        for _ in range(25):
-            core.step(cmd, dt)
-        q = core.get_positions()
-        print(f"  {label:12s} cmd={cmd} -> q={q.round(3)}")
+    for label, rrt, sst in poses:
+        core.set_rrt_pose(rrt)
+        core.set_sst_pose(sst)
+        print(
+            f"  {label:16s} "
+            f"rrt={core.get_rrt_pose().round(3)} "
+            f"sst={core.get_sst_pose().round(3)}"
+        )
 
     print("Done.")
 

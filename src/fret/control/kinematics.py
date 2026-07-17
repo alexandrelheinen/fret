@@ -3,7 +3,6 @@
 Dispatches to model-specific engines:
 
 - ``"scara"`` — SCARA RRP (bootstrap, v0.9)
-- ``"ppp"`` — PPP gantry (v1.0)
 - ``"dubins"`` — Dubins mobile (v1.1)
 
 Satisfies requirements FR-SYS-01, FR-CTL-02, and FR-PLN-02.
@@ -18,7 +17,6 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.kinematics_dubins import DubinsKinematics
-from fret.control.kinematics_ppp import PPPKinematics
 
 # ---------------------------------------------------------------------------
 # SCARA model constants (source: src/fret/urdf/scara.xacro)
@@ -304,7 +302,7 @@ class _ScaraKinematics:
         )
 
 
-_SUPPORTED_MODELS: frozenset[str] = frozenset({"scara", "ppp", "dubins"})
+_SUPPORTED_MODELS: frozenset[str] = frozenset({"scara", "dubins"})
 
 
 class Kinematics:
@@ -315,7 +313,7 @@ class Kinematics:
     redundant computation.
 
     Args:
-        model: Robot model name — ``"scara"``, ``"ppp"``, or ``"dubins"``.
+        model: Robot model name — ``"scara"`` or ``"dubins"``.
 
     Raises:
         ValueError: If ``model`` is not supported.
@@ -329,8 +327,6 @@ class Kinematics:
             )
         if model == "scara":
             self._impl: _KinematicsBackend = _ScaraKinematics()
-        elif model == "ppp":
-            self._impl = PPPKinematics()
         else:
             self._impl = DubinsKinematics()
 

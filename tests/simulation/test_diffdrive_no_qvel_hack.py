@@ -17,6 +17,7 @@ def test_diffdrive_unit_module_does_not_bind_race_hack() -> None:
     assert "dubins_wheel_model" not in diffdrive_unit.__dict__
     hack_name = race_hack.enforce_slide_yaw_nonholonomic_qvel.__name__
     assert hack_name not in diffdrive_unit.__dict__
-    assert race_hack.enforce_slide_yaw_nonholonomic_qvel not in vars(
-        diffdrive_unit
-    ).values()
+    assert (
+        race_hack.enforce_slide_yaw_nonholonomic_qvel
+        not in vars(diffdrive_unit).values()
+    )

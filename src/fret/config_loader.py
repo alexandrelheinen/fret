@@ -159,8 +159,6 @@ def resolve_obstacle_file(planning: dict[str, Any]) -> pathlib.Path:
 
 def planning_config_for_model(model: str) -> str:
     """Return the default planning config relative path for a robot model."""
-    if model == "ppp":
-        return "planning/ppp.yml"
     if model == "dubins":
         return "planning/dubins.yml"
     return "planning/scara.yml"

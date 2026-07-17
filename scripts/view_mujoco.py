@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Interactive MuJoCo 3D viewer for FRET showcase scenarios.
 
-Opens a live MuJoCo window and animates the PPP gantry along the warehouse
-preview path.  No ROS runtime required.
+Opens a live MuJoCo window for the Dubins race scene.  No ROS runtime
+required.
 
 Example::
 
-    ./scripts/view.sh --model ppp --scenario ppp_warehouse \\
+    ./scripts/view.sh --model dubins --scenario dubins_race \\
         --duration 30 --fps 60 --camera overview
-    python3 scripts/view_mujoco.py --model ppp --scenario ppp_warehouse \\
+    python3 scripts/view_mujoco.py --model dubins --scenario dubins_race \\
         --duration 30 --fps 60 --camera overview --dry-run
 
 Dependencies::
@@ -26,15 +26,14 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-# Reuse MJCF resolution and trajectory helpers from the headless renderer.
+# Reuse MJCF resolution helpers from the headless renderer.
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from render_mujoco import (  # noqa: E402
-    _PPP_WAREHOUSE_WAYPOINTS,
-    _set_slide_joint,
-    interpolate_waypoints,
+    _DUBINS_JOINT_NAMES,
+    _apply_dubins_poses,
     resolve_mjcf_path,
 )
 
@@ -51,23 +50,56 @@ def _require_mujoco() -> object:
     return mujoco
 
 
+def _static_dubins_poses(
+    duration_s: float,
+    fps: int,
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+]:
+    """Build a short linear Dubins demo for interactive viewing."""
+    n_frames = max(2, int(round(duration_s * fps)))
+    t = np.linspace(0.0, 1.0, n_frames)
+    rrt = np.column_stack(
+        [
+            6.0 + 20.0 * t,
+            np.full(n_frames, 6.0),
+            np.zeros(n_frames),
+        ]
+    ).astype(np.float64)
+    sst = np.column_stack(
+        [
+            6.0 + 18.0 * t,
+            np.full(n_frames, 6.4),
+            np.zeros(n_frames),
+        ]
+    ).astype(np.float64)
+    dummy = np.column_stack(
+        [
+            6.0 + 16.0 * t,
+            np.full(n_frames, 5.6),
+            np.zeros(n_frames),
+        ]
+    ).astype(np.float64)
+    return rrt, sst, dummy
+
+
 def run_interactive_viewer(
     mjcf_path: Path,
     *,
     duration_s: float = 30.0,
     fps: int = 60,
     camera: str = "overview",
-    waypoints: list[npt.NDArray[np.float64]] | None = None,
     loop: bool = True,
 ) -> None:
-    """Open a passive MuJoCo viewer and animate joint positions.
+    """Open a passive MuJoCo viewer and animate Dubins race poses.
 
     Args:
         mjcf_path: Path to the MJCF scene file.
         duration_s: One animation cycle length [s].
         fps: Playback frame rate.
         camera: Named MJCF camera (used by the viewer default pose).
-        waypoints: Optional joint-space path; defaults to warehouse demo.
         loop: When True, restart the trajectory after each cycle.
     """
     mujoco = _require_mujoco()
@@ -79,14 +111,9 @@ def run_interactive_viewer(
             "Upgrade with: pip install -U mujoco"
         ) from exc
 
-    path_waypoints = (
-        waypoints if waypoints is not None else _PPP_WAREHOUSE_WAYPOINTS
-    )
-    trajectory = interpolate_waypoints(path_waypoints, duration_s, fps)
-
+    rrt_poses, sst_poses, dummy_poses = _static_dubins_poses(duration_s, fps)
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
-    joint_names = ("joint_x", "joint_y", "joint_z")
     dt = 1.0 / fps
 
     frame_idx = 0
@@ -98,14 +125,18 @@ def run_interactive_viewer(
 
         while viewer.is_running():
             step_start = time.monotonic()
-            q = trajectory[frame_idx]
-            for idx, name in enumerate(joint_names):
-                _set_slide_joint(mujoco, model, data, name, float(q[idx]))
-            mujoco.mj_forward(model, data)
+            _apply_dubins_poses(
+                mujoco,
+                model,
+                data,
+                rrt_poses[frame_idx],
+                sst_poses[frame_idx],
+                dummy_poses[frame_idx],
+            )
             viewer.sync()
 
             frame_idx += 1
-            if frame_idx >= len(trajectory):
+            if frame_idx >= len(rrt_poses):
                 if loop:
                     frame_idx = 0
                 else:
@@ -137,12 +168,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         required=True,
-        help="Robot model name (e.g. ppp, dubins)",
+        help="Robot model name (e.g. dubins)",
     )
     parser.add_argument(
         "--scenario",
         required=True,
-        help="Scenario stem (e.g. ppp_warehouse, dubins_race)",
+        help="Scenario stem (e.g. dubins_race)",
     )
     parser.add_argument(
         "--mjcf",
@@ -201,12 +232,12 @@ def main(argv: list[str] | None = None) -> int:
     mjcf_path = resolve_mjcf_path(args.model, args.scenario, args.mjcf)
 
     if args.dry_run:
-        trajectory = interpolate_waypoints(
-            _PPP_WAREHOUSE_WAYPOINTS, args.duration, args.fps
-        )
+        rrt_poses, _, _ = _static_dubins_poses(args.duration, args.fps)
+        # Touch joint-name table so dry-run exercises Dubins helpers.
+        assert len(_DUBINS_JOINT_NAMES) == 3
         print(
             f"dry-run ok: mjcf={mjcf_path.name} "
-            f"frames={len(trajectory)} duration={args.duration}s"
+            f"frames={len(rrt_poses)} duration={args.duration}s"
         )
         return 0
 

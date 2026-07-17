@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+from fret.config_loader import load_algorithm_config
 from fret.interfaces import (
     ErrorCode,
     OccupancyUpdatePayload,
@@ -24,7 +25,6 @@ from fret.interfaces import (
     PlanningResult,
     PlanningStatus,
 )
-from fret.config_loader import load_algorithm_config
 from fret.planning.replanning_manager import (
     ManagerState,
     ReplanningManager,
@@ -314,7 +314,9 @@ def test_max_replan_attempts_halts() -> None:
     mgr = ReplanningManager(
         planner_node=_make_planner(success=True),
         trajectory_converter=_make_converter(),
-        config=_replanning_config(max_replan_attempts=2, min_replan_interval=0.0),
+        config=_replanning_config(
+            max_replan_attempts=2, min_replan_interval=0.0
+        ),
     )
     mgr.start_execution(_make_request())
     # Burn through all attempts.

@@ -49,4 +49,6 @@ def test_max_lateral_speed_forward_motion_is_low() -> None:
         ],
         dtype=np.float64,
     )
-    assert max_body_lateral_speed_m_s(poses, dt=0.05) == pytest.approx(0.0, abs=1e-12)
+    assert max_body_lateral_speed_m_s(poses, dt=0.05) == pytest.approx(
+        0.0, abs=1e-12
+    )

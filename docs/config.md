@@ -35,7 +35,7 @@ Launch and scenario values merge into `MuJoCoBridgeNode` parameters at startup.
 
 | Value | Behaviour |
 | --- | --- |
-| `false` | Kinematic mirror (v1.0–v1.1): Python integration → `qpos` write → `mj_forward` |
+| `false` | Kinematic mirror (v1.1): Python integration → `qpos` write → `mj_forward` |
 | `true` | Physics SITL (v1.2): `/joint_commands` → actuators → `mj_step` → `/joint_states` from sim |
 
 Declared in:
@@ -43,7 +43,7 @@ Declared in:
 - **Launch:** `ros2 launch fret sitl.py … physics_mode:=true`
 - **Scenario:** `physics_mode: true` in `config/scenarios/<name>.yml`
 
-Satisfies FR-SIM-09. SC-v12 runs SC-v10 and SC-v11 scenarios with
+Satisfies FR-SIM-09. SC-v12 runs the SC-v11 Dubins scenario with
 `physics_mode: true`.
 
 ### `config/simulation/mujoco.yml` schema (v1.2 target)
@@ -54,11 +54,11 @@ Consumed by `MuJoCoBridgeNode` / `MuJoCoBridgeCore`. All fields required when
 ```yaml
 /**:
   ros__parameters:
-    # Identity (v1.0)
-    model: ppp
-    scenario: ppp_warehouse
+    # Identity
+    model: dubins
+    scenario: dubins_race
     update_rate: 50.0
-    initial_joint_positions: [0.0, 0.0, 0.0]
+    initial_joint_positions: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     collision_backend: mujoco
 
     # v1.2 physics
@@ -73,21 +73,11 @@ Consumed by `MuJoCoBridgeNode` / `MuJoCoBridgeCore`. All fields required when
 
     # Per-model actuator tables (one block active per model)
     actuators:
-      ppp:
-        names: [act_joint_x, act_joint_y, act_joint_z]
-        kv: [120.0, 120.0, 180.0]
-        forcerange: [[-5000, 5000], [-5000, 5000], [-8000, 8000]]
       dubins:
         names: [act_rrt_x, act_rrt_y, act_rrt_yaw, act_sst_x, act_sst_y, act_sst_yaw]
         kv: [80.0, 80.0, 40.0, 80.0, 80.0, 40.0]
         forcerange: [[-2000, 2000], [-2000, 2000], [-500, 500],
                      [-2000, 2000], [-2000, 2000], [-500, 500]]
-
-    # PPP cargo weld (T12-04)
-    cargo_weld:
-      equality_name: cargo_weld
-      body_parent: z_hoist
-      body_child: cargo
 ```
 
 **MJCF vs YAML rule:** XML declares actuator *existence* and joint binding with
@@ -101,8 +91,8 @@ Add to release scenarios when enabling SC-v12:
 ```yaml
 /**:
   ros__parameters:
-    scenario_id: "ppp_warehouse"
-    model: "ppp"
+    scenario_id: "dubins_race"
+    model: "dubins"
     backend: "mujoco"
 
     physics_mode: false            # set true for SC-v12 / physics SITL
@@ -113,19 +103,19 @@ Add to release scenarios when enabling SC-v12:
     simulation_config: simulation/mujoco.yml   # bridge parameter file
 ```
 
-Existing v1.0/v1.1 fields (`start_configuration`, `planning_timeout`, `grasp`,
+Existing v1.1 fields (`start_configuration`, `planning_timeout`,
 `recording`, …) are unchanged. See [scenarios.md](scenarios.md) for the full
 schema.
 
 ### Controller configs (unchanged)
 
-PPP and Dubins closed-loop gains remain in `config/controllers/ppp.yml` and
-`config/controllers/dubins.yml`. Physics mode does **not** duplicate controller
-gains — it only adds actuator execution layer tuning in `simulation/mujoco.yml`.
+Dubins closed-loop gains remain in `config/controllers/dubins.yml`. Physics
+mode does **not** duplicate controller gains — it only adds actuator execution
+layer tuning in `simulation/mujoco.yml`.
 
 ### Tuning workflow
 
-1. Run kinematic baseline; record EE / pose error from existing tests.
+1. Run kinematic baseline; record pose error from existing tests.
 2. Set `physics_mode: true`; start with default `kv` values above.
 3. Increase `kv` until tracking error meets FR-CTL-02 limits without actuator saturation.
 4. Inspect contact log (§4 in [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)).

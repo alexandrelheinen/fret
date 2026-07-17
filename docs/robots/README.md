@@ -4,7 +4,6 @@ Each FRET release targets one robot class. Models are selectable via `model:=` a
 
 | Model | Release | Doc | Status |
 |---|---|---|---|
-| `ppp` | v1.0 | [ppp.md](ppp.md) | ✅ Shipped |
 | `dubins` | v1.1 | [dubins.md](dubins.md) | ✅ Shipped |
 | `rrp` / `scara` | v1.3 | [rrp.md](rrp.md) | 🟡 Bootstrap exists |
 | `six_dof` | v1.4 | [six_dof.md](six_dof.md) | 🔲 Planned |
@@ -14,6 +13,6 @@ as the foundation for v1.3.
 
 All robots run on **MuJoCo** for physics, rendering, and SITL. See [mujoco.md](../mujoco.md).
 
-Unit physics sandboxes (no warehouse/race): `ppp_unit`, `diffdrive_unit` via
-`fret.simulation` (FR-SIM-11). External MJCF sources and reuse policy:
+Unit physics sandboxes (no race): `diffdrive_unit` via `fret.simulation` (FR-SIM-11).
+External MJCF sources and reuse policy:
 [mujoco_models_benchmark.md](../mujoco_models_benchmark.md).

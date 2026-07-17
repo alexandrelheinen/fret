@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render a headless MuJoCo MP4 for FRET showcase scenarios (PPP v1.0, Dubins v1.1).
+# Render a headless MuJoCo MP4 for FRET showcase scenarios (Dubins v1.1).
 #
 # Thin wrapper around scripts/render_mujoco.py.  Requires optional deps:
 #   pip install mujoco imageio imageio-ffmpeg
@@ -7,10 +7,10 @@
 # All showcase parameters must be passed explicitly (no defaults).
 #
 # Examples:
-#   ./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
-#       -o /tmp/v10.mp4 --fps 30 --width 1280 --height 720 \
+#   ./scripts/video.sh --model dubins --scenario dubins_race --camera overview \
+#       -o /tmp/v11.mp4 --fps 30 --width 1280 --height 720 \
 #       --collision-backend mujoco --planner-algorithm rrt_star --full-duration
-#   ./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \
+#   ./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
 #       --output-dir /tmp/showcase --fps 30 --width 1280 --height 720 \
 #       --collision-backend mujoco --planner-algorithm rrt_star --full-duration
 #

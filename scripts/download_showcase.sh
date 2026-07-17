@@ -39,7 +39,7 @@ Options:
   --latest              Download from latest/ (default)
   --tag VERSION         Download from releases/VERSION/
   --list                List available MP4 objects and exit
-  --scenario NAME       Filter by scenario prefix (e.g. ppp_warehouse, dubins_race)
+  --scenario NAME       Filter by scenario prefix (e.g. dubins_race)
   --camera NAME         POV clip: overview or follow (default: overview)
   --all                 Download every MP4 in the prefix (optionally filtered)
   -o PATH               Output file path (single download) or directory (--all)
@@ -97,7 +97,6 @@ download_object() {
 legacy_primary_object() {
   local scenario="$1"
   case "${scenario}" in
-    ppp_warehouse) echo "ppp_warehouse.mp4" ;;
     dubins_race) echo "dubins_race.mp4" ;;
     *)
       fail "Unknown scenario: ${scenario}"
@@ -270,7 +269,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --scenario)
-      SCENARIO="${2:?--scenario requires a scenario name such as ppp_warehouse}"
+      SCENARIO="${2:?--scenario requires a scenario name such as dubins_race}"
       SCENARIO_EXPLICIT=1
       shift 2
       ;;
@@ -313,7 +312,7 @@ if [[ "${MODE}" == "tag" ]]; then
 fi
 
 if [[ -z "${SCENARIO}" ]]; then
-  SCENARIO="ppp_warehouse"
+  SCENARIO="dubins_race"
 fi
 
 if [[ "${LIST_ONLY}" -eq 1 ]]; then

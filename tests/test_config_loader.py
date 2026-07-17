@@ -15,14 +15,13 @@ from fret.config_loader import (
 
 
 def test_planning_config_for_model() -> None:
-    assert planning_config_for_model("ppp") == "planning/ppp.yml"
     assert planning_config_for_model("dubins") == "planning/dubins.yml"
     assert planning_config_for_model("scara") == "planning/scara.yml"
 
 
-def test_load_ppp_planning_contact_radius() -> None:
-    cfg = load_algorithm_config("planning/ppp.yml")
-    assert cfg["contact_radius"] == pytest.approx(0.015)
+def test_load_dubins_planning_config() -> None:
+    cfg = load_algorithm_config("planning/dubins.yml")
+    assert "obstacle_file" in cfg
 
 
 def test_scenario_bundle_resolves_obstacle_file() -> None:

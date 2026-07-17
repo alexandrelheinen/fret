@@ -1,17 +1,10 @@
 # MuJoCo physics SITL tables (v1.2) — loaded by Python only, not as ROS params.
 #
 # Consumed by: MuJoCoBridgeCore / DubinsRaceBridgeCore via mujoco_bridge.py
-#
-# PPP kv values pair with joint damping in mjcf/ppp_warehouse.xml (12/12/18 N·s/m).
-# Steady-state slide speed ≈ kv / (kv + damping) × ctrl [m/s].
 
 /**:
   ros__parameters:
     actuators:
-      ppp:
-        names: [act_joint_x, act_joint_y, act_joint_z]
-        kv: [140.0, 140.0, 3200.0]
-        forcerange: [[-5000, 5000], [-5000, 5000], [-35000, 35000]]
       dubins:
         names:
           - act_rrt_x
@@ -34,8 +27,3 @@
           - [-2800, 2800]
           - [-2800, 2800]
           - [-600, 600]
-
-    cargo_weld:
-      equality_name: cargo_weld
-      body_parent: z_hoist
-      body_child: cargo

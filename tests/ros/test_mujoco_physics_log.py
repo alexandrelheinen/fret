@@ -12,7 +12,7 @@ from fret.ros.mujoco_bridge import (
     _load_merged_bridge_config,
     _resolve_config_path,
     contact_log_config_from_bridge_yaml,
-    make_mujoco_bridge_core,
+    make_dubins_race_bridge_core,
     physics_config_from_bridge_yaml,
 )
 from fret.ros.mujoco_physics_log import (
@@ -27,7 +27,7 @@ def test_contact_log_config_from_yaml() -> None:
     cfg = _load_merged_bridge_config(_resolve_config_path(None))
     log_cfg = contact_log_config_from_bridge_yaml(
         cfg,
-        "ppp_warehouse",
+        "dubins_race",
         physics_mode=True,
         enabled=True,
     )
@@ -37,20 +37,18 @@ def test_contact_log_config_from_yaml() -> None:
 
 
 @pytest.mark.skipif(
-    not make_mujoco_bridge_core("ppp", "ppp_warehouse").has_mujoco_runtime,
+    not make_dubins_race_bridge_core().has_mujoco_runtime,
     reason="mujoco package not installed",
 )
 def test_physics_contact_logger_writes_jsonl(tmp_path: pathlib.Path) -> None:
     """Physics ticks with contacts should append JSONL and metrics."""
-    from fret.ros.mujoco_physics_log import ContactLogConfig
-
     cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
-    physics = physics_config_from_bridge_yaml(cfg, "ppp", physics_mode=True)
-    core = make_mujoco_bridge_core(
-        "ppp",
-        "ppp_warehouse",
+    physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([6.0, 6.0, 0.0]),
+        initial_sst=np.array([6.0, 6.4, 0.0]),
         physics_config=physics,
     )
     log_path = tmp_path / "contacts.jsonl"
@@ -60,16 +58,16 @@ def test_physics_contact_logger_writes_jsonl(tmp_path: pathlib.Path) -> None:
             enabled=True,
             log_path=log_path,
             metrics_path=metrics_path,
-            scenario_id="ppp_warehouse",
+            scenario_id="dubins_race",
             physics_mode=True,
         )
     )
-    core.step_physics(np.array([0.2, 0.0, 0.0]))
+    core.step_physics(np.array([0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
     written = core.finalize_physics_metrics(max_tracking_error_m=0.005)
     assert written == metrics_path
     assert metrics_path.is_file()
     payload = json.loads(metrics_path.read_text(encoding="utf-8"))
-    assert payload["scenario_id"] == "ppp_warehouse"
+    assert payload["scenario_id"] == "dubins_race"
     assert payload["physics_mode"] is True
     assert payload["max_tracking_error_m"] == pytest.approx(0.005)
 
@@ -127,4 +125,6 @@ def test_penetration_violation_requires_consecutive_ticks() -> None:
 def test_counts_as_penetration_ignores_floor_contact() -> None:
     """Floor contacts must not count as obstacle penetration."""
     assert _counts_as_penetration("rrt_collision", "floor", -0.01) is False
-    assert _counts_as_penetration("rrt_collision", "str_000_col", -0.002) is True
+    assert (
+        _counts_as_penetration("rrt_collision", "str_000_col", -0.002) is True
+    )

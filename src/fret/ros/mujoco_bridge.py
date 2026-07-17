@@ -20,30 +20,16 @@ from __future__ import annotations
 import os
 import pathlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from fret.control.dubins_wheel_model import enforce_slide_yaw_nonholonomic_qvel
-from fret.control.kinematics_ppp import PPPKinematics
 from fret.ros.mujoco_physics_log import (
     ContactLogConfig,
     PhysicsContactLogger,
     contact_log_config_from_bridge_yaml,
-)
-
-if TYPE_CHECKING:
-    from fret.control.grasp_magnet import MagneticGraspFSM
-
-# MJCF preview scale (1:5) limits for ppp_warehouse.xml.
-_PPP_MJCF_LIMITS: npt.NDArray[np.float64] = np.array(
-    [
-        [0.0, 12.0],
-        [0.0, 5.0],
-        [0.0, 3.0],
-    ],
-    dtype=np.float64,
 )
 
 # Dubins race workspace limits for dubins_race.xml.
@@ -93,34 +79,6 @@ class PhysicsBridgeConfig:
     physics_mode: bool
     substeps_per_tick: int
     actuators: ActuatorTable | None
-
-
-@dataclass(frozen=True)
-class CargoWeldConfig:
-    """PPP cargo equality-weld settings (v1.2, T12-04)."""
-
-    equality_name: str
-    body_parent: str
-    body_child: str
-
-
-def cargo_weld_config_from_bridge_yaml(cfg: dict[str, Any]) -> CargoWeldConfig:
-    """Build :class:`CargoWeldConfig` from merged bridge YAML."""
-    section = cfg.get("cargo_weld")
-    if not isinstance(section, dict):
-        raise ValueError("cargo_weld section missing from mujoco_physics.yml")
-    equality_name = str(section.get("equality_name", "")).strip()
-    body_parent = str(section.get("body_parent", "")).strip()
-    body_child = str(section.get("body_child", "")).strip()
-    if not equality_name or not body_parent or not body_child:
-        raise ValueError(
-            "cargo_weld requires equality_name, body_parent, and body_child"
-        )
-    return CargoWeldConfig(
-        equality_name=equality_name,
-        body_parent=body_parent,
-        body_child=body_child,
-    )
 
 
 def _parse_bool(value: Any) -> bool:
@@ -263,8 +221,8 @@ def resolve_mjcf_path(
     """Return the MJCF file path for a model/scenario pair.
 
     Args:
-        model: Robot model name (e.g. ``ppp``).
-        scenario: Scenario stem (e.g. ``ppp_warehouse``).
+        model: Robot model name (e.g. ``dubins``).
+        scenario: Scenario stem (e.g. ``dubins_race``).
         mjcf_override: Optional explicit MJCF path.
 
     Returns:
@@ -323,7 +281,7 @@ def make_mujoco_bridge_core(
     """Build a model-appropriate MuJoCo bridge core (FR-SYS-01).
 
     Args:
-        model: Robot model name (``ppp`` supported in v1.0).
+        model: Robot model name.
         scenario: Scenario stem used for MJCF resolution.
         mjcf_path: Optional explicit MJCF path override.
         initial_positions: Optional initial joint configuration.
@@ -335,27 +293,7 @@ def make_mujoco_bridge_core(
     Raises:
         ValueError: If ``model`` is not recognised.
     """
-    if model == "ppp":
-        kin = PPPKinematics()
-        resolved = resolve_mjcf_path(model, scenario, mjcf_path)
-        q0 = (
-            np.zeros(kin.dof, dtype=np.float64)
-            if initial_positions is None
-            else np.asarray(initial_positions, dtype=np.float64)
-        )
-        if q0.shape != (kin.dof,):
-            raise ValueError(f"initial_positions must have shape ({kin.dof},)")
-
-        core = MuJoCoBridgeCore(
-            mjcf_path=resolved,
-            joint_names=kin.joint_names,
-            limits=_PPP_MJCF_LIMITS,
-            initial_positions=q0,
-        )
-        if physics_config is not None:
-            core.configure_physics(physics_config)
-        return core
-
+    _ = (scenario, mjcf_path, initial_positions, physics_config)
     if model == "dubins":
         raise ValueError(
             "Use make_dubins_race_bridge_core() for the dual-agent dubins race."
@@ -401,12 +339,6 @@ class MuJoCoBridgeCore:
         self._data: Any | None = None
         self._qpos_adrs: list[int] = []
         self._qvel_adrs: list[int] = []
-        self._cargo_eq_id: int | None = None
-        self._cargo_qpos_adr: int | None = None
-        self._cargo_geom_id: int | None = None
-        self._cargo_geom_contype: int = 1
-        self._cargo_geom_conaffinity: int = 1
-        self._cargo_weld_active = False
         self._contact_logger: PhysicsContactLogger | None = None
         self._load_mujoco_optional()
         self._seed_mujoco_state()
@@ -434,131 +366,6 @@ class MuJoCoBridgeCore:
             config.actuators.names,
         )
         _apply_actuator_gains(self._model, config.actuators)
-
-    def configure_cargo_weld(self, config: CargoWeldConfig) -> None:
-        """Bind the PPP cargo equality weld for grasp physics (T12-04)."""
-        if self._model is None or self._mujoco is None or self._data is None:
-            raise RuntimeError(
-                "configure_cargo_weld requires the optional mujoco package"
-            )
-        eq_id = self._mujoco.mj_name2id(
-            self._model,
-            self._mujoco.mjtObj.mjOBJ_EQUALITY,
-            config.equality_name,
-        )
-        if eq_id < 0:
-            raise ValueError(
-                f"Equality constraint not found in MJCF: {config.equality_name}"
-            )
-        joint_id = self._mujoco.mj_name2id(
-            self._model,
-            self._mujoco.mjtObj.mjOBJ_JOINT,
-            "cargo_free",
-        )
-        if joint_id < 0:
-            raise ValueError("Cargo freejoint not found in MJCF: cargo_free")
-        geom_id = self._mujoco.mj_name2id(
-            self._model,
-            self._mujoco.mjtObj.mjOBJ_GEOM,
-            "cargo_box",
-        )
-        if geom_id < 0:
-            raise ValueError("Cargo geom not found in MJCF: cargo_box")
-        self._cargo_eq_id = int(eq_id)
-        self._cargo_qpos_adr = int(self._model.jnt_qposadr[joint_id])
-        self._cargo_geom_id = int(geom_id)
-        self._cargo_geom_contype = int(self._model.geom_contype[geom_id])
-        self._cargo_geom_conaffinity = int(
-            self._model.geom_conaffinity[geom_id]
-        )
-        self._cargo_weld_active = bool(self._data.eq_active[eq_id])
-
-    def set_cargo_weld_active(self, active: bool) -> None:
-        """Enable or disable the cargo weld equality constraint."""
-        if (
-            self._cargo_eq_id is None
-            or self._model is None
-            or self._data is None
-        ):
-            return
-        if self._mujoco is None:
-            return
-        flag = bool(active)
-        if flag == self._cargo_weld_active:
-            return
-        self._data.eq_active[self._cargo_eq_id] = int(flag)
-        self._cargo_weld_active = flag
-        self._mujoco.mj_forward(self._model, self._data)
-
-    def set_cargo_contacts_enabled(self, enabled: bool) -> None:
-        """Enable or disable ``cargo_box`` collision participation."""
-        if self._cargo_geom_id is None or self._model is None:
-            return
-        if enabled:
-            self._model.geom_contype[self._cargo_geom_id] = (
-                self._cargo_geom_contype
-            )
-            self._model.geom_conaffinity[self._cargo_geom_id] = (
-                self._cargo_geom_conaffinity
-            )
-        else:
-            self._model.geom_contype[self._cargo_geom_id] = 0
-            self._model.geom_conaffinity[self._cargo_geom_id] = 0
-        if self._mujoco is not None and self._data is not None:
-            self._mujoco.mj_forward(self._model, self._data)
-
-    def seed_cargo_pose(self, position: npt.NDArray[np.float64]) -> None:
-        """Set initial cargo freejoint pose before simulation starts."""
-        if self._physics_mode:
-            raise RuntimeError(
-                "seed_cargo_pose() is forbidden while physics_mode is active"
-            )
-        self._write_cargo_pose(position)
-
-    def set_cargo_pose(self, position: npt.NDArray[np.float64]) -> None:
-        """Write cargo freejoint pose in kinematic mode (v1.0 mirror path)."""
-        if self._physics_mode:
-            raise RuntimeError(
-                "set_cargo_pose() is forbidden while physics_mode is active"
-            )
-        self._write_cargo_pose(position)
-
-    def sync_cargo_grasp(
-        self,
-        *,
-        is_welded: bool,
-        cargo_pose: npt.NDArray[np.float64],
-        cargo_in_transport: bool = False,
-    ) -> None:
-        """Apply grasp FSM output to cargo weld or kinematic pose (T12-04)."""
-        if self._physics_mode:
-            self.set_cargo_weld_active(is_welded)
-            self.set_cargo_contacts_enabled(
-                not (cargo_in_transport or is_welded)
-            )
-            if cargo_in_transport and not is_welded:
-                self._write_cargo_pose(cargo_pose)
-            return
-        self.set_cargo_weld_active(False)
-        self.set_cargo_pose(cargo_pose)
-
-    def _write_cargo_pose(self, position: npt.NDArray[np.float64]) -> None:
-        if (
-            self._cargo_qpos_adr is None
-            or self._model is None
-            or self._data is None
-        ):
-            return
-        if self._mujoco is None:
-            return
-        pos = np.asarray(position, dtype=np.float64).reshape(3)
-        adr = self._cargo_qpos_adr
-        self._data.qpos[adr : adr + 3] = pos
-        self._data.qpos[adr + 3 : adr + 7] = np.array(
-            [1.0, 0.0, 0.0, 0.0],
-            dtype=np.float64,
-        )
-        self._mujoco.mj_forward(self._model, self._data)
 
     def configure_contact_logging(self, config: ContactLogConfig) -> None:
         """Enable JSONL contact logging for physics SITL ticks (T12-05)."""
@@ -1198,10 +1005,10 @@ class MuJoCoBridgeNode:
         cfg = _load_merged_bridge_config(resolved)
 
         self._node.declare_parameter(
-            "model", model or str(cfg.get("model", "ppp"))
+            "model", model or str(cfg.get("model", "dubins"))
         )
         self._node.declare_parameter(
-            "scenario", scenario or str(cfg.get("scenario", "ppp_warehouse"))
+            "scenario", scenario or str(cfg.get("scenario", "dubins_race"))
         )
         self._node.declare_parameter(
             "update_rate",
@@ -1265,13 +1072,6 @@ class MuJoCoBridgeNode:
         self._latest_cmd = np.zeros(
             self._core.get_positions().shape, dtype=np.float64
         )
-        self._ppp_grasp: MagneticGraspFSM | None = None
-        self._ppp_kin: PPPKinematics | None = None
-        self._ppp_box_anchor: npt.NDArray[np.float64] | None = None
-        self._ppp_goal: npt.NDArray[np.float64] | None = None
-        self._ppp_grasp_captured = False
-        if model_name == "ppp":
-            self._init_ppp_grasp(scenario_name, q0, cfg)
         if physics_config.physics_mode:
             self._core.configure_physics(physics_config)
 
@@ -1303,77 +1103,6 @@ class MuJoCoBridgeNode:
             f"mujoco_runtime={self._core.has_mujoco_runtime}"
         )
 
-    def _init_ppp_grasp(
-        self,
-        scenario_name: str,
-        q0: npt.NDArray[np.float64],
-        cfg: dict[str, Any],
-    ) -> None:
-        """Load PPP grasp FSM and seed cargo pose for SITL (T12-04)."""
-        from fret.config_loader import load_scenario_bundle
-        from fret.control.grasp_magnet import (
-            MagneticGraspFSM,
-            parse_grasp_config,
-        )
-        from fret.control.kinematics_ppp import PPPKinematics
-        from fret.sitl_config import scenario_config_path
-
-        bundle = load_scenario_bundle(scenario_config_path(scenario_name))
-        if bundle.grasp is None:
-            return
-
-        grasp_cfg = parse_grasp_config(bundle.grasp)
-        params = bundle.parameters
-        start = np.asarray(
-            params.get("start_configuration", q0),
-            dtype=np.float64,
-        )
-        goal = np.asarray(params["goal_configuration"], dtype=np.float64)
-        self._ppp_kin = PPPKinematics()
-        self._ppp_grasp = MagneticGraspFSM(grasp_cfg)
-        self._ppp_box_anchor = np.array(
-            [
-                start[0],
-                start[1],
-                float(grasp_cfg.box_half_extent[2]),
-            ],
-            dtype=np.float64,
-        )
-        self._ppp_goal = goal
-        if self._core.has_mujoco_runtime and "cargo_weld" in cfg:
-            self._core.configure_cargo_weld(
-                cargo_weld_config_from_bridge_yaml(cfg)
-            )
-            self._core.seed_cargo_pose(self._ppp_box_anchor)
-        self._ppp_grasp.begin_transport()
-
-    def _sync_ppp_cargo_grasp(self, q: npt.NDArray[np.float64]) -> None:
-        """Advance grasp FSM and mirror cargo weld / pose in MuJoCo."""
-        if (
-            self._ppp_grasp is None
-            or self._ppp_kin is None
-            or self._ppp_box_anchor is None
-            or self._ppp_goal is None
-        ):
-            return
-
-        from fret.control.grasp_magnet import GraspState
-
-        ee = self._ppp_kin.forward_kinematics(q)[:3, 3]
-        state = self._ppp_grasp.update(
-            ee, self._ppp_box_anchor, self._ppp_goal
-        )
-        if state == GraspState.TRANSPORT:
-            self._ppp_grasp_captured = True
-        if self._ppp_grasp.is_welded or self._ppp_grasp_captured:
-            cargo_pose = self._ppp_grasp.cargo_position
-        else:
-            cargo_pose = self._ppp_box_anchor
-        self._core.sync_cargo_grasp(
-            is_welded=self._ppp_grasp.is_welded,
-            cargo_pose=cargo_pose,
-        )
-
     def _command_callback(self, msg: Any) -> None:
         data = list(getattr(msg, "data", []))
         dof = len(self._latest_cmd)
@@ -1388,8 +1117,6 @@ class MuJoCoBridgeNode:
         from sensor_msgs.msg import JointState
 
         dt = 1.0 / self._update_rate
-        q_before = self._core.get_positions()
-        self._sync_ppp_cargo_grasp(q_before)
         positions = self._core.step(self._latest_cmd, dt)
         velocities = self._core.get_velocities()
 
@@ -1422,14 +1149,12 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
 __all__ = [
     "ActuatorTable",
-    "CargoWeldConfig",
     "ContactLogConfig",
     "DubinsRaceBridgeCore",
     "MuJoCoBridgeCore",
     "MuJoCoBridgeNode",
     "PhysicsBridgeConfig",
     "PhysicsContactLogger",
-    "cargo_weld_config_from_bridge_yaml",
     "contact_log_config_from_bridge_yaml",
     "integrate_joint_velocities",
     "make_dubins_race_bridge_core",

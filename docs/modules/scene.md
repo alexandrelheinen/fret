@@ -4,7 +4,8 @@
 **Source:** `src/fret/scene/`  
 **Tests:** `tests/scene/`
 
-> v1.0 PPP warehouse obstacles feed this module from YAML/MuJoCo. See [releases.md](../releases.md).
+> Dubins race structures and bootstrap SCARA obstacles feed this module from
+> YAML/MuJoCo. See [releases.md](../releases.md).
 
 ---
 

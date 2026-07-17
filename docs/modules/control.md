@@ -4,10 +4,9 @@
 **Source:** `src/fret/control/`  
 **Tests:** `tests/control/`
 
-> **Release roadmap:** v1.0 adds PPP prismatic control + magnetic grasp FSM;
-> v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 enables MuJoCo physics actuators;
-> v1.3 extends existing SCARA Jacobian stack; v1.4 adds 6-DOF numerical IK.
-> See [releases.md](../releases.md).
+> **Release roadmap:** v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 enables MuJoCo
+> physics actuators; v1.3 extends existing SCARA Jacobian stack; v1.4 adds
+> 6-DOF numerical IK. See [releases.md](../releases.md).
 
 ---
 
@@ -15,7 +14,7 @@
 
 The control module implements kinematic computations and trajectory tracking
 controllers. The current implementation targets the **bootstrap SCARA (RRP)**;
-v1.0+ adds per-model kinematics selected by `model:=` at launch.
+v1.1+ adds per-model kinematics selected by `model:=` at launch.
 
 ---
 
@@ -46,70 +45,6 @@ the geometric Jacobian for the SCARA RRP (3-DOF) manipulator.
 
 **Tests:** `tests/control/test_kinematics.py` — 19 unit tests covering FK/IK round-trip,
 Jacobian finite-difference validation, and joint limit checks.
-
-### `kinematics_ppp.py` — PPPKinematics (v1.0)
-
-Identity-map FK/IK for the PPP gantry (`q ≡ p_ee`). Selected via
-`Kinematics(model="ppp")`.
-
-| Property / method | PPP value |
-|---|---|
-| `dof` | 3 |
-| `joint_names` | `joint_x`, `joint_y`, `joint_z` |
-| `joint_limits` | X [0, 60], Y [0, 20], Z [0, 6] m |
-| `forward_kinematics(q)` | EE position = `q` |
-| `inverse_kinematics(pose)` | `q = p_ee` with limit check |
-
-**Tests:** `tests/control/test_kinematics_ppp.py` — 15 unit tests.
-
----
-
-### `grasp_magnet.py` — MagneticGraspFSM (v1.0)
-
-Pure-Python magnetic weld / release state machine for PPP pick-and-place.
-
-```
-IDLE → APPROACH → CAPTURE → TRANSPORT → RELEASE → IDLE
-```
-
-| Symbol | Description |
-|---|---|
-| `GraspState` | FSM states (FR-GSP-04) |
-| `GraspConfig` | `capture_radius`, `goal_radius`, `weld_offset`, `box_half_extent` |
-| `MagneticGraspFSM` | Level-3 FSM; call `begin_transport()` then `update(ee, box, goal)` |
-| `is_welded` | `True` during CAPTURE / TRANSPORT |
-| `cargo_position` | World-frame cargo centre (tracks EE when welded) |
-| `cargo_corners()` | 8 corners of cargo AABB (FR-GSP-02 hook for planning) |
-
-**Demo:** `python3 scripts/demo_grasp.py`  
-**Tests:** `tests/control/test_grasp_magnet.py` — 10 unit tests.
-
----
-
-### `controller_ppp.py` — PPPControllerNode (v1.0)
-
-Per-axis proportional velocity control for the PPP gantry at 50 Hz.
-Because ``q ≡ p_ee``, joint-space P-control is equivalent to Cartesian
-P-control:
-
-```
-q̇ = Kp · (q_ref − q)   (clipped per joint)
-```
-
-| Property / method | Description |
-|---|---|
-| `compute_prismatic_command(kin, q)` | Per-axis velocity command [m/s] |
-| `get_ee_error_m(kin, q)` | EE position error against current waypoint |
-| `set_trajectory(waypoints)` | Load waypoints and enter ``TRACKING`` |
-| `fault_threshold` | 10 mm joint-space error → ``HALTED`` |
-
-**Config:** `src/fret/config/controllers/ppp.yml` — Kp=1.5,
-max velocity [3, 3, 1.5] m/s, 50 Hz.
-
-**Demo:** `python3 scripts/demo_ppp_controller.py`  
-**Tests:** `tests/control/test_controller_ppp.py` — 12 unit tests.
-
-Use ``make_controller_node(model, config_path)`` to dispatch PPP vs SCARA.
 
 ---
 
@@ -180,6 +115,8 @@ fault_threshold: 0.020  # m
 rate_hz: 50.0
 ```
 
+Dubins Pure Pursuit gains live in `src/fret/config/controllers/dubins.yml`.
+
 ---
 
 ## Satisfies Requirements
@@ -187,11 +124,8 @@ rate_hz: 50.0
 | Requirement | Description |
 |---|---|
 | FR-CTL-01 | Controller runs at 50 Hz |
-| FR-CTL-02 | EE tracking error ≤ 5 mm in SITL |
-| FR-CTL-03 | Jacobian pseudoinverse velocity commands |
+| FR-CTL-02 | Tracking error within release limits |
+| FR-CTL-03 | Velocity commands published to `/joint_commands` |
 | FR-CTL-04 | FK → TF2 broadcast at 50 Hz |
 | FR-CTL-05 | Controller independent of planning node |
 | FR-CTL-06 | Fault detection and HALTED state |
-| FR-GSP-01 | Magnetic weld grasp (no finger DOF) |
-| FR-GSP-03 | Release at goal; cargo frozen |
-| FR-GSP-04 | Grasp FSM states |

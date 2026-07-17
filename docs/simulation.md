@@ -2,7 +2,7 @@
 
 > **MuJoCo integration spec:** [mujoco.md](mujoco.md)  
 > **Visual tutorial:** [tutorial.md](tutorial.md)  
-> **Release focus:** v1.0 PPP · v1.1 Dubins · v1.2 physics SITL. See [releases.md](releases.md).
+> **Release focus:** v1.1 Dubins · v1.2 physics SITL. See [releases.md](releases.md).
 
 ---
 
@@ -34,7 +34,7 @@ pytest tests/ -v --ignore=tests/integration
 
 ```bash
 pip install -e ".[sim]"
-./scripts/view.sh --model ppp --scenario ppp_warehouse \
+./scripts/view.sh --model dubins --scenario dubins_race \
   --duration 30 --fps 60 --camera overview
 ```
 
@@ -54,31 +54,6 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
 ---
 
-## v1.0 — PPP warehouse
-
-```bash
-# Visual preview (no ROS)
-./scripts/view.sh --model ppp --scenario ppp_warehouse \
-  --duration 30 --fps 60 --camera overview
-
-# Full SITL pipeline
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
-```
-
-**Deliverables:**
-
-| Asset | Path |
-|---|---|
-| MJCF world | `src/fret/mjcf/ppp_warehouse.xml` |
-| Interactive viewer | `scripts/view_mujoco.py` / `scripts/view.sh` |
-| MuJoCo bridge | `src/fret/ros/mujoco_bridge.py` |
-| Bridge config | `src/fret/config/simulation/mujoco.yml` |
-| Scenario | `src/fret/config/scenarios/ppp_warehouse.yml` |
-| Perception layout | `src/fret/config/perception_ppp_warehouse.yaml` |
-| Video script | `scripts/render_mujoco.py` / `scripts/video.sh` |
-
----
-
 ## v1.1 — Dubins race
 
 ```bash
@@ -90,6 +65,17 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
   --collision-backend mujoco --planner-algorithm sst --full-duration
 ```
 
+**Deliverables:**
+
+| Asset | Path |
+|---|---|
+| MJCF world | `src/fret/mjcf/dubins_race.xml` |
+| Interactive viewer | `scripts/view_mujoco.py` / `scripts/view.sh` |
+| MuJoCo bridge | `src/fret/ros/mujoco_bridge.py` |
+| Bridge config | `src/fret/config/simulation/mujoco.yml` |
+| Scenario | `src/fret/config/scenarios/dubins_race.yml` |
+| Video script | `scripts/render_mujoco.py` / `scripts/video.sh` |
+
 ---
 
 ## v1.2 — Physics SITL (shipped)
@@ -97,11 +83,10 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 Actuator-driven simulation with contact dynamics is the default from v1.2:
 
 ```bash
-ros2 launch fret sitl.py scenario:=ppp_warehouse model:=ppp
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
-./scripts/video.sh --model ppp --scenario ppp_warehouse --all-cameras \
-  --output-dir /tmp/ppp_physics --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration \
+./scripts/video.sh --model dubins --scenario dubins_race --all-cameras \
+  --output-dir /tmp/dubins_physics --fps 30 --width 1280 --height 720 \
+  --collision-backend mujoco --planner-algorithm sst --full-duration \
   --physics-mode
 ```
 
@@ -128,15 +113,9 @@ uses `./scripts/view.sh` once RRP MJCF is available (v1.3).
 
 ```bash
 # MuJoCo headless MP4
-./scripts/video.sh --model ppp --scenario ppp_warehouse --camera overview \
+./scripts/video.sh --model dubins --scenario dubins_race --camera overview \
   -o /tmp/fret.mp4 --fps 30 --width 1280 --height 720 \
-  --collision-backend mujoco --planner-algorithm rrt_star --full-duration
-
-# Magnetic grasp FSM demo (pure Python, no sim)
-python3 scripts/demo_grasp.py
-
-# PPP C-space checker demo (warehouse obstacles)
-python3 scripts/demo_ppp_checker.py
+  --collision-backend mujoco --planner-algorithm sst --full-duration
 
 # ROS bag
 ros2 bag record /joint_states /joint_commands /joint_trajectory

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # V115-03: physics showcase dry-run within release job timeouts.
 #
-# Runs headless physics-mode showcase renders (PPP 30 min, Dubins 45 min caps)
+# Runs headless physics-mode showcase renders (Dubins 45 min cap)
 # using scenario-duration clip subsampling so CI/release dry-runs finish in time.
 #
 # Usage:
@@ -24,33 +24,11 @@ export PYOPENGL_PLATFORM="${PYOPENGL_PLATFORM:-egl}"
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp/fret_physics_showcase_dry_run}"
 mkdir -p "${OUTPUT_DIR}"
 
-PPP_TIMEOUT_S="${PPP_TIMEOUT_S:-1800}"
 DUBINS_TIMEOUT_S="${DUBINS_TIMEOUT_S:-2700}"
 
 FAILED=0
 
 info "V115-03 physics showcase dry-run (output: ${OUTPUT_DIR})"
-
-info "PPP physics render (timeout ${PPP_TIMEOUT_S}s)"
-if timeout "${PPP_TIMEOUT_S}s" ./scripts/video.sh \
-    --model ppp \
-    --scenario ppp_warehouse \
-    --all-cameras \
-    --collision-backend mujoco \
-    --planner-algorithm rrt_star \
-    --full-duration \
-    --physics-mode \
-    --output-dir "${OUTPUT_DIR}/ppp" \
-    --timing-json "${OUTPUT_DIR}/ppp/timing.json" \
-    --fps 30 \
-    --width 640 \
-    --height 360; then
-    ok "ppp_physics_showcase: PASSED"
-else
-    code=$?
-    fail "ppp_physics_showcase: FAILED (exit ${code})"
-    FAILED=1
-fi
 
 info "Dubins physics render (timeout ${DUBINS_TIMEOUT_S}s)"
 if timeout "${DUBINS_TIMEOUT_S}s" ./scripts/video.sh \
