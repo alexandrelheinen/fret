@@ -97,17 +97,11 @@ and tuning workflow. Implementation spec: [mujoco_physics_v1.2.md](mujoco_physic
 
 ---
 
-## Regression — bootstrap SCARA (pure-Python)
+## Manipulation SITL
 
-```bash
-python3 -m pytest tests/integration/test_scenario_pillar_avoidance.py -v
-python3 -m pytest tests/scene/ tests/planning/ -q
-```
+OpenMANIPULATOR-X tabletop scenarios (v1.3) use MuJoCo physics SITL with
+Menagerie meshes. See [robots/open_manipulator_x.md](robots/open_manipulator_x.md).
 
-These validate the MS-1–5 pipeline without ROS or MuJoCo physics. Visual inspection
-uses `./scripts/view.sh` once RRP MJCF is available (v1.3).
-
----
 
 ## Recording
 

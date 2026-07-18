@@ -7,7 +7,6 @@ ros2 launch fret sitl.py scenario:=<name> model:=<model>
 ```
 
 **Release scenarios** (product targets): SC-v11 – SC-v14.
-**Regression scenarios** (bootstrap SCARA): SC-01 – SC-05.
 
 Full release spec: [releases.md](releases.md).
 
@@ -72,18 +71,24 @@ on every PR gate.
 
 ---
 
-### SC-v13a — RRP pillars and slabs (v1.3)
+### SC-v13a — OpenMANIPULATOR-X empty reach (v1.3)
 
-**File:** `config/scenarios/rrp_pillars.yml` *(planned)*  
-**Model:** `rrp` / `scara`
+**File:** `config/scenarios/omx_reach.yml` *(planned)*  
+**Model:** `open_manipulator_x`
 
-**Purpose:** Reproduce ARCO `map/rrp.yml` — 3-D C-space with pillars and horizontal slabs.
+**Purpose:** Validate the full command chain on an empty tabletop — EE pose A → B,
+no obstacles.
 
-**Pass criteria:** See [releases.md § v1.3](releases.md#v13--rrp--scara-arco-reproduction).
+**Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
 
----
+### SC-v13b — OpenMANIPULATOR-X desk clutter (v1.3)
 
-### SC-v13b — RR planar arm (v1.3)
+**File:** `config/scenarios/omx_desk_clutter.yml` *(planned)*  
+**Model:** `open_manipulator_x`
+
+**Purpose:** AWS desk / clutter props block the straight path; planner must detour.
+
+## SC-v13b — RR planar arm (v1.3)
 
 **File:** `config/scenarios/rr_planar.yml` *(planned)*  
 **Model:** `rr`
@@ -103,22 +108,6 @@ on every PR gate.
 
 ---
 
-## Regression scenarios (bootstrap SCARA)
-
-These scenarios validated MS-1–5. They remain in pure-Python CI as regression tests
-until v1.3.
-
-| ID | File | Purpose | Status |
-|---|---|---|---|
-| SC-01 | `static_reach.yml` | Empty-world reach | ✅ Regression |
-| SC-02 | `obstacle_avoidance.yml` | Single box avoidance | ✅ Regression |
-| SC-03 | `planning_timeout.yml` | Timeout / ABORTED | ✅ Regression |
-| SC-04 | `straight_line.yml` | Controller-only tracking | ✅ Regression |
-| SC-05 | `arc.yml` | Arc injector | ✅ Regression |
-| — | `pillar_avoidance.yml` | Pillar world (MS-5) | ✅ Regression |
-
----
-
 ## Scenario YAML schema
 
 All scenario files use the ROS 2 parameters YAML format (`/**:` →
@@ -130,7 +119,7 @@ loaded by launch, runners, and tests.
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
 | `scenario_id` | string | yes | Stable identifier (matches filename stem) |
-| `model` | string | yes* | Robot model (`dubins`, `scara`, …) |
+| `model` | string | yes* | Robot model (`dubins`, `open_manipulator_x`, …) |
 | `backend` | string | no | Simulator backend (`mujoco` for release scenarios) |
 | `start_configuration` | float[] | yes† | Start joint / SE(2) state |
 | `goal_configuration` | float[] | yes† | Goal joint / SE(2) state |
@@ -140,7 +129,6 @@ loaded by launch, runners, and tests.
 | `simulation_config` | string | no | Path to `config/simulation/*.yml` (default `simulation/mujoco.yml`) |
 | `recording` | object | no | Bag record toggles and topic list |
 
-\* Regression SCARA scenarios omit `model`; launch passes `model:=scara`.
 
 † Some regression scenarios use `goal_position` + IK instead of explicit
 `start_configuration` (see `static_reach.yml`).
@@ -185,23 +173,6 @@ loaded by launch, runners, and tests.
 
 Obstacle layout and Dubins vehicle margins: `config/worlds/dubins_race_obstacles.yml`.
 
-### Regression SCARA (`static_reach.yml` pattern)
-
-```yaml
-/**:
-  ros__parameters:
-    scenario_id: "static_reach"
-    goal_position: [-0.2349, 0.0855, 0.05]
-    goal_configuration: [1.8273, 2.2974, 0.05]
-    skip_ik: false
-    planning_timeout: 10.0
-    duration: 20.0
-    obstacles: []
-    recording:
-      enabled: true
-      topics: [/joint_states, /joint_commands, /joint_trajectory]
-```
-
 ### v1.2 physics overlay (SC-v12)
 
 No separate scenario file. Enable physics on the release scenario:
@@ -232,5 +203,4 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins physics_mode:=true
 Pure-Python regression (no ROS):
 
 ```bash
-python3 -m pytest tests/integration/test_scenario_pillar_avoidance.py -v
 ```

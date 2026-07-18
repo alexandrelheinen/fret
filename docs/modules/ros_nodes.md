@@ -92,7 +92,7 @@ the controller in isolation (without a planning node).
 
 ### `arc_injector.py` — ArcInjector (Scenario SC-05)
 
-Generates a Cartesian circular-arc trajectory in the SCARA horizontal plane and
+Generates a Cartesian circular-arc trajectory in the arm horizontal plane and
 publishes it on `/joint_trajectory`. Used in the `arc` scenario.
 
 Arc parameters (from `config/scenarios/arc.yml`):

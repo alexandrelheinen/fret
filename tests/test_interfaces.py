@@ -94,7 +94,7 @@ class TestOccupancyUpdatePayload:
 
 
 class TestRobotState:
-    def test_valid_scara(self) -> None:
+    def test_valid_arm_config(self) -> None:
         state = RobotState(
             joint_positions=np.zeros(3),
             joint_velocities=np.zeros(3),

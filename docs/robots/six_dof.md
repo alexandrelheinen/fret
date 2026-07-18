@@ -11,7 +11,7 @@ The 6-DOF release is the **final challenge**: a general revolute manipulator per
 full C-space planning and execution in a cluttered cell on **MuJoCo physics SITL**.
 
 Specific robot model (UR5, UR3, or custom) will be selected at the start of v1.4 work.
-Candidate meshes may be imported from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie).
+Prefer **OpenMANIPULATOR-Y** from `third_party/robotis_mujoco_menagerie/robotis_omy` (same submodule policy as TB3 and OM-X).
 
 ---
 

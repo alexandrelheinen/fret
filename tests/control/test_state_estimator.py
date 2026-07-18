@@ -18,7 +18,7 @@ import pytest
 from fret.control.state_estimator import StateEstimator
 from fret.interfaces import RobotState
 
-_JOINT_NAMES = ["joint_arm_0", "joint_arm_1", "joint_extension"]
+_JOINT_NAMES = ["joint_0", "joint_1", "joint_2"]
 _DOF = 3
 
 
@@ -113,7 +113,7 @@ def test_joint_names_match_kinematics(
     callback = _get_subscription_callback(mock_node)
     # Scramble message order
     msg = _make_joint_state_msg(
-        names=["joint_extension", "joint_arm_1", "joint_arm_0"],
+        names=["joint_2", "joint_1", "joint_0"],
         positions=[0.05, 0.2, 0.1],
     )
     callback(msg)

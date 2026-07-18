@@ -43,7 +43,7 @@ context helps contributors apply the method consistently.
 | **[Luthier](https://github.com/alexandrelheinen/luthier)** | Python photogrammetry library | Reference implementation: `CONTRIBUTING.md` as constitution, `AC-*` traceability, governance CI |
 | **[Freshy](https://freshy-25e.pages.dev/explore)** | Mobile-first cooling-map app (Next.js, Cloudflare) | Product-level SDD in a private repo; stack documented on the website portfolio |
 | **[ARCO](https://github.com/alexandrelheinen/arco)** | Motion planning and control algorithms | First proving ground for constrained agentic development |
-| **FRET (this repo)** | ROS 2 end-to-end SCARA planning + control stack | 4-level V-cycle mapped to `docs/` specifications and pytest/launch_testing validation |
+| **FRET (this repo)** | ROS 2 end-to-end planning + control stack (Menagerie robots) | 4-level V-cycle mapped to `docs/` specifications and pytest/launch_testing validation |
 
 ### What FRET already provides
 

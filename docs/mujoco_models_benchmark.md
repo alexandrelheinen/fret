@@ -61,7 +61,7 @@ bridge/ROS layer.
 | FRET robot | Preferred external source | Current FRET MJCF | Gap |
 |---|---|---|---|
 | Diff-drive / “Dubins” mobile | ROBOTIS TB3 Menagerie | `turtlebot3_unit.xml` + `dubins_race.xml` (true wheel actuators) | Race E2E controller tuning may still need work; unit physics is green |
-| RRP / SCARA (v1.3) | URDF→MJCF or custom | Planned | — |
+| OpenMANIPULATOR-X (v1.3) | Menagerie submodule | Planned | — |
 | 6-DOF (v1.4) | MuJoCo Menagerie (UR / similar) | Planned | Mesh import only |
 
 ---

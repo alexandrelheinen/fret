@@ -197,7 +197,7 @@ def _new_node(
     # Pre-populate _params BEFORE __init__ is called.
     # _FakeNode.__init__ preserves existing keys via setdefault().
     inst._params = {  # type: ignore[attr-defined]
-        "model": "scara",
+        "model": "open_manipulator_x",
         "scenario_id": scenario_id,
         "goal_configuration": (
             goal_cfg if goal_cfg is not None else [0.3272, 0.4712, 0.05]
@@ -378,7 +378,7 @@ class TestTriggerPlanning:
         from fret.scene.occupancy_adapter import OccupancyAdapter
 
         inst = object.__new__(PlannerRosNode)
-        inst._model = "scara"  # type: ignore[attr-defined]
+        inst._model = "open_manipulator_x"  # type: ignore[attr-defined]
         inst._scenario_id = "test"  # type: ignore[attr-defined]
         inst._goal_cfg = [0.3272, 0.4712, 0.05]  # type: ignore[attr-defined]
         inst._planning_timeout = 10.0  # type: ignore[attr-defined]

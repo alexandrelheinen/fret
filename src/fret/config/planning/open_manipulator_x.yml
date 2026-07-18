@@ -1,16 +1,17 @@
-# SCARA / RRP planning stack parameters.
+# OpenMANIPULATOR-X planning stack parameters (v1.3 stub).
 #
 # Consumed by: TrajectoryConverter, TrajectoryGenerator, ReplanningManager.
 
 trajectory:
   control_hz: 50.0
-  v_max: [1.5, 1.5, 0.1]
-  a_max: [2.0, 2.0, 0.2]
+  v_max: [1.5, 1.5, 1.5, 1.5]
+  a_max: [2.0, 2.0, 2.0, 2.0]
   dt_min: 0.02
   joint_names:
-    - joint_arm_0
-    - joint_arm_1
-    - joint_extension
+    - Joint1
+    - Joint2
+    - Joint3
+    - Joint4
 
 replanning:
   tracking_error_threshold: 0.020

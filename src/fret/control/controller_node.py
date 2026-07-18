@@ -44,10 +44,10 @@ class _NodeState(enum.IntEnum):
 
 
 # ---------------------------------------------------------------------------
-# Default configuration values (mirrors config/controllers/jacobian.yml)
+# Default configuration values (mirrors config/controllers/open_manipulator_x.yml)
 # ---------------------------------------------------------------------------
 
-_SCARA_DOF: int = 3
+_DEFAULT_ARM_DOF: int = 4
 _DEFAULT_FAULT_THRESHOLD: float = 0.020  # [m]
 _DEFAULT_TICKS_PER_WAYPOINT: int = (
     1  # advance every N timer ticks (1 = every tick)
@@ -68,10 +68,10 @@ class ControllerNode:
     ``rclpy.node.Node`` and wires in timers, subscriptions, and publishers.
 
     Args:
-        model: Robot model name.  Accepts ``"scara"``; reserved for future
+        model: Robot model name.  Accepts ``"open_manipulator_x"``;
             models.
         config_path: Path to the controller YAML configuration file
-            (e.g. ``config/controllers/jacobian.yml``) or a directory.  If
+            (e.g. ``config/controllers/open_manipulator_x.yml``) or a directory.  If
             the file cannot be found or parsed, default values are used
             silently.
     """
@@ -85,7 +85,7 @@ class ControllerNode:
         self._max_joint_velocity: float = _DEFAULT_MAX_VEL
         self._update_rate: float = _DEFAULT_RATE
         self._kp: float = _DEFAULT_KP
-        self._dof: int = _SCARA_DOF
+        self._dof: int = _DEFAULT_ARM_DOF
         self._current_command: npt.NDArray[np.float64] = np.zeros(
             self._dof, dtype=np.float64
         )
@@ -107,11 +107,11 @@ class ControllerNode:
 
         Args:
             config_path: Path to the YAML file or a directory.  If a
-                directory is given, ``jacobian.yml`` is tried inside it.
+                directory is given, ``open_manipulator_x.yml`` is tried inside it.
         """
         path = pathlib.Path(config_path)
         if path.is_dir():
-            path = path / "jacobian.yml"
+            path = path / "open_manipulator_x.yml"
         if not path.is_file():
             return
         import yaml
@@ -326,8 +326,8 @@ class ControllerRosNode:  # pragma: no cover
         /controller_fault  (``std_msgs/Bool``)                    — output
 
     Args:
-        model: Robot model name (``"scara"`` only).
-        config_path: Path to ``jacobian.yml`` (or its parent directory).
+        model: Robot model name (``"open_manipulator_x"``).
+        config_path: Path to ``open_manipulator_x.yml`` (or its parent directory).
     """
 
     def __init__(self, model: str, config_path: str) -> None:
@@ -483,7 +483,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     controllers_dir = pathlib.Path(pkg_share) / "config" / "controllers"
 
     loader = rclpy.create_node("_controller_param_loader")
-    loader.declare_parameter("model", "scara")
+    loader.declare_parameter("model", "open_manipulator_x")
     model = loader.get_parameter("model").get_parameter_value().string_value
     loader.destroy_node()
 
@@ -506,10 +506,10 @@ def make_controller_node(
 ) -> ControllerNode | Any:
     """Build a model-appropriate Level-3 controller (FR-SYS-01).
 
-    Dispatches to the Jacobian ``ControllerNode`` for SCARA / RRP models.
+    Dispatches to the Jacobian ``ControllerNode`` for arm models.
 
     Args:
-        model: Robot model name (``"scara"``).
+        model: Robot model name (``"open_manipulator_x"``).
         config_path: Path to controller YAML or the controllers directory.
 
     Returns:
@@ -519,7 +519,7 @@ def make_controller_node(
         ValueError: If ``model`` is not recognised.
     """
     path = str(config_path)
-    if model == "scara":
+    if model in {"open_manipulator_x", "omx"}:
         return ControllerNode(model=model, config_path=path)
     raise ValueError(f"Unknown controller model: {model!r}")
 
@@ -551,7 +551,7 @@ def compute_tracking_command(
 
 
 def _make_controller_ros_node(  # pragma: no cover
-    model: str = "scara",
+    model: str = "open_manipulator_x",
     config_path: str = "",
 ) -> Any:
     """Construct a ``ControllerRosNode`` that also inherits ``rclpy.node.Node``.

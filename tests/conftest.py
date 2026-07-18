@@ -25,36 +25,29 @@ def mock_node() -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# Mock kinematics engine (SCARA RRP, DOF=3)
+# Mock 3-DOF arm kinematics (generic stand-in for planner unit tests)
 # ---------------------------------------------------------------------------
 
-# SCARA model constants (must match src/fret/control/kinematics.py)
 _L1: float = 0.325
 _L2: float = 0.275
-_Z_BASE: float = 0.1665 + 0.0715  # J1_Z + J2_Z = 0.238
+_Z_BASE: float = 0.238
 
 
 @pytest.fixture()
 def mock_kinematics() -> MagicMock:
-    """Return a mock ``Kinematics`` configured for the SCARA RRP (DOF=3).
-
-    The ``forward_kinematics`` side-effect computes the actual SCARA FK so
-    that ``CSpaceChecker`` receives realistic EE positions for different
-    configurations.
-    """
+    """Return a mock 3-DOF planar arm ``Kinematics`` for C-space unit tests."""
     k = MagicMock()
     k.dof = 3
-    k.joint_names = ["joint_arm_0", "joint_arm_1", "joint_extension"]
+    k.joint_names = ["joint_0", "joint_1", "joint_2"]
     k.joint_limits = np.array(
         [
-            [-132.0 * math.pi / 180.0, 132.0 * math.pi / 180.0],
-            [-150.0 * math.pi / 180.0, 150.0 * math.pi / 180.0],
+            [-math.pi, math.pi],
+            [-math.pi, math.pi],
             [0.0, 0.20],
         ]
     )
 
     def _fk(q: np.ndarray) -> np.ndarray:
-        """Compute SCARA FK: EE = (L1·cos q1 + L2·cos(q1+q2), …, z_base−q3)."""
         c1 = math.cos(float(q[0]))
         s1 = math.sin(float(q[0]))
         c12 = math.cos(float(q[0]) + float(q[1]))
@@ -80,29 +73,13 @@ def mock_kinematics() -> MagicMock:
 
 @pytest.fixture()
 def mock_occupancy() -> MagicMock:
-    """Return a mock occupancy matching the ``KDTreeOccupancy`` interface.
-
-    ``CSpaceChecker.clearance`` detects ``KDTreeOccupancy`` by looking for a
-    ``query_distances`` method; this mock exposes the same API so that the
-    production code path is exercised even in unit tests.
-
-    Returns distances that yield positive clearance (free space) when the EE
-    z-height is above 0.18 m, and negative clearance (obstacle) otherwise.
-
-    SCARA reference heights:
-      - q3 = 0.00 → EE z = 0.238 > 0.18 → free (home config).
-      - q3 = 0.10 → EE z = 0.138 < 0.18 → penetrating (colliding config).
-    """
+    """Return a mock occupancy matching the ``KDTreeOccupancy`` interface."""
     occ = MagicMock()
-    # ``clearance`` is a float *attribute* on KDTreeOccupancy, not callable.
-    occ.clearance = 0.05  # 5 cm clearance radius
+    occ.clearance = 0.05
 
     def _query_distances(pts: np.ndarray) -> np.ndarray:
         pts_2d = np.atleast_2d(pts)
-        # Last row is the EE position (alpha = 1.0 in the sampler).
         ee_z = float(pts_2d[-1, 2])
-        # 0.10 → clearance = 0.10 − 0.05 =  0.05 > 0  (free space)
-        # 0.03 → clearance = 0.03 − 0.05 = −0.02 < 0  (inside obstacle)
         dist = 0.10 if ee_z > 0.18 else 0.03
         return np.full(pts_2d.shape[0], dist)
 
@@ -116,11 +93,26 @@ def mock_occupancy() -> MagicMock:
 
 
 @pytest.fixture()
-def scara_planning_config() -> dict[str, object]:
-    """Load bundled SCARA planning parameters."""
-    from fret.config_loader import load_algorithm_config
-
-    return load_algorithm_config("planning/scara.yml")
+def arm_planning_config() -> dict[str, object]:
+    """Inline arm planning parameters for unit tests (no bundled YAML)."""
+    return {
+        "trajectory": {
+            "control_hz": 50.0,
+            "v_max": [1.5, 1.5, 0.1],
+            "a_max": [2.0, 2.0, 0.2],
+            "dt_min": 0.02,
+            "joint_names": ["joint_0", "joint_1", "joint_2"],
+        },
+        "replanning": {
+            "tracking_error_threshold": 0.020,
+            "occupancy_change_threshold": 0.050,
+            "min_replan_interval": 1.0,
+            "max_replan_attempts": 3,
+        },
+        "trajectory_generator": {
+            "max_interp_step_m": 0.004,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

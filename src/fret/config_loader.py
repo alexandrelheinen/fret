@@ -161,4 +161,6 @@ def planning_config_for_model(model: str) -> str:
     """Return the default planning config relative path for a robot model."""
     if model == "dubins":
         return "planning/dubins.yml"
-    return "planning/scara.yml"
+    if model in {"open_manipulator_x", "omx"}:
+        return "planning/open_manipulator_x.yml"
+    raise ValueError(f"No planning config for model: {model!r}")

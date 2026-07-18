@@ -8,10 +8,10 @@ Starts the complete FRET pipeline against the ``arco_scenario.sdf`` world
 Usage::
 
     ros2 launch fret arco_scenario.py
-    ros2 launch fret arco_scenario.py model:=scara
+    ros2 launch fret arco_scenario.py model:=dubins
 
 Arguments:
-    model (str, default: scara)
+    model (str, default: dubins)
         Robot model name.
 """
 
@@ -30,7 +30,7 @@ def generate_launch_description() -> LaunchDescription:
 
     model_arg = DeclareLaunchArgument(
         "model",
-        default_value="scara",
+        default_value="dubins",
         description="Robot model name",
     )
 

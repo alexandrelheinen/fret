@@ -84,8 +84,8 @@ class PlannerNode:
     any ROS context.
 
     Args:
-        model: Robot model name (e.g. ``"scara"``).  Used to instantiate the
-            kinematics engine.
+        model: Robot model name (e.g. ``"open_manipulator_x"``). Used to
+            instantiate kinematics when ``kinematics`` is omitted.
         occupancy_adapter: Pre-constructed adapter providing the live
             occupancy model.
         collision_backend: Collision backend (``analytic`` or ``mujoco``).
@@ -94,6 +94,9 @@ class PlannerNode:
         grasp_config: Unused (retained for call-site compatibility).
         scenario: Scenario stem for MJCF resolution (MuJoCo backend).
         mjcf_path: Optional MJCF override for MuJoCo collision checks.
+        kinematics: Optional pre-built kinematics engine (tests / custom arms).
+        planning_config: Optional planning YAML dict; required when ``model``
+            has no bundled planning file yet.
     """
 
     def __init__(
@@ -106,7 +109,7 @@ class PlannerNode:
         planner_algorithm: PlannerAlgorithm = "rrt_star",
         include_cargo: bool = False,
         grasp_config: Any | None = None,
-        scenario: str = "static_reach",
+        scenario: str = "omx_reach",
         mjcf_path: str | pathlib.Path | None = None,
         workspace_bounds: (
             tuple[
@@ -117,6 +120,7 @@ class PlannerNode:
             | None
         ) = None,
         planning_config: dict[str, Any] | None = None,
+        kinematics: Any | None = None,
     ) -> None:
         from fret.config_loader import (
             load_algorithm_config,
@@ -124,14 +128,15 @@ class PlannerNode:
         )
         from fret.control.kinematics import Kinematics
 
-        self._kin = Kinematics(model)
+        self._kin = kinematics if kinematics is not None else Kinematics(model)
         self._occ_adapter = occupancy_adapter
         self._occ_direct = occupancy
-        resolved_planning = (
-            planning_config
-            if planning_config is not None
-            else load_algorithm_config(planning_config_for_model(model))
-        )
+        if planning_config is not None:
+            resolved_planning = planning_config
+        else:
+            resolved_planning = load_algorithm_config(
+                planning_config_for_model(model)
+            )
         self._planning_config = resolved_planning
         self._traj_gen = TrajectoryGenerator(self._kin, resolved_planning)
         self._collision_backend = collision_backend

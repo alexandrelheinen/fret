@@ -41,7 +41,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 # Maximum allowed Cartesian EE step between consecutive waypoints is loaded
-# from ``config/planning/scara.yml`` → ``trajectory_generator.max_interp_step_m``.
+# from ``config/planning/open_manipulator_x.yml`` → ``trajectory_generator.max_interp_step_m``.
 
 
 @dataclass

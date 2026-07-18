@@ -16,7 +16,10 @@ from fret.config_loader import (
 
 def test_planning_config_for_model() -> None:
     assert planning_config_for_model("dubins") == "planning/dubins.yml"
-    assert planning_config_for_model("scara") == "planning/scara.yml"
+    import pytest
+
+    with pytest.raises(ValueError, match="No planning config"):
+        planning_config_for_model("unknown_model")
 
 
 def test_load_dubins_planning_config() -> None:

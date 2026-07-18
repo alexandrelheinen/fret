@@ -87,7 +87,7 @@ class CSpaceChecker:
         Positions are linearly interpolated from ``(0, 0, 0)`` (world
         origin) to the FK end-effector position for ``configuration``.  This
         is a conservative approximation: the actual arm links lie along
-        roughly this line for a straight-reach SCARA.
+        roughly this line for a straight-reach arm.
 
         Args:
             configuration: Joint configuration, shape ``(DOF,)``.
@@ -163,7 +163,7 @@ def make_cspace_checker(
 ) -> CSpaceChecker | Any:
     """Build a model-appropriate C-space checker (FR-SYS-01).
 
-    Returns the arm-sampling ``CSpaceChecker`` used by SCARA / RRP models.
+    Returns the arm-sampling ``CSpaceChecker`` used by arm models.
     Extra keyword arguments are accepted for API compatibility with older
     call sites and ignored.
 

@@ -1,0 +1,9 @@
+# OpenMANIPULATOR-X Jacobian velocity controller (v1.3 stub).
+
+/**:
+  ros__parameters:
+    damping_factor: 0.01
+    max_joint_velocity: 1.57
+    update_rate: 50.0
+    fault_threshold: 0.020
+    ticks_per_waypoint: 5
