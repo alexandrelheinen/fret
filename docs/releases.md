@@ -189,7 +189,7 @@ Physics validation runs against the shipped release scenario:
 
 A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs tabletop manipulation:
 empty-cell A→B (command chain), then **pick-and-place** (FSM + grasp physics on a
-Ø 2 cm ball → tip-down place cone), then **desk clutter** forcing a detour.
+Ø 25 mm ball → tip-down place cone), then **desk clutter** forcing a detour.
 Warehouse meshes stay for clutter only — they are far too large for the OM-X
 gripper (~3 cm aperture).
 
@@ -224,7 +224,7 @@ gripper (~3 cm aperture).
 | T13-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
 | T13-02 | Kinematics + controller + bridge wiring for OM-X joints |
 | T13-03 | SC-v13a scenario + unit/physics smoke |
-| T13-04 | PickPlace FSM + free box MJCF + SC-v13b physics smoke |
+| T13-04 | PickPlace FSM + ball/cone MJCF + SC-v13b physics smoke |
 | T13-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
 | T13-06 | Showcase render pipeline + metrics |
 

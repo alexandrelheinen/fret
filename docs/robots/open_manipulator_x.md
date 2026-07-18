@@ -19,11 +19,12 @@ v1.3 showcase:
 2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
 3. **SC-v13c** — AWS desk / clutter props force a joint-space detour
 
-**Pick object:** plain MuJoCo ball (Ø 20 mm, density 800). Pick sits on the same
-cylinder pedestal; place is a transparent non-colliding plate over a tip-down
-cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*` wall collision — MuJoCo
-convex-hulls meshes, so a solid mesh cone would not catch the ball).
-AWS RoboMaker meshes stay for denser clutter later — too large to grasp.
+**Pick object:** tennis-like MuJoCo ball (Ø 25 mm, grippy friction, density 400).
+Pick sits on the same cylinder pedestal; place is a transparent non-colliding
+plate over a tip-down cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*`
+wall collision — MuJoCo convex-hulls meshes, so a solid mesh cone would not
+catch the ball). AWS RoboMaker meshes stay for denser clutter later — too large
+to grasp.
 
 ---
 
