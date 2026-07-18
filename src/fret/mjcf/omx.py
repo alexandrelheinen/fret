@@ -3,6 +3,10 @@
 Menagerie sets ``meshdir="assets/"`` relative to ``open_manipulator_x.xml``.
 Including that file from another directory drops the meshdir, so we materialize
 a loadable scene under ``src/fret/mjcf/.generated/`` with an absolute meshdir.
+
+SC-v13b also injects finger-pad geoms and MuJoCo adhesion actuators so the
+parallel gripper can lift the free box under full physics (stock Menagerie
+finger meshes alone do not pinch reliably).
 """
 
 from __future__ import annotations
@@ -15,6 +19,27 @@ _MENAGERIE_REL = Path(
 )
 _SUPPORTED_SCENES: frozenset[str] = frozenset(
     {"omx_tabletop", "omx_pick_place"}
+)
+
+_PAD_LEFT = (
+    '                <geom name="pad_left" type="box" '
+    'size="0.016 0.004 0.011" pos="0.028 0.0 0"\n'
+    '                      friction="3.5 1.0 0.05" solref="0.008 1" '
+    'solimp="0.98 0.99 0.001"\n'
+    '                      condim="6" rgba="0.15 0.15 0.15 1" group="3"/>\n'
+)
+_PAD_RIGHT = (
+    '                <geom name="pad_right" type="box" '
+    'size="0.016 0.004 0.011" pos="0.028 0.0 0"\n'
+    '                      friction="3.5 1.0 0.05" solref="0.008 1" '
+    'solimp="0.98 0.99 0.001"\n'
+    '                      condim="6" rgba="0.15 0.15 0.15 1" group="3"/>\n'
+)
+_ADHESION = (
+    '    <adhesion name="grip_left" body="gripper_left" '
+    'ctrlrange="0 1" gain="80"/>\n'
+    '    <adhesion name="grip_right" body="gripper_right" '
+    'ctrlrange="0 1" gain="80"/>\n'
 )
 
 
@@ -42,6 +67,36 @@ def _scene_additions(template_text: str) -> str:
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
     return text.strip()
+
+
+def _inject_physical_gripper(robot_xml: str) -> str:
+    """Add finger pads + adhesion actuators for SC-v13b physics grasp."""
+    left_anchor = '<joint name="Gripper" class="Gripper"/>\n'
+    right_anchor = '<joint name="Gripper_mimic" class="Gripper_mimic"/>\n'
+    if left_anchor not in robot_xml or right_anchor not in robot_xml:
+        raise ValueError(
+            "Menagerie OM-X gripper joints missing for pad inject"
+        )
+    if 'name="pad_left"' not in robot_xml:
+        robot_xml = robot_xml.replace(left_anchor, left_anchor + _PAD_LEFT, 1)
+    if 'name="pad_right"' not in robot_xml:
+        robot_xml = robot_xml.replace(
+            right_anchor, right_anchor + _PAD_RIGHT, 1
+        )
+    grip_act = (
+        '<position class="Gripper" name="Gripper" '
+        'joint="Gripper" inheritrange="1"/>\n'
+    )
+    if 'name="grip_left"' not in robot_xml:
+        if grip_act not in robot_xml:
+            raise ValueError("Menagerie Gripper actuator missing for adhesion")
+        robot_xml = robot_xml.replace(grip_act, grip_act + _ADHESION, 1)
+    robot_xml = robot_xml.replace(
+        'ctrl="0 0 0 0 0"',
+        'ctrl="0 0 0 0 0 0 0"',
+        1,
+    )
+    return robot_xml
 
 
 def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
@@ -73,6 +128,8 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
         f'<mujoco model="{scene}">',
         1,
     )
+    if scene == "omx_pick_place":
+        robot = _inject_physical_gripper(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")
     robot_body = robot.rstrip()[: -len("</mujoco>")].rstrip()

@@ -86,9 +86,10 @@ no obstacles.
 **File:** `config/scenarios/omx_pick_place.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Validate the manipulation FSM and grasp physics — pick a small free
-box from the green zone and place it in the red zone (no obstacles). Object is a
-plain MuJoCo box (AWS warehouse meshes are too large for the OM-X gripper).
+**Purpose:** Validate the manipulation FSM under full MuJoCo physics — stretch to
+pick a small free box on the green pedestal and place it on the red pedestal (no
+obstacles). Object is a plain MuJoCo box (AWS warehouse meshes are too large for
+the OM-X gripper).
 
 **Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
 
