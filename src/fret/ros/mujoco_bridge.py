@@ -29,6 +29,7 @@ import numpy.typing as npt
 from fret.ros.mujoco_physics_log import (
     ContactLogConfig,
     PhysicsContactLogger,
+    agent_obstacle_contact_forces,
     contact_log_config_from_bridge_yaml,
 )
 from fret.simulation.turtlebot3_unit import (
@@ -54,6 +55,16 @@ _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     _RRT_BASE_JOINT,
     _SST_BASE_JOINT,
     _DUMMY_BASE_JOINT,
+)
+
+# Collision shell geoms used by the real-contact collision monitor (v1.3).
+_RRT_COLLISION_GEOM: str = "rrt_collision"
+_SST_COLLISION_GEOM: str = "sst_collision"
+_DUMMY_COLLISION_GEOM: str = "dummy_collision"
+_DUBINS_COLLISION_GEOMS: tuple[str, str, str] = (
+    _RRT_COLLISION_GEOM,
+    _SST_COLLISION_GEOM,
+    _DUMMY_COLLISION_GEOM,
 )
 
 # Match TurtleBot3 Burger Menagerie geometry; race SITL allows 2× nominal
@@ -675,6 +686,9 @@ class DubinsRaceBridgeCore:
         self._actuator_ids: list[int] = []
         self._velocities = np.zeros(9, dtype=np.float64)
         self._contact_logger: PhysicsContactLogger | None = None
+        self._collision_forces_n: dict[str, float] = dict.fromkeys(
+            _DUBINS_COLLISION_GEOMS, 0.0
+        )
         self._load_mujoco_optional()
         self._seed_mujoco_state()
         if physics_config is not None:
@@ -792,6 +806,20 @@ class DubinsRaceBridgeCore:
         """Return the most recent nine-vector world-frame command."""
         return self._velocities.copy()
 
+    def get_collision_forces_n(self) -> tuple[float, float, float]:
+        """Return ``(rrt, sst, dummy)`` peak obstacle-contact force [N].
+
+        Computed every ``step_physics()`` tick from real MuJoCo contacts
+        (independent of whether JSONL contact logging is enabled) so a
+        collision *monitor* can stop an agent's control loop after an
+        actual impact rather than pre-emptively blocking its motion.
+        """
+        return (
+            self._collision_forces_n.get(_RRT_COLLISION_GEOM, 0.0),
+            self._collision_forces_n.get(_SST_COLLISION_GEOM, 0.0),
+            self._collision_forces_n.get(_DUMMY_COLLISION_GEOM, 0.0),
+        )
+
     def step_physics(
         self,
         velocities: npt.NDArray[np.float64],
@@ -852,6 +880,13 @@ class DubinsRaceBridgeCore:
 
         for _ in range(step_count):
             self._mujoco.mj_step(self._model, self._data)
+
+        self._collision_forces_n = agent_obstacle_contact_forces(
+            self._model,
+            self._data,
+            self._mujoco,
+            _DUBINS_COLLISION_GEOMS,
+        )
 
         if self._contact_logger is not None:
             self._contact_logger.record_tick(
