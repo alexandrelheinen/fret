@@ -42,12 +42,18 @@ hard stop so controllers/planners never ride the limit.
 about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
 arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 
+**Pedestal height:** min clear pad_z ≈ 0.0275 m → min top ≈ 0.0175 m; with a
+**4×box-edge margin** (4·0.02 = 0.08 m) the pedestal top is **0.098 m**.
+
 **SC-v13b FSM:**
 `IDLE → APPROACH → DESCEND → GRASP → LIFT → MOVE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
 (with `FAULT` on timeout / drop). Grasp is **full MuJoCo physics**: injected
-finger-pad geoms + adhesion actuators hold the free box (stock Menagerie finger
-meshes alone do not pinch reliably). Pick/place pedestals sit at ~0.32 m
-fingertip radius (~2.3× the early close-in layout) so the arm must stretch.
+finger-pad geoms + adhesion actuators hold the free box. Pedestals sit at
+~0.32 m fingertip radius so the arm must stretch.
+
+**SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
+with ARCO RRT* (inflated wall occupancy) and tracked by ``ControllerNode``
+joint-space commands so the arm retracts around the wall.
 
 ---
 

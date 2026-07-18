@@ -156,6 +156,13 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         from fret.mjcf.omx import ensure_omx_pick_place_mjcf
 
         return ensure_omx_pick_place_mjcf()
+    if model in {"open_manipulator_x", "omx"} and scenario in {
+        "omx_desk_clutter",
+        "desk_clutter",
+    }:
+        from fret.mjcf.omx import ensure_omx_desk_clutter_mjcf
+
+        return ensure_omx_desk_clutter_mjcf()
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"

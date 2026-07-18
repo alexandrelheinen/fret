@@ -1,15 +1,14 @@
-<mujoco model="omx_pick_place">
+<mujoco model="omx_desk_clutter">
   <!--
-    OpenMANIPULATOR-X pick-and-place cell (SC-v13b / T13-04).
+    OpenMANIPULATOR-X desk-clutter cell (SC-v13c / T13-05).
 
-    Pedestal height derivation (box edge L = 0.02 m):
-      - min clear pad_z at stretch grasp ≈ 0.0275 m (no moving-link floor hit)
-      - min pedestal top = pad_z - L/2 ≈ 0.0175 m
-      - margin = 4·L = 0.08 m  →  pedestal_top = 0.098 m
+    Same lowered pedestals as SC-v13b plus a mid-cell parallelepiped wall that
+    blocks the straight Joint1 slew during transfer. The planner must retract
+    (reduce reach radius) to swing around the near face of the wall.
 
-    Stretched pedestals (~0.32 m fingertip radius). Green = pick, red = place.
-    Grasp is full MuJoCo physics (pads + adhesion injected by omx.py).
-    Pedestals collide with the box only so the wrist can clear the posts.
+    Wall: x∈[0.24, 0.34], |y|≤0.008, z∈[0, 0.22] — approach stays free;
+    straight pick_hover→place_hover is occupied. Planning uses a slightly
+    inflated copy of this box so mesh links clear the physical wall.
   -->
   <include file="open_manipulator_x.xml"/>
 
@@ -37,6 +36,7 @@
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_box" rgba="0.90 0.75 0.20 1" reflectance="0.1"/>
+    <material name="transfer_wall" rgba="0.55 0.38 0.28 1" reflectance="0.05"/>
   </asset>
 
   <worldbody>
@@ -45,7 +45,6 @@
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 
-    <!-- half-height 0.049 → top 0.098 m (see header). -->
     <geom name="pedestal_pick" type="cylinder" pos="0.273 -0.160 0.049" size="0.018 0.049"
           material="pedestal" friction="1.2 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="pedestal_place" type="cylinder" pos="0.273 0.160 0.049" size="0.018 0.049"
@@ -56,7 +55,10 @@
     <geom name="goal_zone" type="cylinder" pos="0.273 0.160 0.099" size="0.05 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <!-- ~20 mm cube; contype=3 hits floor (1) and pedestals (2). -->
+    <geom name="transfer_wall" type="box" pos="0.29 0 0.11" size="0.05 0.008 0.11"
+          material="transfer_wall" friction="1.0 0.1 0.01"
+          contype="1" conaffinity="1"/>
+
     <body name="pick_box" pos="0.273 -0.160 0.108">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="box" size="0.010 0.010 0.010"
