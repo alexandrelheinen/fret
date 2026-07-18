@@ -671,8 +671,6 @@ def _min_pose_history_clearance(
 _PHYSICS_KP_POSITION: float = 6.8
 _PHYSICS_KP_YAW: float = 3.2
 _PHYSICS_MAX_POSITION_LAG_M: float = 0.28
-_PHYSICS_OBSTACLE_SPEED_FLOOR: float = 0.38
-_PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE: float = 3.0
 _PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.05
 _PHYSICS_GOAL_DWELL_TICKS: int = 6
 _PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
@@ -834,12 +832,6 @@ def _agent_physics_velocity_command(
         yaw_err = 0.0
         pp_L = max(lookahead_distance, 0.35)
 
-    dist, _closest = occupancy.nearest_obstacle(
-        np.array([sim_x, sim_y], dtype=np.float64)
-    )
-    clearance = float(occupancy.clearance)
-    influence_radius = _PHYSICS_NEAR_OBSTACLE_INFLUENCE_SCALE * clearance
-
     heading_gate = _PHYSICS_HEADING_GATE_FLOOR + (
         1.0 - _PHYSICS_HEADING_GATE_FLOOR
     ) * max(0.0, math.cos(yaw_err))
@@ -883,14 +875,6 @@ def _agent_physics_velocity_command(
         outward = max(0.0, vy)
         scale = max(0.0, (workspace_max - sim_y) / margin)
         vy = vy - outward * (1.0 - scale)
-
-    if float(dist) < influence_radius:
-        proximity_scale = max(
-            _PHYSICS_OBSTACLE_SPEED_FLOOR,
-            float(dist) / influence_radius,
-        )
-        vx *= proximity_scale
-        vy *= proximity_scale
 
     return (
         (vx, vy, omega),
