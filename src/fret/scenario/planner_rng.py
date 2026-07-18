@@ -26,11 +26,19 @@ def deterministic_planner_rng(
     original_default_rng = np.random.default_rng
 
     def _seeded_default_rng(
-        seed: int | None = None,
+        call_seed: int | None = None,
         **kwargs: object,
     ) -> np.random.Generator:
-        """Match ``numpy.random.default_rng`` signature for patched calls."""
-        pinned = seed if seed is not None else SHOWCASE_PLANNER_RNG_SEED
+        """Match ``numpy.random.default_rng`` signature for patched calls.
+
+        ``call_seed`` is whatever the wrapped call site passes (ARCO's
+        planners call ``np.random.default_rng()`` with no argument, so this
+        is normally ``None``). It must not be named ``seed`` — that would
+        shadow the outer ``seed`` this context manager was configured with,
+        silently pinning every call to ``SHOWCASE_PLANNER_RNG_SEED``
+        regardless of what the caller asked for.
+        """
+        pinned = call_seed if call_seed is not None else seed
         return original_default_rng(pinned, **kwargs)
 
     np.random.default_rng = _seeded_default_rng  # type: ignore[assignment]
