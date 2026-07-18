@@ -33,7 +33,9 @@ v1.3 showcase:
 | File | Status |
 |---|---|
 | Menagerie `open_manipulator_x.xml` | ✅ Submodule |
-| `src/fret/mjcf/omx_tabletop.xml` | 🔲 v1.3 |
-| `src/fret/config/scenarios/omx_reach.yml` | 🔲 v1.3 |
+| `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty tabletop template |
+| `src/fret/mjcf/omx.py` | ✅ Merges Menagerie + template → `.generated/` (absolute meshdir) |
+| `src/fret/config/scenarios/omx_reach.yml` | ✅ SC-v13a joint-space A→B |
+| `src/fret/control/kinematics_open_manipulator_x.py` | ✅ MuJoCo FK / numerical IK |
 
 Simulation: [mujoco.md](../mujoco.md). Roadmap: [roadmap.md](../roadmap.md).

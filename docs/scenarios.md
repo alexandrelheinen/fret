@@ -73,7 +73,7 @@ on every PR gate.
 
 ### SC-v13a — OpenMANIPULATOR-X empty reach (v1.3)
 
-**File:** `config/scenarios/omx_reach.yml` *(planned)*  
+**File:** `config/scenarios/omx_reach.yml`  
 **Model:** `open_manipulator_x`
 
 **Purpose:** Validate the full command chain on an empty tabletop — EE pose A → B,
