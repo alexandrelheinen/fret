@@ -82,9 +82,9 @@ needs network access). Standard build/test/run commands live in
   config and renders a near-static clip; pass `--no-tracking` to render visible
   planned-path (ARCO RRT*) motion.
 - **Known pre-existing breakages (not environment issues):** the pinned
-  `arco @ main` has drifted so its `KDTreeOccupancy` now rejects empty point
-  sets, which breaks a few occupancy/tracking tests; `mypy` reports a missing
-  `Any` import in `planner_node_ros.py`; and the ROS `planner_node` crashes at
-  launch because `declare_parameter("start_configuration", [])` is inferred as
-  `BYTE_ARRAY` under rclpy Jazzy. Other nodes (mujoco_bridge, controller,
-  perception, scene) launch cleanly.
+ pinned `arco[mpc] @ v0.3.2` provides CasADi path-following / joint-space
+ MPC. Pre-existing: `mypy` reports a missing `Any` import in
+ `planner_node_ros.py`; and the ROS `planner_node` crashes at launch because
+ `declare_parameter("start_configuration", [])` is inferred as `BYTE_ARRAY`
+ under rclpy Jazzy. Other nodes (mujoco_bridge, controller, perception,
+ scene) launch cleanly.

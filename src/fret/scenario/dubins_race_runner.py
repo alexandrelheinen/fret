@@ -3,7 +3,8 @@
 Runs the ARCO vehicle race pipeline in pure Python:
 
   Column YAML → KDTreeOccupancy → RRT* + SST planners
-  → TrajectoryPruner → Pure Pursuit + DubinsVehicle × 2
+  → TrajectoryPruner → path-following MPC (RRT*/SST) + DubinsVehicle
+  → grey dummy keeps a Pure Pursuit foil (no obstacle avoidance)
   → optional MuJoCo state sync
 
 Validates releases.md acceptance criteria V11-1 – V11-3 in CI without ROS.
@@ -20,9 +21,14 @@ from typing import Any, Literal, cast
 
 import numpy as np
 import numpy.typing as npt
+from arco.control.mpc import MPCTrackingLoop, PathFollowingMPCConfig
 from arco.control.tracking import TrackingLoop
 from arco.planning.continuous import RRTPlanner, SSTPlanner, TrajectoryPruner
-from arco.simulator.sim.tracking import VehicleConfig, build_vehicle_sim
+from arco.simulator.sim.tracking import (
+    VehicleConfig,
+    build_vehicle_mpc_sim,
+    build_vehicle_sim,
+)
 
 from fret.config_loader import (
     load_ros_parameters_yaml,
@@ -169,8 +175,8 @@ class DubinsRaceSimulation:
     rrt_vehicle: Any
     sst_vehicle: Any
     dummy_vehicle: Any
-    rrt_loop: TrackingLoop
-    sst_loop: TrackingLoop
+    rrt_loop: MPCTrackingLoop
+    sst_loop: MPCTrackingLoop
     dummy_loop: TrackingLoop
     rrt_path: list[tuple[float, float]]
     sst_path: list[tuple[float, float]]
@@ -268,16 +274,16 @@ class DubinsRaceSimulation:
     def step_physics(self, bridge: Any) -> bool:
         """Advance one physics SITL tick via MuJoCo actuators (v1.2).
 
-        Steps each agent's kinematic Pure Pursuit reference, then drives
-        velocity actuators with softened P-tracking toward that reference.
-        Forward-only projection and heading-error speed gating shape the
-        commanded twist; goal dwell keeps differential-drive agents from
-        reversing into workspace bounds. There is no pre-emptive
-        occupancy-based motion block — a post-hoc :class:`_CollisionMonitor`
-        per agent stops the control loop only after a real impact is
-        detected, so a planning/tracking bug that drives an agent into an
-        obstacle surfaces as an actual collision rather than being
-        silently masked.
+        Steps each planner agent with ARCO path-following MPC (tracking +
+        obstacle barriers inside the optimizer), then drives velocity
+        actuators with the MPC body twist. The grey dummy keeps its
+        Pure Pursuit foil with no repulsion. Goal dwell keeps
+        differential-drive agents from reversing into workspace bounds.
+        There is no pre-emptive occupancy-based motion block — a post-hoc
+        :class:`_CollisionMonitor` per agent stops the control loop only
+        after a real impact is detected, so a planning/tracking bug that
+        drives an agent into an obstacle surfaces as an actual collision
+        rather than being silently masked.
 
         Args:
             bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
@@ -300,9 +306,7 @@ class DubinsRaceSimulation:
             agent_finished=(self.rrt_finish is not None)
             or self.rrt_collision.collided,
             max_speed=self.vehicle_cfg.max_speed,
-            cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
-            lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         sst_cmd, sst_metrics = _agent_physics_velocity_command(
             self.sst_loop,
@@ -312,9 +316,7 @@ class DubinsRaceSimulation:
             agent_finished=(self.sst_finish is not None)
             or self.sst_collision.collided,
             max_speed=self.vehicle_cfg.max_speed,
-            cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
-            lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         if self.dummy_stopped:
             dummy_cmd = (0.0, 0.0, 0.0)
@@ -507,6 +509,42 @@ def _vehicle_config(ctrl: dict[str, Any]) -> VehicleConfig:
         max_turn_rate_dot=math.radians(float(ctrl["max_turn_rate_dot_deg"])),
         curvature_gain=float(ctrl["curvature_gain"]),
         repulsion_gain=float(ctrl["repulsion_gain"]),
+    )
+
+
+def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
+    """Load path-following MPC weights; cruise comes from vehicle config."""
+    base = PathFollowingMPCConfig.create_from_config(
+        cruise_speed=float(ctrl["cruise_speed"])
+    )
+    mpc = ctrl.get("mpc")
+    if not isinstance(mpc, dict):
+        return base
+    return PathFollowingMPCConfig(
+        horizon_step_count=int(
+            mpc.get("horizon_step_count", base.horizon_step_count)
+        ),
+        dt=float(mpc.get("dt", base.dt)),
+        cruise_speed=float(ctrl["cruise_speed"]),
+        weight_contour=float(mpc.get("weight_contour", base.weight_contour)),
+        weight_heading=float(mpc.get("weight_heading", base.weight_heading)),
+        weight_progress=float(
+            mpc.get("weight_progress", base.weight_progress)
+        ),
+        weight_control=float(mpc.get("weight_control", base.weight_control)),
+        weight_obstacle=float(
+            mpc.get("weight_obstacle", base.weight_obstacle)
+        ),
+        obstacle_barrier_power=float(
+            mpc.get("obstacle_barrier_power", base.obstacle_barrier_power)
+        ),
+        weight_terminal=float(
+            mpc.get("weight_terminal", base.weight_terminal)
+        ),
+        weight_slack=float(mpc.get("weight_slack", base.weight_slack)),
+        max_solver_iter_count=int(
+            mpc.get("max_solver_iter_count", base.max_solver_iter_count)
+        ),
     )
 
 
@@ -777,17 +815,10 @@ def _min_pose_history_clearance(
     )
 
 
-_PHYSICS_KP_POSITION: float = 6.8
-_PHYSICS_KP_YAW: float = 3.2
-_PHYSICS_MAX_POSITION_LAG_M: float = 0.28
 _PHYSICS_PLANNING_CLEARANCE_BUMP_M: float = 0.05
 _PHYSICS_GOAL_DWELL_TICKS: int = 6
-_PHYSICS_FORWARD_SPEED_SCALE: float = 1.0
-_PHYSICS_BEARING_MIN_LAG_M: float = 0.05
 _PHYSICS_WORKSPACE_MAX_M: float = 10.0
 _PHYSICS_WORKSPACE_MARGIN_M: float = 0.45
-_PHYSICS_HEADING_GATE_FLOOR: float = 0.20
-_PHYSICS_PP_CURVATURE_GAIN: float = 2.0
 
 
 def _wrap_heading(angle: float) -> float:
@@ -867,25 +898,21 @@ def _physics_goal_dwell_update(
 
 
 def _agent_physics_velocity_command(
-    loop: TrackingLoop,
+    loop: MPCTrackingLoop,
     vehicle: Any,
     path: list[tuple[float, float]],
     *,
     dt: float,
     agent_finished: bool,
     max_speed: float,
-    cruise_speed: float,
     max_turn_rate: float,
-    lookahead_distance: float,
-    kp_position: float = _PHYSICS_KP_POSITION,
-    kp_yaw: float = _PHYSICS_KP_YAW,
-    max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
 ) -> tuple[tuple[float, float, float], dict[str, Any]]:
-    """Return closed-loop body twist for true differential-drive physics.
+    """Return MPC body twist for true differential-drive physics.
 
     ``agent_finished`` covers both "reached the goal" and "the collision
     monitor stopped this agent after a real impact" — either way the
-    control loop must stop commanding motion.
+    control loop must stop commanding motion. Obstacle avoidance lives
+    inside the ARCO path-following MPC (no APF blend).
     """
     if agent_finished:
         return (0.0, 0.0, 0.0), {
@@ -903,42 +930,18 @@ def _agent_physics_velocity_command(
     vehicle.y = float(sim_y)
     vehicle.heading = float(sim_theta)
 
-    # ARCO PP for metrics / repulsion only — not as the speed reference.
+    # MPCTrackingLoop.step integrates a kinematic preview; restore the
+    # MuJoCo pose afterward and apply only the first optimal command.
     metrics = loop.step(path, dt)
     vehicle.x = float(sim_x)
     vehicle.y = float(sim_y)
     vehicle.heading = float(sim_theta)
 
-    look_x, look_y = _path_lookahead_point(
-        path,
-        (sim_x, sim_y),
-        lookahead_m=max(lookahead_distance, 0.35),
+    forward = float(metrics.get("mpc_speed_cmd", metrics.get("speed", 0.0)))
+    omega = float(
+        metrics.get("mpc_turn_rate_cmd", metrics.get("turn_rate", 0.0))
     )
-    look_dx = look_x - sim_x
-    look_dy = look_y - sim_y
-    look_range = math.hypot(look_dx, look_dy)
-    if look_range >= _PHYSICS_BEARING_MIN_LAG_M:
-        yaw_err = _wrap_heading(math.atan2(look_dy, look_dx) - sim_theta)
-        pp_L = max(look_range, 0.35)
-    else:
-        yaw_err = 0.0
-        pp_L = max(lookahead_distance, 0.35)
-
-    heading_gate = _PHYSICS_HEADING_GATE_FLOOR + (
-        1.0 - _PHYSICS_HEADING_GATE_FLOOR
-    ) * max(0.0, math.cos(yaw_err))
-    lag_speed = min(
-        max_speed, kp_position * min(look_range, max_position_lag_m)
-    )
-    forward = max(float(cruise_speed), lag_speed) * heading_gate
-    forward *= _PHYSICS_FORWARD_SPEED_SCALE
     forward = max(0.0, min(max_speed, forward))
-
-    omega = _PHYSICS_PP_CURVATURE_GAIN * forward * math.sin(
-        yaw_err
-    ) / pp_L + kp_yaw * yaw_err * (1.0 - heading_gate)
-    repulsion_turn = loop._repulsion_turn_rate(sim_x, sim_y, sim_theta)
-    omega += repulsion_turn
     omega = max(-max_turn_rate, min(max_turn_rate, omega))
 
     vx = forward * math.cos(sim_theta)
@@ -967,50 +970,9 @@ def _agent_physics_velocity_command(
         (vx, vy, omega),
         {
             **metrics,
-            "repulsion_turn_rate": repulsion_turn,
-            "heading_error": yaw_err,
+            "heading_error": float(metrics.get("heading_error", 0.0)),
         },
     )
-
-
-def _agent_world_velocity_command(
-    loop: TrackingLoop,
-    path: list[tuple[float, float]],
-    *,
-    agent_finished: bool,
-) -> tuple[tuple[float, float, float], dict[str, Any]]:
-    """Return world ``(v_x, v_y, omega)`` without integrating the vehicle."""
-    if agent_finished:
-        return (0.0, 0.0, 0.0), {
-            "cross_track_error": 0.0,
-            "heading_error": 0.0,
-            "pose": loop.vehicle.pose,
-            "speed": 0.0,
-            "turn_rate": 0.0,
-            "curvature": 0.0,
-            "repulsion_turn_rate": 0.0,
-        }
-
-    pose = loop.vehicle.pose
-    speed_ref = loop.cruise_speed / (
-        1.0 + loop.curvature_gain * abs(loop.controller.curvature)
-    )
-    speed_cmd, turn_rate_cmd = loop.controller.track(pose, path, speed_ref)
-    x, y, theta = pose
-    repulsion = loop._repulsion_turn_rate(x, y, theta)
-    turn_rate_cmd += repulsion
-    vx = speed_cmd * math.cos(theta)
-    vy = speed_cmd * math.sin(theta)
-    metrics: dict[str, Any] = {
-        "cross_track_error": loop.controller.cross_track_error,
-        "heading_error": loop.controller.heading_error,
-        "pose": pose,
-        "speed": speed_cmd,
-        "turn_rate": turn_rate_cmd,
-        "curvature": loop.controller.curvature,
-        "repulsion_turn_rate": repulsion,
-    }
-    return (vx, vy, turn_rate_cmd), metrics
 
 
 def _sync_vehicle_pose(vehicle: Any, pose: npt.NDArray[np.float64]) -> None:
@@ -1136,15 +1098,17 @@ class DubinsRaceRunner:
 
         rrt_path = _path_to_tuples(rrt_plan.path)
         sst_path = _path_to_tuples(sst_plan.path)
-        rrt_vehicle, rrt_loop = build_vehicle_sim(
-            rrt_path, vehicle_cfg, occupancy=occupancy
+        mpc_cfg = _mpc_config(ctrl)
+        rrt_vehicle, rrt_loop = build_vehicle_mpc_sim(
+            rrt_path, vehicle_cfg, mpc_cfg, occupancy=occupancy
         )
-        sst_vehicle, sst_loop = build_vehicle_sim(
-            sst_path, vehicle_cfg, occupancy=occupancy
+        sst_vehicle, sst_loop = build_vehicle_mpc_sim(
+            sst_path, vehicle_cfg, mpc_cfg, occupancy=occupancy
         )
 
         dummy_pose = _initial_dummy_pose(world)
         dummy_path = _straight_line_path(world.start_xy, world.goal_xy)
+        # Grey foil: Pure Pursuit only — no MPC / no APF repulsion.
         dummy_vehicle, dummy_loop = build_vehicle_sim(
             dummy_path, vehicle_cfg, occupancy=occupancy
         )

@@ -56,8 +56,9 @@ finger-pad geoms close first, then low-gain adhesion holds the free ball.
 Pedestals sit at ~0.32 m fingertip radius so the arm must stretch.
 
 **SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
-with ARCO RRT* (inflated wall occupancy) and tracked by ``ControllerNode``
-joint-space commands so the arm retracts around the wall.
+with ARCO RRT* (inflated wall occupancy) and tracked by ARCO
+``JointSpaceMPC`` (carrot NMPC) so the arm retracts around the wall.
+SC-v13b phase targets use the same joint-space MPC.
 
 ---
 

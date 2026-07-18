@@ -1,10 +1,10 @@
-"""SC-v13c pick-and-place with mid-cell wall: planner + controller + physics.
+"""SC-v13c pick-and-place with mid-cell wall: planner + MPC + physics.
 
 Grasp/release phases reuse the SC-v13b FSM and MuJoCo adhesion grasp. The
 ``MOVE_PLACE`` phase plans ``pick_hover → place_hover`` with ARCO RRT* against
 an inflated wall occupancy cloud, densifies via ``TrajectoryGenerator``, then
-tracks the path with ``ControllerNode.compute_joint_command`` (joint-space —
-Cartesian Jacobian chords cut through the wall).
+tracks the path with ARCO :class:`~arco.control.mpc.JointSpaceMPC` (carrot
+NMPC — replaces proportional ``ControllerNode`` joint-space tracking).
 """
 
 from __future__ import annotations
@@ -17,7 +17,11 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.config_loader import load_algorithm_config, planning_config_for_model
-from fret.control.controller_node import ControllerNode
+from fret.control.joint_mpc import (
+    JointPathMPCTracker,
+    build_omx_joint_mpc,
+    sync_mpc_state_from_measurement,
+)
 from fret.control.kinematics import Kinematics
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
@@ -42,7 +46,7 @@ from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 
 _SCENARIO = Path("src/fret/config/scenarios/omx_desk_clutter.yml")
-_CONTROLLER_CFG = "src/fret/config/controllers/open_manipulator_x.yml"
+_CTRL_PERIOD_S = 0.02
 
 
 @dataclass(frozen=True)
@@ -91,7 +95,7 @@ def _dry_run_transfer(
     *,
     joint_tol_rad: float,
 ) -> bool:
-    """Return True if joint-space tracking reaches ``goal`` without wall jams."""
+    """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
     try:
         import mujoco as mj
     except ImportError:  # pragma: no cover
@@ -120,10 +124,16 @@ def _dry_run_transfer(
     settle(idle, 300)
     settle(start, 700)
 
-    controller = ControllerNode("open_manipulator_x", _CONTROLLER_CFG)
-    controller.set_trajectory(dense)
+    tracker = JointPathMPCTracker(
+        dense,
+        build_omx_joint_mpc(),
+        race_speed=0.9,
+        max_carrot_lag=0.30,
+        goal_tol=max(0.12, float(joint_tol_rad)),
+    )
+    tracker.reset(np.asarray(start, dtype=np.float64))
     dt = float(model.opt.timestep)
-    period = 0.02
+    period = _CTRL_PERIOD_S
     accum = 0.0
     hits = 0
     q_cmd = np.asarray(start, dtype=np.float64).copy()
@@ -142,14 +152,8 @@ def _dry_run_transfer(
         accum += dt
         if accum >= period:
             accum -= period
-            controller.compute_joint_command(
-                q, joint_tol_rad=joint_tol_rad, kp=12.0
-            )
-            waypoint = controller.current_waypoint()
-            if waypoint is not None:
-                q_cmd = waypoint
-            elif controller.is_trajectory_complete():
-                q_cmd = np.asarray(goal, dtype=np.float64)
+            tracker.sync_from_measurement(q)
+            q_cmd = tracker.step(period)
         for i, n in enumerate(names):
             data.ctrl[model.actuator(n).id] = float(q_cmd[i])
         data.ctrl[model.actuator("Gripper").id] = -0.01
@@ -160,7 +164,7 @@ def _dry_run_transfer(
             g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
             if "transfer_wall" in {g1, g2}:
                 hits += 1
-        if controller.is_trajectory_complete():
+        if tracker.complete:
             break
 
     q = np.array(
@@ -302,7 +306,7 @@ def simulate_pick_place_clutter(
     scenario_path: str | Path | None = None,
     seed_offset: int = 0,
 ) -> ClutterPickPlaceResult:
-    """Run one SC-v13c cycle (physics grasp + planned transfer)."""
+    """Run one SC-v13c cycle (physics grasp + planned MPC transfer)."""
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
@@ -333,8 +337,15 @@ def simulate_pick_place_clutter(
         scenario_path=scenario,
         seed_offset=seed_offset,
     )
-    controller = ControllerNode("open_manipulator_x", _CONTROLLER_CFG)
-    controller.set_trajectory(transfer_path)
+
+    phase_mpc = build_omx_joint_mpc()
+    transfer_tracker = JointPathMPCTracker(
+        transfer_path,
+        build_omx_joint_mpc(),
+        race_speed=0.9,
+        max_carrot_lag=0.30,
+        goal_tol=max(0.12, float(joint_tol_rad)),
+    )
 
     fsm = PickPlaceFSM(
         wp,
@@ -354,12 +365,12 @@ def simulate_pick_place_clutter(
     for _ in range(400):
         mj.mj_step(model, data)
 
+    phase_mpc.reset(_arm_q(mj, model, data))
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
     record_every_steps = max(1, int(record_every_steps))
     transfer_armed = False
-    ctrl_period = 1.0 / 50.0
     ctrl_accum = 0.0
     q_cmd = wp.pick_hover.copy()
 
@@ -374,26 +385,27 @@ def simulate_pick_place_clutter(
 
         if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
             transfer_armed = True
-            controller.set_trajectory(transfer_path)
+            transfer_tracker.reset(q)
             q_cmd = q.copy()
 
-        if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
-            ctrl_accum += dt
-            if ctrl_accum >= ctrl_period:
-                ctrl_accum -= ctrl_period
-                controller.compute_joint_command(
-                    q, joint_tol_rad=joint_tol_rad, kp=12.0
+        ctrl_accum += dt
+        if ctrl_accum >= _CTRL_PERIOD_S:
+            ctrl_accum -= _CTRL_PERIOD_S
+            if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
+                transfer_tracker.sync_from_measurement(q)
+                if transfer_tracker.complete:
+                    q_cmd = wp.place_hover.copy()
+                else:
+                    q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
+            else:
+                sync_mpc_state_from_measurement(phase_mpc, q)
+                q_cmd = np.asarray(
+                    phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
+                    dtype=np.float64,
                 )
-                waypoint = controller.current_waypoint()
-                if waypoint is not None:
-                    q_cmd = waypoint
-            if controller.is_trajectory_complete():
-                q_cmd = wp.place_hover
-            for i, aid in enumerate(act_arm):
-                data.ctrl[aid] = float(q_cmd[i])
-        else:
-            for i, aid in enumerate(act_arm):
-                data.ctrl[aid] = float(cmd.q_des[i])
+
+        for i, aid in enumerate(act_arm):
+            data.ctrl[aid] = float(q_cmd[i])
 
         data.ctrl[act_grip] = float(cmd.gripper)
         adhere = adhesion_command(cmd.state, fsm.hold_t)

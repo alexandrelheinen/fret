@@ -55,7 +55,7 @@ Legacy SCARA/RRP bootstrap work is retired — validated historically, not a pro
 - [x] SE(2) planning adapter (ARCO DubinsVehicle)
 - [x] Dual/triple-agent race orchestration
 - [x] AWS warehouse maze + submodule meshes
-- [x] Pure Pursuit tracking + obstacle repulsion
+- [x] Path-following MPC tracking + obstacle barriers (ARCO v0.3.2)
 - [x] Release workflow + showcase MP4s
 - [x] Tag `v1.1.0` … physics iterations through `v1.2.0`
 

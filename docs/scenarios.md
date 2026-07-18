@@ -29,7 +29,7 @@ actuators use Menagerie limits (≈ 0.22 m/s).
 | Environment | 10 m × 10 m floor + AWS clutter visuals on analytic boxes |
 | Workspace | 10 × 10 m · start (1.2, 1.2) · goal (8.8, 8.8) |
 | Speeds | cruise 0.18 m/s · max 0.22 m/s (real TB3) |
-| Control | ARCO Pure Pursuit (SE(2)) → FRET wheel bridge |
+| Control | ARCO path-following MPC (SE(2)) → FRET wheel bridge; grey foil PP |
 | Planner | ARCO RRT* (agent 1) + SST (agent 2) |
 | Sim mode | Physics SITL (v1.2 default); kinematic mirror via `physics_mode:=false` |
 

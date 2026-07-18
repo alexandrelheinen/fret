@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "pyyaml>=6.0",
-    "arco @ git+https://github.com/alexandrelheinen/arco.git@main",
+    "arco[mpc] @ git+https://github.com/alexandrelheinen/arco.git@v0.3.2",
 ]
 
 [project.optional-dependencies]

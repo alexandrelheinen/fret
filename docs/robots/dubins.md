@@ -31,8 +31,13 @@ Uses ARCO directly:
 | Component | ARCO symbol |
 |---|---|
 | Vehicle model | `arco.guidance.vehicle.DubinsVehicle` |
-| Path tracking | `arco.control.pure_pursuit.PurePursuitController` |
-| Tracking loop | `arco.control.tracking.TrackingLoop` |
+| Path tracking (RRT*/SST) | `arco.control.mpc.DubinsPathFollowingMPC` |
+| Tracking loop (RRT*/SST) | `arco.control.mpc.MPCTrackingLoop` |
+| Grey foil tracker | `arco.control.pure_pursuit.PurePursuitController` |
+
+Obstacle avoidance for the planner agents is inside the MPC soft barriers
+(replaces Pure Pursuit + APF). The grey dummy stays on Pure Pursuit with no
+repulsion so it collides on the naive diagonal.
 
 FRET adapter: `fret.control.kinematics_dubins.DubinsKinematics`
 
@@ -64,7 +69,7 @@ Colors match `arco.config.palette.layer_rgb("rrt"|"sst", "vehicle")`.
 | `src/fret/mjcf/dubins_race.xml` | MuJoCo race world + dual agents |
 | `src/fret/config/scenarios/dubins_race.yml` | SC-v11 scenario |
 | `src/fret/config/worlds/dubins_race_obstacles.yml` | Structure forest layout |
-| `src/fret/config/controllers/dubins.yml` | Pure Pursuit / vehicle gains |
+| `src/fret/config/controllers/dubins.yml` | Vehicle limits + MPC weights / dummy PP |
 | `src/fret/scenario/dubins_race_runner.py` | Pure-Python E2E orchestrator |
 
 Visual asset benchmark (vehicle + warehouse mesh picks): [docs/assets/dubins/README.md](../assets/dubins/README.md).
