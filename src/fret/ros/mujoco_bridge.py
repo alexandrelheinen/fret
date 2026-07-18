@@ -56,11 +56,12 @@ _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     _DUMMY_BASE_JOINT,
 )
 
-# Match TurtleBot3 Burger Menagerie geometry / actuator limits (real speed).
+# Match TurtleBot3 Burger Menagerie geometry; race SITL allows 2× nominal
+# Menagerie wheel rate so showcase cruise (0.36 m/s) is reachable.
 _AGENT_BASE_Z_M: float = 0.033
 _WHEEL_RADIUS_M: float = 0.033
 _TRACK_WIDTH_M: float = 0.16
-_WHEEL_CTRL_LIMIT_RAD_S: float = 6.67
+_WHEEL_CTRL_LIMIT_RAD_S: float = 13.34
 
 _DEFAULT_UPDATE_RATE_HZ: float = 50.0
 _DEFAULT_MJCF_TIMESTEP_S: float = 0.002

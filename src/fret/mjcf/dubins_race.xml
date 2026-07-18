@@ -7,7 +7,7 @@
                 with AWS clutter mesh visuals (regenerate via
                 scripts/generate_dubins_race_mjcf.py).
     Agents: real-scale TurtleBot3 Burger (RRT* blue, SST green, dummy grey)
-            with Menagerie wheel actuators (±6.67 rad/s).
+            with 2× Menagerie wheel actuators (±13.34 rad/s ≈ 0.44 m/s).
     All three are stepped in the same physics tick (true concurrent race).
     Agent–agent contacts are disabled; shells still hit warehouse structures.
     Dummy Pure-Pursuits the straight start→goal line (showcase foil).
@@ -252,19 +252,19 @@
   </worldbody>
 
 <actuator>
-    <!-- Real Menagerie TB3 wheel rates: ±6.67 rad/s ≈ 0.22 m/s. -->
+    <!-- 2× Menagerie TB3 wheel rates: ±13.34 rad/s ≈ 0.44 m/s (showcase). -->
     <velocity name="rrt_wheel_left" joint="rrt_wheel_left" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
     <velocity name="rrt_wheel_right" joint="rrt_wheel_right" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
     <velocity name="sst_wheel_left" joint="sst_wheel_left" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
     <velocity name="sst_wheel_right" joint="sst_wheel_right" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
     <velocity name="dummy_wheel_left" joint="dummy_wheel_left" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
     <velocity name="dummy_wheel_right" joint="dummy_wheel_right" kv="0.2"
-              ctrlrange="-6.67 6.67" ctrllimited="true"/>
+              ctrlrange="-13.34 13.34" ctrllimited="true"/>
   </actuator>
 
 

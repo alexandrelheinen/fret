@@ -1,7 +1,7 @@
 # MuJoCo physics SITL tables (v1.2) — loaded by Python only, not as ROS params.
 #
-# TurtleBot3 race agents: six wheel velocity actuators at Menagerie limits
-# (ctrl ±6.67 rad/s ≈ 0.22 m/s linear).
+# TurtleBot3 race agents: six wheel velocity actuators at 2× Menagerie
+# (ctrl ±13.34 rad/s ≈ 0.44 m/s linear) for clearer showcase motion.
 
 /**:
   ros__parameters:
