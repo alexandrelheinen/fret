@@ -98,7 +98,7 @@ class DubinsRaceRunResult:
     column_contacts_logged: bool = False
 
 
-# Collision monitor (v1.3): stop an agent's control loop after a real
+# Collision monitor: stop an agent's control loop after a real
 # impact instead of pre-emptively blocking motion near obstacles.
 # Primary signal is an actual MuJoCo contact force; the acceleration-spike
 # threshold is a fallback for bounces that leave no contact at the tick
@@ -111,7 +111,7 @@ _COLLISION_DECEL_THRESHOLD_M_S2: float = 3.0
 
 @dataclass
 class _CollisionMonitor:
-    """Sticky post-hoc collision flag for one physics-mode agent (v1.3).
+    """Sticky post-hoc collision flag for one physics-mode agent.
 
     Primary signal: a real MuJoCo contact force between the agent's
     collision geom and an obstacle geom (always computed in

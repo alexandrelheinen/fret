@@ -283,7 +283,7 @@ def test_set_positions_forbidden_in_physics_mode() -> None:
     reason="mujoco package not installed",
 )
 def test_get_collision_forces_n_zero_in_open_space() -> None:
-    """No obstacle nearby: peak contact force must stay zero (v1.3 monitor)."""
+    """No obstacle nearby: peak contact force must stay zero (collision monitor)."""
     from fret.ros.mujoco_bridge import (
         _load_merged_bridge_config,
         _resolve_config_path,
@@ -314,7 +314,7 @@ def test_get_collision_forces_n_zero_in_open_space() -> None:
 )
 def test_get_collision_forces_n_detects_real_structure_contact() -> None:
     """Driving straight into a structure geom must report a real contact
-    force (v1.3 collision monitor's primary signal, replacing the removed
+    force (the collision monitor's primary signal, replacing the removed
     pre-emptive occupancy-based motion block)."""
     from fret.ros.mujoco_bridge import (
         _load_merged_bridge_config,

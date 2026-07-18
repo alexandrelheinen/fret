@@ -1,4 +1,4 @@
-"""Unit tests for the post-hoc collision monitor (v1.3).
+"""Unit tests for the post-hoc collision monitor.
 
 Replaces the removed pre-emptive occupancy-based motion block
 (``_physics_forward_blocked``): an agent's control loop should keep
