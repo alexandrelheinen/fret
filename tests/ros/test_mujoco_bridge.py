@@ -84,10 +84,17 @@ def test_resolve_mjcf_dubins_race() -> None:
     assert path.is_file()
 
 
+def test_resolve_mjcf_omx_reach() -> None:
+    """OM-X tabletop MJCF should resolve for the empty-reach scenario."""
+    path = resolve_mjcf_path("open_manipulator_x", "omx_reach", None)
+    assert path.name == "omx_tabletop.xml"
+    assert path.is_file()
+
+
 def test_resolve_mjcf_unsupported_model_raises() -> None:
     """Unsupported model/scenario pairs should raise ValueError."""
     with pytest.raises(ValueError, match="Unsupported"):
-        resolve_mjcf_path("open_manipulator_x", "omx_reach", None)
+        resolve_mjcf_path("not_a_robot", "nope", None)
 
 
 def test_integrate_joint_velocities_clips_limits() -> None:
@@ -114,7 +121,7 @@ def test_integrate_joint_velocities_shape_mismatch() -> None:
 def test_make_mujoco_bridge_core_unknown_model() -> None:
     """Unknown models should raise ValueError."""
     with pytest.raises(ValueError, match="Unknown MuJoCo bridge model"):
-        make_mujoco_bridge_core("open_manipulator_x", "omx_reach")
+        make_mujoco_bridge_core("not_a_robot", "nope")
 
 
 def test_bridge_core_step_integrates_velocity(

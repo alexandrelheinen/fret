@@ -141,6 +141,14 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         "tb3",
     }:
         return resolve_package_file("mjcf", "turtlebot3_unit.xml")
+    if model in {"open_manipulator_x", "omx"} and scenario in {
+        "omx_reach",
+        "omx_tabletop",
+        "open_manipulator_x",
+    }:
+        from fret.mjcf.omx import ensure_omx_tabletop_mjcf
+
+        return ensure_omx_tabletop_mjcf()
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"

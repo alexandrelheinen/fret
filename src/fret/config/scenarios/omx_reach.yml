@@ -1,0 +1,15 @@
+# SC-v13a — OpenMANIPULATOR-X empty tabletop reach (command-chain validation).
+#
+# Joint-space A→B on an empty cell. No obstacles. Gripper stays open.
+# Menagerie joint ranges: Joint1 ±π, Joint2 ±1.5, Joint3 [-1.5,1.4], Joint4 [-1.7,1.97].
+
+/**:
+  ros__parameters:
+    model: open_manipulator_x
+    scenario_id: omx_reach
+    simulation_dt: 0.02
+    planning_timeout: 30.0
+    start_configuration: [0.0, -0.6, 0.6, 0.0]
+    goal_configuration: [1.2, -0.4, 0.5, 0.4]
+    goal_tolerance: 0.05
+    mjcf: mjcf/omx_tabletop.xml

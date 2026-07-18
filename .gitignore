@@ -207,6 +207,9 @@ artifacts/r2/
 build/
 install/
 log/
+
+# Materialized OM-X tabletop (absolute meshdir merge)
+src/fret/mjcf/.generated/
 .cursorignore
 .cursorindexingignore
 

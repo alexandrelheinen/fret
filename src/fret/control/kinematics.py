@@ -3,8 +3,7 @@
 Dispatches to model-specific engines:
 
 - ``"dubins"`` — Dubins mobile (v1.1)
-
-Arm models (OpenMANIPULATOR-X, …) register here as they land.
+- ``"open_manipulator_x"`` / ``"omx"`` — Menagerie OM-X (v1.3)
 """
 
 from __future__ import annotations
@@ -15,6 +14,9 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.kinematics_dubins import DubinsKinematics
+from fret.control.kinematics_open_manipulator_x import (
+    OpenManipulatorXKinematics,
+)
 
 
 class _KinematicsBackend(Protocol):
@@ -44,14 +46,16 @@ class _KinematicsBackend(Protocol):
     ) -> npt.NDArray[np.float64]: ...
 
 
-_SUPPORTED_MODELS: frozenset[str] = frozenset({"dubins"})
+_SUPPORTED_MODELS: frozenset[str] = frozenset(
+    {"dubins", "open_manipulator_x", "omx"}
+)
 
 
 class Kinematics:
     """Facade for per-model kinematics engines (FR-SYS-01).
 
     Args:
-        model: Robot model name — currently ``"dubins"``.
+        model: Robot model name — ``"dubins"`` or ``"open_manipulator_x"``.
 
     Raises:
         ValueError: If ``model`` is not supported.
@@ -63,7 +67,10 @@ class Kinematics:
             raise ValueError(
                 f"Unsupported model '{model}'. Supported models: {supported}"
             )
-        self._impl: _KinematicsBackend = DubinsKinematics()
+        if model in {"open_manipulator_x", "omx"}:
+            self._impl: _KinematicsBackend = OpenManipulatorXKinematics()
+        else:
+            self._impl = DubinsKinematics()
 
     @property
     def dof(self) -> int:
