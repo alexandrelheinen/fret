@@ -4,9 +4,11 @@ Menagerie sets ``meshdir="assets/"`` relative to ``open_manipulator_x.xml``.
 Including that file from another directory drops the meshdir, so we materialize
 a loadable scene under ``src/fret/mjcf/.generated/`` with an absolute meshdir.
 
-SC-v13b also injects finger-pad geoms and MuJoCo adhesion actuators so the
-parallel gripper can lift the free box under full physics (stock Menagerie
-finger meshes alone do not pinch reliably).
+SC-v13b/c also inject finger-pad geoms and MuJoCo adhesion actuators so the
+parallel gripper can lift the free ball under full physics (stock Menagerie
+finger meshes alone do not pinch reliably). Place-cone meshes in the scene
+templates are rewritten to absolute paths (Menagerie ``meshdir`` would not
+find ``src/fret/mjcf/assets/cone.obj``).
 """
 
 from __future__ import annotations
@@ -23,26 +25,33 @@ _SUPPORTED_SCENES: frozenset[str] = frozenset(
 _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
     {"omx_pick_place", "omx_desk_clutter"}
 )
+_CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
+# Pad contype=4: collide with the ball (14) but not with arm meshes (1).
+# Half-Y 0.007 so closed jaw gap (~2.8 cm − 1.4 cm) pinches a Ø2 cm sphere.
+# Soft solref avoids ejecting the light ball when the jaw closes.
 _PAD_LEFT = (
     '                <geom name="pad_left" type="box" '
-    'size="0.016 0.004 0.011" pos="0.028 0.0 0"\n'
-    '                      friction="3.5 1.0 0.05" solref="0.008 1" '
-    'solimp="0.98 0.99 0.001"\n'
-    '                      condim="6" rgba="0.15 0.15 0.15 1" group="3"/>\n'
+    'size="0.016 0.007 0.011" pos="0.028 0.0 0"\n'
+    '                      friction="2.5 0.5 0.02" solref="0.012 1" '
+    'solimp="0.9 0.95 0.001"\n'
+    '                      condim="6" contype="4" conaffinity="4" '
+    'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _PAD_RIGHT = (
     '                <geom name="pad_right" type="box" '
-    'size="0.016 0.004 0.011" pos="0.028 0.0 0"\n'
-    '                      friction="3.5 1.0 0.05" solref="0.008 1" '
-    'solimp="0.98 0.99 0.001"\n'
-    '                      condim="6" rgba="0.15 0.15 0.15 1" group="3"/>\n'
+    'size="0.016 0.007 0.011" pos="0.028 0.0 0"\n'
+    '                      friction="2.5 0.5 0.02" solref="0.012 1" '
+    'solimp="0.9 0.95 0.001"\n'
+    '                      condim="6" contype="4" conaffinity="4" '
+    'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
+# Modest gain: Ø2 cm ball (~3 g at density 800) explodes under cube-era gain 220.
 _ADHESION = (
     '    <adhesion name="grip_left" body="gripper_left" '
-    'ctrlrange="0 1" gain="80"/>\n'
+    'ctrlrange="0 1" gain="8"/>\n'
     '    <adhesion name="grip_right" body="gripper_right" '
-    'ctrlrange="0 1" gain="80"/>\n'
+    'ctrlrange="0 1" gain="8"/>\n'
 )
 
 
@@ -58,6 +67,11 @@ def omx_scene_template(scene: str) -> Path:
     return Path(__file__).resolve().parent / f"{scene}.xml"
 
 
+def fret_mjcf_assets_dir() -> Path:
+    """Return ``src/fret/mjcf/assets`` (cone primitive, …)."""
+    return Path(__file__).resolve().parent / "assets"
+
+
 def _scene_additions(template_text: str) -> str:
     """Extract option/visual/asset/worldbody blocks from a scene template."""
     text = re.sub(
@@ -69,6 +83,11 @@ def _scene_additions(template_text: str) -> str:
     text = re.sub(r"^<mujoco\b[^>]*>\s*", "", text.strip())
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
+    cone = (fret_mjcf_assets_dir() / "cone.obj").resolve()
+    if _CONE_MESH_PLACEHOLDER in text:
+        if not cone.is_file():
+            raise FileNotFoundError(f"Place-cone mesh missing: {cone}")
+        text = text.replace(_CONE_MESH_PLACEHOLDER, f'file="{cone}"')
     return text.strip()
 
 
@@ -158,7 +177,7 @@ def ensure_omx_tabletop_mjcf() -> Path:
 
 
 def ensure_omx_pick_place_mjcf() -> Path:
-    """Build the pick-and-place MJCF with free box (SC-v13b)."""
+    """Build the pick-and-place MJCF with free ball + place cone (SC-v13b)."""
     return ensure_omx_mjcf("omx_pick_place")
 
 

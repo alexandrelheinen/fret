@@ -93,6 +93,15 @@ def test_omx_pick_place_mjcf_loads() -> None:
     model = mujoco.MjModel.from_xml_path(str(path))
     assert model.nu >= 7
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pick_box") >= 0
+    assert (
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_cone") >= 0
+    )
+    assert (
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_plate") >= 0
+    )
+    ball = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "pick_box_geom")
+    assert ball >= 0
+    assert int(model.geom_type[ball]) == int(mujoco.mjtGeom.mjGEOM_SPHERE)
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "pad_left") >= 0
     assert (
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "grip_left")
@@ -100,17 +109,18 @@ def test_omx_pick_place_mjcf_loads() -> None:
     )
 
 
-def test_omx_pick_place_physics_moves_box_green_to_red() -> None:
+def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
     params = load_scenario_parameters(_SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     pick_xy = np.asarray(params["pick_xy"], dtype=np.float64)
-    state, box = run_pick_place(duration_s=25.0)
+    state, ball = run_pick_place(duration_s=25.0)
     assert state != PickPlaceState.FAULT, "pick-place FSM faulted"
     assert state == PickPlaceState.DONE, f"ended in {state.name}"
     assert (
-        float(np.linalg.norm(box[:2] - place_xy)) < 0.08
-    ), f"box XY {box[:2]} not near place {place_xy}"
+        float(np.linalg.norm(ball[:2] - place_xy)) < 0.08
+    ), f"ball XY {ball[:2]} not near place {place_xy}"
     assert (
-        float(np.linalg.norm(box[:2] - pick_xy)) > 0.15
-    ), "box should leave the pick pedestal"
-    assert float(box[2]) < 0.18, "box should rest near the place pedestal"
+        float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
+    ), "ball should leave the pick pedestal"
+    # Settled in the tip-down cone (not still at plate height ~0.11).
+    assert float(ball[2]) < 0.08, "ball should settle down inside the cone"
