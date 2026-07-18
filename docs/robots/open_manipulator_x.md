@@ -23,7 +23,7 @@ v1.3 showcase:
 Pick sits on the same cylinder pedestal; place is a transparent non-colliding
 plate over a tip-down cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*`
 wall collision — MuJoCo convex-hulls meshes, so a solid mesh cone would not
-catch the ball). Cone mouth radius is **80%** of the red zone disk (disk r=0.05 → cone r=0.04) so the red disk reads as the funnel basis. AWS RoboMaker meshes stay for denser clutter later — too large
+catch the ball). Cone mouth / rim match the red zone disk (r=0.05) so that disk is the funnel basis; mesh is double-sided for top-down visibility. AWS RoboMaker meshes stay for denser clutter later — too large
 to grasp.
 
 ---
