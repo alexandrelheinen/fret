@@ -1139,11 +1139,17 @@ def render_omx_desk_clutter_showcase_videos(
 
     results: list[RenderResult] = []
     for camera in camera_names:
+        frame = first_frames[camera]
+        mean = _frame_mean(frame)
+        if mean <= 1.0:
+            raise RuntimeError(
+                f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+            )
         results.append(
             RenderResult(
-                path=paths[camera],
                 camera=camera,
-                first_frame=first_frames[camera],
+                path=paths[camera],
+                frame_mean=mean,
                 timing=timing,
             )
         )
