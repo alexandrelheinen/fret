@@ -37,11 +37,17 @@ RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
 
 _DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
 
-# OM-X empty-cell proof: top-down free-space motion + oblique overview.
+# OM-X empty-cell / pick-place proof: top-down + oblique overview.
 _OMX_RELEASE_CAMERAS: tuple[str, ...] = ("topdown", "overview")
 _OMX_ARM_JOINTS: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4")
-_OMX_SCENARIOS: frozenset[str] = frozenset(
+_OMX_REACH_SCENARIOS: frozenset[str] = frozenset(
     {"omx_reach", "omx_tabletop", "open_manipulator_x"}
+)
+_OMX_PICK_PLACE_SCENARIOS: frozenset[str] = frozenset(
+    {"omx_pick_place", "pick_place"}
+)
+_OMX_SCENARIOS: frozenset[str] = (
+    _OMX_REACH_SCENARIOS | _OMX_PICK_PLACE_SCENARIOS
 )
 _OMX_MODELS: frozenset[str] = frozenset({"open_manipulator_x", "omx"})
 
@@ -151,11 +157,17 @@ def resolve_mjcf_path(
         if candidate.is_file():
             return candidate
 
-    if model in _OMX_MODELS and scenario in _OMX_SCENARIOS:
+    if model in _OMX_MODELS and scenario in _OMX_REACH_SCENARIOS:
         _ensure_fret_importable()
         from fret.sitl_config import mjcf_path as resolve_installed_mjcf
 
         return resolve_installed_mjcf("open_manipulator_x", "omx_reach")
+
+    if model in _OMX_MODELS and scenario in _OMX_PICK_PLACE_SCENARIOS:
+        _ensure_fret_importable()
+        from fret.sitl_config import mjcf_path as resolve_installed_mjcf
+
+        return resolve_installed_mjcf("open_manipulator_x", "omx_pick_place")
 
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
@@ -984,6 +996,158 @@ def render_omx_reach_showcase_videos(
     )
 
 
+def _apply_omx_pick_place_sample(
+    mujoco: object,
+    model: object,
+    data: object,
+    *,
+    q_arm: npt.NDArray[np.float64],
+    gripper: float,
+    box_qpos: npt.NDArray[np.float64],
+    box_qadr: int,
+) -> None:
+    """Teleport arm, gripper joint, and free box to a recorded sample."""
+    _apply_omx_joint_pose(mujoco, model, data, q_arm)
+    gid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "Gripper")
+    if gid >= 0:
+        data.qpos[model.jnt_qposadr[gid]] = float(gripper)
+    mid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "Gripper_mimic")
+    if mid >= 0:
+        data.qpos[model.jnt_qposadr[mid]] = float(gripper)
+    data.qpos[box_qadr : box_qadr + 7] = np.asarray(box_qpos, dtype=np.float64)
+    mujoco.mj_forward(model, data)
+
+
+def render_omx_pick_place_showcase_videos(
+    mjcf_path: Path,
+    output_dir: Path,
+    *,
+    scenario: str = "omx_pick_place",
+    cameras: list[str] | None = None,
+    output_names: dict[str, str] | None = None,
+    duration_s: float | None = None,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+    realtime_postprocess: bool = True,
+) -> list[RenderResult]:
+    """Render OM-X pick-and-place MP4s (SC-v13b idle→pick→place→idle)."""
+    mujoco, _iio = _require_mujoco()
+    _ensure_fret_importable()
+    from fret.control.pick_place_fsm import PickPlaceState
+    from fret.control.pick_place_sim import simulate_pick_place
+
+    camera_names = (
+        cameras
+        if cameras is not None
+        else list_showcase_cameras(mjcf_path, scenario=scenario)
+    )
+    if not camera_names:
+        raise ValueError("At least one showcase camera is required")
+
+    clip_s = (
+        float(duration_s)
+        if duration_s is not None
+        else resolve_scenario_duration(scenario, default_s=20.0)
+    )
+    model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    dt = float(model_probe.opt.timestep)
+    record_every = max(1, int(round((1.0 / fps) / dt)))
+    state, samples = simulate_pick_place(
+        duration_s=clip_s,
+        joint_tol_rad=0.12,
+        record_every_steps=record_every,
+    )
+    if state != PickPlaceState.DONE:
+        raise RuntimeError(
+            f"SC-v13b showcase FSM ended in {state.name}, expected DONE"
+        )
+    if len(samples) < 2:
+        raise RuntimeError("SC-v13b showcase recorded too few frames")
+
+    # Pad idle at both ends and time-stretch so the clip is watchable.
+    pad = max(1, int(round(0.6 * fps)))
+    samples = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
+    target_frames = max(len(samples), int(round(8.0 * fps)))
+    if len(samples) < target_frames:
+        idx = np.linspace(0, len(samples) - 1, target_frames)
+        samples = [samples[int(round(i))] for i in idx]
+
+    sim_time_s = float(len(samples)) / float(fps)
+    render_duration_s = float(len(samples)) / float(fps)
+    timing = showcase_playback_timing(
+        wall_sim_time_s=sim_time_s,
+        render_duration_s=render_duration_s,
+    )
+
+    model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    data = mujoco.MjData(model)
+    box_jid = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
+    )
+    if box_jid < 0:
+        raise ValueError("pick_box_joint missing from OM-X pick-place MJCF")
+    box_qadr = int(model.jnt_qposadr[box_jid])
+    renderer = mujoco.Renderer(model, height=height, width=width)
+    for camera in camera_names:
+        _assert_camera_exists(mujoco, model, camera)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    names = output_names or {
+        camera: showcase_output_name(scenario, camera)
+        for camera in camera_names
+    }
+    paths = {camera: output_dir / names[camera] for camera in camera_names}
+    writers = {
+        camera: _open_video_writer(paths[camera], fps)
+        for camera in camera_names
+    }
+    first_frames: dict[str, npt.NDArray[np.uint8]] = {}
+
+    try:
+        for sample in samples:
+            _apply_omx_pick_place_sample(
+                mujoco,
+                model,
+                data,
+                q_arm=sample.q_arm,
+                gripper=sample.gripper,
+                box_qpos=sample.box_qpos,
+                box_qadr=box_qadr,
+            )
+            for camera in camera_names:
+                renderer.update_scene(data, camera=camera)
+                frame = renderer.render()
+                writers[camera].append_data(frame)
+                if camera not in first_frames:
+                    first_frames[camera] = frame.copy()
+    finally:
+        for writer in writers.values():
+            writer.close()
+        renderer.close()
+
+    results: list[RenderResult] = []
+    for camera in camera_names:
+        frame = first_frames[camera]
+        mean = _frame_mean(frame)
+        if mean <= 1.0:
+            raise RuntimeError(
+                f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+            )
+        results.append(
+            RenderResult(
+                camera=camera,
+                path=paths[camera],
+                frame_mean=mean,
+                timing=timing,
+            )
+        )
+    return postprocess_showcase_results(
+        results,
+        enabled=realtime_postprocess,
+    )
+
+
 def render_video(
     mjcf_path: Path,
     output_path: Path,
@@ -1070,12 +1234,26 @@ def render_showcase_videos(
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
         )
-    if scenario in _OMX_SCENARIOS:
+    if scenario in _OMX_REACH_SCENARIOS:
         _ = physics_mode  # OM-X showcase always steps position actuators.
         return render_omx_reach_showcase_videos(
             mjcf_path,
             output_dir,
             scenario="omx_reach",
+            cameras=cameras,
+            output_names=output_names,
+            duration_s=duration_s,
+            fps=fps,
+            width=width,
+            height=height,
+            realtime_postprocess=realtime_postprocess,
+        )
+    if scenario in _OMX_PICK_PLACE_SCENARIOS:
+        _ = physics_mode
+        return render_omx_pick_place_showcase_videos(
+            mjcf_path,
+            output_dir,
+            scenario="omx_pick_place",
             cameras=cameras,
             output_names=output_names,
             duration_s=duration_s,

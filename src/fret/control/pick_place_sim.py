@@ -7,7 +7,9 @@ FSM reports a held state the box freejoint is kinematically attached to
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -31,6 +33,16 @@ _HOLD_STATES = frozenset(
 )
 
 
+@dataclass(frozen=True)
+class PickPlaceSample:
+    """One recorded sample of an SC-v13b cycle."""
+
+    q_arm: npt.NDArray[np.float64]
+    gripper: float
+    box_qpos: npt.NDArray[np.float64]
+    state: PickPlaceState
+
+
 def waypoints_from_scenario(
     scenario_path: str | Path | None = None,
 ) -> PickPlaceWaypoints:
@@ -52,14 +64,12 @@ def waypoints_from_scenario(
     )
 
 
-def _arm_q(
-    mujoco: object, model: object, data: object
-) -> npt.NDArray[np.float64]:
+def _arm_q(mj: Any, model: Any, data: Any) -> npt.NDArray[np.float64]:
     return np.array(
         [
             data.qpos[
                 model.jnt_qposadr[
-                    mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+                    mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
                 ]
             ]
             for name in ("Joint1", "Joint2", "Joint3", "Joint4")
@@ -69,9 +79,9 @@ def _arm_q(
 
 
 def _attach_box(
-    mujoco: object,
-    model: object,
-    data: object,
+    mj: Any,
+    model: Any,
+    data: Any,
     *,
     ee_body: int,
     box_qadr: int,
@@ -79,22 +89,23 @@ def _attach_box(
     offset_local: npt.NDArray[np.float64],
 ) -> None:
     """Write the box freejoint pose so it follows the EE with a fixed offset."""
-    mujoco.mj_forward(model, data)
+    mj.mj_forward(model, data)
     rot = data.xmat[ee_body].reshape(3, 3)
     pos = data.xpos[ee_body] + rot @ offset_local
     quat = np.zeros(4, dtype=np.float64)
-    mujoco.mju_mat2Quat(quat, data.xmat[ee_body])
+    mj.mju_mat2Quat(quat, data.xmat[ee_body])
     data.qpos[box_qadr : box_qadr + 3] = pos
     data.qpos[box_qadr + 3 : box_qadr + 7] = quat
     data.qvel[box_dadr : box_dadr + 6] = 0.0
 
 
-def run_pick_place(
+def simulate_pick_place(
     *,
     duration_s: float = 20.0,
     joint_tol_rad: float = 0.10,
-) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
-    """Execute one SC-v13b cycle; return final FSM state and box position."""
+    record_every_steps: int = 1,
+) -> tuple[PickPlaceState, list[PickPlaceSample]]:
+    """Run one SC-v13b cycle and optionally record trajectory samples."""
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
@@ -130,8 +141,10 @@ def run_pick_place(
     holding = False
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
+    samples: list[PickPlaceSample] = []
+    record_every_steps = max(1, int(record_every_steps))
 
-    for _ in range(max_steps):
+    for step_i in range(max_steps):
         obs = PickPlaceObservation(
             q=_arm_q(mj, model, data),
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
@@ -140,7 +153,6 @@ def run_pick_place(
         prev = fsm.state
         cmd = fsm.tick(obs, dt)
 
-        # Capture grasp offset when entering LIFT; attach through transfer.
         if (
             prev == PickPlaceState.GRASP
             and cmd.state == PickPlaceState.LIFT
@@ -169,7 +181,36 @@ def run_pick_place(
             )
         mj.mj_step(model, data)
 
+        if step_i % record_every_steps == 0:
+            samples.append(
+                PickPlaceSample(
+                    q_arm=_arm_q(mj, model, data),
+                    gripper=float(data.ctrl[4]),
+                    box_qpos=np.asarray(
+                        data.qpos[box_qadr : box_qadr + 7], dtype=np.float64
+                    ).copy(),
+                    state=fsm.state,
+                )
+            )
+
         if fsm.state in {PickPlaceState.DONE, PickPlaceState.FAULT}:
             break
 
-    return fsm.state, np.asarray(data.xpos[box_id], dtype=np.float64).copy()
+    return fsm.state, samples
+
+
+def run_pick_place(
+    *,
+    duration_s: float = 20.0,
+    joint_tol_rad: float = 0.10,
+) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
+    """Execute one SC-v13b cycle; return final FSM state and box position."""
+    state, samples = simulate_pick_place(
+        duration_s=duration_s,
+        joint_tol_rad=joint_tol_rad,
+        record_every_steps=1,
+    )
+    if not samples:
+        raise RuntimeError("pick-place produced no samples")
+    box_pos = samples[-1].box_qpos[:3].copy()
+    return state, box_pos
