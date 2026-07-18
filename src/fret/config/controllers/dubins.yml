@@ -1,12 +1,13 @@
-# Dubins vehicle + Pure Pursuit — real TurtleBot3 Burger speeds (Menagerie).
-# v_max ≈ ω_wheel_max * r = 6.67 rad/s * 0.033 m ≈ 0.22 m/s.
+# Dubins vehicle + Pure Pursuit — TurtleBot3 Burger race speeds.
+# Showcase runs at 2× nominal Menagerie (ω=13.34 rad/s → v≈0.44 m/s),
+# capped by the race MJCF wheel ctrlrange. Longer lookahead smooths weave.
 
 /**:
   ros__parameters:
-    max_speed: 0.22
+    max_speed: 0.44
     min_speed: 0.0
-    cruise_speed: 0.18
-    lookahead_distance: 0.50
+    cruise_speed: 0.36
+    lookahead_distance: 1.00
     goal_radius: 0.35
     max_turn_rate_deg: 140.0
     max_acceleration: 0.50
