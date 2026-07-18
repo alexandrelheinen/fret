@@ -204,7 +204,7 @@ clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
 |---|---|---|
 | SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
 | SC-v13b | `omx_pick_place.yml` | Stretch pick green→red (FSM + MuJoCo physics) |
-| SC-v13c | `omx_desk_clutter.yml` | AWS desk props block the transfer path |
+| SC-v13c | `omx_desk_clutter.yml` | Mid-cell wall forces planned retract detour |
 
 ### Acceptance criteria
 
@@ -224,7 +224,7 @@ clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
 | T13-02 | Kinematics + controller + bridge wiring for OM-X joints |
 | T13-03 | SC-v13a scenario + unit/physics smoke |
 | T13-04 | PickPlace FSM + free box MJCF + SC-v13b physics smoke |
-| T13-05 | AWS desk clutter props + SC-v13c detour scenario |
+| T13-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
 | T13-06 | Showcase render pipeline + metrics |
 
 ---

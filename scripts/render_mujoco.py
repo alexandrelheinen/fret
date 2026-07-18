@@ -46,8 +46,13 @@ _OMX_REACH_SCENARIOS: frozenset[str] = frozenset(
 _OMX_PICK_PLACE_SCENARIOS: frozenset[str] = frozenset(
     {"omx_pick_place", "pick_place"}
 )
+_OMX_DESK_CLUTTER_SCENARIOS: frozenset[str] = frozenset(
+    {"omx_desk_clutter", "desk_clutter"}
+)
 _OMX_SCENARIOS: frozenset[str] = (
-    _OMX_REACH_SCENARIOS | _OMX_PICK_PLACE_SCENARIOS
+    _OMX_REACH_SCENARIOS
+    | _OMX_PICK_PLACE_SCENARIOS
+    | _OMX_DESK_CLUTTER_SCENARIOS
 )
 _OMX_MODELS: frozenset[str] = frozenset({"open_manipulator_x", "omx"})
 
@@ -168,6 +173,12 @@ def resolve_mjcf_path(
         from fret.sitl_config import mjcf_path as resolve_installed_mjcf
 
         return resolve_installed_mjcf("open_manipulator_x", "omx_pick_place")
+
+    if model in _OMX_MODELS and scenario in _OMX_DESK_CLUTTER_SCENARIOS:
+        _ensure_fret_importable()
+        from fret.sitl_config import mjcf_path as resolve_installed_mjcf
+
+        return resolve_installed_mjcf("open_manipulator_x", "omx_desk_clutter")
 
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
@@ -1018,6 +1029,130 @@ def _apply_omx_pick_place_sample(
     mujoco.mj_forward(model, data)
 
 
+def render_omx_desk_clutter_showcase_videos(
+    mjcf_path: Path,
+    output_dir: Path,
+    *,
+    scenario: str = "omx_desk_clutter",
+    cameras: list[str] | None = None,
+    output_names: dict[str, str] | None = None,
+    duration_s: float | None = None,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+    realtime_postprocess: bool = True,
+) -> list[RenderResult]:
+    """Render OM-X desk-clutter MP4s (SC-v13c planned transfer around wall)."""
+    mujoco, _iio = _require_mujoco()
+    _ensure_fret_importable()
+    from fret.control.pick_place_clutter_sim import simulate_pick_place_clutter
+    from fret.control.pick_place_fsm import PickPlaceState
+
+    camera_names = (
+        cameras
+        if cameras is not None
+        else list_showcase_cameras(mjcf_path, scenario=scenario)
+    )
+    if not camera_names:
+        raise ValueError("At least one showcase camera is required")
+
+    clip_s = (
+        float(duration_s)
+        if duration_s is not None
+        else resolve_scenario_duration(scenario, default_s=45.0)
+    )
+    model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    dt = float(model_probe.opt.timestep)
+    record_every = max(1, int(round((1.0 / fps) / dt)))
+    result = simulate_pick_place_clutter(
+        duration_s=clip_s,
+        joint_tol_rad=0.12,
+        record_every_steps=record_every,
+    )
+    if result.state != PickPlaceState.DONE:
+        raise RuntimeError(
+            f"SC-v13c showcase FSM ended in {result.state.name}, expected DONE"
+        )
+    samples = result.samples
+    if len(samples) < 2:
+        raise RuntimeError("SC-v13c showcase recorded too few frames")
+
+    pad = max(1, int(round(0.6 * fps)))
+    samples = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
+    target_frames = max(len(samples), int(round(10.0 * fps)))
+    if len(samples) < target_frames:
+        idx = np.linspace(0, len(samples) - 1, target_frames)
+        samples = [samples[int(round(i))] for i in idx]
+
+    sim_time_s = float(len(samples)) / float(fps)
+    render_duration_s = float(len(samples)) / float(fps)
+    timing = showcase_playback_timing(
+        wall_sim_time_s=sim_time_s,
+        render_duration_s=render_duration_s,
+    )
+
+    model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    data = mujoco.MjData(model)
+    box_jid = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
+    )
+    if box_jid < 0:
+        raise ValueError("pick_box_joint missing from OM-X desk-clutter MJCF")
+    box_qadr = int(model.jnt_qposadr[box_jid])
+    renderer = mujoco.Renderer(model, height=height, width=width)
+    for camera in camera_names:
+        _assert_camera_exists(mujoco, model, camera)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    names = output_names or {
+        camera: showcase_output_name(scenario, camera)
+        for camera in camera_names
+    }
+    paths = {camera: output_dir / names[camera] for camera in camera_names}
+    writers = {
+        camera: _open_video_writer(paths[camera], fps)
+        for camera in camera_names
+    }
+    first_frames: dict[str, npt.NDArray[np.uint8]] = {}
+
+    try:
+        for sample in samples:
+            _apply_omx_pick_place_sample(
+                mujoco,
+                model,
+                data,
+                q_arm=sample.q_arm,
+                gripper=sample.gripper,
+                box_qpos=sample.box_qpos,
+                box_qadr=box_qadr,
+            )
+            for camera in camera_names:
+                renderer.update_scene(data, camera=camera)
+                frame = renderer.render()
+                writers[camera].append_data(frame)
+                if camera not in first_frames:
+                    first_frames[camera] = frame.copy()
+    finally:
+        for writer in writers.values():
+            writer.close()
+        renderer.close()
+
+    results: list[RenderResult] = []
+    for camera in camera_names:
+        results.append(
+            RenderResult(
+                path=paths[camera],
+                camera=camera,
+                first_frame=first_frames[camera],
+                timing=timing,
+            )
+        )
+    return postprocess_showcase_results(
+        results,
+        enabled=realtime_postprocess,
+    )
+
+
 def render_omx_pick_place_showcase_videos(
     mjcf_path: Path,
     output_dir: Path,
@@ -1254,6 +1389,20 @@ def render_showcase_videos(
             mjcf_path,
             output_dir,
             scenario="omx_pick_place",
+            cameras=cameras,
+            output_names=output_names,
+            duration_s=duration_s,
+            fps=fps,
+            width=width,
+            height=height,
+            realtime_postprocess=realtime_postprocess,
+        )
+    if scenario in _OMX_DESK_CLUTTER_SCENARIOS:
+        _ = physics_mode
+        return render_omx_desk_clutter_showcase_videos(
+            mjcf_path,
+            output_dir,
+            scenario="omx_desk_clutter",
             cameras=cameras,
             output_names=output_names,
             duration_s=duration_s,

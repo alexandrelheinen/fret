@@ -119,7 +119,7 @@ def simulate_pick_place(
         joint_tol_rad=joint_tol_rad,
         grasp_hold_s=1.0,
         release_hold_s=0.8,
-        lift_height_m=0.20,
+        lift_height_m=0.15,
         phase_timeout_s=20.0,
     )
     fsm.start()
