@@ -6,6 +6,19 @@
 #   python3 scripts/generate_dubins_warehouse_layout.py
 #   python3 scripts/generate_dubins_race_mjcf.py
 #
+# vehicle.clearance_margin 0.18 -> 0.30: all prior physics-mode tuning in
+# this file's history was validated against a single pinned planner seed
+# (5) — a bug in deterministic_planner_rng silently ignored any other
+# seed (fixed in planner_rng.py). Evaluated across 20 *real* seeds
+# (physics_mode, repulsion_gain=3.0), the old margin collided in 8/20
+# runs (40%); 0.30 collided in 4/20 (20%) with a much larger mean
+# clearance (0.30 m vs 0.14 m) on the runs that succeeded. This raises
+# both the RRT*/SST planning inflation radius and the reactive
+# repulsion's influence radius (occupancy.clearance = vehicle_radius +
+# clearance_margin, shared by both). It does not eliminate collisions —
+# see the collision-status summary for why a scalar clearance margin is
+# not a complete fix, and that obstacle layout still likely needs wider
+# gaps to get materially below a 20% multi-seed collision rate.
 workspace_bounds:
   x:
   - 0.0
@@ -25,7 +38,7 @@ goal_xy:
 agent_lateral_offset: 0.55
 vehicle:
   radius: 0.12
-  clearance_margin: 0.18
+  clearance_margin: 0.3
   width: 0.18
   min_corridor_gap: 1.14
 planner:
