@@ -17,11 +17,7 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.config_loader import load_algorithm_config, planning_config_for_model
-from fret.control.joint_mpc import (
-    JointPathMPCTracker,
-    build_omx_joint_mpc,
-    sync_mpc_state_from_measurement,
-)
+from fret.control.joint_mpc import JointPathMPCTracker, build_omx_joint_mpc
 from fret.control.kinematics import Kinematics
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
@@ -127,8 +123,8 @@ def _dry_run_transfer(
     tracker = JointPathMPCTracker(
         dense,
         build_omx_joint_mpc(),
-        race_speed=0.9,
-        max_carrot_lag=0.30,
+        race_speed=1.2,
+        max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
     )
     tracker.reset(np.asarray(start, dtype=np.float64))
@@ -137,23 +133,17 @@ def _dry_run_transfer(
     accum = 0.0
     hits = 0
     q_cmd = np.asarray(start, dtype=np.float64).copy()
-    for _ in range(20000):
-        q = np.array(
-            [
-                data.qpos[
-                    model.jnt_qposadr[
-                        mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)
-                    ]
-                ]
-                for n in names
-            ],
-            dtype=np.float64,
-        )
+    settle_after_complete = 0
+    for _ in range(25000):
         accum += dt
         if accum >= period:
             accum -= period
-            tracker.sync_from_measurement(q)
-            q_cmd = tracker.step(period)
+            if tracker.complete:
+                q_cmd = np.asarray(goal, dtype=np.float64).copy()
+            else:
+                q_cmd = tracker.step(period)
+                if tracker.complete:
+                    q_cmd = np.asarray(goal, dtype=np.float64).copy()
         for i, n in enumerate(names):
             data.ctrl[model.actuator(n).id] = float(q_cmd[i])
         data.ctrl[model.actuator("Gripper").id] = -0.01
@@ -165,7 +155,23 @@ def _dry_run_transfer(
             if "transfer_wall" in {g1, g2}:
                 hits += 1
         if tracker.complete:
-            break
+            settle_after_complete += 1
+            q = np.array(
+                [
+                    data.qpos[
+                        model.jnt_qposadr[
+                            mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)
+                        ]
+                    ]
+                    for n in names
+                ],
+                dtype=np.float64,
+            )
+            if (
+                float(np.linalg.norm(q - goal)) < 0.15
+                or settle_after_complete > 2000
+            ):
+                break
 
     q = np.array(
         [
@@ -342,8 +348,8 @@ def simulate_pick_place_clutter(
     transfer_tracker = JointPathMPCTracker(
         transfer_path,
         build_omx_joint_mpc(),
-        race_speed=0.9,
-        max_carrot_lag=0.30,
+        race_speed=1.2,
+        max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
     )
 
@@ -373,6 +379,7 @@ def simulate_pick_place_clutter(
     transfer_armed = False
     ctrl_accum = 0.0
     q_cmd = wp.pick_hover.copy()
+    last_phase_target = wp.idle.copy()
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data)
@@ -388,21 +395,30 @@ def simulate_pick_place_clutter(
             transfer_tracker.reset(q)
             q_cmd = q.copy()
 
+        if (
+            cmd.state != PickPlaceState.MOVE_PLACE
+            and float(np.linalg.norm(cmd.q_des - last_phase_target)) > 1e-9
+        ):
+            phase_mpc.reset(q)
+            last_phase_target = cmd.q_des.copy()
+
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
             if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
-                transfer_tracker.sync_from_measurement(q)
                 if transfer_tracker.complete:
                     q_cmd = wp.place_hover.copy()
                 else:
                     q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
             else:
-                sync_mpc_state_from_measurement(phase_mpc, q)
                 q_cmd = np.asarray(
                     phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
                     dtype=np.float64,
                 )
+                if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
+                    q_cmd = cmd.q_des.copy()
+                    phase_mpc.q = q_cmd.copy()
+                    phase_mpc.vel = np.zeros_like(q_cmd)
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

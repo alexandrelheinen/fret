@@ -674,40 +674,36 @@ def _postprocess_vehicle_path(
     planner_cfg: dict[str, Any],
     cruise_speed: float,
 ) -> list[npt.NDArray[np.float64]]:
-    """Prune and time-parameterize a planner polyline (ARCO vehicle scene)."""
-    from arco.planning import PlanningPipeline
-    from arco.planning.continuous import TrajectoryOptimizer
+    """Densify/prune a planner polyline for path-following MPC.
 
+    The old PlanningPipeline prune→optimize path left 5–6 long chords that
+    sit inside the MPC preview-cruise influence radius (``occupancy.clearance``)
+    and stall the tracker. Keep a denser free-space polyline so soft
+    obstacle barriers remain informative without collapsing cruise speed.
+    """
+    del cruise_speed  # retained for call-site compatibility
     dense = [np.asarray(p, dtype=np.float64) for p in path]
     if len(dense) < 2:
         return dense
 
-    pruner = None
-    if bool(planner_cfg.get("enable_pruning", True)):
-        step = float(planner_cfg.get("step_size", 0.35))
-        pruner = TrajectoryPruner(
-            occupancy,
-            step_size=np.array([step, step], dtype=np.float64),
-            collision_check_count=int(
-                planner_cfg.get("collision_check_count", 10)
-            ),
-        )
+    if not bool(planner_cfg.get("enable_pruning", True)):
+        return dense
 
-    try:
-        optimizer = TrajectoryOptimizer.create_from_config(
-            occupancy,
-            cruise_speed=cruise_speed,
-        )
-        pipeline = PlanningPipeline(pruner=pruner, optimizer=optimizer)
-        result = pipeline.run_from_path(dense)
-        if result.trajectory and len(result.trajectory) >= 2:
-            return [np.asarray(p, dtype=np.float64) for p in result.trajectory]
-    except Exception:
-        pass
-
-    if pruner is not None:
-        return [np.asarray(p, dtype=np.float64) for p in pruner.prune(dense)]
-    return dense
+    # Light prune only — retain step-sized spacing through free space.
+    step = float(planner_cfg.get("step_size", 0.35))
+    pruner = TrajectoryPruner(
+        occupancy,
+        step_size=np.array([step, step], dtype=np.float64),
+        collision_check_count=int(
+            planner_cfg.get("collision_check_count", 10)
+        ),
+    )
+    pruned = [np.asarray(p, dtype=np.float64) for p in pruner.prune(dense)]
+    # If pruning collapsed the corridor into a handful of chords, keep the
+    # denser planner polyline for the MPC reference.
+    if len(pruned) < 12:
+        return dense
+    return pruned
 
 
 def _plan_path(

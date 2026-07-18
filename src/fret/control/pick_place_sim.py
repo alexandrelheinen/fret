@@ -17,10 +17,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.joint_mpc import (
-    build_omx_joint_mpc,
-    sync_mpc_state_from_measurement,
-)
+from fret.control.joint_mpc import build_omx_joint_mpc
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
     PickPlaceFSM,
@@ -153,6 +150,7 @@ def simulate_pick_place(
     mpc.reset(_arm_q(mj, model, data))
     q_cmd = _arm_q(mj, model, data).copy()
     ctrl_accum = 0.0
+    last_target = wp.idle.copy()
 
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
@@ -168,13 +166,24 @@ def simulate_pick_place(
         )
         cmd = fsm.tick(obs, dt)
 
+        # New FSM target: re-seed the MPC from the measured pose so each
+        # phase starts from truth, then integrate open-loop (ARCO style).
+        if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
+            mpc.reset(q)
+            last_target = cmd.q_des.copy()
+
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
-            sync_mpc_state_from_measurement(mpc, q)
             q_cmd = np.asarray(
                 mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
             )
+            # Snap when inside tolerance so the FSM can advance under
+            # stiff position actuators (matches prior setpoint behavior).
+            if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
+                q_cmd = cmd.q_des.copy()
+                mpc.q = q_cmd.copy()
+                mpc.vel = np.zeros_like(q_cmd)
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
