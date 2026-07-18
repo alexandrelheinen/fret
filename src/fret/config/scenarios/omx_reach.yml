@@ -10,7 +10,8 @@
     simulation_dt: 0.02
     duration: 8.0
     planning_timeout: 30.0
-    start_configuration: [0.0, -0.6, 0.6, 0.0]
+    # Green floor mark → red floor mark (same convention as Dubins race).
+    start_configuration: [-0.8, -0.2, 0.3, 0.6]
     goal_configuration: [1.2, -0.4, 0.5, 0.4]
     goal_tolerance: 0.05
     mjcf: mjcf/omx_tabletop.xml
