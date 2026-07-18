@@ -208,6 +208,30 @@ def simulate_pick_place(
         if fsm.state in {PickPlaceState.DONE, PickPlaceState.FAULT}:
             break
 
+    # Hold the terminal pose so showcase clips end on idle (DONE), not on a
+    # sparsely sampled RETREAT frame between record ticks.
+    if fsm.state == PickPlaceState.DONE:
+        for i, aid in enumerate(act_arm):
+            data.ctrl[aid] = float(wp.idle[i])
+        data.ctrl[act_grip] = GRIPPER_OPEN
+        data.ctrl[act_al] = 0.0
+        data.ctrl[act_ar] = 0.0
+        hold_steps = max(record_every_steps, int(round(0.6 / dt)))
+        for step_i in range(hold_steps):
+            mj.mj_step(model, data)
+            if step_i % record_every_steps == 0:
+                samples.append(
+                    PickPlaceSample(
+                        q_arm=_arm_q(mj, model, data),
+                        gripper=float(data.ctrl[act_grip]),
+                        box_qpos=np.asarray(
+                            data.qpos[box_qadr : box_qadr + 7],
+                            dtype=np.float64,
+                        ).copy(),
+                        state=PickPlaceState.DONE,
+                    )
+                )
+
     return fsm.state, samples
 
 

@@ -23,15 +23,21 @@
     repulsion_gain: 0.0
     update_rate: 20.0
     # Optional overrides on top of ARCO config/mpc.yml defaults.
+    # weight_obstacle / barrier kept mild so both agents keep cruise on
+    # already-cleared planner corridors (heavy barriers made SST crawl and
+    # destroyed the concurrent-race feel vs legacy Pure Pursuit).
     mpc:
       horizon_step_count: 20
       dt: 0.05
       weight_contour: 10.0
       weight_heading: 5.0
-      weight_progress: 1.0
-      weight_control: 0.1
-      weight_obstacle: 50.0
-      obstacle_barrier_power: 4.0
+      weight_progress: 2.5
+      weight_control: 0.05
+      weight_obstacle: 12.0
+      obstacle_barrier_power: 2.0
       weight_terminal: 20.0
       weight_slack: 1.0
-      max_solver_iter_count: 50
+      max_solver_iter_count: 40
+      # Preview cruise uses this clearance (m), not planning clearance
+      # (radius+margin≈0.42 m) which otherwise throttles to 15% cruise.
+      preview_clearance_m: 0.18
