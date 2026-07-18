@@ -8,7 +8,9 @@
                 scripts/generate_dubins_race_mjcf.py).
     Agents: real-scale TurtleBot3 Burger (RRT* blue, SST green, dummy grey)
             with Menagerie wheel actuators (±6.67 rad/s).
-    Dummy follows a straight start→goal line and collides (showcase foil).
+    All three are stepped in the same physics tick (true concurrent race).
+    Agent–agent contacts are disabled; shells still hit warehouse structures.
+    Dummy Pure-Pursuits the straight start→goal line (showcase foil).
   -->
   <!-- meshdir="." so TB3 can resolve the Menagerie submodule and AWS OBJs. -->
   <compiler angle="radian" coordinate="local"
@@ -30,8 +32,8 @@
       <geom group="3" type="mesh" contype="0" conaffinity="0" density="0"/>
     </default>
     <default class="agent_shell">
-      <!-- Structure contacts only (bit 2) — never the floor. -->
-      <geom type="box" contype="2" conaffinity="2" rgba="0 0 0 0"/>
+      <!-- Structures only (bit 2). conaffinity=0 → no agent–agent shell hits. -->
+      <geom type="box" contype="2" conaffinity="0" rgba="0 0 0 0"/>
     </default>
     <default class="structure_col">
       <geom type="box" contype="2" conaffinity="2" rgba="0 0 0 0"/>
@@ -154,11 +156,6 @@
       <freejoint name="rrt_base_joint"/>
       <!-- Raised so the box does not skid on the floor (wheels provide contact). -->
       <geom name="rrt_collision" class="agent_shell" pos="-0.032 0 0.12" size="0.14 0.12 0.06"/>
-      <!-- Tall non-colliding marker: real TB3 is ~0.2 m and disappears in top-down. -->
-      <geom name="rrt_marker" type="cylinder" size="0.18 0.35" pos="0 0 0.45"
-            rgba="0.15 0.40 0.95 1" contype="0" conaffinity="0" group="0"/>
-      <geom name="rrt_marker_cap" type="sphere" size="0.22" pos="0 0 0.85"
-            rgba="0.25 0.55 1 1" contype="0" conaffinity="0" group="0"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_rrt" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_chassis_collision"/>
       <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
@@ -190,10 +187,6 @@
       <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
       <freejoint name="sst_base_joint"/>
       <geom name="sst_collision" class="agent_shell" pos="-0.032 0 0.12" size="0.14 0.12 0.06"/>
-      <geom name="sst_marker" type="cylinder" size="0.18 0.35" pos="0 0 0.45"
-            rgba="0.10 0.75 0.30 1" contype="0" conaffinity="0" group="0"/>
-      <geom name="sst_marker_cap" type="sphere" size="0.22" pos="0 0 0.85"
-            rgba="0.20 0.90 0.40 1" contype="0" conaffinity="0" group="0"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_sst" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_chassis_collision"/>
       <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
@@ -225,10 +218,6 @@
       <inertial pos="-0.032 0 0.03" mass="0.9" diaginertia="0.005 0.005 0.003"/>
       <freejoint name="dummy_base_joint"/>
       <geom name="dummy_collision" class="agent_shell" pos="-0.032 0 0.12" size="0.14 0.12 0.06"/>
-      <geom name="dummy_marker" type="cylinder" size="0.18 0.35" pos="0 0 0.45"
-            rgba="0.55 0.56 0.58 0.90" contype="0" conaffinity="0" group="0"/>
-      <geom name="dummy_marker_cap" type="sphere" size="0.22" pos="0 0 0.85"
-            rgba="0.65 0.66 0.68 1" contype="0" conaffinity="0" group="0"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" material="car_dummy" class="tb3_visual"/>
       <geom pos="-0.032 0 0.01" mesh="burger_base" class="tb3_chassis_collision"/>
       <geom size="0.005" pos="-0.081 0 0.005" type="sphere" material="wheel"
@@ -286,5 +275,21 @@
     <exclude body1="car_sst" body2="sst_wheel_right"/>
     <exclude body1="car_dummy" body2="dummy_wheel_left"/>
     <exclude body1="car_dummy" body2="dummy_wheel_right"/>
+    <!-- Agent–agent pass-through (bodies + wheels; shell filter alone is not enough). -->
+    <exclude body1="car_rrt" body2="car_sst"/>
+    <exclude body1="car_rrt" body2="car_dummy"/>
+    <exclude body1="car_sst" body2="car_dummy"/>
+    <exclude body1="rrt_wheel_left" body2="sst_wheel_left"/>
+    <exclude body1="rrt_wheel_left" body2="sst_wheel_right"/>
+    <exclude body1="rrt_wheel_right" body2="sst_wheel_left"/>
+    <exclude body1="rrt_wheel_right" body2="sst_wheel_right"/>
+    <exclude body1="rrt_wheel_left" body2="dummy_wheel_left"/>
+    <exclude body1="rrt_wheel_left" body2="dummy_wheel_right"/>
+    <exclude body1="rrt_wheel_right" body2="dummy_wheel_left"/>
+    <exclude body1="rrt_wheel_right" body2="dummy_wheel_right"/>
+    <exclude body1="sst_wheel_left" body2="dummy_wheel_left"/>
+    <exclude body1="sst_wheel_left" body2="dummy_wheel_right"/>
+    <exclude body1="sst_wheel_right" body2="dummy_wheel_left"/>
+    <exclude body1="sst_wheel_right" body2="dummy_wheel_right"/>
   </contact>
 </mujoco>
