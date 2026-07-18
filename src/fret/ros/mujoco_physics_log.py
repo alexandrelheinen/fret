@@ -152,6 +152,41 @@ def _should_log_contact(geom1: str, geom2: str) -> bool:
     return _is_agent_geom(geom1) and _is_agent_geom(geom2)
 
 
+def agent_obstacle_contact_forces(
+    model: Any,
+    data: Any,
+    mujoco: Any,
+    agent_geom_names: tuple[str, ...],
+) -> dict[str, float]:
+    """Return the peak obstacle-contact force [N] per agent geom this tick.
+
+    Scans ``data.contact`` for real MuJoCo contacts between a named agent
+    geom and any obstacle geom (``obs_`` / ``str_`` prefix), independent of
+    whether JSONL contact logging is enabled. This backs a collision
+    *monitor* that stops an agent's control loop after it actually hits
+    something, rather than a pre-emptive occupancy-based motion block.
+    """
+    forces = dict.fromkeys(agent_geom_names, 0.0)
+    if int(data.ncon) <= 0:
+        return forces
+    for idx in range(int(data.ncon)):
+        contact = data.contact[idx]
+        geom1 = _geom_name(model, mujoco, int(contact.geom1))
+        geom2 = _geom_name(model, mujoco, int(contact.geom2))
+        if geom1 in forces and _is_obstacle_geom(geom2):
+            agent_name = geom1
+        elif geom2 in forces and _is_obstacle_geom(geom1):
+            agent_name = geom2
+        else:
+            continue
+        force = np.zeros(6, dtype=np.float64)
+        mujoco.mj_contactForce(model, data, idx, force)
+        force_norm = float(np.linalg.norm(force[:3]))
+        if force_norm > forces[agent_name]:
+            forces[agent_name] = force_norm
+    return forces
+
+
 class PhysicsContactLogger:
     """Append-only JSONL contact logger with rolling metrics."""
 
@@ -295,6 +330,7 @@ __all__ = [
     "ContactLogConfig",
     "PhysicsContactLogger",
     "PhysicsMetrics",
+    "agent_obstacle_contact_forces",
     "contact_log_config_from_bridge_yaml",
     "default_physics_artifact_dir",
     "resolve_contact_log_path",

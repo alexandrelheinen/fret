@@ -282,6 +282,72 @@ def test_set_positions_forbidden_in_physics_mode() -> None:
     not make_dubins_race_bridge_core().has_mujoco_runtime,
     reason="mujoco package not installed",
 )
+def test_get_collision_forces_n_zero_in_open_space() -> None:
+    """No obstacle nearby: peak contact force must stay zero (v1.3 monitor)."""
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
+
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([1.2, 1.2, 0.0]),
+        initial_sst=np.array([1.2, 1.5, 0.0]),
+        physics_config=physics,
+    )
+    for _ in range(10):
+        core.step_physics(
+            np.array([0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        )
+    rrt_force, sst_force, dummy_force = core.get_collision_forces_n()
+    assert rrt_force == 0.0
+    assert sst_force == 0.0
+    assert dummy_force == 0.0
+
+
+@pytest.mark.skipif(
+    not make_dubins_race_bridge_core().has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
+def test_get_collision_forces_n_detects_real_structure_contact() -> None:
+    """Driving straight into a structure geom must report a real contact
+    force (v1.3 collision monitor's primary signal, replacing the removed
+    pre-emptive occupancy-based motion block)."""
+    from fret.ros.mujoco_bridge import (
+        _load_merged_bridge_config,
+        _resolve_config_path,
+    )
+
+    cfg = _load_merged_bridge_config(_resolve_config_path(None))
+    cfg = dict(cfg)
+    cfg["physics_mode"] = True
+    physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
+    # str_000_col sits at (2.491, 3.509) with half-extent (0.55, 0.15) in
+    # dubins_race.xml, so its near face is at x=1.941. Spawn the RRT agent
+    # 0.44 m away, facing it, and drive straight in.
+    core = make_dubins_race_bridge_core(
+        initial_rrt=np.array([1.5, 3.509, 0.0]),
+        initial_sst=np.array([1.2, 1.5, 0.0]),
+        physics_config=physics,
+    )
+    rrt_force = 0.0
+    for _ in range(40):
+        core.step_physics(
+            np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        )
+        rrt_force, _sst_force, _dummy_force = core.get_collision_forces_n()
+        if rrt_force > 0.0:
+            break
+    assert rrt_force > 0.0
+
+
+@pytest.mark.skipif(
+    not make_dubins_race_bridge_core().has_mujoco_runtime,
+    reason="mujoco package not installed",
+)
 def test_dubins_bridge_step_physics_runs() -> None:
     """Dual-agent physics step should execute without pose injection."""
     from fret.ros.mujoco_bridge import (

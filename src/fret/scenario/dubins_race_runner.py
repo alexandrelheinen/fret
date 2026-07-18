@@ -86,12 +86,75 @@ class DubinsRaceRunResult:
     sst_pose_history: tuple[tuple[float, float, float], ...] = ()
     dummy_pose_history: tuple[tuple[float, float, float], ...] = ()
     dummy_collided: bool = False
+    rrt_collided: bool = False
+    sst_collided: bool = False
+    rrt_collision_force_n: float = 0.0
+    sst_collision_force_n: float = 0.0
     contact_log_path: pathlib.Path | None = None
     contact_event_count: int = 0
     max_contact_force_n: float = 0.0
     penetration_violations: int = 0
     physics_metrics_path: pathlib.Path | None = None
     column_contacts_logged: bool = False
+
+
+# Collision monitor (v1.3): stop an agent's control loop after a real
+# impact instead of pre-emptively blocking motion near obstacles.
+# Primary signal is an actual MuJoCo contact force; the acceleration-spike
+# threshold is a fallback for bounces that leave no contact at the tick
+# boundary. TB3 burger mass ~1 kg, so 1 N is a light bump, not sensor
+# noise; 3 m/s^2 is 6x the nominal max_acceleration (0.5 m/s^2) in
+# dubins.yml, i.e. well beyond any commanded speed change.
+_COLLISION_FORCE_THRESHOLD_N: float = 1.0
+_COLLISION_DECEL_THRESHOLD_M_S2: float = 3.0
+
+
+@dataclass
+class _CollisionMonitor:
+    """Sticky post-hoc collision flag for one physics-mode agent (v1.3).
+
+    Primary signal: a real MuJoCo contact force between the agent's
+    collision geom and an obstacle geom (always computed in
+    :meth:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore.step_physics`,
+    independent of JSONL contact logging). Fallback signal: a sudden
+    *loss* of realized speed between ticks too large to be explained by
+    any commanded deceleration — catches a fast bounce that leaves no
+    contact at the tick boundary where forces are sampled. Deliberately
+    ignores speed *increases* (e.g. accelerating from a stop toward
+    cruise_speed is normal, not a crash). Once latched, stays latched —
+    the control loop stops for the rest of the run instead of retrying
+    the same crash.
+    """
+
+    collided: bool = False
+    peak_force_n: float = 0.0
+    last_speed_m_s: float = 0.0
+
+    def update(
+        self,
+        *,
+        prev_pose: tuple[float, float, float],
+        new_pose: tuple[float, float, float],
+        contact_force_n: float,
+        dt: float,
+    ) -> bool:
+        """Fold in one physics tick; return the (possibly newly set) flag."""
+        self.peak_force_n = max(self.peak_force_n, contact_force_n)
+        if self.collided:
+            return True
+
+        speed_now = math.hypot(
+            new_pose[0] - prev_pose[0], new_pose[1] - prev_pose[1]
+        ) / max(dt, 1e-9)
+        decel_m_s2 = (self.last_speed_m_s - speed_now) / max(dt, 1e-9)
+        self.last_speed_m_s = speed_now
+
+        if (
+            contact_force_n > _COLLISION_FORCE_THRESHOLD_N
+            or decel_m_s2 > _COLLISION_DECEL_THRESHOLD_M_S2
+        ):
+            self.collided = True
+        return self.collided
 
 
 @dataclass
@@ -130,6 +193,8 @@ class DubinsRaceSimulation:
     dummy_pose_history: list[tuple[float, float, float]] = field(
         default_factory=list
     )
+    rrt_collision: _CollisionMonitor = field(default_factory=_CollisionMonitor)
+    sst_collision: _CollisionMonitor = field(default_factory=_CollisionMonitor)
 
     @property
     def finished(self) -> bool:
@@ -205,8 +270,14 @@ class DubinsRaceSimulation:
 
         Steps each agent's kinematic Pure Pursuit reference, then drives
         velocity actuators with softened P-tracking toward that reference.
-        Forward-only projection, heading-error speed gating, and goal dwell
-        keep differential-drive agents from reversing into workspace bounds.
+        Forward-only projection and heading-error speed gating shape the
+        commanded twist; goal dwell keeps differential-drive agents from
+        reversing into workspace bounds. There is no pre-emptive
+        occupancy-based motion block — a post-hoc :class:`_CollisionMonitor`
+        per agent stops the control loop only after a real impact is
+        detected, so a planning/tracking bug that drives an agent into an
+        obstacle surfaces as an actual collision rather than being
+        silently masked.
 
         Args:
             bridge: :class:`~fret.ros.mujoco_bridge.DubinsRaceBridgeCore`
@@ -218,16 +289,19 @@ class DubinsRaceSimulation:
         if self.finished:
             return True
 
+        rrt_prev_pose = self.rrt_vehicle.pose
+        sst_prev_pose = self.sst_vehicle.pose
+
         rrt_cmd, rrt_metrics = _agent_physics_velocity_command(
             self.rrt_loop,
             self.rrt_vehicle,
             self.rrt_path,
             dt=self.dt,
-            agent_finished=self.rrt_finish is not None,
+            agent_finished=(self.rrt_finish is not None)
+            or self.rrt_collision.collided,
             max_speed=self.vehicle_cfg.max_speed,
             cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
-            occupancy=self.occupancy,
             lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         sst_cmd, sst_metrics = _agent_physics_velocity_command(
@@ -235,11 +309,11 @@ class DubinsRaceSimulation:
             self.sst_vehicle,
             self.sst_path,
             dt=self.dt,
-            agent_finished=self.sst_finish is not None,
+            agent_finished=(self.sst_finish is not None)
+            or self.sst_collision.collided,
             max_speed=self.vehicle_cfg.max_speed,
             cruise_speed=self.vehicle_cfg.cruise_speed,
             max_turn_rate=self.vehicle_cfg.max_turn_rate,
-            occupancy=self.occupancy,
             lookahead_distance=self.vehicle_cfg.lookahead_distance,
         )
         if self.dummy_stopped:
@@ -257,8 +331,10 @@ class DubinsRaceSimulation:
         # Concurrent race: blue / green / grey command + step in one physics tick.
         commands = np.array([*rrt_cmd, *sst_cmd, *dummy_cmd], dtype=np.float64)
         bridge.step_physics(commands)
-        _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
-        _sync_vehicle_pose(self.sst_vehicle, bridge.get_sst_pose())
+        rrt_pose = bridge.get_rrt_pose()
+        sst_pose = bridge.get_sst_pose()
+        _sync_vehicle_pose(self.rrt_vehicle, rrt_pose)
+        _sync_vehicle_pose(self.sst_vehicle, sst_pose)
         dummy_qpos = bridge.get_dummy_pose()
         _sync_vehicle_pose(self.dummy_vehicle, dummy_qpos)
         self.dummy_pose = (
@@ -273,6 +349,35 @@ class DubinsRaceSimulation:
             )
         ):
             self.dummy_stopped = True
+
+        rrt_force_n, sst_force_n, _dummy_force_n = (
+            bridge.get_collision_forces_n()
+        )
+        # Skip agents that already reached the goal: their command is
+        # forced to zero this tick, and the resulting braking deceleration
+        # is not a collision.
+        if self.rrt_finish is None:
+            self.rrt_collision.update(
+                prev_pose=rrt_prev_pose,
+                new_pose=(
+                    float(rrt_pose[0]),
+                    float(rrt_pose[1]),
+                    float(rrt_pose[2]),
+                ),
+                contact_force_n=rrt_force_n,
+                dt=self.dt,
+            )
+        if self.sst_finish is None:
+            self.sst_collision.update(
+                prev_pose=sst_prev_pose,
+                new_pose=(
+                    float(sst_pose[0]),
+                    float(sst_pose[1]),
+                    float(sst_pose[2]),
+                ),
+                contact_force_n=sst_force_n,
+                dt=self.dt,
+            )
 
         self.max_cross_track_error_m = max(
             self.max_cross_track_error_m,
@@ -353,6 +458,10 @@ class DubinsRaceSimulation:
             sst_pose_history=tuple(self.sst_pose_history),
             dummy_pose_history=tuple(self.dummy_pose_history),
             dummy_collided=self.dummy_stopped,
+            rrt_collided=self.rrt_collision.collided,
+            sst_collided=self.sst_collision.collided,
+            rrt_collision_force_n=self.rrt_collision.peak_force_n,
+            sst_collision_force_n=self.sst_collision.peak_force_n,
         )
 
 
@@ -757,27 +866,6 @@ def _physics_goal_dwell_update(
     return 0
 
 
-def _physics_forward_blocked(
-    pose: tuple[float, float, float],
-    *,
-    occupancy: RectStructureOccupancy,
-    probe_m: float = 0.18,
-) -> bool:
-    """Return True when the body centre cannot advance into occupied space."""
-    x, y, theta = pose
-    centre = np.array([x, y], dtype=np.float64)
-    if occupancy.is_occupied(centre):
-        return True
-    ahead = np.array(
-        [
-            x + probe_m * math.cos(theta),
-            y + probe_m * math.sin(theta),
-        ],
-        dtype=np.float64,
-    )
-    return bool(occupancy.is_occupied(ahead))
-
-
 def _agent_physics_velocity_command(
     loop: TrackingLoop,
     vehicle: Any,
@@ -788,13 +876,17 @@ def _agent_physics_velocity_command(
     max_speed: float,
     cruise_speed: float,
     max_turn_rate: float,
-    occupancy: RectStructureOccupancy,
     lookahead_distance: float,
     kp_position: float = _PHYSICS_KP_POSITION,
     kp_yaw: float = _PHYSICS_KP_YAW,
     max_position_lag_m: float = _PHYSICS_MAX_POSITION_LAG_M,
 ) -> tuple[tuple[float, float, float], dict[str, Any]]:
-    """Return closed-loop body twist for true differential-drive physics."""
+    """Return closed-loop body twist for true differential-drive physics.
+
+    ``agent_finished`` covers both "reached the goal" and "the collision
+    monitor stopped this agent after a real impact" — either way the
+    control loop must stop commanding motion.
+    """
     if agent_finished:
         return (0.0, 0.0, 0.0), {
             "cross_track_error": 0.0,
@@ -840,11 +932,6 @@ def _agent_physics_velocity_command(
     )
     forward = max(float(cruise_speed), lag_speed) * heading_gate
     forward *= _PHYSICS_FORWARD_SPEED_SCALE
-    if _physics_forward_blocked(
-        (sim_x, sim_y, sim_theta),
-        occupancy=occupancy,
-    ):
-        forward = min(forward, 0.0)
     forward = max(0.0, min(max_speed, forward))
 
     omega = _PHYSICS_PP_CURVATURE_GAIN * forward * math.sin(
@@ -1217,6 +1304,10 @@ class DubinsRaceRunner:
                 max_cross_track_error_m=result.max_cross_track_error_m,
                 min_obstacle_clearance_m=result.min_obstacle_clearance_m,
                 dummy_collided=result.dummy_collided,
+                rrt_collided=result.rrt_collided,
+                sst_collided=result.sst_collided,
+                rrt_collision_force_n=result.rrt_collision_force_n,
+                sst_collision_force_n=result.sst_collision_force_n,
                 contact_log_path=contact_log_path,
                 contact_event_count=contact_event_count,
                 max_contact_force_n=max_contact_force_n,
@@ -1238,6 +1329,10 @@ class DubinsRaceRunner:
             sst_pose_history=result.sst_pose_history,
             dummy_pose_history=result.dummy_pose_history,
             dummy_collided=result.dummy_collided,
+            rrt_collided=result.rrt_collided,
+            sst_collided=result.sst_collided,
+            rrt_collision_force_n=result.rrt_collision_force_n,
+            sst_collision_force_n=result.sst_collision_force_n,
             contact_log_path=contact_log_path,
             contact_event_count=contact_event_count,
             max_contact_force_n=max_contact_force_n,
