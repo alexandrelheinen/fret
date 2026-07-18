@@ -21,10 +21,21 @@ v1.3 showcase:
 
 ## Joints
 
-| Joint | Role |
-|---|---|
-| `Joint1`…`Joint4` | Arm (planning DOF) |
-| `Gripper` / `Gripper_mimic` | Fixed open for positional demos |
+| Joint | Role | Hard range (Menagerie) | Usable (±10° margin) |
+|---|---|---|---|
+| `Joint1` (yaw about +z) | Base slew | ±180° (±π rad) | ±170° |
+| `Joint2` | Shoulder | ±85.9° (±1.5 rad) | ±75.9° |
+| `Joint3` | Elbow | −85.9° … +80.2° | −75.9° … +70.2° |
+| `Joint4` | Wrist | −97.4° … +112.9° | −87.4° … +102.9° |
+| `Gripper` / `Gripper_mimic` | Parallel jaw | slide | Fixed open for demos |
+
+**Yaw note:** the ~90° swing in early SC-v13a clips was a chosen start/goal, not a
+hardware cap. `Joint1` can slew nearly a full turn; demos keep **10°** off each
+hard stop so controllers/planners never ride the limit.
+
+**SC-v13a free-space path:** 160° yaw (±80°) at a high-reach elbow posture —
+about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
+arc (and 10° to the hard stop) for later obstacle detours (SC-v13b).
 
 ---
 
