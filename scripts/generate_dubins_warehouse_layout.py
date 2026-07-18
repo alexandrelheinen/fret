@@ -38,7 +38,13 @@ _GOAL = (8.8, 8.8)
 _ROBOT_HALF_WIDTH_M = 0.09
 _ROBOT_WIDTH_M = 2.0 * _ROBOT_HALF_WIDTH_M
 _ROBOT_RADIUS_M = 0.12
-_CLEARANCE_MARGIN_M = 0.18
+# Raised 0.18 -> 0.30: see clearance_margin history in
+# dubins_race_obstacles.yml — the smaller margin left a 40% multi-seed
+# physics-mode collision rate. Regenerating this layout with the new
+# margin still leaves the same tight cheek/on-diagonal-foil geometry
+# untouched; widening specific gaps needs its own multi-seed validation
+# pass, not just bumping this constant.
+_CLEARANCE_MARGIN_M = 0.30
 _MIN_GAP_MARGIN_M = _ROBOT_WIDTH_M + 4.0 * _CLEARANCE_MARGIN_M
 _MIN_GAP_SIZE_M = 3.0 * (2.0 * _ROBOT_RADIUS_M)
 _CORRIDOR_GAP_M = max(_MIN_GAP_MARGIN_M, _MIN_GAP_SIZE_M) + 0.24
