@@ -64,7 +64,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
 | Release | Robot | Limit |
 |---|---|---|
 | v1.1 | Dubins | ≤ 0.5 m pose (SE(2)) |
-| v1.3 | RRP | ≤ 5 mm EE |
+| v1.3 | OpenMANIPULATOR-X | ≤ 5 mm EE |
 | v1.4 | 6-DOF | ≤ 5 mm EE |
 
 **FR-CTL-03:** Velocity commands published to `/joint_commands`.
@@ -141,14 +141,10 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 | Sim mode | MuJoCo `mj_step` + actuators |
 | Control rate | 50 Hz |
 
-### v1.3 — RRP
+### v1.3 — OpenMANIPULATOR-X
 
-| Parameter | Value |
-|---|---|
-| Joints | 2 revolute + 1 prismatic |
-| Planner | ARCO SST |
-| Control | Jacobian pseudoinverse |
-| Sim mode | Physics SITL |
+Positional tabletop A→B (empty, then AWS desk clutter) with Menagerie OM-X.
+
 
 ### v1.4 — 6-DOF
 
@@ -174,7 +170,3 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 | FR-SIM-11 | v1.2+ | `tests/simulation/test_*_robot_unit.py` |
 | FR-HW-01–03 | post v1.4 | — |
 
-### Regression (bootstrap SCARA)
-
-MS-1–5 scenarios (SC-01 – SC-05) remain in pure-Python CI as regression tests until v1.3
-supersedes them. They are **not** release acceptance criteria.

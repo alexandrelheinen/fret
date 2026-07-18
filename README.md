@@ -29,7 +29,7 @@ renders use `--physics-mode` by default.
 The Dubins showcase ships with headless render scripts, pure-Python E2E tests (no ROS
 required for CI validation), and optional ROS 2 SITL launch files.
 
-**Coming next:** RRP/SCARA ARCO reproduction (v1.3), 6-DOF challenge (v1.4).
+**Coming next:** OpenMANIPULATOR-X tabletop (v1.3), 6-DOF Menagerie arm (v1.4).
 See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
@@ -55,7 +55,7 @@ src/fret/
 └── scripts/           # CLI entry points (render, view, download showcase)
 ```
 
-**Regression infrastructure:** the bootstrap SCARA pipeline (MS-1–5) remains in the
+**Asset policy:** product robots and props load from git submodules (Menagerie + AWS).
 codebase and CI for shared planning/control primitives; it is not a product release
 target.
 
@@ -203,7 +203,7 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 | `model` | Release | Control strategy |
 |---|---|---|
 | `dubins` | v1.1 | ARCO Pure Pursuit + DubinsVehicle |
-| `rrp` / `scara` | v1.3 | Jacobian pseudoinverse (bootstrap exists) |
+| `open_manipulator_x` | v1.3 | Jacobian / joint-space tracking (Menagerie OM-X) |
 | `six_dof` | v1.4 | Jacobian + numerical IK (planned) |
 
 Robot details: [docs/robots/README.md](docs/robots/README.md).

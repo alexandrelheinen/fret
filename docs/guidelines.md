@@ -50,7 +50,7 @@ src/fret/
 
 - URDF descriptions live in `src/fret/urdf/`.
 - Use XACRO for parametric descriptions; URDF files should be build-generated.
-- Each robot model is a single `.xacro` file named after the model (e.g., `scara.xacro`).
+- Each robot model is a single `.xacro` file named after the model (e.g., `open_manipulator_x.xacro`).
 - Optional mesh generators in `src/fret/mesh/<model>.py` produce STL files at build time.
 
 ## 2. Naming Conventions
@@ -272,13 +272,13 @@ This section covers **test conventions** only.
 # Level 3 — not yet implemented:
 @pytest.mark.xfail(strict=True, raises=NotImplementedError)
 def test_compute_jacobian_known_configuration():
-    km = Kinematics(model="scara")
+    km = Kinematics(model="open_manipulator_x")
     result = km.compute_jacobian(np.array([0.0, 0.0, 0.1]))
     assert result.shape == (6, 3)
 
 # Level 4 — remove xfail when implemented:
 def test_compute_jacobian_known_configuration():
-    km = Kinematics(model="scara")
+    km = Kinematics(model="open_manipulator_x")
     result = km.compute_jacobian(np.array([0.0, 0.0, 0.1]))
     assert result.shape == (6, 3)
     assert np.allclose(result[2, :], [0.0, 0.0, 1.0])

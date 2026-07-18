@@ -28,11 +28,11 @@ def test_physics_controller_config_relative_unknown_raises() -> None:
         physics_controller_config_relative("dubins")
 
 
-def test_controller_config_relative_scara() -> None:
-    assert (
-        controller_config_relative("scara")
-        == "config/controllers/jacobian.yml"
-    )
+def test_controller_config_relative_unknown_raises() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="No controller config"):
+        controller_config_relative("unknown_model")
 
 
 def test_perception_config_relative_dubins_race() -> None:

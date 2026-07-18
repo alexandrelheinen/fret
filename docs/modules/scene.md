@@ -4,7 +4,7 @@
 **Source:** `src/fret/scene/`  
 **Tests:** `tests/scene/`
 
-> Dubins race structures and bootstrap SCARA obstacles feed this module from
+> Dubins race structures and bootstrap arm obstacles feed this module from
 > YAML/MuJoCo. See [releases.md](../releases.md).
 
 ---
@@ -59,7 +59,7 @@ internally and provides a distance-based query fallback.
 
 ### `workspace_occupancy.py` — WorkspaceOccupancyBuilder
 
-Builds a dense voxel-grid occupancy map of the full SCARA reachable workspace
+Builds a dense voxel-grid occupancy map of the full arm reachable workspace
 by sampling a regular 3-D grid at configurable resolution (default 20 cm).
 
 **API:**
@@ -73,7 +73,7 @@ builder.free_centres()                  # (M, 3) array of free centres
 builder.clearance(position)             # signed distance (negative = inside obstacle)
 ```
 
-**Default grid bounds** (SCARA reachable envelope):
+**Default grid bounds** (arm reachable envelope):
 
 | Axis | Lower | Upper | Cells at 20 cm |
 |---|---|---|---|

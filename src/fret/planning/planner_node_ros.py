@@ -22,12 +22,12 @@ Subscribes:
     /joint_states  (``sensor_msgs/JointState``, BEST_EFFORT)
 
 Parameters:
-    model (str, default: ``"scara"``)
+    model (str, default: ``"open_manipulator_x"``)
         Robot model name forwarded to :class:`fret.planning.planner_node.PlannerNode`.
     scenario_id (str, default: ``"static_reach"``)
         Human-readable identifier used in logs and planning feedback.
     goal_configuration (float[], default: ``[0.3272, 0.4712, 0.05]``)
-        Goal joint configuration (SCARA RRP: [rad, rad, m]).
+        Goal joint configuration (OM-X: [rad, rad, rad, rad]).
     planning_timeout (float, default: ``10.0``)
         Maximum planning time in seconds (FR-PLN-01).
     start_configuration (float[], default: ``[]``)
@@ -52,10 +52,10 @@ class PlannerRosNode:  # pragma: no cover
     minimal mock.
 
     Args:
-        model: Robot model name (e.g. ``"scara"``).
+        model: Robot model name (e.g. ``"open_manipulator_x"``).
     """
 
-    def __init__(self, model: str = "scara") -> None:
+    def __init__(self, model: str = "open_manipulator_x") -> None:
         import rclpy.node
         from rcl_interfaces.msg import ParameterDescriptor
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy

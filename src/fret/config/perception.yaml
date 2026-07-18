@@ -5,31 +5,6 @@ perception:
   # Uniform surface-sampling density [points/m^2]
   surface_density: 2000.0
 
-  # Obstacles. Each entry has:
-  #   id: entity name (must match SDF model name)
-  #   type: "box" or "cylinder"
-  #   For box: size: [x, y, z] in metres
-  #   For cylinder: radius: [m], length: [m]
-  #   pose: [x, y, z, roll, pitch, yaw] in world frame (static poses for now)
-  obstacles:
-    - id: obstacle_box_a
-      type: box
-      size: [0.06, 0.06, 0.30]
-      pose: [0.44, 0.30, 0.15, 0.0, 0.0, 0.0]
-
-  # Pillar-avoidance scenario (pillar_scenario.sdf / SC-02).
-  # The PerceptionBridgeNode samples cylinder surfaces and publishes them
-  # on /obstacle_cloud so the planning pipeline can detect the pillars.
-  pillar_obstacles:
-    - id: pillar_a
-      type: cylinder
-      radius: 0.04
-      length: 0.40
-      pose: [0.25, 0.10, 0.20, 0.0, 0.0, 0.0]
-
-    - id: pillar_b
-      type: cylinder
-      radius: 0.04
-      length: 0.40
-      pose: [-0.15, 0.30, 0.20, 0.0, 0.0, 0.0]
-
+  # Obstacles for perception bridge demos. OpenMANIPULATOR-X tabletop
+  # clutter is defined in the OM-X scenario / MJCF (AWS desk props).
+  obstacles: []

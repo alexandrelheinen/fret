@@ -20,14 +20,16 @@ def controller_config_relative(model: str) -> str:
     """Return package-relative controller YAML path for a robot model.
 
     Args:
-        model: Robot model name (``dubins``, ``scara``, …).
+        model: Robot model name (``dubins``, ``open_manipulator_x``, …).
 
     Returns:
         Path relative to the ``fret`` package share root.
     """
     if model == _DUBINS_MODEL:
         return "config/controllers/dubins.yml"
-    return "config/controllers/jacobian.yml"
+    if model in {"open_manipulator_x", "omx"}:
+        return "config/controllers/open_manipulator_x.yml"
+    raise ValueError(f"No controller config for model: {model!r}")
 
 
 def physics_controller_config_relative(model: str) -> str:

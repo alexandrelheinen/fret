@@ -112,7 +112,7 @@ src/fret/mjcf/
 ├── assets/
 │   ├── turtlebot3/         # Apache-2.0 ROBOTIS Menagerie meshes
 │   └── aws_warehouse/      # MIT-0 warehouse visuals (Dubins)
-└── (v1.3+) rrp_pillars.xml, six_dof_cell.xml, …
+└── (v1.3+) omx_tabletop.xml, six_dof_cell.xml, …
 ```
 
 Unit sandboxes are loaded by `fret.simulation.TurtleBot3UnitRobot` for open-loop
@@ -136,7 +136,7 @@ FRET imports third-party assets into MJCF:
 |---|---|---|
 | AWS RoboMaker warehouse | Dubins floor and shelf visuals | `scripts/import_aws_warehouse_assets.py` |
 | MuJoCo Menagerie (planned v1.4) | UR arm meshes for 6-DOF | TBD |
-| URDF via `mujoco.MjModel.from_xml_path` (planned v1.3) | SCARA from existing xacro | TBD |
+| Menagerie include (v1.3) | OpenMANIPULATOR-X from submodule | Planned |
 
 Imported meshes are converted to OBJ (meters, consistent origin). Collision
 geometry for planning may remain analytic boxes in YAML when mesh collision is
@@ -170,7 +170,7 @@ too expensive.
 | `model` | MJCF | Joint names | Integration |
 |---|---|---|---|
 | `dubins` | `dubins_race.xml` | `rrt_joint_*`, `sst_joint_*` | SE(2) per agent |
-| `rrp` / `scara` | *(v1.3)* | `joint_arm_0`, `joint_arm_1`, `joint_extension` | Revolute + prismatic |
+| `open_manipulator_x` | *(v1.3)* | `Joint1`…`Joint4` (+ gripper) | Revolute (Menagerie) |
 | `six_dof` | *(v1.4)* | TBD | 6× revolute |
 
 ---
@@ -340,5 +340,5 @@ Configuration schema: [config.md § Simulation](config.md#simulation-physics-v12
 | Dubins | Body/wheel actuation; column + floor contacts; optional inter-agent blocking |
 | Shared | `mj_step` harness, contact logging, CI-green physics mode |
 
-After v1.2, all new robots (SCARA v1.3, 6-DOF v1.4) ship with physics SITL
+After v1.2, all new robots (OM-X v1.3, 6-DOF v1.4) ship with physics SITL
 from day one — no kinematic-only phase.

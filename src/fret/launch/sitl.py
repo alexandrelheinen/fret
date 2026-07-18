@@ -4,31 +4,16 @@ This is the main entry point for ``fretsim``.
 
 Usage::
 
-    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
-    ros2 launch fret sitl.py model:=scara scenario:=static_reach
-    ros2 launch fret sitl.py model:=scara scenario:=straight_line
-    ros2 launch fret sitl.py model:=scara scenario:=arc
+    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
+    ros2 launch fret sitl.py scenario:=omx_reach model:=open_manipulator_x backend:=mujoco
 
 Arguments:
-    model (str, default: scara)
+    model (str, default: dubins)
         Robot model name.
-    scenario (str, default: static_reach)
-        Scenario YAML stem (e.g. ``static_reach``).  Must match a file under
-        ``fret/config/scenarios/<scenario>.yml``.
+    scenario (str, default: dubins_race)
+        Scenario YAML stem under ``fret/config/scenarios/<scenario>.yml``.
     physics_mode (str, default: false)
         When ``true``, MuJoCo advances with ``mj_step`` and actuators (v1.2+).
-
-Scenario behaviour:
-    straight_line — Milestone 1.  Launches the ``straight_line_injector``
-        node instead of ``planner_node``.  The injector publishes a
-        Cartesian straight-line trajectory once; the controller tracks it.
-    arc — Launches the ``arc_injector`` node instead of ``planner_node``.
-        The injector publishes a circular arc trajectory in Cartesian space
-        once; the controller tracks it.
-    dubins_race — v1.1 dual-agent Dubins race (MuJoCo).
-    static_reach (and others) — standard SITL with ``planner_node`` and
-        ``scene_acquisition_node``.  The planner auto-triggers at startup
-        and publishes the resulting trajectory; the controller executes it.
 """
 
 from __future__ import annotations
@@ -58,17 +43,17 @@ def generate_launch_description() -> LaunchDescription:
 
     model_arg = DeclareLaunchArgument(
         "model",
-        default_value="scara",
+        default_value="dubins",
         description="Robot model name",
     )
     scenario_arg = DeclareLaunchArgument(
         "scenario",
-        default_value="static_reach",
+        default_value="dubins_race",
         description="Scenario YAML stem (config/scenarios/<scenario>.yml)",
     )
     backend_arg = DeclareLaunchArgument(
         "backend",
-        default_value="gazebo",
+        default_value="mujoco",
         description="Simulator backend: gazebo | mujoco",
     )
     physics_mode_arg = DeclareLaunchArgument(
@@ -79,22 +64,14 @@ def generate_launch_description() -> LaunchDescription:
 
     is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
     is_gazebo = UnlessCondition(is_mujoco)
-    is_dubins_model = EqualsSubstitution(
-        LaunchConfiguration("model"), "dubins"
-    )
     is_dubins_race = EqualsSubstitution(
         LaunchConfiguration("scenario"), "dubins_race"
     )
+    is_omx_model = OrSubstitution(
+        EqualsSubstitution(LaunchConfiguration("model"), "open_manipulator_x"),
+        EqualsSubstitution(LaunchConfiguration("model"), "omx"),
+    )
 
-    is_straight_line = EqualsSubstitution(
-        LaunchConfiguration("scenario"), "straight_line"
-    )
-    is_arc = EqualsSubstitution(LaunchConfiguration("scenario"), "arc")
-    is_injector_scenario = OrSubstitution(is_straight_line, is_arc)
-    skip_standard_pipeline = OrSubstitution(
-        is_injector_scenario,
-        is_dubins_race,
-    )
     is_standard_mujoco = PythonExpression(
         [
             "'",
@@ -115,8 +92,8 @@ def generate_launch_description() -> LaunchDescription:
         ]
     )
 
-    scara_controller_config = PathJoinSubstitution(
-        [pkg_share, "config", "controllers", "jacobian.yml"]
+    omx_controller_config = PathJoinSubstitution(
+        [pkg_share, "config", "controllers", "open_manipulator_x.yml"]
     )
 
     default_perception_config = PathJoinSubstitution(
@@ -127,7 +104,6 @@ def generate_launch_description() -> LaunchDescription:
         PythonLaunchDescriptionSource([pkg_share, "/launch/sim.py"]),
         launch_arguments={
             "model": LaunchConfiguration("model"),
-            "world": "arco_scenario.sdf",
         }.items(),
         condition=is_gazebo,
     )
@@ -154,30 +130,6 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(is_dubins_mujoco),
     )
 
-    straight_line_injector = Node(
-        package="fret",
-        executable="straight_line_injector",
-        name="straight_line_injector",
-        output="screen",
-        parameters=[
-            {"model": LaunchConfiguration("model")},
-            scenario_config,
-        ],
-        condition=IfCondition(is_straight_line),
-    )
-
-    arc_injector = Node(
-        package="fret",
-        executable="arc_injector",
-        name="arc_injector",
-        output="screen",
-        parameters=[
-            {"model": LaunchConfiguration("model")},
-            scenario_config,
-        ],
-        condition=IfCondition(is_arc),
-    )
-
     planner_node = Node(
         package="fret",
         executable="planner_node",
@@ -187,7 +139,7 @@ def generate_launch_description() -> LaunchDescription:
             {"model": LaunchConfiguration("model")},
             scenario_config,
         ],
-        condition=UnlessCondition(skip_standard_pipeline),
+        condition=UnlessCondition(is_dubins_race),
     )
 
     scene_acquisition_node = Node(
@@ -196,12 +148,7 @@ def generate_launch_description() -> LaunchDescription:
         name="scene_acquisition_node",
         output="screen",
         parameters=[{"model": LaunchConfiguration("model")}],
-        condition=UnlessCondition(skip_standard_pipeline),
-    )
-
-    skip_default_perception = OrSubstitution(
-        is_injector_scenario,
-        is_dubins_race,
+        condition=UnlessCondition(is_dubins_race),
     )
 
     perception_bridge_default = Node(
@@ -215,22 +162,19 @@ def generate_launch_description() -> LaunchDescription:
                 "config_path": default_perception_config,
             }
         ],
-        condition=UnlessCondition(skip_default_perception),
+        condition=UnlessCondition(is_dubins_race),
     )
 
-    controller_scara = Node(
+    controller_arm = Node(
         package="fret",
         executable="controller_node",
         name="controller_node",
         output="screen",
         parameters=[
             {"model": LaunchConfiguration("model")},
-            scara_controller_config,
+            omx_controller_config,
         ],
-        remappings=[
-            ("/joint_commands", "/joint_group_velocity_controller/commands")
-        ],
-        condition=UnlessCondition(is_dubins_model),
+        condition=IfCondition(is_omx_model),
     )
 
     return LaunchDescription(
@@ -242,11 +186,9 @@ def generate_launch_description() -> LaunchDescription:
             sim_launch,
             mujoco_launch,
             dubins_race_node,
-            straight_line_injector,
-            arc_injector,
             scene_acquisition_node,
             planner_node,
             perception_bridge_default,
-            controller_scara,
+            controller_arm,
         ]
     )

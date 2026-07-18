@@ -2,14 +2,14 @@
 
 Usage::
 
-    ros2 launch fret hardware.py model:=scara port:=/dev/ttyUSB0
+    ros2 launch fret hardware.py model:=open_manipulator_x port:=/dev/ttyUSB0
 
 Arguments:
-    model (str, default: scara)
+    model (str, default: open_manipulator_x)
         Robot model name.
     port (str, default: /dev/ttyUSB0)
         Serial port connected to the Arduino hardware interface.
-    config (str, default: jacobian.yml)
+    config (str, default: open_manipulator_x.yml)
         Controller YAML config file stem under ``config/controllers/``.
 """
 
@@ -28,7 +28,7 @@ def generate_launch_description() -> LaunchDescription:
 
     model_arg = DeclareLaunchArgument(
         "model",
-        default_value="scara",
+        default_value="open_manipulator_x",
         description="Robot model name",
     )
     port_arg = DeclareLaunchArgument(
@@ -38,7 +38,7 @@ def generate_launch_description() -> LaunchDescription:
     )
     config_arg = DeclareLaunchArgument(
         "config",
-        default_value="jacobian",
+        default_value="open_manipulator_x",
         description="Controller config YAML stem (config/controllers/<config>.yml)",
     )
 

@@ -5,7 +5,7 @@
 **Tests:** `tests/control/`
 
 > **Release roadmap:** v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 enables MuJoCo
-> physics actuators; v1.3 extends existing SCARA Jacobian stack; v1.4 adds
+> physics actuators; v1.3 extends existing arm Jacobian stack; v1.4 adds
 > 6-DOF numerical IK. See [releases.md](../releases.md).
 
 ---
@@ -13,7 +13,7 @@
 ## Responsibility
 
 The control module implements kinematic computations and trajectory tracking
-controllers. The current implementation targets the **bootstrap SCARA (RRP)**;
+controllers. The current implementation targets the **bootstrap arm (manipulator)**;
 v1.1+ adds per-model kinematics selected by `model:=` at launch.
 
 ---
@@ -23,7 +23,7 @@ v1.1+ adds per-model kinematics selected by `model:=` at launch.
 ### `kinematics.py` — Kinematics
 
 Closed-form forward kinematics (FK), analytical inverse kinematics (IK), and
-the geometric Jacobian for the SCARA RRP (3-DOF) manipulator.
+the geometric Jacobian for the arm manipulator (3-DOF) manipulator.
 
 | Method | Description |
 |---|---|
@@ -32,7 +32,7 @@ the geometric Jacobian for the SCARA RRP (3-DOF) manipulator.
 | `jacobian(q)` | Returns the 3×3 geometric Jacobian matrix |
 | `is_within_limits(q)` | Validates joint configuration against the operational envelope |
 
-**SCARA model constants** (from `scara.xacro`):
+**arm model constants** (from `open_manipulator_x.xacro`):
 
 | Parameter | Value |
 |---|---|
@@ -105,7 +105,7 @@ TF2 transform. Provides a `RobotState` snapshot to the controller at each step.
 
 ## Configuration
 
-Controller gains are in `src/fret/config/controllers/jacobian.yml`:
+Controller gains are in `src/fret/config/controllers/open_manipulator_x.yml`:
 
 ```yaml
 kp: 20.0

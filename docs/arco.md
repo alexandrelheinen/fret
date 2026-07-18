@@ -20,10 +20,10 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 |---|---|---|
 | **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, `DubinsPrimitive`, Pure Pursuit | `map/vehicle.yml` |
 | **v1.2** | *(physics upgrade — no new ARCO scenario)* | — |
-| **v1.3** RRP | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
+| **v1.3** manipulator | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
 | **v1.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
 
-Bootstrap SCARA (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
+Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
 `TrajectoryPruner` for regression CI.
 
 ---
@@ -87,10 +87,10 @@ Reuse ARCO race infrastructure:
 
 ---
 
-## v1.3 RRP alignment
+## v1.3 manipulator alignment
 
 Reproduce ARCO CI scenarios `rrp` and `rr` inside FRET `sitl.py` pipeline on
-MuJoCo physics SITL. FRET bootstrap SCARA kinematics map to ARCO RRP topology.
+MuJoCo physics SITL. FRET bootstrap arm kinematics map to ARCO manipulator topology.
 
 ---
 
@@ -98,4 +98,4 @@ MuJoCo physics SITL. FRET bootstrap SCARA kinematics map to ARCO RRP topology.
 
 - ARCO visualization docs: `arco/docs/VISUALIZATION.md`
 - ARCO vehicle scene: `arco/src/arco/simulator/scenes/vehicle.py`
-- ARCO RRP scene: `arco/src/arco/simulator/scenes/rrp.py`
+- ARCO manipulator scene: `arco/src/arco/simulator/scenes/rrp.py`

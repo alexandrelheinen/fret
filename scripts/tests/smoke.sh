@@ -109,23 +109,5 @@ run_smoke_test "sitl_dubins_race_physics" 30 -- \
     scenario:=dubins_race model:=dubins backend:=mujoco physics_mode:=true \
     || FAILED=1
 
-# Bootstrap SCARA launches — optional when legacy sim stack is installed.
-if ros2 pkg prefix ros_gz_sim >/dev/null 2>&1; then
-    run_smoke_test "sim_launch" -- xvfb-run -a ros2 launch fret sim.py model:=scara \
-        || FAILED=1
-    run_smoke_test "arco_scenario_launch" -- xvfb-run -a ros2 launch fret arco_scenario.py \
-        || FAILED=1
-    run_smoke_test "sitl_launch" -- xvfb-run -a ros2 launch fret sitl.py \
-        || FAILED=1
-else
-    info "ros_gz_sim not found — skipping bootstrap SCARA smoke tests (sim_launch, arco_scenario_launch, sitl_launch)."
-fi
+# Legacy SCARA / Gazebo bootstrap launches removed (Menagerie MJCF only).
 
-echo "======================================"
-if [[ "${FAILED}" -eq 0 ]]; then
-    ok "All smoke tests PASSED"
-    exit 0
-else
-    fail "Smoke tests FAILED"
-    exit 1
-fi

@@ -21,7 +21,7 @@ robot class, one showcase scenario, and one article-ready visual demo.
 | **v1.0** | *(superseded)* | Bootstrap iteration — not a product showcase | — |
 | **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo |
 | **v1.2** | Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
-| **v1.3** | RRP / SCARA (3-DOF) | Reproduce ARCO `rrp` / `rr` scenarios in FRET | MuJoCo |
+| **v1.3** | OpenMANIPULATOR-X (4-DOF) | Tabletop positional A→B (+ AWS desk clutter) | MuJoCo |
 | **v1.4** | 6-DOF manipulator | Final challenge — full C-space planning + execution | MuJoCo |
 
 **Platform stack (all releases):**
@@ -32,12 +32,11 @@ robot class, one showcase scenario, and one article-ready visual demo.
 
 ---
 
-## Engineering foundation (v0.x — complete)
+## Engineering foundation
 
-Before the first product showcase, the project validated the pipeline on a
-**3-DOF SCARA bootstrap robot** (MS-1–5): Jacobian control, C-space planning,
-occupancy bridge, pillar avoidance in pure-Python CI. That code remains as shared
-infrastructure; it is **not** a release target. v1.3 reuses and extends it for RRP.
+Early bootstrap work validated the planning/control pipeline. Product robots are
+drawn from the **ROBOTIS MuJoCo Menagerie** submodule (TurtleBot3, OpenMANIPULATOR-X,
+…). Legacy SCARA/RRP assets are retired.
 
 ---
 
@@ -184,48 +183,46 @@ Physics validation runs against the shipped release scenario:
 
 ---
 
-## v1.3 — RRP / SCARA (ARCO reproduction)
+## v1.3 — OpenMANIPULATOR-X tabletop
 
 ### Goal
 
-Reproduce ARCO **`rrp`** and **`rr`** scenarios inside the FRET ROS 2 pipeline — the
-same pillar/slab obstacles, joint-space planning, and race-style execution that ARCO
-CI already validates. All execution runs on **MuJoCo physics SITL** (v1.2 foundation).
+A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs positional end-effector
+moves on a tabletop cell — first empty A→B (command-chain validation), then with
+**AWS RoboMaker desk clutter** forcing a joint-space detour. Same submodule asset
+policy as the TurtleBot3 race.
 
-### Robots
+### Robot
 
-| Model | DOF | ARCO map |
+| Model | DOF | Source |
 |---|---|---|
-| `rrp` | 3 (θ₁, θ₂, z) | `map/rrp.yml` |
-| `rr` | 2 (θ₁, θ₂) | `map/rr.yml` |
-
-Leverages existing FRET SCARA bootstrap (`src/fret/control/kinematics.py`, MS-1–5 code).
+| `open_manipulator_x` | 4 + gripper | `third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x` |
 
 ### Scenario IDs
 
 | ID | File | Description |
 |---|---|---|
-| SC-v13a | `rrp_pillars.yml` | 3-D pillars + slabs (ARCO rrp) |
-| SC-v13b | `rr_planar.yml` | 2-D planar arm (ARCO rr) |
+| SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
+| SC-v13b | `omx_desk_clutter.yml` | AWS desk props block the straight path |
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V13-1 | RRP scenario matches ARCO `rrp.yml` obstacle layout and pass/fail semantics |
-| V13-2 | EE tracking error ≤ 5 mm (RRP) on MuJoCo physics SITL |
-| V13-3 | RR planar scenario passes in pure-Python CI |
-| V13-4 | Side-by-side video: ARCO arcosim vs FRET SITL (same scenario) |
+| V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
+| V13-2 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
+| V13-3 | Showcase video: overview + EE-follow cameras |
+| V13-4 | Assets loaded only from Menagerie + AWS submodules |
 
 ### Implementation tasks
 
 | ID | Task |
 |---|---|
-| T13-01 | MJCF model for RRP arm + pillar world |
-| T13-02 | Extend `mujoco_bridge` for revolute + prismatic actuators |
-| T13-03 | Port ARCO `rrp.yml` → `rrp_pillars.yml` |
-| T13-04 | Port ARCO `rr.yml` → `rr_planar.yml` |
-| T13-05 | MuJoCo physics SITL smoke + comparison video |
+| T13-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
+| T13-02 | Kinematics + controller + bridge wiring for OM-X joints |
+| T13-03 | SC-v13a scenario + unit/physics smoke |
+| T13-04 | AWS desk clutter props + SC-v13b detour scenario |
+| T13-05 | Showcase render pipeline + metrics |
 
 ---
 
@@ -233,14 +230,14 @@ Leverages existing FRET SCARA bootstrap (`src/fret/control/kinematics.py`, MS-1�
 
 ### Goal
 
-A **6-DOF revolute manipulator** (e.g. UR5 or custom arm) performs C-space planning
+A **6-DOF revolute manipulator** (Menagerie OpenMANIPULATOR-Y preferred) performs C-space planning
 and trajectory execution in a cluttered environment — the capstone release.
 
 ### Scope (high level)
 
 | Item | Detail |
 |---|---|
-| Model | 6 revolute joints; MJCF (import from Menagerie or URDF) |
+| Model | 6 revolute joints; MJCF from Menagerie submodule (OMY) |
 | IK | Numerical IK (Jacobian pseudoinverse or analytic where available) |
 | Planning | ARCO SST in 6-D C-space |
 | Collision | Per-link FK + KDTree clearance; self-collision in MJCF |
@@ -260,7 +257,7 @@ and trajectory execution in a cluttered environment — the capstone release.
 | V14-3 | Self-collision checking enabled |
 | V14-4 | Demo video + benchmark table (planning time, path length) |
 
-*Detailed task breakdown will be written when v1.3 is complete.*
+*Detailed task breakdown will be written when OM-X v1.3 is complete.*
 
 ---
 
@@ -268,12 +265,11 @@ and trajectory execution in a cluttered environment — the capstone release.
 
 | Tag | Content | Prerequisite |
 |---|---|---|
-| `v0.9.0` | Bootstrap SCARA pipeline (MS-1–5) | ✅ Done |
 | `v1.0.0` | Superseded bootstrap tag (not a product showcase) | — |
 | `v1.1.0` | Dubins dual race — **first product showcase** | T11-* |
 | `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
 | `v1.2.0` | MuJoCo physics SITL (Dubins) — **current** | T12-* ✅ |
-| `v1.3.0` | RRP + RR ARCO reproduction | T13-* |
+| `v1.3.0` | OpenMANIPULATOR-X tabletop showcase | T13-* |
 | `v1.4.0` | 6-DOF challenge | T14-* |
 
 ### v1.1.x → v1.2.0 retrospective
@@ -303,7 +299,7 @@ kinematic behaviour must not regress.
 **Deferred to v1.3+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
 
 - Race showcase controller RTF / finish-time tuning on true TB3 wheel actuators
-- New robots (RRP, 6-DOF) and hardware HITL
+- New robots (OpenMANIPULATOR-X, 6-DOF) and hardware HITL
 
 Every release-tag MP4 (Dubins, all camera POVs) **must** play back at
 **real-time simulation speed**. This is a hard product requirement, independent
@@ -338,9 +334,5 @@ See [mujoco.md § Showcase rendering](mujoco.md#showcase-rendering-real-time-pla
 The following documents and goals are **superseded** by this release spec:
 
 - MS-6 / MS-7 milestone framing (MuJoCo + TBD showcase)
-- SCARA-as-v1.0-showcase
-- SC-01 – SC-05 as primary release scenarios (retained as regression tests only)
+- SC-01 – SC-05 bootstrap scenarios (retired with SCARA/RRP purge)
 - Platform study 2026 Q3 dual-demo proposal
-
-Regression scenarios (SC-01 – SC-05) remain in CI for the bootstrap SCARA pipeline
-until v1.3 replaces them as the canonical arm tests.

@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from fret.config_loader import load_algorithm_config
 from fret.interfaces import (
     ErrorCode,
     OccupancyUpdatePayload,
@@ -76,7 +75,7 @@ def _make_planner(success: bool = True) -> MagicMock:
 def _make_converter() -> MagicMock:
     converter = MagicMock(spec=TrajectoryConverter)
     traj = TrajectoryResult(
-        joint_names=["joint_arm_0", "joint_arm_1", "joint_extension"],
+        joint_names=["joint_0", "joint_1", "joint_2"],
         positions=[_START.copy(), _GOAL.copy()],
         velocities=[np.zeros(_DOF), np.zeros(_DOF)],
         timestamps=[0.0, 1.0],
@@ -87,7 +86,22 @@ def _make_converter() -> MagicMock:
 
 
 def _default_replanning_config() -> dict[str, object]:
-    return load_algorithm_config("planning/scara.yml")
+    return {
+        "trajectory": {
+            "control_hz": 50.0,
+            "v_max": [1.5, 1.5, 0.1],
+            "a_max": [2.0, 2.0, 0.2],
+            "dt_min": 0.02,
+            "joint_names": ["joint_0", "joint_1", "joint_2"],
+        },
+        "replanning": {
+            "tracking_error_threshold": 0.020,
+            "occupancy_change_threshold": 0.050,
+            "min_replan_interval": 1.0,
+            "max_replan_attempts": 3,
+        },
+        "trajectory_generator": {"max_interp_step_m": 0.004},
+    }
 
 
 def _replanning_config(**overrides: object) -> dict[str, object]:

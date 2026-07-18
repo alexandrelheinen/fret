@@ -19,8 +19,8 @@ def fretsim() -> None:  # pragma: no cover
 
     Example::
 
-        fretsim --model scara --scenario obstacle_avoidance
-        fretsim --model scara --ros-args -p planning_timeout:=5.0
+        fretsim --model dubins --scenario dubins_race
+        fretsim --model open_manipulator_x --scenario omx_reach
     """
     parser = argparse.ArgumentParser(
         prog="fretsim",
@@ -31,12 +31,12 @@ def fretsim() -> None:  # pragma: no cover
     )
     parser.add_argument(
         "--model",
-        default="scara",
+        default="dubins",
         help="Robot model name (default: %(default)s)",
     )
     parser.add_argument(
         "--scenario",
-        default="static_reach",
+        default="dubins_race",
         help=(
             "Scenario YAML stem under config/scenarios/ "
             "(default: %(default)s)"

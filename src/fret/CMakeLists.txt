@@ -5,7 +5,8 @@ project(fret)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-find_program(XACRO_EXECUTABLE xacro REQUIRED)
+# Xacro is optional: Menagerie MJCF arms do not need URDF generation.
+find_program(XACRO_EXECUTABLE xacro)
 
 
 set(GENERATED_URDF_DIR   ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -13,9 +14,12 @@ set(GENERATED_MESHES_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_meshes)
 file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
 
 # ---------------------------------------------------------------------------
-# Per-model loop — driven by urdf/*.xacro
+# Per-model loop — driven by urdf/*.xacro (none required for Menagerie arms)
 # ---------------------------------------------------------------------------
 file(GLOB XACRO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/urdf/*.xacro)
+if(XACRO_FILES AND NOT XACRO_EXECUTABLE)
+  message(FATAL_ERROR "[fret] urdf/*.xacro present but xacro executable not found")
+endif()
 
 set(GENERATED_URDF_FILES)
 set(MESH_STAMPS)
@@ -136,8 +140,6 @@ install(PROGRAMS
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/controller_node
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/scene_acquisition_node
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/planner_node
-  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/arc_injector
-  ${CMAKE_CURRENT_SOURCE_DIR}/scripts/straight_line_injector
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/perception_bridge
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/mujoco_bridge
   ${CMAKE_CURRENT_SOURCE_DIR}/scripts/dubins_race_node

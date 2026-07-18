@@ -2,10 +2,10 @@
 
 Usage::
 
-    ros2 launch fret sim.py model:=scara
+    ros2 launch fret sim.py model:=dubins
 
 Arguments:
-    model (str, default: scara)
+    model (str, default: dubins)
         Robot model name.  Must match a XACRO file under
         ``fret/urdf/<model>.xacro``.
     world (str, default: empty.world)
@@ -34,7 +34,7 @@ def generate_launch_description() -> LaunchDescription:
 
     model_arg = DeclareLaunchArgument(
         "model",
-        default_value="scara",
+        default_value="dubins",
         description="Robot model name (must match urdf/<model>.xacro)",
     )
     world_arg = DeclareLaunchArgument(
