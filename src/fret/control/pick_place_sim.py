@@ -1,8 +1,7 @@
 """MuJoCo runner for SC-v13b pick-and-place (FSM + free box).
 
-Finger-mesh pinch with stock Menagerie colliders is unreliable, so while the
-FSM reports a held state the box freejoint is kinematically attached to
-``link5``. The box remains a free body before grasp and after release.
+Full physics grasp: Menagerie finger pads (injected) close on the free box and
+MuJoCo adhesion actuators hold it through lift/transfer. No kinematic attach.
 """
 
 from __future__ import annotations
@@ -23,12 +22,12 @@ from fret.control.pick_place_fsm import (
 )
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 
-_HOLD_STATES = frozenset(
+_ADHERE_STATES = frozenset(
     {
+        PickPlaceState.GRASP,
         PickPlaceState.LIFT,
         PickPlaceState.MOVE_PLACE,
         PickPlaceState.DESCEND_PLACE,
-        PickPlaceState.RELEASE,  # keep attached until RELEASE hold finishes
     }
 )
 
@@ -78,31 +77,17 @@ def _arm_q(mj: Any, model: Any, data: Any) -> npt.NDArray[np.float64]:
     )
 
 
-def _attach_box(
-    mj: Any,
-    model: Any,
-    data: Any,
-    *,
-    ee_body: int,
-    box_qadr: int,
-    box_dadr: int,
-    offset_local: npt.NDArray[np.float64],
-) -> None:
-    """Write the box freejoint pose so it follows the EE with a fixed offset."""
-    mj.mj_forward(model, data)
-    rot = data.xmat[ee_body].reshape(3, 3)
-    pos = data.xpos[ee_body] + rot @ offset_local
-    quat = np.zeros(4, dtype=np.float64)
-    mj.mju_mat2Quat(quat, data.xmat[ee_body])
-    data.qpos[box_qadr : box_qadr + 3] = pos
-    data.qpos[box_qadr + 3 : box_qadr + 7] = quat
-    data.qvel[box_dadr : box_dadr + 6] = 0.0
+def _actuator_id(mj: Any, model: Any, name: str) -> int:
+    aid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_ACTUATOR, name)
+    if aid < 0:
+        raise ValueError(f"Missing MuJoCo actuator {name!r}")
+    return int(aid)
 
 
 def simulate_pick_place(
     *,
-    duration_s: float = 20.0,
-    joint_tol_rad: float = 0.10,
+    duration_s: float = 25.0,
+    joint_tol_rad: float = 0.12,
     record_every_steps: int = 1,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
     """Run one SC-v13b cycle and optionally record trajectory samples."""
@@ -120,25 +105,33 @@ def simulate_pick_place(
     box_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box")
     box_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint")
     box_qadr = int(model.jnt_qposadr[box_jid])
-    box_dadr = int(model.jnt_dofadr[box_jid])
+
+    act_arm = [
+        _actuator_id(mj, model, n)
+        for n in ("Joint1", "Joint2", "Joint3", "Joint4")
+    ]
+    act_grip = _actuator_id(mj, model, "Gripper")
+    act_al = _actuator_id(mj, model, "grip_left")
+    act_ar = _actuator_id(mj, model, "grip_right")
 
     fsm = PickPlaceFSM(
         wp,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=0.5,
-        release_hold_s=0.4,
-        lift_height_m=0.12,
-        phase_timeout_s=15.0,
+        grasp_hold_s=1.0,
+        release_hold_s=0.8,
+        lift_height_m=0.20,
+        phase_timeout_s=20.0,
     )
     fsm.start()
 
-    data.ctrl[:4] = wp.idle
-    data.ctrl[4] = GRIPPER_OPEN
+    for i, aid in enumerate(act_arm):
+        data.ctrl[aid] = float(wp.idle[i])
+    data.ctrl[act_grip] = GRIPPER_OPEN
+    data.ctrl[act_al] = 0.0
+    data.ctrl[act_ar] = 0.0
     for _ in range(400):
         mj.mj_step(model, data)
 
-    offset: npt.NDArray[np.float64] | None = None
-    holding = False
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
@@ -150,42 +143,21 @@ def simulate_pick_place(
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
         )
-        prev = fsm.state
         cmd = fsm.tick(obs, dt)
 
-        if (
-            prev == PickPlaceState.GRASP
-            and cmd.state == PickPlaceState.LIFT
-            and offset is None
-        ):
-            mj.mj_forward(model, data)
-            rot = data.xmat[ee_id].reshape(3, 3)
-            offset = rot.T @ (data.xpos[box_id] - data.xpos[ee_id])
-            holding = True
-
-        if cmd.state == PickPlaceState.RETREAT:
-            holding = False
-            offset = None
-
-        data.ctrl[:4] = cmd.q_des
-        data.ctrl[4] = cmd.gripper
-        if holding and offset is not None and cmd.state in _HOLD_STATES:
-            _attach_box(
-                mj,
-                model,
-                data,
-                ee_body=ee_id,
-                box_qadr=box_qadr,
-                box_dadr=box_dadr,
-                offset_local=offset,
-            )
+        for i, aid in enumerate(act_arm):
+            data.ctrl[aid] = float(cmd.q_des[i])
+        data.ctrl[act_grip] = float(cmd.gripper)
+        adhere = 1.0 if cmd.state in _ADHERE_STATES else 0.0
+        data.ctrl[act_al] = adhere
+        data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
 
         if step_i % record_every_steps == 0:
             samples.append(
                 PickPlaceSample(
                     q_arm=_arm_q(mj, model, data),
-                    gripper=float(data.ctrl[4]),
+                    gripper=float(data.ctrl[act_grip]),
                     box_qpos=np.asarray(
                         data.qpos[box_qadr : box_qadr + 7], dtype=np.float64
                     ).copy(),
@@ -201,8 +173,8 @@ def simulate_pick_place(
 
 def run_pick_place(
     *,
-    duration_s: float = 20.0,
-    joint_tol_rad: float = 0.10,
+    duration_s: float = 25.0,
+    joint_tol_rad: float = 0.12,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
     """Execute one SC-v13b cycle; return final FSM state and box position."""
     state, samples = simulate_pick_place(

@@ -203,7 +203,7 @@ clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
 | ID | File | Description |
 |---|---|---|
 | SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
-| SC-v13b | `omx_pick_place.yml` | Pick box at green, place at red (FSM + grasp) |
+| SC-v13b | `omx_pick_place.yml` | Stretch pick green→red (FSM + MuJoCo physics) |
 | SC-v13c | `omx_desk_clutter.yml` | AWS desk props block the transfer path |
 
 ### Acceptance criteria

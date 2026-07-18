@@ -43,9 +43,11 @@ about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
 arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 
 **SC-v13b FSM:**
-`IDLE → APPROACH_PICK → DESCEND_PICK → GRASP → LIFT → MOVE_PLACE → RELEASE → RETREAT → DONE`
-(with `FAULT` on timeout / drop). Grasp uses kinematic EE↔box attachment while
-held (Menagerie finger meshes do not pinch reliably yet).
+`IDLE → APPROACH → DESCEND → GRASP → LIFT → MOVE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
+(with `FAULT` on timeout / drop). Grasp is **full MuJoCo physics**: injected
+finger-pad geoms + adhesion actuators hold the free box (stock Menagerie finger
+meshes alone do not pinch reliably). Pick/place pedestals sit at ~0.32 m
+fingertip radius (~2.3× the early close-in layout) so the arm must stretch.
 
 ---
 

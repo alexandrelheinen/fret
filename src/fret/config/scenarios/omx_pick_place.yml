@@ -1,25 +1,25 @@
-# SC-v13b — OpenMANIPULATOR-X pick-and-place (FSM + object transfer).
+# SC-v13b — OpenMANIPULATOR-X pick-and-place (FSM + physical transfer).
 #
-# Plain MuJoCo box on pedestals: green → red. No obstacles (SC-v13c).
-# AWS warehouse meshes are too large for the OM-X gripper (~3 cm aperture).
-# Waypoints from numerical IK (EE ~0.13 m grasp / 0.17 m hover).
+# Stretched pedestals (~0.32 m fingertip radius, ~2.3× the early close-in
+# layout): green → red under full MuJoCo physics (pads + adhesion).
+# No obstacles (SC-v13c). AWS warehouse meshes are too large for the gripper.
 
 /**:
   ros__parameters:
     model: open_manipulator_x
     scenario_id: omx_pick_place
     simulation_dt: 0.02
-    duration: 20.0
+    duration: 25.0
     planning_timeout: 60.0
     goal_tolerance: 0.05
     mjcf: mjcf/omx_pick_place.xml
     pick_object: box
-    box_half_size_m: 0.012
-    grasp_mode: kinematic_attach
-    idle_configuration: [0.0, -0.2833, 0.4934, 0.0]
-    pick_hover_configuration: [-1.0162, -0.0967, 0.3927, 0.0]
-    pick_grasp_configuration: [-1.0171, 0.0404, 0.5849, 0.0]
-    place_hover_configuration: [1.0171, -0.0964, 0.39, 0.0]
-    place_grasp_configuration: [1.0171, 0.0406, 0.5846, 0.0]
-    pick_xy: [0.08, -0.11]
-    place_xy: [0.08, 0.11]
+    box_half_size_m: 0.010
+    grasp_mode: mujoco_adhesion
+    idle_configuration: [0.0, -1.05, 0.7, 0.7]
+    pick_hover_configuration: [-0.55, 0.35, -0.70, 0.20]
+    pick_grasp_configuration: [-0.55, 0.70, -0.85, 0.20]
+    place_hover_configuration: [0.55, 0.35, -0.70, 0.20]
+    place_grasp_configuration: [0.55, 0.70, -0.85, 0.20]
+    pick_xy: [0.273, -0.160]
+    place_xy: [0.273, 0.160]

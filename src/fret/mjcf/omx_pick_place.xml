@@ -2,16 +2,17 @@
   <!--
     OpenMANIPULATOR-X pick-and-place cell (SC-v13b / T13-04).
 
-    Plain free box on raised pedestals (AWS warehouse meshes are too large for
-    the OM-X gripper). Green = pick, red = place.
-    Grasp uses kinematic attachment in the SC-v13b runner (finger-mesh pinch is
-    unreliable with stock Menagerie colliders); the box remains a free body.
+    Stretched pedestals (~2.3× farther than the early close-in layout) so the
+    arm must reach out. Plain free box; green = pick, red = place.
+    Grasp is full MuJoCo physics (finger pads + adhesion actuators injected by
+    omx.py). Pedestals collide with the box only so the wrist can clear them.
   -->
   <include file="open_manipulator_x.xml"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"
+          cone="elliptic" impratio="10"/>
 
-  <statistic center="0.08 0 0.15" extent="0.5"/>
+  <statistic center="0.20 0 0.18" extent="0.65"/>
 
   <visual>
     <headlight ambient="0.45 0.47 0.50" diffuse="0.30 0.32 0.35" specular="0 0 0"/>
@@ -35,35 +36,36 @@
   </asset>
 
   <worldbody>
-    <light name="key" pos="0.6 0.4 1.2" dir="0 0 -1" directional="true"
+    <light name="key" pos="0.8 0.5 1.4" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
-          friction="1.0 0.1 0.01"/>
+          friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 
-    <!-- Raised pads so the arm can reach without floor collisions. -->
-    <geom name="pedestal_pick" type="cylinder" pos="0.08 -0.11 0.05" size="0.035 0.05"
-          material="pedestal" friction="1.2 0.1 0.01"/>
-    <geom name="pedestal_place" type="cylinder" pos="0.08 0.11 0.05" size="0.035 0.05"
-          material="pedestal" friction="1.2 0.1 0.01"/>
+    <!-- Thin posts at fingertip reach (~0.32 m). contype=2: box only. -->
+    <geom name="pedestal_pick" type="cylinder" pos="0.273 -0.160 0.079" size="0.018 0.079"
+          material="pedestal" friction="1.2 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="pedestal_place" type="cylinder" pos="0.273 0.160 0.079" size="0.018 0.079"
+          material="pedestal" friction="1.2 0.1 0.01" contype="2" conaffinity="2"/>
 
-    <geom name="start_zone" type="cylinder" pos="0.08 -0.11 0.101" size="0.045 0.001"
+    <geom name="start_zone" type="cylinder" pos="0.273 -0.160 0.159" size="0.05 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="cylinder" pos="0.08 0.11 0.101" size="0.045 0.001"
+    <geom name="goal_zone" type="cylinder" pos="0.273 0.160 0.159" size="0.05 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <!-- ~24 mm cube on the pick pedestal. -->
-    <body name="pick_box" pos="0.08 -0.11 0.112">
+    <!-- ~20 mm cube; contype=3 hits floor (1) and pedestals (2). -->
+    <body name="pick_box" pos="0.273 -0.160 0.168">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="box" size="0.012 0.012 0.012"
-            density="300" material="pick_box"
-            friction="1.5 0.1 0.01"/>
+      <geom name="pick_box_geom" type="box" size="0.010 0.010 0.010"
+            density="60" material="pick_box"
+            friction="2.5 0.5 0.05" solref="0.008 1" solimp="0.98 0.99 0.001"
+            condim="6" contype="3" conaffinity="3"/>
     </body>
 
-    <camera name="topdown" pos="0.08 0 0.85"
+    <camera name="topdown" pos="0.18 0 1.05"
             xyaxes="0 1 0 -1 0 0" fovy="50"/>
-    <camera name="overview" pos="0.70 -0.55 0.50"
+    <camera name="overview" pos="0.85 -0.65 0.55"
             xyaxes="0.8 0.6 0 -0.25 0.35 0.90" fovy="45"/>
-    <camera name="follow" pos="0.40 0.30 0.30"
+    <camera name="follow" pos="0.55 0.40 0.35"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>
 </mujoco>

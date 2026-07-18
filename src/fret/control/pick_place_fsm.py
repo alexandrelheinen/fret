@@ -1,8 +1,8 @@
 """OpenMANIPULATOR-X pick-and-place FSM (SC-v13b).
 
 Pure-Python state machine: idle → approach pick → grasp → lift → move →
-release → retreat → done. Controllers/SITL drive the commanded joint and
-gripper setpoints; this module only encodes phase logic and timeouts.
+descend place → release → retreat → done. Controllers/SITL drive the commanded
+joint and gripper setpoints; this module only encodes phase logic and timeouts.
 """
 
 from __future__ import annotations
@@ -94,6 +94,7 @@ class PickPlaceFSM:
         self._state = PickPlaceState.IDLE
         self._phase_t = 0.0
         self._hold_t = 0.0
+        self._retreat_cleared = False
 
     @property
     def state(self) -> PickPlaceState:
@@ -153,16 +154,13 @@ class PickPlaceFSM:
 
         if self._state == PickPlaceState.MOVE_PLACE:
             if self._reached(obs.q, self._wp.place_hover):
-                # Release at hover (descend-to-pad is optional; stock OM-X
-                # tracking struggles while carrying the free box).
-                self._enter(PickPlaceState.RELEASE)
+                self._enter(PickPlaceState.DESCEND_PLACE)
             # Drop detection mid-transfer.
             if float(obs.object_pos[2]) < 0.5 * self._lift_height_m:
                 self._enter(PickPlaceState.FAULT)
             return self._cmd(self._wp.place_hover, GRIPPER_CLOSED)
 
         if self._state == PickPlaceState.DESCEND_PLACE:
-            # Kept for callers that inject this state; default path skips it.
             if self._reached(obs.q, self._wp.place_grasp):
                 self._enter(PickPlaceState.RELEASE)
             return self._cmd(self._wp.place_grasp, GRIPPER_CLOSED)
@@ -171,9 +169,14 @@ class PickPlaceFSM:
             self._hold_t += dt
             if self._hold_t >= self._release_hold_s:
                 self._enter(PickPlaceState.RETREAT)
-            return self._cmd(self._wp.place_hover, GRIPPER_OPEN)
+            return self._cmd(self._wp.place_grasp, GRIPPER_OPEN)
 
         if self._state == PickPlaceState.RETREAT:
+            # Lift clear of the placed box before slewing home.
+            if not self._retreat_cleared:
+                if self._reached(obs.q, self._wp.place_hover):
+                    self._retreat_cleared = True
+                return self._cmd(self._wp.place_hover, GRIPPER_OPEN)
             if self._reached(obs.q, self._wp.idle):
                 self._enter(PickPlaceState.DONE)
             return self._cmd(self._wp.idle, GRIPPER_OPEN)
@@ -184,6 +187,8 @@ class PickPlaceFSM:
         self._state = state
         self._phase_t = 0.0
         self._hold_t = 0.0
+        if state != PickPlaceState.RETREAT:
+            self._retreat_cleared = False
 
     def _reached(
         self, q: npt.NDArray[np.float64], target: npt.NDArray[np.float64]
