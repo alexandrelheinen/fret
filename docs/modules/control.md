@@ -4,9 +4,9 @@
 **Source:** `src/fret/control/`  
 **Tests:** `tests/control/`
 
-> **Release roadmap:** v1.1 uses ARCO Dubins/Pure Pursuit; v1.2 enables MuJoCo
-> physics actuators; v1.3 extends existing arm Jacobian stack; v1.4 adds
-> 6-DOF numerical IK. See [releases.md](../releases.md).
+> **Release roadmap:** v1.1 uses ARCO Dubins path-following MPC; v1.2 enables
+> MuJoCo physics actuators; v1.3 OMX pick-and-place uses ``JointSpaceMPC``;
+> v1.4 adds 6-DOF numerical IK. See [releases.md](../releases.md).
 
 ---
 
@@ -115,7 +115,8 @@ fault_threshold: 0.020  # m
 rate_hz: 50.0
 ```
 
-Dubins Pure Pursuit gains live in `src/fret/config/controllers/dubins.yml`.
+Dubins MPC / vehicle limits live in `src/fret/config/controllers/dubins.yml`.
+OMX joint-space MPC helpers live in `src/fret/control/joint_mpc.py`.
 
 ---
 

@@ -1,9 +1,18 @@
-# OpenMANIPULATOR-X Jacobian velocity controller (v1.3 stub).
+# OpenMANIPULATOR-X controller parameters.
+# SC-v13a / ROS Jacobian path still uses damping / fault thresholds.
+# SC-v13b/c pick-and-place transfer tracking uses ARCO JointSpaceMPC.
 
 /**:
   ros__parameters:
     damping_factor: 0.01
     max_joint_velocity: 1.57
+    max_joint_acceleration: 3.0
     update_rate: 50.0
     fault_threshold: 0.020
     ticks_per_waypoint: 5
+    # Carrot-on-path JointSpaceMPC (ARCO v0.3.2) for pick-and-place.
+    joint_mpc:
+      race_speed: 0.9
+      max_carrot_lag: 0.30
+      goal_tol: 0.12
+

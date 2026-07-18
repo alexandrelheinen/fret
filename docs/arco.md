@@ -18,9 +18,9 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 
 | Release | ARCO components | ARCO scenario reference |
 |---|---|---|
-| **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, `DubinsPrimitive`, Pure Pursuit | `map/vehicle.yml` |
+| **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, path-following MPC (`DubinsPathFollowingMPC`) | `map/vehicle.yml` / `map/city.yml` |
 | **v1.2** | *(physics upgrade — no new ARCO scenario)* | — |
-| **v1.3** manipulator | `KDTreeOccupancy`, `SSTPlanner` | `map/rrp.yml`, `map/rr.yml` |
+| **v1.3** manipulator | `KDTreeOccupancy`, `SSTPlanner`, `JointSpaceMPC` | `map/rrp.yml`, `map/ppp.yml` |
 | **v1.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
 
 Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
@@ -34,7 +34,8 @@ Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
 |---|---|
 | Occupancy (`KDTreeOccupancy`) | ARCO |
 | Planner (SST, RRT*) | ARCO |
-| Dubins vehicle + Pure Pursuit | ARCO (v1.1) |
+| Dubins vehicle + path-following MPC | ARCO (≥ v0.3.2) |
+| Joint-space MPC (OMX pick-and-place) | ARCO (≥ v0.3.2) |
 | Scene acquisition, TF | FRET |
 | Per-robot kinematics | FRET |
 | ROS 2 I/O, MuJoCo simulation | FRET |
@@ -82,7 +83,8 @@ and actions for all inter-node communication.
 Reuse ARCO race infrastructure:
 
 - `arco/simulator/scenes/vehicle.py` — dual-planner race scene
-- `DubinsVehicle` + Pure Pursuit for execution
+- `DubinsVehicle` + `DubinsPathFollowingMPC` for RRT*/SST execution
+  (grey foil retains Pure Pursuit)
 - Extend environment with 3-D columns (MuJoCo visual)
 
 ---

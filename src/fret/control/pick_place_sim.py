@@ -3,6 +3,9 @@
 Full physics grasp: Menagerie finger pads (injected) close on the free ball,
 then MuJoCo adhesion holds it through lift/transfer. Adhesion is delayed until
 the jaw has settled so the sphere is not ejected on close. No kinematic attach.
+
+Arm motion toward each FSM joint target is tracked with ARCO
+:class:`~arco.control.mpc.JointSpaceMPC` (CasADi carrot NMPC).
 """
 
 from __future__ import annotations
@@ -14,6 +17,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from fret.control.joint_mpc import (
+    build_omx_joint_mpc,
+    sync_mpc_state_from_measurement,
+)
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
     PickPlaceFSM,
@@ -32,6 +39,7 @@ _ADHERE_STATES = frozenset(
     }
 )
 _GRASP_ADHERE_AFTER_S = 0.6
+_CTRL_PERIOD_S = 0.02
 
 
 def adhesion_command(state: PickPlaceState, grasp_hold_t: float) -> float:
@@ -141,21 +149,35 @@ def simulate_pick_place(
     for _ in range(400):
         mj.mj_step(model, data)
 
+    mpc = build_omx_joint_mpc()
+    mpc.reset(_arm_q(mj, model, data))
+    q_cmd = _arm_q(mj, model, data).copy()
+    ctrl_accum = 0.0
+
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
     record_every_steps = max(1, int(record_every_steps))
 
     for step_i in range(max_steps):
+        q = _arm_q(mj, model, data)
         obs = PickPlaceObservation(
-            q=_arm_q(mj, model, data),
+            q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
         )
         cmd = fsm.tick(obs, dt)
 
+        ctrl_accum += dt
+        if ctrl_accum >= _CTRL_PERIOD_S:
+            ctrl_accum -= _CTRL_PERIOD_S
+            sync_mpc_state_from_measurement(mpc, q)
+            q_cmd = np.asarray(
+                mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
+            )
+
         for i, aid in enumerate(act_arm):
-            data.ctrl[aid] = float(cmd.q_des[i])
+            data.ctrl[aid] = float(q_cmd[i])
         data.ctrl[act_grip] = float(cmd.gripper)
         adhere = adhesion_command(cmd.state, fsm.hold_t)
         data.ctrl[act_al] = adhere
