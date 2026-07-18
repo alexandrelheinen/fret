@@ -1,7 +1,8 @@
-"""MuJoCo runner for SC-v13b pick-and-place (FSM + free box).
+"""MuJoCo runner for SC-v13b pick-and-place (FSM + free ball).
 
-Full physics grasp: Menagerie finger pads (injected) close on the free box and
-MuJoCo adhesion actuators hold it through lift/transfer. No kinematic attach.
+Full physics grasp: Menagerie finger pads (injected) close on the free ball,
+then MuJoCo adhesion holds it through lift/transfer. Adhesion is delayed until
+the jaw has settled so the sphere is not ejected on close. No kinematic attach.
 """
 
 from __future__ import annotations
@@ -22,14 +23,22 @@ from fret.control.pick_place_fsm import (
 )
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 
+# Adhesion after the jaw has closed; enabling during the close ejects the ball.
 _ADHERE_STATES = frozenset(
     {
-        PickPlaceState.GRASP,
         PickPlaceState.LIFT,
         PickPlaceState.MOVE_PLACE,
         PickPlaceState.DESCEND_PLACE,
     }
 )
+_GRASP_ADHERE_AFTER_S = 0.6
+
+
+def adhesion_command(state: PickPlaceState, grasp_hold_t: float) -> float:
+    """Return adhesion ctrl in ``[0, 1]`` for the current FSM phase."""
+    if state == PickPlaceState.GRASP:
+        return 1.0 if float(grasp_hold_t) >= _GRASP_ADHERE_AFTER_S else 0.0
+    return 1.0 if state in _ADHERE_STATES else 0.0
 
 
 @dataclass(frozen=True)
@@ -117,9 +126,9 @@ def simulate_pick_place(
     fsm = PickPlaceFSM(
         wp,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=1.0,
+        grasp_hold_s=1.4,
         release_hold_s=0.8,
-        lift_height_m=0.15,
+        lift_height_m=0.14,
         phase_timeout_s=20.0,
     )
     fsm.start()
@@ -148,7 +157,7 @@ def simulate_pick_place(
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(cmd.q_des[i])
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = 1.0 if cmd.state in _ADHERE_STATES else 0.0
+        adhere = adhesion_command(cmd.state, fsm.hold_t)
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)

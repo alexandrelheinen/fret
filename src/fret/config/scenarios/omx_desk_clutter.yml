@@ -1,8 +1,7 @@
 # SC-v13c — OpenMANIPULATOR-X desk clutter (planned transfer around a wall).
 #
-# Same lowered pedestals / physical grasp as SC-v13b, plus a mid-cell wall.
+# Same ball / pick pedestal / place cone as SC-v13b, plus a mid-cell wall.
 # MOVE_PLACE uses PlannerNode (RRT*) + ControllerNode joint-space tracking.
-# Occupancy uses an inflated wall (+0.04 m) so mesh links clear the physical one.
 
 /**:
   ros__parameters:
@@ -13,10 +12,11 @@
     planning_timeout: 25.0
     goal_tolerance: 0.05
     mjcf: mjcf/omx_desk_clutter.xml
-    pick_object: box
-    box_half_size_m: 0.010
+    pick_object: ball
+    ball_radius_m: 0.010
     pedestal_top_m: 0.098
-    pedestal_margin_box_edges: 4
+    pedestal_radius_m: 0.018
+    place_cone_height_m: 0.098
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
     planner_rng_seed: 7
@@ -30,8 +30,8 @@
     min_transfer_ee_z_m: 0.145
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
-    pick_grasp_configuration: [-0.55, 0.575, -0.55, 0.50]
+    pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
     place_hover_configuration: [0.55, 0.416, -0.55, 0.20]
-    place_grasp_configuration: [0.55, 0.575, -0.55, 0.50]
+    place_grasp_configuration: [0.55, 0.60, -0.65, 0.65]
     pick_xy: [0.273, -0.160]
     place_xy: [0.273, 0.160]

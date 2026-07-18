@@ -27,6 +27,7 @@ from fret.control.pick_place_fsm import (
 )
 from fret.control.pick_place_sim import (
     PickPlaceSample,
+    adhesion_command,
     waypoints_from_scenario,
 )
 from fret.interfaces import (
@@ -42,15 +43,6 @@ from fret.sitl_config import load_scenario_parameters, mjcf_path
 
 _SCENARIO = Path("src/fret/config/scenarios/omx_desk_clutter.yml")
 _CONTROLLER_CFG = "src/fret/config/controllers/open_manipulator_x.yml"
-
-_ADHERE_STATES = frozenset(
-    {
-        PickPlaceState.GRASP,
-        PickPlaceState.LIFT,
-        PickPlaceState.MOVE_PLACE,
-        PickPlaceState.DESCEND_PLACE,
-    }
-)
 
 
 @dataclass(frozen=True)
@@ -347,9 +339,9 @@ def simulate_pick_place_clutter(
     fsm = PickPlaceFSM(
         wp,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=1.0,
+        grasp_hold_s=1.4,
         release_hold_s=0.8,
-        lift_height_m=0.13,
+        lift_height_m=0.14,
         phase_timeout_s=30.0,
     )
     fsm.start()
@@ -404,7 +396,7 @@ def simulate_pick_place_clutter(
                 data.ctrl[aid] = float(cmd.q_des[i])
 
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = 1.0 if cmd.state in _ADHERE_STATES else 0.0
+        adhere = adhesion_command(cmd.state, fsm.hold_t)
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)

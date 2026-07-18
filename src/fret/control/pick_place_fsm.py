@@ -101,6 +101,11 @@ class PickPlaceFSM:
         """Current FSM state."""
         return self._state
 
+    @property
+    def hold_t(self) -> float:
+        """Elapsed time in the current grasp/release hold phase."""
+        return self._hold_t
+
     def start(self) -> None:
         """Leave idle and begin the pick approach."""
         if self._state in {PickPlaceState.IDLE, PickPlaceState.DONE}:

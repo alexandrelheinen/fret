@@ -19,8 +19,11 @@ v1.3 showcase:
 2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
 3. **SC-v13c** — AWS desk / clutter props force a joint-space detour
 
-**Pick object:** plain MuJoCo box (~25 mm). AWS RoboMaker meshes (desk, clutter,
-bucket, …) are 0.9–2.7 m props — useful for SC-v13c obstacles, not for grasping.
+**Pick object:** plain MuJoCo ball (Ø 20 mm, density 800). Pick sits on the same
+cylinder pedestal; place is a transparent non-colliding plate over a tip-down
+cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*` wall collision — MuJoCo
+convex-hulls meshes, so a solid mesh cone would not catch the ball).
+AWS RoboMaker meshes stay for denser clutter later — too large to grasp.
 
 ---
 
@@ -48,8 +51,8 @@ arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 **SC-v13b FSM:**
 `IDLE → APPROACH → DESCEND → GRASP → LIFT → MOVE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
 (with `FAULT` on timeout / drop). Grasp is **full MuJoCo physics**: injected
-finger-pad geoms + adhesion actuators hold the free box. Pedestals sit at
-~0.32 m fingertip radius so the arm must stretch.
+finger-pad geoms close first, then low-gain adhesion holds the free ball.
+Pedestals sit at ~0.32 m fingertip radius so the arm must stretch.
 
 **SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
 with ARCO RRT* (inflated wall occupancy) and tracked by ``ControllerNode``
@@ -63,7 +66,8 @@ joint-space commands so the arm retracts around the wall.
 |---|---|
 | Menagerie `open_manipulator_x.xml` | ✅ Submodule |
 | `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty tabletop template |
-| `src/fret/mjcf/omx_pick_place.xml` | ✅ Tabletop + free box |
+| `src/fret/mjcf/omx_pick_place.xml` | ✅ Tabletop + ball + place cone |
+| `src/fret/mjcf/assets/cone.obj` | ✅ Place-funnel mesh primitive |
 | `src/fret/mjcf/omx.py` | ✅ Merges Menagerie + template → `.generated/` |
 | `src/fret/config/scenarios/omx_reach.yml` | ✅ SC-v13a joint-space A→B |
 | `src/fret/config/scenarios/omx_pick_place.yml` | ✅ SC-v13b pick-and-place |

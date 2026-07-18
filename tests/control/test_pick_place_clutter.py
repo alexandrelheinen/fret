@@ -21,12 +21,15 @@ mujoco = pytest.importorskip("mujoco")
 _SCENARIO = Path("src/fret/config/scenarios/omx_desk_clutter.yml")
 
 
-def test_omx_desk_clutter_mjcf_has_wall() -> None:
+def test_omx_desk_clutter_mjcf_has_wall_and_cone() -> None:
     path = mjcf_path("open_manipulator_x", "omx_desk_clutter")
     model = mujoco.MjModel.from_xml_path(str(path))
     assert (
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "transfer_wall")
         >= 0
+    )
+    assert (
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_cone") >= 0
     )
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pick_box") >= 0
     assert model.nu >= 7
@@ -50,7 +53,7 @@ def test_transfer_plan_is_detour_not_straight_line() -> None:
     ), f"expected retract detour, min_r={min(radii):.3f} end_r={end_r:.3f}"
 
 
-def test_omx_desk_clutter_physics_places_box_around_wall() -> None:
+def test_omx_desk_clutter_physics_places_ball_around_wall() -> None:
     params = load_scenario_parameters(_SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     pick_xy = np.asarray(params["pick_xy"], dtype=np.float64)
@@ -60,13 +63,12 @@ def test_omx_desk_clutter_physics_places_box_around_wall() -> None:
     assert result.straight_line_collides
     assert result.state != PickPlaceState.FAULT, "clutter FSM faulted"
     assert result.state == PickPlaceState.DONE, f"ended in {result.state.name}"
-    box = result.box_pos
-    assert float(np.linalg.norm(box[:2] - place_xy)) < 0.08
-    assert float(np.linalg.norm(box[:2] - pick_xy)) > 0.15
-    assert float(box[2]) < 0.18
-    # Box must not rest inside the wall volume.
+    ball = result.box_pos
+    assert float(np.linalg.norm(ball[:2] - place_xy)) < 0.08
+    assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
+    assert float(ball[2]) < 0.08, "ball should settle inside the place cone"
     assert not (
-        wall.x_min <= box[0] <= wall.x_max
-        and wall.y_min <= box[1] <= wall.y_max
-        and wall.z_min <= box[2] <= wall.z_max
+        wall.x_min <= ball[0] <= wall.x_max
+        and wall.y_min <= ball[1] <= wall.y_max
+        and wall.z_min <= ball[2] <= wall.z_max
     )
