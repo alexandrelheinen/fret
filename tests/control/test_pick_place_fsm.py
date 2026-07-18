@@ -38,20 +38,20 @@ def test_fsm_happy_path_transitions() -> None:
         )
         return fsm.tick(obs, dt)
 
-    cmd = step(wp.idle, 0.108)
+    cmd = step(wp.idle, 0.1105)
     assert cmd.state == PickPlaceState.APPROACH_PICK
     assert cmd.gripper == pytest.approx(GRIPPER_OPEN)
 
-    step(wp.pick_hover, 0.108)
+    step(wp.pick_hover, 0.1105)
     assert fsm.state == PickPlaceState.DESCEND_PICK
 
-    step(wp.pick_grasp, 0.108)
+    step(wp.pick_grasp, 0.1105)
     assert fsm.state == PickPlaceState.GRASP
-    cmd = step(wp.pick_grasp, 0.108)
+    cmd = step(wp.pick_grasp, 0.1105)
     assert cmd.gripper == pytest.approx(GRIPPER_CLOSED)
 
     for _ in range(5):
-        step(wp.pick_grasp, 0.108)
+        step(wp.pick_grasp, 0.1105)
     assert fsm.state == PickPlaceState.LIFT
 
     step(wp.pick_hover, 0.18)

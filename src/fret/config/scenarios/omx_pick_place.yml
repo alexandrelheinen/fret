@@ -1,6 +1,6 @@
 # SC-v13b — OpenMANIPULATOR-X pick-and-place (FSM + physical transfer).
 #
-# Pick: ball (Ø 2 cm) on cylinder pedestal (top 0.098 m).
+# Pick: ball (Ø 25 mm, tennis grip) on cylinder pedestal (top 0.098 m).
 # Place: drop into tip-down cone under a transparent plate.
 # No obstacles (see SC-v13c).
 
@@ -14,10 +14,11 @@
     goal_tolerance: 0.05
     mjcf: mjcf/omx_pick_place.xml
     pick_object: ball
-    ball_radius_m: 0.010
+    ball_radius_m: 0.0125
     pedestal_top_m: 0.098
     pedestal_radius_m: 0.018
     place_cone_height_m: 0.098
+    place_cone_radius_m: 0.024
     grasp_mode: mujoco_adhesion
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]

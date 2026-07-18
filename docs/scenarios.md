@@ -87,7 +87,7 @@ no obstacles.
 **Model:** `open_manipulator_x`
 
 **Purpose:** Validate the manipulation FSM under full MuJoCo physics — stretch to
-pick a Ø 2 cm ball from the green cylinder pedestal and drop it into the red
+pick a Ø 25 mm ball from the green cylinder pedestal and drop it into the red
 place cone (tip-down funnel under a transparent plate). No obstacles. AWS
 warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 
