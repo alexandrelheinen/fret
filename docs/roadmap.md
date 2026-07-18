@@ -77,13 +77,15 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
 
 **Robot:** OpenMANIPULATOR-X (4-DOF + gripper) from
 `third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x`.
-**Scenarios:** SC-v13a (empty A→B), SC-v13b (AWS desk clutter detour).
+**Scenarios:** SC-v13a (empty A→B), SC-v13b (pick-and-place FSM),
+SC-v13c (AWS desk clutter detour).
 
-- [ ] Wire Menagerie OM-X MJCF into FRET cell (empty tabletop)
-- [ ] Command chain: plan → track → MuJoCo actuators (A→B, no obstacles)
-- [ ] Add AWS desk / clutter props; verify detour planning
+- [x] Wire Menagerie OM-X MJCF into FRET cell (empty tabletop)
+- [x] Command chain: plan → track → MuJoCo actuators (A→B, no obstacles)
+- [ ] Pick-and-place FSM: green → grasp box → red → release (plain MuJoCo box)
+- [ ] Add AWS desk / clutter props; verify detour planning (SC-v13c)
 - [ ] Tune controller / lookahead / clearance as needed
-- [ ] Showcase video (overview + EE follow)
+- [ ] Showcase video (overview + top-down / EE follow)
 - [ ] Tag `v1.3.0`
 
 ---

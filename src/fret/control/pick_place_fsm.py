@@ -1,0 +1,200 @@
+"""OpenMANIPULATOR-X pick-and-place FSM (SC-v13b).
+
+Pure-Python state machine: idle → approach pick → grasp → lift → move →
+release → retreat → done. Controllers/SITL drive the commanded joint and
+gripper setpoints; this module only encodes phase logic and timeouts.
+"""
+
+from __future__ import annotations
+
+import enum
+from dataclasses import dataclass
+
+import numpy as np
+import numpy.typing as npt
+
+# Menagerie Gripper slide: more positive ⇒ wider fingers.
+GRIPPER_OPEN: float = 0.019
+GRIPPER_CLOSED: float = -0.01
+
+
+class PickPlaceState(enum.IntEnum):
+    """Manipulation phases for SC-v13b."""
+
+    IDLE = 0
+    APPROACH_PICK = 1
+    DESCEND_PICK = 2
+    GRASP = 3
+    LIFT = 4
+    MOVE_PLACE = 5
+    DESCEND_PLACE = 6
+    RELEASE = 7
+    RETREAT = 8
+    DONE = 9
+    FAULT = 10
+
+
+@dataclass(frozen=True)
+class PickPlaceWaypoints:
+    """Named arm configurations (4,) for one pick-and-place cycle."""
+
+    idle: npt.NDArray[np.float64]
+    pick_hover: npt.NDArray[np.float64]
+    pick_grasp: npt.NDArray[np.float64]
+    place_hover: npt.NDArray[np.float64]
+    place_grasp: npt.NDArray[np.float64]
+
+
+@dataclass(frozen=True)
+class PickPlaceObservation:
+    """Sensors the FSM needs each tick."""
+
+    q: npt.NDArray[np.float64]
+    object_pos: npt.NDArray[np.float64]
+    ee_pos: npt.NDArray[np.float64]
+
+
+@dataclass(frozen=True)
+class PickPlaceCommand:
+    """Actuator setpoints for the current phase."""
+
+    q_des: npt.NDArray[np.float64]
+    gripper: float
+    state: PickPlaceState
+
+
+class PickPlaceFSM:
+    """Tabletop pick-and-place state machine (FR / SC-v13b).
+
+    Args:
+        waypoints: Joint-space poses for each phase.
+        joint_tol_rad: Configuration reach tolerance.
+        grasp_hold_s: Time to keep closing at the pick pose.
+        release_hold_s: Time to keep opening at the place pose.
+        lift_height_m: Object z that counts as successfully lifted.
+        phase_timeout_s: Max time in one phase before ``FAULT``.
+    """
+
+    def __init__(
+        self,
+        waypoints: PickPlaceWaypoints,
+        *,
+        joint_tol_rad: float = 0.08,
+        grasp_hold_s: float = 0.6,
+        release_hold_s: float = 0.5,
+        lift_height_m: float = 0.055,
+        phase_timeout_s: float = 8.0,
+    ) -> None:
+        self._wp = waypoints
+        self._joint_tol = float(joint_tol_rad)
+        self._grasp_hold_s = float(grasp_hold_s)
+        self._release_hold_s = float(release_hold_s)
+        self._lift_height_m = float(lift_height_m)
+        self._phase_timeout_s = float(phase_timeout_s)
+        self._state = PickPlaceState.IDLE
+        self._phase_t = 0.0
+        self._hold_t = 0.0
+
+    @property
+    def state(self) -> PickPlaceState:
+        """Current FSM state."""
+        return self._state
+
+    def start(self) -> None:
+        """Leave idle and begin the pick approach."""
+        if self._state in {PickPlaceState.IDLE, PickPlaceState.DONE}:
+            self._enter(PickPlaceState.APPROACH_PICK)
+
+    def reset(self) -> None:
+        """Return to idle and clear timers."""
+        self._enter(PickPlaceState.IDLE)
+
+    def tick(self, obs: PickPlaceObservation, dt: float) -> PickPlaceCommand:
+        """Advance the FSM and return the active setpoints."""
+        dt = float(dt)
+        self._phase_t += dt
+
+        if self._state == PickPlaceState.IDLE:
+            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.DONE:
+            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.FAULT:
+            return self._cmd(obs.q, GRIPPER_OPEN)
+
+        if self._phase_t > self._phase_timeout_s:
+            self._enter(PickPlaceState.FAULT)
+            return self._cmd(obs.q, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.APPROACH_PICK:
+            if self._reached(obs.q, self._wp.pick_hover):
+                self._enter(PickPlaceState.DESCEND_PICK)
+            return self._cmd(self._wp.pick_hover, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.DESCEND_PICK:
+            if self._reached(obs.q, self._wp.pick_grasp):
+                self._enter(PickPlaceState.GRASP)
+            return self._cmd(self._wp.pick_grasp, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.GRASP:
+            self._hold_t += dt
+            if self._hold_t >= self._grasp_hold_s:
+                self._enter(PickPlaceState.LIFT)
+            return self._cmd(self._wp.pick_grasp, GRIPPER_CLOSED)
+
+        if self._state == PickPlaceState.LIFT:
+            if self._reached(obs.q, self._wp.pick_hover):
+                if float(obs.object_pos[2]) >= self._lift_height_m:
+                    self._enter(PickPlaceState.MOVE_PLACE)
+                elif self._phase_t > 0.5 * self._phase_timeout_s:
+                    self._enter(PickPlaceState.FAULT)
+            return self._cmd(self._wp.pick_hover, GRIPPER_CLOSED)
+
+        if self._state == PickPlaceState.MOVE_PLACE:
+            if self._reached(obs.q, self._wp.place_hover):
+                # Release at hover (descend-to-pad is optional; stock OM-X
+                # tracking struggles while carrying the free box).
+                self._enter(PickPlaceState.RELEASE)
+            # Drop detection mid-transfer.
+            if float(obs.object_pos[2]) < 0.5 * self._lift_height_m:
+                self._enter(PickPlaceState.FAULT)
+            return self._cmd(self._wp.place_hover, GRIPPER_CLOSED)
+
+        if self._state == PickPlaceState.DESCEND_PLACE:
+            # Kept for callers that inject this state; default path skips it.
+            if self._reached(obs.q, self._wp.place_grasp):
+                self._enter(PickPlaceState.RELEASE)
+            return self._cmd(self._wp.place_grasp, GRIPPER_CLOSED)
+
+        if self._state == PickPlaceState.RELEASE:
+            self._hold_t += dt
+            if self._hold_t >= self._release_hold_s:
+                self._enter(PickPlaceState.RETREAT)
+            return self._cmd(self._wp.place_hover, GRIPPER_OPEN)
+
+        if self._state == PickPlaceState.RETREAT:
+            if self._reached(obs.q, self._wp.idle):
+                self._enter(PickPlaceState.DONE)
+            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+
+        return self._cmd(self._wp.idle, GRIPPER_OPEN)
+
+    def _enter(self, state: PickPlaceState) -> None:
+        self._state = state
+        self._phase_t = 0.0
+        self._hold_t = 0.0
+
+    def _reached(
+        self, q: npt.NDArray[np.float64], target: npt.NDArray[np.float64]
+    ) -> bool:
+        return float(np.linalg.norm(q - target)) <= self._joint_tol
+
+    def _cmd(
+        self, q_des: npt.NDArray[np.float64], gripper: float
+    ) -> PickPlaceCommand:
+        return PickPlaceCommand(
+            q_des=np.asarray(q_des, dtype=np.float64).reshape(4).copy(),
+            gripper=float(gripper),
+            state=self._state,
+        )
