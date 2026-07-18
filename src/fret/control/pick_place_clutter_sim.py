@@ -444,6 +444,41 @@ def simulate_pick_place_clutter(
         if fsm.state in {PickPlaceState.DONE, PickPlaceState.FAULT}:
             break
 
+    # Always record the terminal frame (record_every can skip the DONE tick).
+    samples.append(
+        PickPlaceSample(
+            q_arm=_arm_q(mj, model, data),
+            gripper=float(data.ctrl[act_grip]),
+            box_qpos=np.asarray(
+                data.qpos[box_qadr : box_qadr + 7], dtype=np.float64
+            ).copy(),
+            state=fsm.state,
+        )
+    )
+
+    # Hold idle so showcase clips end folded at home, not mid-RETREAT.
+    if fsm.state == PickPlaceState.DONE:
+        for i, aid in enumerate(act_arm):
+            data.ctrl[aid] = float(wp.idle[i])
+        data.ctrl[act_grip] = GRIPPER_OPEN
+        data.ctrl[act_al] = 0.0
+        data.ctrl[act_ar] = 0.0
+        hold_steps = max(record_every_steps, int(round(1.5 / dt)))
+        for step_i in range(hold_steps):
+            mj.mj_step(model, data)
+            if step_i % record_every_steps == 0 or step_i + 1 == hold_steps:
+                samples.append(
+                    PickPlaceSample(
+                        q_arm=_arm_q(mj, model, data),
+                        gripper=float(data.ctrl[act_grip]),
+                        box_qpos=np.asarray(
+                            data.qpos[box_qadr : box_qadr + 7],
+                            dtype=np.float64,
+                        ).copy(),
+                        state=PickPlaceState.DONE,
+                    )
+                )
+
     box_pos = np.asarray(data.xpos[box_id], dtype=np.float64).copy()
     return ClutterPickPlaceResult(
         state=fsm.state,
