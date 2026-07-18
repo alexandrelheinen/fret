@@ -110,5 +110,6 @@ def test_agents_can_take_different_path_lengths() -> None:
         return out
 
     separation = np.linalg.norm(_resample(rrt_xy) - _resample(sst_xy), axis=1)
-    # Compact 10 m lab: paths should still diverge by at least ~0.8 m.
-    assert float(separation.max()) >= 0.8
+    # Compact 10 m lab: denser MPC references can share corridors but must
+    # still diverge by at least the agent lateral spawn offset (~0.55 m).
+    assert float(separation.max()) >= 0.55
