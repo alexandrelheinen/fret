@@ -57,7 +57,7 @@ _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     _DUMMY_BASE_JOINT,
 )
 
-# Collision shell geoms used by the real-contact collision monitor (v1.3).
+# Collision shell geoms used by the real-contact collision monitor.
 _RRT_COLLISION_GEOM: str = "rrt_collision"
 _SST_COLLISION_GEOM: str = "sst_collision"
 _DUMMY_COLLISION_GEOM: str = "dummy_collision"
