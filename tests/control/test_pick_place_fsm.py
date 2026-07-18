@@ -34,54 +34,54 @@ def test_fsm_happy_path_transitions() -> None:
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.array([0.273, -0.160, obj_z]),
-            ee_pos=np.array([0.273, -0.160, 0.20]),
+            ee_pos=np.array([0.273, -0.160, 0.16]),
         )
         return fsm.tick(obs, dt)
 
-    cmd = step(wp.idle, 0.168)
+    cmd = step(wp.idle, 0.108)
     assert cmd.state == PickPlaceState.APPROACH_PICK
     assert cmd.gripper == pytest.approx(GRIPPER_OPEN)
 
-    step(wp.pick_hover, 0.168)
+    step(wp.pick_hover, 0.108)
     assert fsm.state == PickPlaceState.DESCEND_PICK
 
-    step(wp.pick_grasp, 0.168)
+    step(wp.pick_grasp, 0.108)
     assert fsm.state == PickPlaceState.GRASP
-    cmd = step(wp.pick_grasp, 0.168)
+    cmd = step(wp.pick_grasp, 0.108)
     assert cmd.gripper == pytest.approx(GRIPPER_CLOSED)
 
     for _ in range(5):
-        step(wp.pick_grasp, 0.168)
+        step(wp.pick_grasp, 0.108)
     assert fsm.state == PickPlaceState.LIFT
 
-    step(wp.pick_hover, 0.24)
+    step(wp.pick_hover, 0.18)
     assert fsm.state == PickPlaceState.MOVE_PLACE
 
-    step(wp.place_hover, 0.24)
+    step(wp.place_hover, 0.18)
     assert fsm.state == PickPlaceState.DESCEND_PLACE
 
-    step(wp.place_grasp, 0.17)
+    step(wp.place_grasp, 0.11)
     assert fsm.state == PickPlaceState.RELEASE
 
     for _ in range(5):
-        cmd = step(wp.place_grasp, 0.17)
+        cmd = step(wp.place_grasp, 0.11)
     assert fsm.state == PickPlaceState.RETREAT
     assert cmd.gripper == pytest.approx(GRIPPER_OPEN)
 
-    step(wp.place_hover, 0.17)
-    step(wp.idle, 0.17)
+    step(wp.place_hover, 0.11)
+    step(wp.idle, 0.11)
     assert fsm.state == PickPlaceState.DONE
 
 
 def test_fsm_faults_on_drop_during_transfer() -> None:
     wp = waypoints_from_scenario()
-    fsm = PickPlaceFSM(wp, joint_tol_rad=0.05, lift_height_m=0.20)
+    fsm = PickPlaceFSM(wp, joint_tol_rad=0.05, lift_height_m=0.15)
     fsm.start()
     fsm._enter(PickPlaceState.MOVE_PLACE)  # noqa: SLF001
     obs = PickPlaceObservation(
         q=wp.pick_hover,
-        object_pos=np.array([0.273, 0.0, 0.05]),
-        ee_pos=np.array([0.273, 0.0, 0.24]),
+        object_pos=np.array([0.273, 0.0, 0.04]),
+        ee_pos=np.array([0.273, 0.0, 0.18]),
     )
     fsm.tick(obs, 0.05)
     assert fsm.state == PickPlaceState.FAULT
@@ -113,4 +113,4 @@ def test_omx_pick_place_physics_moves_box_green_to_red() -> None:
     assert (
         float(np.linalg.norm(box[:2] - pick_xy)) > 0.15
     ), "box should leave the pick pedestal"
-    assert float(box[2]) < 0.22, "box should rest near the place pedestal"
+    assert float(box[2]) < 0.18, "box should rest near the place pedestal"

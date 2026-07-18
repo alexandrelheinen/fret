@@ -18,7 +18,10 @@ _MENAGERIE_REL = Path(
     "third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x"
 )
 _SUPPORTED_SCENES: frozenset[str] = frozenset(
-    {"omx_tabletop", "omx_pick_place"}
+    {"omx_tabletop", "omx_pick_place", "omx_desk_clutter"}
+)
+_PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
+    {"omx_pick_place", "omx_desk_clutter"}
 )
 
 _PAD_LEFT = (
@@ -103,7 +106,8 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
     """Build a loadable OM-X scene MJCF with resolved mesh paths.
 
     Args:
-        scene: Template stem (``omx_tabletop`` or ``omx_pick_place``).
+        scene: Template stem (``omx_tabletop``, ``omx_pick_place``, or
+            ``omx_desk_clutter``).
 
     Returns:
         Path under ``src/fret/mjcf/.generated/``.
@@ -128,7 +132,7 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
         f'<mujoco model="{scene}">',
         1,
     )
-    if scene == "omx_pick_place":
+    if scene in _PHYSICAL_GRIPPER_SCENES:
         robot = _inject_physical_gripper(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")
@@ -156,3 +160,8 @@ def ensure_omx_tabletop_mjcf() -> Path:
 def ensure_omx_pick_place_mjcf() -> Path:
     """Build the pick-and-place MJCF with free box (SC-v13b)."""
     return ensure_omx_mjcf("omx_pick_place")
+
+
+def ensure_omx_desk_clutter_mjcf() -> Path:
+    """Build the desk-clutter MJCF with mid-cell wall (SC-v13c)."""
+    return ensure_omx_mjcf("omx_desk_clutter")

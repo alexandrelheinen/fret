@@ -185,6 +185,64 @@ class ControllerNode:
             return False
         return self._trajectory_index >= len(self._trajectory)
 
+    def current_waypoint(self) -> npt.NDArray[np.float64] | None:
+        """Return the active joint waypoint, or ``None`` if idle/complete."""
+        if (
+            self._trajectory is None
+            or self._state != _NodeState.TRACKING
+            or self._trajectory_index >= len(self._trajectory)
+        ):
+            return None
+        return self._trajectory[self._trajectory_index].copy()
+
+    def compute_joint_command(
+        self,
+        current_positions: npt.NDArray[np.float64],
+        *,
+        joint_tol_rad: float = 0.10,
+        kp: float = 8.0,
+    ) -> npt.NDArray[np.float64]:
+        """Joint-space P tracking toward the active trajectory waypoint.
+
+        Prefer this over Cartesian Jacobian tracking when a planned path must
+        stay inside a narrow free corridor (Cartesian chords can cut corners
+        through obstacles). Advances the waypoint when
+        ``||q - q_ref|| <= joint_tol_rad``.
+
+        Args:
+            current_positions: Current joint positions, shape ``(DOF,)``.
+            joint_tol_rad: Reach tolerance for waypoint advancement.
+            kp: Joint-space proportional gain on the position error.
+
+        Returns:
+            Joint velocity command, shape ``(DOF,)``.
+        """
+        if (
+            self._state != _NodeState.TRACKING
+            or self._trajectory is None
+            or self._trajectory_index >= len(self._trajectory)
+        ):
+            return np.zeros(self._dof, dtype=np.float64)
+
+        q = np.asarray(current_positions, dtype=np.float64).reshape(-1)
+        q_ref = self._trajectory[self._trajectory_index]
+        err = q_ref - q
+        if float(np.linalg.norm(err)) <= float(joint_tol_rad):
+            self._trajectory_index += 1
+            if self._trajectory_index >= len(self._trajectory):
+                self._current_command = np.zeros(self._dof, dtype=np.float64)
+                return self._current_command.copy()
+            q_ref = self._trajectory[self._trajectory_index]
+            err = q_ref - q
+
+        q_dot = np.clip(
+            float(kp) * err,
+            -self._max_joint_velocity,
+            self._max_joint_velocity,
+        )
+        self._current_command = q_dot
+        return q_dot.copy()
+
     # ------------------------------------------------------------------
     # Jacobian tracking (pure-Python, unit-testable without ROS)
     # ------------------------------------------------------------------

@@ -95,10 +95,11 @@ the OM-X gripper).
 
 ### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.3)
 
-**File:** `config/scenarios/omx_desk_clutter.yml` *(planned)*  
+**File:** `config/scenarios/omx_desk_clutter.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** AWS desk / clutter props block the transfer path; planner must detour.
+**Purpose:** Mid-cell wall blocks the straight green→red transfer; planner +
+controller must retract around it under full MuJoCo physics (AWS meshes later).
 
 ---
 

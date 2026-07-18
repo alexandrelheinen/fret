@@ -82,7 +82,8 @@ SC-v13c (AWS desk clutter detour).
 
 - [x] Wire Menagerie OM-X MJCF into FRET cell (empty tabletop)
 - [x] Command chain: plan → track → MuJoCo actuators (A→B, no obstacles)
-- [ ] Pick-and-place FSM: green → physical grasp → red → release (plain MuJoCo box)
+- [x] Pick-and-place FSM: green → physical grasp → red → release (plain MuJoCo box)
+- [x] Desk-clutter wall: planned retract transfer (planner + controller)
 - [ ] Add AWS desk / clutter props; verify detour planning (SC-v13c)
 - [ ] Tune controller / lookahead / clearance as needed
 - [ ] Showcase video (overview + top-down / EE follow)
