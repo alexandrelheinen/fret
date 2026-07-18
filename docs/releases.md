@@ -189,8 +189,9 @@ Physics validation runs against the shipped release scenario:
 
 A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs tabletop manipulation:
 empty-cell A→B (command chain), then **pick-and-place** (FSM + grasp physics on a
-plain box), then **AWS desk clutter** forcing a detour. Warehouse meshes stay for
-clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
+Ø 2 cm ball → tip-down place cone), then **desk clutter** forcing a detour.
+Warehouse meshes stay for clutter only — they are far too large for the OM-X
+gripper (~3 cm aperture).
 
 ### Robot
 
@@ -211,10 +212,10 @@ clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
 | # | Criterion |
 |---|---|
 | V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
-| V13-2 | Pick-and-place FSM moves a free box from green to red without drop mid-transfer |
+| V13-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
 | V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
 | V13-4 | Showcase video: overview + top-down / EE-follow |
-| V13-5 | Robot from Menagerie; clutter from AWS; pick object is a plain MuJoCo box |
+| V13-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
 
 ### Implementation tasks
 
