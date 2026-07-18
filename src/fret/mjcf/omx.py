@@ -1,9 +1,8 @@
-"""OpenMANIPULATOR-X MJCF helpers (v1.3 tabletop cell).
+"""OpenMANIPULATOR-X MJCF helpers (v1.3 tabletop / pick-place cells).
 
 Menagerie sets ``meshdir="assets/"`` relative to ``open_manipulator_x.xml``.
 Including that file from another directory drops the meshdir, so we materialize
-a loadable scene under ``src/fret/mjcf/.generated/`` with an absolute meshdir
-and the empty-cell worldbody from ``omx_tabletop.xml``.
+a loadable scene under ``src/fret/mjcf/.generated/`` with an absolute meshdir.
 """
 
 from __future__ import annotations
@@ -14,7 +13,9 @@ from pathlib import Path
 _MENAGERIE_REL = Path(
     "third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x"
 )
-_GENERATED_NAME = "omx_tabletop.xml"
+_SUPPORTED_SCENES: frozenset[str] = frozenset(
+    {"omx_tabletop", "omx_pick_place"}
+)
 
 
 def menagerie_omx_dir() -> Path:
@@ -22,14 +23,15 @@ def menagerie_omx_dir() -> Path:
     return Path(__file__).resolve().parents[3] / _MENAGERIE_REL
 
 
-def omx_tabletop_template() -> Path:
-    """Return the committed empty-cell scene fragment/template."""
-    return Path(__file__).resolve().parent / _GENERATED_NAME
+def omx_scene_template(scene: str) -> Path:
+    """Return the committed MJCF template for ``scene``."""
+    if scene not in _SUPPORTED_SCENES:
+        raise ValueError(f"Unsupported OM-X scene template: {scene!r}")
+    return Path(__file__).resolve().parent / f"{scene}.xml"
 
 
 def _scene_additions(template_text: str) -> str:
-    """Extract option/visual/asset/worldbody blocks from the tabletop template."""
-    # Drop the include + outer mujoco wrapper; keep the cell décor blocks.
+    """Extract option/visual/asset/worldbody blocks from a scene template."""
     text = re.sub(
         r"<include\s+file=\"[^\"]+\"\s*/>\s*",
         "",
@@ -38,19 +40,18 @@ def _scene_additions(template_text: str) -> str:
     )
     text = re.sub(r"^<mujoco\b[^>]*>\s*", "", text.strip())
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
-    # Strip the leading HTML comment block if present.
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
     return text.strip()
 
 
-def ensure_omx_tabletop_mjcf() -> Path:
-    """Build a loadable OM-X empty-cell MJCF with resolved mesh paths.
+def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
+    """Build a loadable OM-X scene MJCF with resolved mesh paths.
+
+    Args:
+        scene: Template stem (``omx_tabletop`` or ``omx_pick_place``).
 
     Returns:
-        Path to ``src/fret/mjcf/.generated/omx_tabletop.xml``.
-
-    Raises:
-        FileNotFoundError: If the Menagerie submodule or template is missing.
+        Path under ``src/fret/mjcf/.generated/``.
     """
     menagerie = menagerie_omx_dir()
     robot_path = menagerie / "open_manipulator_x.xml"
@@ -60,16 +61,16 @@ def ensure_omx_tabletop_mjcf() -> Path:
             "Run: git submodule update --init --recursive"
         )
 
-    template = omx_tabletop_template()
+    template = omx_scene_template(scene)
     if not template.is_file():
-        raise FileNotFoundError(f"OM-X tabletop template missing: {template}")
+        raise FileNotFoundError(f"OM-X scene template missing: {template}")
 
     assets = (menagerie / "assets").resolve()
     robot = robot_path.read_text(encoding="utf-8")
     robot = robot.replace('meshdir="assets/"', f'meshdir="{assets}/"')
     robot = robot.replace(
         '<mujoco model="open_manipulator_x">',
-        '<mujoco model="omx_tabletop">',
+        f'<mujoco model="{scene}">',
         1,
     )
     if not robot.rstrip().endswith("</mujoco>"):
@@ -79,7 +80,7 @@ def ensure_omx_tabletop_mjcf() -> Path:
 
     dest_dir = Path(__file__).resolve().parent / ".generated"
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / _GENERATED_NAME
+    dest = dest_dir / f"{scene}.xml"
     dest.write_text(
         robot_body
         + "\n\n  "
@@ -88,3 +89,13 @@ def ensure_omx_tabletop_mjcf() -> Path:
         encoding="utf-8",
     )
     return dest
+
+
+def ensure_omx_tabletop_mjcf() -> Path:
+    """Build the empty-cell MJCF (SC-v13a)."""
+    return ensure_omx_mjcf("omx_tabletop")
+
+
+def ensure_omx_pick_place_mjcf() -> Path:
+    """Build the pick-and-place MJCF with free box (SC-v13b)."""
+    return ensure_omx_mjcf("omx_pick_place")

@@ -1,6 +1,7 @@
 # OpenMANIPULATOR-X (v1.3)
 
-> **Release:** v1.3 · **Scenarios:** SC-v13a (`omx_reach`), SC-v13b (`omx_desk_clutter`) ·
+> **Release:** v1.3 · **Scenarios:** SC-v13a (`omx_reach`), SC-v13b (`omx_pick_place`),
+> SC-v13c (`omx_desk_clutter`) ·
 > [Release spec](../releases.md#v13--openmanipulator-x-tabletop)
 
 ---
@@ -15,7 +16,11 @@ Menagerie submodule:
 v1.3 showcase:
 
 1. **SC-v13a** — empty tabletop, end-effector pose A → B (validate command chain)
-2. **SC-v13b** — AWS desk / clutter props force a joint-space detour
+2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
+3. **SC-v13c** — AWS desk / clutter props force a joint-space detour
+
+**Pick object:** plain MuJoCo box (~25 mm). AWS RoboMaker meshes (desk, clutter,
+bucket, …) are 0.9–2.7 m props — useful for SC-v13c obstacles, not for grasping.
 
 ---
 
@@ -35,7 +40,12 @@ hard stop so controllers/planners never ride the limit.
 
 **SC-v13a free-space path:** 160° yaw (±80°) at a high-reach elbow posture —
 about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
-arc (and 10° to the hard stop) for later obstacle detours (SC-v13b).
+arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
+
+**SC-v13b FSM:**
+`IDLE → APPROACH_PICK → DESCEND_PICK → GRASP → LIFT → MOVE_PLACE → RELEASE → RETREAT → DONE`
+(with `FAULT` on timeout / drop). Grasp uses kinematic EE↔box attachment while
+held (Menagerie finger meshes do not pinch reliably yet).
 
 ---
 
@@ -45,8 +55,11 @@ arc (and 10° to the hard stop) for later obstacle detours (SC-v13b).
 |---|---|
 | Menagerie `open_manipulator_x.xml` | ✅ Submodule |
 | `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty tabletop template |
-| `src/fret/mjcf/omx.py` | ✅ Merges Menagerie + template → `.generated/` (absolute meshdir) |
+| `src/fret/mjcf/omx_pick_place.xml` | ✅ Tabletop + free box |
+| `src/fret/mjcf/omx.py` | ✅ Merges Menagerie + template → `.generated/` |
 | `src/fret/config/scenarios/omx_reach.yml` | ✅ SC-v13a joint-space A→B |
+| `src/fret/config/scenarios/omx_pick_place.yml` | ✅ SC-v13b pick-and-place |
 | `src/fret/control/kinematics_open_manipulator_x.py` | ✅ MuJoCo FK / numerical IK |
+| `src/fret/control/pick_place_fsm.py` | ✅ Manipulation FSM |
 
 Simulation: [mujoco.md](../mujoco.md). Roadmap: [roadmap.md](../roadmap.md).

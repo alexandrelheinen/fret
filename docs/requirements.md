@@ -143,7 +143,7 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 
 ### v1.3 — OpenMANIPULATOR-X
 
-Positional tabletop A→B (empty, then AWS desk clutter) with Menagerie OM-X.
+Tabletop A→B, then pick-and-place FSM, then AWS desk clutter — Menagerie OM-X.
 
 
 ### v1.4 — 6-DOF

@@ -81,19 +81,23 @@ no obstacles.
 
 **Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
 
-### SC-v13b — OpenMANIPULATOR-X desk clutter (v1.3)
+### SC-v13b — OpenMANIPULATOR-X pick-and-place (v1.3)
+
+**File:** `config/scenarios/omx_pick_place.yml`  
+**Model:** `open_manipulator_x`
+
+**Purpose:** Validate the manipulation FSM and grasp physics — pick a small free
+box from the green zone and place it in the red zone (no obstacles). Object is a
+plain MuJoCo box (AWS warehouse meshes are too large for the OM-X gripper).
+
+**Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
+
+### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.3)
 
 **File:** `config/scenarios/omx_desk_clutter.yml` *(planned)*  
 **Model:** `open_manipulator_x`
 
-**Purpose:** AWS desk / clutter props block the straight path; planner must detour.
-
-## SC-v13b — RR planar arm (v1.3)
-
-**File:** `config/scenarios/rr_planar.yml` *(planned)*  
-**Model:** `rr`
-
-**Purpose:** Reproduce ARCO `map/rr.yml` — 2-DOF planar arm with box obstacles.
+**Purpose:** AWS desk / clutter props block the transfer path; planner must detour.
 
 ---
 

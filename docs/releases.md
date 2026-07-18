@@ -21,7 +21,7 @@ robot class, one showcase scenario, and one article-ready visual demo.
 | **v1.0** | *(superseded)* | Bootstrap iteration — not a product showcase | — |
 | **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo |
 | **v1.2** | Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
-| **v1.3** | OpenMANIPULATOR-X (4-DOF) | Tabletop positional A→B (+ AWS desk clutter) | MuJoCo |
+| **v1.3** | OpenMANIPULATOR-X (4-DOF) | Tabletop A→B → pick-place → AWS clutter | MuJoCo |
 | **v1.4** | 6-DOF manipulator | Final challenge — full C-space planning + execution | MuJoCo |
 
 **Platform stack (all releases):**
@@ -187,10 +187,10 @@ Physics validation runs against the shipped release scenario:
 
 ### Goal
 
-A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs positional end-effector
-moves on a tabletop cell — first empty A→B (command-chain validation), then with
-**AWS RoboMaker desk clutter** forcing a joint-space detour. Same submodule asset
-policy as the TurtleBot3 race.
+A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs tabletop manipulation:
+empty-cell A→B (command chain), then **pick-and-place** (FSM + grasp physics on a
+plain box), then **AWS desk clutter** forcing a detour. Warehouse meshes stay for
+clutter only — they are far too large for the OM-X gripper (~3 cm aperture).
 
 ### Robot
 
@@ -203,16 +203,18 @@ policy as the TurtleBot3 race.
 | ID | File | Description |
 |---|---|---|
 | SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
-| SC-v13b | `omx_desk_clutter.yml` | AWS desk props block the straight path |
+| SC-v13b | `omx_pick_place.yml` | Pick box at green, place at red (FSM + grasp) |
+| SC-v13c | `omx_desk_clutter.yml` | AWS desk props block the transfer path |
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
 | V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
-| V13-2 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
-| V13-3 | Showcase video: overview + EE-follow cameras |
-| V13-4 | Assets loaded only from Menagerie + AWS submodules |
+| V13-2 | Pick-and-place FSM moves a free box from green to red without drop mid-transfer |
+| V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
+| V13-4 | Showcase video: overview + top-down / EE-follow |
+| V13-5 | Robot from Menagerie; clutter from AWS; pick object is a plain MuJoCo box |
 
 ### Implementation tasks
 
@@ -221,8 +223,9 @@ policy as the TurtleBot3 race.
 | T13-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
 | T13-02 | Kinematics + controller + bridge wiring for OM-X joints |
 | T13-03 | SC-v13a scenario + unit/physics smoke |
-| T13-04 | AWS desk clutter props + SC-v13b detour scenario |
-| T13-05 | Showcase render pipeline + metrics |
+| T13-04 | PickPlace FSM + free box MJCF + SC-v13b physics smoke |
+| T13-05 | AWS desk clutter props + SC-v13c detour scenario |
+| T13-06 | Showcase render pipeline + metrics |
 
 ---
 
