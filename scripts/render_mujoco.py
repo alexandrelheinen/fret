@@ -37,6 +37,14 @@ RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
 
 _DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
 
+# OM-X empty-cell proof: top-down free-space motion + oblique overview.
+_OMX_RELEASE_CAMERAS: tuple[str, ...] = ("topdown", "overview")
+_OMX_ARM_JOINTS: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4")
+_OMX_SCENARIOS: frozenset[str] = frozenset(
+    {"omx_reach", "omx_tabletop", "open_manipulator_x"}
+)
+_OMX_MODELS: frozenset[str] = frozenset({"open_manipulator_x", "omx"})
+
 # Freejoint base names in dubins_race.xml (TurtleBot3 agents).
 _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     "rrt_base_joint",
@@ -94,11 +102,7 @@ def showcase_playback_timing(
         if wall_sim_time_s > render_duration_s + 0.02
         else wall_sim_time_s
     )
-    wall = (
-        wall_sim_time_s
-        if wall_sim_time_s > playback_sim_s + 0.02
-        else None
-    )
+    wall = wall_sim_time_s if wall_sim_time_s > playback_sim_s + 0.02 else None
     return ShowcaseTiming(
         sim_time_s=playback_sim_s,
         render_duration_s=render_duration_s,
@@ -147,6 +151,12 @@ def resolve_mjcf_path(
         if candidate.is_file():
             return candidate
 
+    if model in _OMX_MODELS and scenario in _OMX_SCENARIOS:
+        _ensure_fret_importable()
+        from fret.sitl_config import mjcf_path as resolve_installed_mjcf
+
+        return resolve_installed_mjcf("open_manipulator_x", "omx_reach")
+
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"
@@ -173,19 +183,24 @@ def list_showcase_cameras(
         for node in root.iter("camera")
         if (name := node.get("name")) is not None
     }
+    preferred = (
+        _OMX_RELEASE_CAMERAS
+        if scenario in _OMX_SCENARIOS
+        else RELEASE_SHOWCASE_CAMERAS
+    )
     if mjcf_cameras:
-        release = [
-            cam for cam in RELEASE_SHOWCASE_CAMERAS if cam in mjcf_cameras
-        ]
+        release = [cam for cam in preferred if cam in mjcf_cameras]
         if release:
             return release
         raise ValueError(
             f"MJCF {mjcf_path} has no release showcase cameras "
-            f"{RELEASE_SHOWCASE_CAMERAS}; found {sorted(mjcf_cameras)}"
+            f"{preferred}; found {sorted(mjcf_cameras)}"
         )
 
     if scenario in {"dubins_race", "dubins"}:
         return list(_DUBINS_RACE_CAMERAS)
+    if scenario in _OMX_SCENARIOS:
+        return list(_OMX_RELEASE_CAMERAS)
 
     raise ValueError(f"No showcase cameras found in MJCF: {mjcf_path}")
 
@@ -283,7 +298,9 @@ def apply_realtime_video_speedup(
         print(f"[showcase] {label}: already real-time (skip ffmpeg)")
         return
 
-    tmp_path = video_path.with_name(f"{video_path.stem}_rtf{video_path.suffix}")
+    tmp_path = video_path.with_name(
+        f"{video_path.stem}_rtf{video_path.suffix}"
+    )
     cmd = [
         "ffmpeg",
         "-y",
@@ -435,9 +452,7 @@ def simulate_dubins_race_poses(
     result = DubinsRaceRunner().run(
         record_poses=True,
         physics_mode=physics_mode,
-        planner_rng_seed=(
-            SHOWCASE_PLANNER_RNG_SEED if physics_mode else None
-        ),
+        planner_rng_seed=(SHOWCASE_PLANNER_RNG_SEED if physics_mode else None),
     )
     if not result.both_reached_goal:
         raise RuntimeError(
@@ -455,7 +470,9 @@ def simulate_dubins_race_poses(
     sst_hist = np.asarray(result.sst_pose_history, dtype=np.float64)
     dummy_hist = np.asarray(result.dummy_pose_history, dtype=np.float64)
     sim_dt = resolve_scenario_simulation_dt(scenario)
-    race_samples = max(1, int(round(float(result.race_duration_s) / sim_dt)) + 1)
+    race_samples = max(
+        1, int(round(float(result.race_duration_s) / sim_dt)) + 1
+    )
     rrt_hist = rrt_hist[:race_samples]
     sst_hist = sst_hist[:race_samples]
     dummy_hist = dummy_hist[:race_samples]
@@ -645,13 +662,18 @@ def render_dubins_race_showcase_videos(
     split_follow = "follow" in camera_names
     half_width = max(2, width // 2)
     follow_distance = (
-        _dubins_follow_distance(half_width, height) * _DUBINS_FOLLOW_DISTANCE_SCALE
+        _dubins_follow_distance(half_width, height)
+        * _DUBINS_FOLLOW_DISTANCE_SCALE
     )
     follow_renderer_left: object | None = None
     follow_renderer_right: object | None = None
     if split_follow:
-        follow_renderer_left = mujoco.Renderer(model, height=height, width=half_width)
-        follow_renderer_right = mujoco.Renderer(model, height=height, width=half_width)
+        follow_renderer_left = mujoco.Renderer(
+            model, height=height, width=half_width
+        )
+        follow_renderer_right = mujoco.Renderer(
+            model, height=height, width=half_width
+        )
 
     for camera in camera_names:
         if camera != "follow":
@@ -769,6 +791,199 @@ def _assert_camera_exists(mujoco: object, model: object, camera: str) -> None:
         raise ValueError(f"Camera not found in MJCF: {camera}")
 
 
+def _load_omx_reach_configurations(
+    scenario: str,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Return start/goal arm configurations from the OM-X scenario YAML."""
+    _ensure_fret_importable()
+    from fret.sitl_config import load_scenario_parameters
+
+    params = load_scenario_parameters(_scenario_config_path(scenario))
+    start = np.asarray(
+        params["start_configuration"], dtype=np.float64
+    ).reshape(4)
+    goal = np.asarray(params["goal_configuration"], dtype=np.float64).reshape(
+        4
+    )
+    return start, goal
+
+
+def _omx_joint_qpos(
+    mujoco: object,
+    model: object,
+    data: object,
+) -> npt.NDArray[np.float64]:
+    """Read Menagerie arm joint positions from ``data.qpos``."""
+    q = np.zeros(4, dtype=np.float64)
+    for i, name in enumerate(_OMX_ARM_JOINTS):
+        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+        if jid < 0:
+            raise ValueError(f"OM-X joint not found in MJCF: {name}")
+        q[i] = float(data.qpos[model.jnt_qposadr[jid]])
+    return q
+
+
+def simulate_omx_reach_poses(
+    mjcf_path: Path,
+    scenario: str = "omx_reach",
+    *,
+    duration_s: float | None,
+    fps: int,
+) -> tuple[npt.NDArray[np.float64], float]:
+    """Drive OM-X position actuators start→goal; return per-frame joint poses.
+
+    Uses MuJoCo ``mj_step`` with interpolated ``ctrl`` (empty-cell command-chain
+    proof). Gripper stays open (ctrl[4] = 0).
+    """
+    mujoco, _iio = _require_mujoco()
+    start, goal = _load_omx_reach_configurations(scenario)
+    clip_s = (
+        float(duration_s)
+        if duration_s is not None
+        else resolve_scenario_duration(scenario, default_s=8.0)
+    )
+    if clip_s <= 0.0:
+        raise ValueError(f"OM-X showcase duration must be > 0 (got {clip_s})")
+
+    model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    data = mujoco.MjData(model)
+    if model.nu < 5:
+        raise ValueError(
+            f"OM-X MJCF needs ≥5 actuators (arm+gripper); got nu={model.nu}"
+        )
+
+    n_frames = max(1, int(round(clip_s * fps)))
+    dt = float(model.opt.timestep)
+    settle_steps = max(1, int(round(0.5 / dt)))
+    data.ctrl[:4] = start
+    data.ctrl[4] = 0.0
+    for _ in range(settle_steps):
+        mujoco.mj_step(model, data)
+
+    poses = np.zeros((n_frames, 4), dtype=np.float64)
+    steps_per_frame = max(1, int(round((1.0 / fps) / dt)))
+    for frame_i in range(n_frames):
+        alpha = frame_i / max(1, n_frames - 1)
+        data.ctrl[:4] = (1.0 - alpha) * start + alpha * goal
+        data.ctrl[4] = 0.0
+        for _ in range(steps_per_frame):
+            mujoco.mj_step(model, data)
+        poses[frame_i] = _omx_joint_qpos(mujoco, model, data)
+
+    travel = float(np.linalg.norm(poses[-1] - poses[0]))
+    if travel < 0.05:
+        raise RuntimeError(
+            f"OM-X showcase barely moved (Δq={travel:.4f} rad); "
+            "check actuators / start-goal"
+        )
+    sim_time_s = float(n_frames * steps_per_frame) * dt
+    return poses, sim_time_s
+
+
+def _apply_omx_joint_pose(
+    mujoco: object,
+    model: object,
+    data: object,
+    q: npt.NDArray[np.float64],
+) -> None:
+    """Teleport OM-X arm joints to ``q`` and forward kinematics."""
+    for name, value in zip(_OMX_ARM_JOINTS, q, strict=True):
+        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+        if jid < 0:
+            raise ValueError(f"OM-X joint not found in MJCF: {name}")
+        data.qpos[model.jnt_qposadr[jid]] = float(value)
+    mujoco.mj_forward(model, data)
+
+
+def render_omx_reach_showcase_videos(
+    mjcf_path: Path,
+    output_dir: Path,
+    *,
+    scenario: str = "omx_reach",
+    cameras: list[str] | None = None,
+    output_names: dict[str, str] | None = None,
+    duration_s: float | None = None,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+    realtime_postprocess: bool = True,
+) -> list[RenderResult]:
+    """Render OM-X empty-tabletop A→B MP4s (SC-v13a free-space proof)."""
+    mujoco, _iio = _require_mujoco()
+    camera_names = (
+        cameras
+        if cameras is not None
+        else list_showcase_cameras(mjcf_path, scenario=scenario)
+    )
+    if not camera_names:
+        raise ValueError("At least one showcase camera is required")
+
+    poses, sim_time_s = simulate_omx_reach_poses(
+        mjcf_path,
+        scenario,
+        duration_s=duration_s,
+        fps=fps,
+    )
+    render_duration_s = float(len(poses)) / float(fps)
+    timing = showcase_playback_timing(
+        wall_sim_time_s=sim_time_s,
+        render_duration_s=render_duration_s,
+    )
+
+    model = mujoco.MjModel.from_xml_path(str(mjcf_path))
+    data = mujoco.MjData(model)
+    renderer = mujoco.Renderer(model, height=height, width=width)
+    for camera in camera_names:
+        _assert_camera_exists(mujoco, model, camera)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    names = output_names or {
+        camera: showcase_output_name(scenario, camera)
+        for camera in camera_names
+    }
+    paths = {camera: output_dir / names[camera] for camera in camera_names}
+    writers = {
+        camera: _open_video_writer(paths[camera], fps)
+        for camera in camera_names
+    }
+    first_frames: dict[str, npt.NDArray[np.uint8]] = {}
+
+    try:
+        for q in poses:
+            _apply_omx_joint_pose(mujoco, model, data, q)
+            for camera in camera_names:
+                renderer.update_scene(data, camera=camera)
+                frame = renderer.render()
+                writers[camera].append_data(frame)
+                if camera not in first_frames:
+                    first_frames[camera] = frame.copy()
+    finally:
+        for writer in writers.values():
+            writer.close()
+        renderer.close()
+
+    results: list[RenderResult] = []
+    for camera in camera_names:
+        frame = first_frames[camera]
+        mean = _frame_mean(frame)
+        if mean <= 1.0:
+            raise RuntimeError(
+                f"Camera {camera!r} render looks blank (frame mean={mean:.2f})"
+            )
+        results.append(
+            RenderResult(
+                camera=camera,
+                path=paths[camera],
+                frame_mean=mean,
+                timing=timing,
+            )
+        )
+    return postprocess_showcase_results(
+        results,
+        enabled=realtime_postprocess,
+    )
+
+
 def render_video(
     mjcf_path: Path,
     output_path: Path,
@@ -838,7 +1053,7 @@ def render_showcase_videos(
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
-    Currently supports the Dubins race showcase only.
+    Supports Dubins race and OpenMANIPULATOR-X empty-tabletop reach.
     """
     _ = (waypoints, collision_backend, planner_algorithm, use_tracking)
     if scenario in {"dubins_race", "dubins"}:
@@ -854,6 +1069,20 @@ def render_showcase_videos(
             height=height,
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
+        )
+    if scenario in _OMX_SCENARIOS:
+        _ = physics_mode  # OM-X showcase always steps position actuators.
+        return render_omx_reach_showcase_videos(
+            mjcf_path,
+            output_dir,
+            scenario="omx_reach",
+            cameras=cameras,
+            output_names=output_names,
+            duration_s=duration_s,
+            fps=fps,
+            width=width,
+            height=height,
+            realtime_postprocess=realtime_postprocess,
         )
     raise ValueError(f"Unsupported showcase scenario: {scenario!r}")
 
