@@ -12,7 +12,8 @@ from fret.sitl_config import mjcf_path
 
 mujoco = pytest.importorskip("mujoco")
 
-_START = np.array([0.0, -0.6, 0.6, 0.0], dtype=np.float64)
+# Matches config/scenarios/omx_reach.yml (green start → red goal).
+_START = np.array([-0.8, -0.2, 0.3, 0.6], dtype=np.float64)
 _GOAL = np.array([1.2, -0.4, 0.5, 0.4], dtype=np.float64)
 
 
