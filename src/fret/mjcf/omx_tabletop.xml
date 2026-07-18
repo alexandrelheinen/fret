@@ -12,7 +12,7 @@
 
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast"/>
 
-  <statistic center="0.2 0 0.25" extent="0.8"/>
+  <statistic center="0.05 0 0.20" extent="0.7"/>
 
   <visual>
     <headlight ambient="0.45 0.47 0.50" diffuse="0.30 0.32 0.35" specular="0 0 0"/>
@@ -41,23 +41,24 @@
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1 0.1 0.01"/>
 
-    <!-- Visual lab table (non-colliding — base sits on Menagerie floor). -->
-    <geom name="table_top" type="box" pos="0.20 0 -0.02" size="0.35 0.30 0.01"
+    <!-- Visual lab table sized for ~0.5 m EE XY arcs (non-colliding). -->
+    <geom name="table_top" type="box" pos="0.05 0 -0.02" size="0.40 0.40 0.01"
           material="table" contype="0" conaffinity="0"/>
 
-    <!-- Floor marks under EE XY for SC-v13a start/goal (non-colliding). -->
-    <geom name="start_zone" type="cylinder" pos="0.097 -0.087 0.002" size="0.045 0.001"
+    <!-- Floor marks under EE XY for SC-v13a ±80° yaw reach path. -->
+    <geom name="start_zone" type="cylinder" pos="0.0554 -0.2462 0.002" size="0.04 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="cylinder" pos="0.047 0.089 0.002" size="0.045 0.001"
+    <geom name="goal_zone" type="cylinder" pos="0.0554 0.2462 0.002" size="0.04 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
     <!-- Top-down free-space proof (SC-v13a showcase). -->
-    <camera name="topdown" pos="0.20 0 0.95"
-            xyaxes="0 1 0 -1 0 0" fovy="50"/>
-    <camera name="overview" pos="0.7 -0.55 0.55"
+    <camera name="topdown" pos="0.05 0 1.15"
+            xyaxes="0 1 0 -1 0 0" fovy="55"/>
+    <camera name="overview" pos="0.85 -0.65 0.60"
             xyaxes="0.8 0.6 0 -0.25 0.35 0.90" fovy="45"/>
     <camera name="follow" pos="0.45 0.35 0.35"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>
 </mujoco>
+
 

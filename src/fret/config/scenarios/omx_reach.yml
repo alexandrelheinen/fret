@@ -1,17 +1,22 @@
 # SC-v13a — OpenMANIPULATOR-X empty tabletop reach (command-chain validation).
 #
 # Joint-space A→B on an empty cell. No obstacles. Gripper stays open.
-# Menagerie joint ranges: Joint1 ±π, Joint2 ±1.5, Joint3 [-1.5,1.4], Joint4 [-1.7,1.97].
+# Convention: green start_zone → red goal_zone (same as Dubins race).
+#
+# Joint1 (yaw) hard limits ±180°; planning uses ±10° margin → usable ±170°.
+# This demo slews 160° (±80°) at a high-reach posture (~0.49 m EE XY travel),
+# leaving headroom for SC-v13b obstacle detours.
+# Other joint hard ranges: J2 ±1.5, J3 [-1.5, 1.4], J4 [-1.7, 1.97] rad.
 
 /**:
   ros__parameters:
     model: open_manipulator_x
     scenario_id: omx_reach
     simulation_dt: 0.02
-    duration: 8.0
+    duration: 12.0
     planning_timeout: 30.0
-    # Green floor mark → red floor mark (same convention as Dubins race).
-    start_configuration: [-0.8, -0.2, 0.3, 0.6]
-    goal_configuration: [1.2, -0.4, 0.5, 0.4]
+    # ±80° yaw, reach posture [J2, J3, J4] ≈ [1.15, -1.25, -0.65]
+    start_configuration: [-1.3963, 1.15, -1.25, -0.65]
+    goal_configuration: [1.3963, 1.15, -1.25, -0.65]
     goal_tolerance: 0.05
     mjcf: mjcf/omx_tabletop.xml
