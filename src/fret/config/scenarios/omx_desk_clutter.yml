@@ -17,7 +17,7 @@
     pedestal_top_m: 0.098
     pedestal_radius_m: 0.018
     place_cone_height_m: 0.098
-    place_cone_radius_m: 0.040
+    place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
     planner_rng_seed: 7
