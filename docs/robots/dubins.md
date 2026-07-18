@@ -8,15 +8,19 @@
 ## Overview
 
 The Dubins vehicle is a **car-like mobile robot** constrained to forward motion with a
-minimum turning radius. v1.1 features **two robots racing** from A to B through a
-warehouse structure forest (RRT* vs SST).
+minimum turning radius. The showcase races **three TurtleBot3 Burgers** from A to B
+through a warehouse maze (RRT* vs SST vs straight-line dummy), stepped concurrently.
 
 State: `q = (x, y, θ)` in SE(2).
 
 | Agent | Planner | Visual identity |
 |---|---|---|
-| Car 1 | ARCO RRT* | Blue chassis + marker **1** |
-| Car 2 | ARCO SST | Green chassis + marker **2** |
+| Car 1 | ARCO RRT* | Blue chassis |
+| Car 2 | ARCO SST | Green chassis |
+| Car 3 | Straight start→goal (foil) | Grey chassis |
+
+Agent–agent contacts are disabled in MJCF so racers may overlap; they still collide
+with warehouse structures.
 
 ---
 

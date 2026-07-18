@@ -254,6 +254,7 @@ class DubinsRaceSimulation:
                 lookahead_distance=self.vehicle_cfg.lookahead_distance,
                 occupancy=self.occupancy,
             )
+        # Concurrent race: blue / green / grey command + step in one physics tick.
         commands = np.array([*rrt_cmd, *sst_cmd, *dummy_cmd], dtype=np.float64)
         bridge.step_physics(commands)
         _sync_vehicle_pose(self.rrt_vehicle, bridge.get_rrt_pose())
