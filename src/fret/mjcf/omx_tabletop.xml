@@ -50,9 +50,13 @@
     <geom name="zone_b" type="cylinder" pos="0.18 -0.18 0.002" size="0.06 0.001"
           material="zone_b" contype="0" conaffinity="0"/>
 
+    <!-- Top-down free-space proof (SC-v13a showcase). -->
+    <camera name="topdown" pos="0.20 0 0.95"
+            xyaxes="0 1 0 -1 0 0" fovy="50"/>
     <camera name="overview" pos="0.7 -0.55 0.55"
             xyaxes="0.8 0.6 0 -0.25 0.35 0.90" fovy="45"/>
-    <camera name="follow_ee" pos="0.45 0.35 0.35"
+    <camera name="follow" pos="0.45 0.35 0.35"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>
 </mujoco>
+

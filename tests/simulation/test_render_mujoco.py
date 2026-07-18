@@ -38,10 +38,22 @@ def test_resolve_mjcf_unsupported_raises() -> None:
         rm.resolve_mjcf_path("unknown", "missing", None)
 
 
+def test_resolve_mjcf_omx_reach() -> None:
+    path = rm.resolve_mjcf_path("open_manipulator_x", "omx_reach", None)
+    assert path.name == "omx_tabletop.xml"
+    assert path.is_file()
+
+
 def test_list_showcase_cameras_reads_mjcf() -> None:
     path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
     cameras = rm.list_showcase_cameras(path, scenario="dubins_race")
     assert cameras == ["overview", "follow"]
+
+
+def test_list_showcase_cameras_omx_reach() -> None:
+    path = rm.resolve_mjcf_path("open_manipulator_x", "omx_reach", None)
+    cameras = rm.list_showcase_cameras(path, scenario="omx_reach")
+    assert cameras == ["topdown", "overview"]
 
 
 def test_dubins_race_mjcf_loads() -> None:
