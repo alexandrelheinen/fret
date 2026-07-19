@@ -21,26 +21,17 @@ _DEFAULT_MAX_VEL_RAD_S = 1.57
 _DEFAULT_MAX_ACC_RAD_S2 = 3.0
 
 
-def build_omx_joint_mpc(
+def build_joint_mpc(
+    dof: int = _OMX_DOF,
     *,
     occupancy: Occupancy | None = None,
     max_vel: float = _DEFAULT_MAX_VEL_RAD_S,
     max_acc: float = _DEFAULT_MAX_ACC_RAD_S2,
     mpc_cfg: JointSpaceMPCConfig | None = None,
 ) -> JointSpaceMPC:
-    """Build a 4-DOF joint-space MPC tracker for OMX.
-
-    Args:
-        occupancy: Optional C-space occupancy for soft obstacle barriers.
-        max_vel: Per-joint velocity limit (rad/s).
-        max_acc: Per-joint acceleration limit (rad/s²).
-        mpc_cfg: Optional horizon/weights; defaults load from ARCO ``mpc.yml``.
-
-    Returns:
-        Configured :class:`~arco.control.mpc.JointSpaceMPC`.
-    """
-    max_vel_vec = np.full(_OMX_DOF, float(max_vel), dtype=np.float64)
-    max_acc_vec = np.full(_OMX_DOF, float(max_acc), dtype=np.float64)
+    """Build a joint-space MPC tracker for ``dof`` arm joints."""
+    max_vel_vec = np.full(int(dof), float(max_vel), dtype=np.float64)
+    max_acc_vec = np.full(int(dof), float(max_acc), dtype=np.float64)
     tracker = build_joint_tracker(
         max_vel=max_vel_vec,
         max_acc=max_acc_vec,
@@ -50,6 +41,23 @@ def build_omx_joint_mpc(
     )
     assert isinstance(tracker, JointSpaceMPC)
     return tracker
+
+
+def build_omx_joint_mpc(
+    *,
+    occupancy: Occupancy | None = None,
+    max_vel: float = _DEFAULT_MAX_VEL_RAD_S,
+    max_acc: float = _DEFAULT_MAX_ACC_RAD_S2,
+    mpc_cfg: JointSpaceMPCConfig | None = None,
+) -> JointSpaceMPC:
+    """Build a 4-DOF joint-space MPC tracker for OMX."""
+    return build_joint_mpc(
+        _OMX_DOF,
+        occupancy=occupancy,
+        max_vel=max_vel,
+        max_acc=max_acc,
+        mpc_cfg=mpc_cfg,
+    )
 
 
 def path_arc_lengths(

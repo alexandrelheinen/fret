@@ -4,6 +4,7 @@ Dispatches to model-specific engines:
 
 - ``"dubins"`` — Dubins mobile (v1.1)
 - ``"open_manipulator_x"`` / ``"omx"`` — Menagerie OM-X (v1.2.3)
+- ``"omy"`` / ``"six_dof"`` / ``"open_manipulator_y"`` — Menagerie OMY (v1.2.4)
 """
 
 from __future__ import annotations
@@ -16,6 +17,9 @@ import numpy.typing as npt
 from fret.control.kinematics_dubins import DubinsKinematics
 from fret.control.kinematics_open_manipulator_x import (
     OpenManipulatorXKinematics,
+)
+from fret.control.kinematics_open_manipulator_y import (
+    OpenManipulatorYKinematics,
 )
 
 
@@ -47,8 +51,16 @@ class _KinematicsBackend(Protocol):
 
 
 _SUPPORTED_MODELS: frozenset[str] = frozenset(
-    {"dubins", "open_manipulator_x", "omx"}
+    {
+        "dubins",
+        "open_manipulator_x",
+        "omx",
+        "omy",
+        "six_dof",
+        "open_manipulator_y",
+    }
 )
+_OMY_MODELS = frozenset({"omy", "six_dof", "open_manipulator_y"})
 
 
 class Kinematics:
@@ -69,6 +81,8 @@ class Kinematics:
             )
         if model in {"open_manipulator_x", "omx"}:
             self._impl: _KinematicsBackend = OpenManipulatorXKinematics()
+        elif model in _OMY_MODELS:
+            self._impl = OpenManipulatorYKinematics()
         else:
             self._impl = DubinsKinematics()
 

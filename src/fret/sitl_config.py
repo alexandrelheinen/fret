@@ -29,6 +29,8 @@ def controller_config_relative(model: str) -> str:
         return "config/controllers/dubins.yml"
     if model in {"open_manipulator_x", "omx"}:
         return "config/controllers/open_manipulator_x.yml"
+    if model in {"omy", "six_dof", "open_manipulator_y"}:
+        return "config/controllers/open_manipulator_y.yml"
     raise ValueError(f"No controller config for model: {model!r}")
 
 
@@ -170,6 +172,28 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         from fret.mjcf.omx import ensure_omx_wall_maze_mjcf
 
         return ensure_omx_wall_maze_mjcf()
+    if model in {"omy", "six_dof", "open_manipulator_y"} and scenario in {
+        "omy_reach",
+        "omy_tabletop",
+        "open_manipulator_y",
+    }:
+        from fret.mjcf.omy import ensure_omy_tabletop_mjcf
+
+        return ensure_omy_tabletop_mjcf()
+    if model in {"omy", "six_dof", "open_manipulator_y"} and scenario in {
+        "omy_pick_place",
+        "pick_place",
+    }:
+        from fret.mjcf.omy import ensure_omy_pick_place_mjcf
+
+        return ensure_omy_pick_place_mjcf()
+    if model in {"omy", "six_dof", "open_manipulator_y"} and scenario in {
+        "omy_clutter",
+        "clutter",
+    }:
+        from fret.mjcf.omy import ensure_omy_clutter_mjcf
+
+        return ensure_omy_clutter_mjcf()
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"

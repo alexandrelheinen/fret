@@ -7,7 +7,7 @@ Each FRET release targets one robot class. Models are selectable via `model:=` a
 |---|---|---|---|
 | `dubins` (TB3 Burger) | v1.1–v1.2 | [dubins.md](dubins.md) | ✅ Shipped |
 | `open_manipulator_x` | v1.2.3 | [open_manipulator_x.md](open_manipulator_x.md) | ✅ Shipped (`v1.2.3`) |
-| `six_dof` (OMY preferred) | v1.2.4 | [six_dof.md](six_dof.md) | 🔲 Planned |
+| `six_dof` / `omy` (OpenMANIPULATOR-Y) | v1.2.4 | [six_dof.md](six_dof.md) | 🔲 In progress |
 
 All robots run on **MuJoCo** for physics, rendering, and SITL. See [mujoco.md](../mujoco.md).
 

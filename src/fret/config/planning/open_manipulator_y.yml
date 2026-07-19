@@ -1,0 +1,23 @@
+# OpenMANIPULATOR-Y planning stack parameters (v1.2.4).
+
+trajectory:
+  control_hz: 50.0
+  v_max: [1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+  a_max: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+  dt_min: 0.02
+  joint_names:
+    - Joint1
+    - Joint2
+    - Joint3
+    - Joint4
+    - Joint5
+    - Joint6
+
+replanning:
+  tracking_error_threshold: 0.020
+  occupancy_change_threshold: 0.050
+  min_replan_interval: 1.0
+  max_replan_attempts: 3
+
+trajectory_generator:
+  max_interp_step_m: 0.004

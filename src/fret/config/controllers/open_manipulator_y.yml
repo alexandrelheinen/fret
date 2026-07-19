@@ -1,0 +1,14 @@
+# OpenMANIPULATOR-Y controller parameters (v1.2.4).
+
+/**:
+  ros__parameters:
+    damping_factor: 0.01
+    max_joint_velocity: 1.2
+    max_joint_acceleration: 2.5
+    update_rate: 50.0
+    fault_threshold: 0.020
+    ticks_per_waypoint: 5
+    joint_mpc:
+      race_speed: 0.85
+      max_carrot_lag: 0.30
+      goal_tol: 0.12

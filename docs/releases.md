@@ -252,20 +252,32 @@ and trajectory execution in a cluttered environment — the simulation capstone 
 | Environment | Configurable obstacle field (tabletop or cell) |
 | Simulation | MuJoCo physics SITL from day one |
 
-### Scenario ID
+### Scenario IDs
 
-**SC-v14** — `config/scenarios/six_dof_challenge.yml` *(to be created)*
+| ID | File | Description |
+|---|---|---|
+| SC-v14a | `omy_reach.yml` | Empty tabletop joint-space A→B |
+| SC-v14b | `omy_pick_place.yml` | Floor ball pick → cone place (FSM + MuJoCo physics) |
+| SC-v14c | `omy_clutter.yml` | Mid-cell wall forces planned transfer detour |
 
 ### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V124-1 | Collision-free 6-D path planned within 60 s |
-| V124-2 | EE reaches goal with ≤ 5 mm error under physics SITL |
-| V124-3 | Self-collision checking enabled |
-| V124-4 | Demo video + benchmark table (planning time, path length) |
+| V124-1 | Empty-cell A→B reaches goal joint configuration under MuJoCo physics |
+| V124-2 | Ground pick-and-place FSM places ball in cone (physics smoke in CI) |
+| V124-3 | Cluttered cell plans a detour (straight joint line collides; path length ≥ 2) |
+| V124-4 | Robot from Menagerie OMY; floor ball + tip-down place cone at Menagerie scale |
 
-*Detailed task breakdown (T124-*) will be written when v1.2.3 is tagged.*
+### Implementation tasks
+
+| ID | Task |
+|---|---|
+| T124-01 | MJCF cells wrapping Menagerie OMY (tabletop, pick-place, clutter) |
+| T124-02 | Kinematics + controller + bridge wiring for OMY joints |
+| T124-03 | SC-v14a scenario + unit/physics smoke |
+| T124-04 | Ground pick-place FSM + ball/cone MJCF + SC-v14b physics smoke |
+| T124-05 | Mid-cell wall + planner/controller SC-v14c detour |
 
 ---
 
