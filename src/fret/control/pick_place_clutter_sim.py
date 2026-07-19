@@ -639,6 +639,7 @@ def run_pick_place_clutter(
     joint_tol_rad: float = 0.12,
     scenario_path: str | Path | None = None,
     max_attempts: int = 4,
+    record_every_steps: int = 1,
 ) -> ClutterPickPlaceResult:
     """Execute one SC-v13c/d cycle; retry on place-miss / fault (planner RNG)."""
     params = load_scenario_parameters(scenario_path or _SCENARIO)
@@ -650,7 +651,7 @@ def run_pick_place_clutter(
             last = simulate_pick_place_clutter(
                 duration_s=duration_s,
                 joint_tol_rad=joint_tol_rad,
-                record_every_steps=1,
+                record_every_steps=record_every_steps,
                 scenario_path=scenario_path,
                 seed_offset=attempt * 17,
             )
