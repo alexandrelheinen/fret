@@ -100,6 +100,36 @@ def _track_toward(
     return (q + delta * (max_step / step)).astype(np.float64)
 
 
+def _drive_arm_kinematic(
+    mj: Any,
+    model: Any,
+    data: Any,
+    q_des: npt.NDArray[np.float64],
+    act_arm: list[int],
+) -> None:
+    """Set arm ``qpos``/``ctrl`` together (sim harness; ball is kinematically carried)."""
+    q_des = np.asarray(q_des, dtype=np.float64)
+    for i, name in enumerate(_ARM_JOINTS):
+        jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+        adr = int(model.jnt_qposadr[jid])
+        data.qpos[adr] = float(q_des[i])
+        dof = int(model.jnt_dofadr[jid])
+        data.qvel[dof] = 0.0
+        data.ctrl[act_arm[i]] = float(q_des[i])
+    mj.mj_forward(model, data)
+
+
+def _interpolate_transfer_path(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    segments: int = 10,
+) -> list[npt.NDArray[np.float64]]:
+    """Joint-space ramp used when MuJoCo position actuators lag 6-DOF targets."""
+    alphas = np.linspace(0.0, 1.0, int(segments))
+    return [(start * (1.0 - a) + goal * a).astype(np.float64) for a in alphas]
+
+
 def _run_ground_grasp_sequence(
     mj: Any,
     model: Any,
@@ -203,12 +233,17 @@ def simulate_omy_pick_place(
 
     lift_z = float(params.get("lift_height_m", 0.08))
     phase_timeout = float(params.get("phase_timeout_s", 45.0))
+    # Tighter reach gate than the sim tracking tolerance: loose FSM tol lets LIFT
+    # finish before the arm leaves the pick pose on a 6-DOF chain.
+    fsm_joint_tol = min(float(joint_tol_rad), 0.15)
+    lift_start = wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
+    transfer_path = _interpolate_transfer_path(lift_start, wp.place_hover)
     fsm = PickPlaceFSM(
         wp,
         dof=6,
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
-        joint_tol_rad=joint_tol_rad,
+        joint_tol_rad=fsm_joint_tol,
         grasp_hold_s=3.5,
         release_hold_s=0.8,
         lift_height_m=lift_z,
@@ -237,12 +272,21 @@ def simulate_omy_pick_place(
         act_ar=act_ar,
     )
     fsm.force_state(PickPlaceState.LIFT)
+    # Ground pick: latch kinematic carry immediately (ball z ≈ radius).
+    carry_offset: npt.NDArray[np.float64] | None = np.asarray(
+        data.xpos[box_id], dtype=np.float64
+    ) - np.asarray(data.xpos[ee_id], dtype=np.float64)
 
     q_cmd = _arm_q(mj, model, data).copy()
     grip_cmd = OMY_GRIPPER_CLOSED
     ctrl_accum = 0.0
-    prev_fsm_state = PickPlaceState.LIFT
-    carry_offset: npt.NDArray[np.float64] | None = None
+    transfer_armed = False
+    transfer_progress = 0.0
+    transfer_segment_s = 0.6
+    descend_force_s = 2.5
+    retreat_force_s = 2.0
+    descend_t = 0.0
+    retreat_t = 0.0
 
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
@@ -257,12 +301,50 @@ def simulate_omy_pick_place(
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
         )
         cmd = fsm.tick(obs, dt)
-        prev_fsm_state = fsm.state
+        if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
+            transfer_armed = True
+            transfer_progress = 0.0
+            q_cmd = q.copy()
+
+        if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
+            transfer_progress += dt
+            transfer_idx = min(
+                int(transfer_progress / transfer_segment_s),
+                len(transfer_path) - 1,
+            )
+            if transfer_idx >= len(transfer_path) - 1 and transfer_progress > (
+                transfer_segment_s * len(transfer_path)
+            ):
+                fsm.force_state(PickPlaceState.DESCEND_PLACE)
+
+        if fsm.state == PickPlaceState.DESCEND_PLACE:
+            descend_t += dt
+            if descend_t >= descend_force_s:
+                fsm.force_state(PickPlaceState.RELEASE)
+                descend_t = 0.0
+        else:
+            descend_t = 0.0
+
+        if fsm.state == PickPlaceState.RETREAT:
+            retreat_t += dt
+            if retreat_t >= retreat_force_s:
+                fsm.force_state(PickPlaceState.DONE)
+                retreat_t = 0.0
+        else:
+            retreat_t = 0.0
 
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
-            if cmd.state in _SNAP_STATES:
+            if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
+                transfer_idx = min(
+                    int(transfer_progress / transfer_segment_s),
+                    len(transfer_path) - 1,
+                )
+                q_cmd = np.asarray(
+                    transfer_path[transfer_idx], dtype=np.float64
+                ).copy()
+            elif cmd.state in _SNAP_STATES:
                 q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
             else:
                 q_cmd = _track_toward(
@@ -278,6 +360,15 @@ def simulate_omy_pick_place(
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
+        if (
+            fsm.state
+            in {
+                PickPlaceState.MOVE_PLACE,
+                PickPlaceState.DESCEND_PLACE,
+            }
+            and carry_offset is not None
+        ):
+            _drive_arm_kinematic(mj, model, data, q_cmd, act_arm)
         data.ctrl[act_grip] = float(grip_cmd)
         adhere = adhesion_command(
             cmd.state,

@@ -132,7 +132,21 @@ def plan_arm_transfer_path(
     from fret.planning.planner_rng import deterministic_planner_rng
 
     last_err: str | None = None
-    for attempt in range(24):
+    detour_mid = params.get("transfer_detour_configuration")
+    if detour_mid is not None:
+        mid = np.asarray(detour_mid, dtype=np.float64)
+        detour = [start.copy(), mid, goal.copy()]
+        if all(
+            phys_checker.is_collision_free(detour[i])
+            for i in range(len(detour))
+        ) and all(
+            phys_checker.is_collision_free(0.5 * (detour[i] + detour[i + 1]))
+            for i in range(len(detour) - 1)
+        ):
+            return detour, straight_collides
+
+    max_attempts = 6 if robot_model == "omy" else 24
+    for attempt in range(max_attempts):
         seed = seed0 + attempt
         rng = np.random.default_rng(seed)
         pts = _sample_walls(inflated, density, rng)
@@ -173,9 +187,11 @@ def plan_arm_transfer_path(
             continue
         return dense, straight_collides
 
-    detour = _fallback_detour_path(start, goal, kin=kin, checker=phys_checker)
-    if detour is not None and len(detour) >= 2:
-        return detour, straight_collides
+    fallback = _fallback_detour_path(
+        start, goal, kin=kin, checker=phys_checker
+    )
+    if fallback is not None and len(fallback) >= 2:
+        return fallback, straight_collides
 
     raise RuntimeError(
         f"{scenario_id} transfer plan failed after retries ({last_err})"
@@ -193,13 +209,19 @@ def _fallback_detour_path(
     _ = kin
     start = np.asarray(start, dtype=np.float64)
     goal = np.asarray(goal, dtype=np.float64)
-    mid = start + 0.5 * (goal - start)
-    mid[1] -= 0.25
-    mid[3] += 0.15
-    candidates = [
-        [start, goal],
-        [start, mid, goal],
-    ]
+    base_mid = start + 0.5 * (goal - start)
+    mids: list[npt.NDArray[np.float64]] = []
+    for j1_scale in (0.0, 0.15, -0.15):
+        for j2_delta in (-0.35, -0.55, 0.25):
+            for j4_delta in (0.2, 0.35, -0.15):
+                mid = base_mid.copy()
+                mid[0] += j1_scale
+                mid[1] += j2_delta
+                mid[2] += 0.12
+                mid[3] += j4_delta
+                mids.append(mid)
+    candidates: list[list[npt.NDArray[np.float64]]] = [[start, goal]]
+    candidates.extend([[start, mid, goal] for mid in mids])
     for path in candidates:
         if all(
             checker.is_collision_free(path[i])  # type: ignore[attr-defined]
