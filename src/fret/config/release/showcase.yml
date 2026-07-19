@@ -1,0 +1,64 @@
+# Release showcase matrix (v1.2.3+).
+#
+# Camera policy:
+#   * overview — isometric top view for EVERY scenario (frame robots +
+#     start/goal). Tune zoom/azimuth per MJCF / runtime camera constants.
+#   * follow   — required for mobile robots only (split-screen chase).
+#     Static/tabletop arms must NOT export follow on release.
+#
+# Regenerate clips via scripts/release/render_showcase.py or release.yml.
+
+fps: 30
+width: 1280
+height: 720
+
+scenarios:
+  - id: dubins_race
+    model: dubins
+    robot_class: mobile
+    cameras: [overview, follow]
+    physics_mode: true
+    planner_algorithm: sst
+    collision_backend: mujoco
+    timing_file: dubins_race_timing.json
+    primary_video: dubins_race_overview.mp4
+
+  - id: omx_reach
+    model: open_manipulator_x
+    robot_class: static
+    cameras: [overview]
+    physics_mode: false
+    planner_algorithm: rrt_star
+    collision_backend: mujoco
+    timing_file: omx_reach_timing.json
+    primary_video: omx_reach_overview.mp4
+
+  - id: omx_pick_place
+    model: open_manipulator_x
+    robot_class: static
+    cameras: [overview]
+    physics_mode: false
+    planner_algorithm: rrt_star
+    collision_backend: mujoco
+    timing_file: omx_pick_place_timing.json
+    primary_video: omx_pick_place_overview.mp4
+
+  - id: omx_desk_clutter
+    model: open_manipulator_x
+    robot_class: static
+    cameras: [overview]
+    physics_mode: false
+    planner_algorithm: rrt_star
+    collision_backend: mujoco
+    timing_file: omx_desk_clutter_timing.json
+    primary_video: omx_desk_clutter_overview.mp4
+
+  - id: omx_wall_maze
+    model: open_manipulator_x
+    robot_class: static
+    cameras: [overview]
+    physics_mode: false
+    planner_algorithm: rrt_star
+    collision_backend: mujoco
+    timing_file: omx_wall_maze_timing.json
+    primary_video: omx_wall_maze_overview.mp4
