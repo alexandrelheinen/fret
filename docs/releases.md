@@ -321,11 +321,12 @@ product milestone before computer vision** (vision / dynamic replanning stay pos
 | `v1.2.0` | MuJoCo physics SITL (Dubins) | T12-* ✅ |
 | `v1.2.3` | OpenMANIPULATOR-X tabletop showcase (mobile + OM-X videos) | T123-* ✅ |
 | `v1.2.4` | 6-DOF challenge (OMY) — **next product tag** | T124-* |
+| `v1.2.5` | Patch: OMY clutter showcase detour (failed `v1.2.4` release CI) | T124-* |
 | `v1.3.0` | Hardware HITL (last milestone before vision) | T13-* |
 
 Python package version in `pyproject.toml` is **1.3.0** once the post-v1.2.4
-development line opens (HITL). Product showcase tags remain `v1.2.4` then
-`v1.3.0`; vision work stays post-v1.3 (see [roadmap.md](roadmap.md)).
+development line opens (HITL). Product showcase tags remain `v1.2.4`, patch
+`v1.2.5`, then `v1.3.0`; vision work stays post-v1.3 (see [roadmap.md](roadmap.md)).
 
 ### v1.1.x → v1.2.0 retrospective
 
