@@ -44,6 +44,29 @@ def test_resolve_mjcf_omx_reach() -> None:
     assert path.is_file()
 
 
+def test_resolve_mjcf_omy_pick_place() -> None:
+    path = rm.resolve_mjcf_path("omy", "omy_pick_place", None)
+    assert path.name.endswith("omy_pick_place.xml")
+    assert path.is_file()
+
+
+def test_resolve_mjcf_omy_clutter() -> None:
+    path = rm.resolve_mjcf_path("omy", "omy_clutter", None)
+    assert path.name.endswith("omy_clutter.xml")
+    assert path.is_file()
+
+
+def test_list_showcase_cameras_omy_pick_place() -> None:
+    path = rm.resolve_mjcf_path("omy", "omy_pick_place", None)
+    cameras = rm.list_showcase_cameras(path, scenario="omy_pick_place")
+    assert cameras == ["overview"]
+
+
+def test_robot_class_omy_scenarios() -> None:
+    assert rm.robot_class_for_scenario("omy_pick_place") == "static"
+    assert rm.robot_class_for_scenario("omy_clutter") == "static"
+
+
 def test_list_showcase_cameras_reads_mjcf() -> None:
     path = rm.resolve_mjcf_path("dubins", "dubins_race", None)
     cameras = rm.list_showcase_cameras(path, scenario="dubins_race")

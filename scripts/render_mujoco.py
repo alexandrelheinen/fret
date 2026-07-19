@@ -103,6 +103,8 @@ _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
     "sst_base_joint",
     "dummy_base_joint",
 )
+# Backward-compatible alias for scripts/view_mujoco.py dry-run checks.
+_DUBINS_JOINT_NAMES = _DUBINS_BASE_JOINTS
 _DUBINS_AGENT_BASE_Z_M = 0.033
 
 _DUBINS_LIMITS = np.array(

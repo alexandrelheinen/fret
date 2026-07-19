@@ -72,8 +72,10 @@ def generate_launch_description() -> LaunchDescription:
         EqualsSubstitution(LaunchConfiguration("model"), "omx"),
     )
     is_omy_model = OrSubstitution(
-        EqualsSubstitution(LaunchConfiguration("model"), "omy"),
-        EqualsSubstitution(LaunchConfiguration("model"), "six_dof"),
+        OrSubstitution(
+            EqualsSubstitution(LaunchConfiguration("model"), "omy"),
+            EqualsSubstitution(LaunchConfiguration("model"), "six_dof"),
+        ),
         EqualsSubstitution(LaunchConfiguration("model"), "open_manipulator_y"),
     )
 
