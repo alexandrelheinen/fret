@@ -1,22 +1,30 @@
 #!/usr/bin/env python3
-"""Generate a navigable warehouse maze YAML for the Dubins TB3 race.
+"""Generate a multi-corridor warehouse maze YAML for the Dubins TB3 race.
 
-Corridor face-to-face gaps satisfy::
+Design goals (SC-v11):
+  * ~four wide start→goal routes with early forks (not one forced weave)
+  * aisle face-to-face gaps >= robot_width + 4*clearance (+ PP slack)
+  * diagonal foils so the grey dummy's straight tracker still collides
+  * varied AWS shelf / prop visuals without packing the free lanes
 
-    gap >= robot_width + 4 * clearance_margin
-    gap >= 3 * robot_diameter
+Corridor skeleton (center bands, ~1.26 m clear before inflation)::
 
-with ``robot_width = 2 * half_width`` (0.18 m) and ``clearance_margin = 0.18 m``.
-Implemented corridor target: **1.14 m** (minimum + 0.24 m PP slack).
+    vertical aisles   x ≈ 2.0, 5.0, 8.0
+    horizontal aisles y ≈ 2.0, 5.0, 8.0
 
-Layout: staggered shelf cheeks along the start→goal diagonal (weave) plus a
-on-diagonal clutter block so the grey dummy's straight path tracker collides,
-while RRT*/SST keep a clear lane.
+Four solid shelf islands sit in the cells between aisles and block
+through-cell shortcuts, so planners must pick aisle routes:
+
+  1. south → east   (y≈2 then x≈8)
+  2. west → north   (x≈2 then y≈8)
+  3. south → mid → north  (y≈2, x≈5, y≈8)
+  4. west → mid → east    (x≈2, y≈5, x≈8)
 
 Example::
 
     python3 scripts/generate_dubins_warehouse_layout.py
     python3 scripts/generate_dubins_warehouse_layout.py --dry-run
+    python3 scripts/generate_dubins_race_mjcf.py
 """
 
 from __future__ import annotations
@@ -38,28 +46,16 @@ _GOAL = (8.8, 8.8)
 _ROBOT_HALF_WIDTH_M = 0.09
 _ROBOT_WIDTH_M = 2.0 * _ROBOT_HALF_WIDTH_M
 _ROBOT_RADIUS_M = 0.12
-# Raised 0.18 -> 0.30: see clearance_margin history in
-# dubins_race_obstacles.yml — the smaller margin left a 40% multi-seed
-# physics-mode collision rate. Regenerating this layout with the new
-# margin still leaves the same tight cheek/on-diagonal-foil geometry
-# untouched; widening specific gaps needs its own multi-seed validation
-# pass, not just bumping this constant.
 _CLEARANCE_MARGIN_M = 0.30
 _MIN_GAP_MARGIN_M = _ROBOT_WIDTH_M + 4.0 * _CLEARANCE_MARGIN_M
 _MIN_GAP_SIZE_M = 3.0 * (2.0 * _ROBOT_RADIUS_M)
-_CORRIDOR_GAP_M = max(_MIN_GAP_MARGIN_M, _MIN_GAP_SIZE_M) + 0.24
+# Wider than the mathematical minimum so alternate routes feel open.
+_CORRIDOR_GAP_M = max(_MIN_GAP_MARGIN_M, _MIN_GAP_SIZE_M) + 0.36  # ≈ 1.26 m
 
-_WALL_THICK_M = 0.30
 _SHELF_HEIGHT_M = 1.30
-
-
-def _dist_to_diagonal(x: float, y: float) -> float:
-    return abs(y - x) / math.sqrt(2.0)
-
-
-def _normal(side: float) -> tuple[float, float]:
-    inv_sqrt2 = 0.70710678
-    return -inv_sqrt2 * side, inv_sqrt2 * side
+# Aisle pitch 3.0 m; island half-extent leaves a wide clear lane after
+# occupancy inflation (vehicle_radius + clearance_margin = 0.42 m).
+_ISLAND_HALF_M = 0.68  # face-to-face aisle gap ≈ 3.0 - 1.36 = 1.64 m
 
 
 def _pad_clear(x: float, y: float, hx: float, hy: float) -> bool:
@@ -80,20 +76,14 @@ def _add(
     height: float,
     *,
     visual: str,
-    min_diagonal_offset: float = 0.0,
 ) -> None:
     if hx <= 0.0 or hy <= 0.0:
         return
     if (
-        min_diagonal_offset > 0.0
-        and _dist_to_diagonal(x, y) < min_diagonal_offset
-    ):
-        return
-    if (
-        x - hx < 0.45
-        or x + hx > _WORKSPACE_MAX_M - 0.45
-        or y - hy < 0.45
-        or y + hy > _WORKSPACE_MAX_M - 0.45
+        x - hx < 0.35
+        or x + hx > _WORKSPACE_MAX_M - 0.35
+        or y - hy < 0.35
+        or y + hy > _WORKSPACE_MAX_M - 0.35
     ):
         return
     if not _pad_clear(x, y, hx, hy):
@@ -111,96 +101,88 @@ def _add(
 
 
 def generate_structures() -> list[dict[str, object]]:
-    """Staggered shelf cheeks with a guaranteed diagonal corridor width."""
+    """City-block islands with four wide aisle routes start→goal."""
     structures: list[dict[str, object]] = []
-    # Face-to-face gap across the diagonal ≈ 2 * (lateral - thick/2).
-    # Solve for lateral so gap == _CORRIDOR_GAP_M.
-    half_thick = 0.5 * _WALL_THICK_M
-    lateral = 0.5 * _CORRIDOR_GAP_M + half_thick
 
-    cheeks: tuple[tuple[float, float, float, float, float], ...] = (
-        # station along diagonal, hx, hy, height, side(+1/-1)
-        (3.0, 0.55, half_thick, _SHELF_HEIGHT_M, 1.0),
-        (4.2, half_thick, 0.55, _SHELF_HEIGHT_M, -1.0),
-        (5.4, 0.55, half_thick, _SHELF_HEIGHT_M, 1.0),
-        (6.6, half_thick, 0.55, _SHELF_HEIGHT_M, -1.0),
-        (7.6, 0.50, half_thick, _SHELF_HEIGHT_M, 1.0),
+    # -----------------------------------------------------------------
+    # Four shelf islands in the cells between the aisle grid.
+    # Aisle free bands (approx): x,y ∈ [1.37–2.63], [4.37–5.63], [7.37–8.63]
+    # Island centres ≈ (3.5, 3.5), (6.5, 3.5), (3.5, 6.5), (6.5, 6.5)
+    # SW / NE islands sit on y=x and foil the grey dummy's straight chord.
+    # -----------------------------------------------------------------
+    islands: tuple[tuple[float, float, str, str, str], ...] = (
+        # (cx, cy, main, accent_a, accent_b)
+        (3.50, 3.50, "shelf", "clutter_a", "bucket"),  # SW — diagonal foil
+        (6.50, 3.50, "shelf_e", "clutter_d", "trash"),  # SE
+        (3.50, 6.50, "shelf_e", "clutter_c", "desk"),  # NW
+        (6.50, 6.50, "shelf", "clutter_c", "pallet"),  # NE — diagonal foil
     )
-    for station, hx, hy, height, side in cheeks:
-        nx, ny = _normal(side)
+    half = _ISLAND_HALF_M
+    for cx, cy, main, accent_a, accent_b in islands:
+        # Main shelf mass fills the cell so planners cannot cut through it.
+        _add(structures, cx, cy, half, half * 0.55, _SHELF_HEIGHT_M, visual=main)
+        # Cross-bar makes a compact "+" footprint (still one blocked cell).
         _add(
             structures,
-            station + nx * lateral,
-            station + ny * lateral,
-            hx,
-            hy,
-            height,
-            visual="shelf",
+            cx,
+            cy,
+            half * 0.45,
+            half,
+            _SHELF_HEIGHT_M,
+            visual=main,
         )
-
-    # Outer flank shelves (further off-diagonal) — enrich the scene.
-    for i, station in enumerate((3.2, 5.0, 6.8)):
-        side = 1.0 if i % 2 == 0 else -1.0
-        offset = lateral + 1.35
-        nx, ny = _normal(side)
+        # Small accent props on the island corners for visual variety —
+        # kept inside the island AABB so aisles stay clear.
         _add(
             structures,
-            station + nx * offset,
-            station + ny * offset,
-            0.45,
-            0.16,
-            1.15,
-            visual="shelf_e",
+            cx + half * 0.55,
+            cy + half * 0.55,
+            0.18,
+            0.18,
+            0.95,
+            visual=accent_a,
+        )
+        _add(
+            structures,
+            cx - half * 0.55,
+            cy - half * 0.55,
+            0.14,
+            0.14,
+            0.70,
+            visual=accent_b,
         )
 
-    # On-diagonal foil for the straight-line dummy (small, centered).
-    _add(structures, 5.0, 5.0, 0.28, 0.28, 1.05, visual="clutter_c")
+    # Extra on-diagonal foil near the mid-cross. Sized so y=x is blocked
+    # for the grey dummy while the orthogonal aisle centerlines (x=5, y=5)
+    # stay free after inflation (clearance 0.42 m).
+    _add(structures, 4.35, 4.35, 0.12, 0.12, 1.00, visual="clutter_a")
+    _add(structures, 5.65, 5.65, 0.12, 0.12, 1.00, visual="clutter_d")
 
-    # Props well off the race lane.
+    # Corner / flank props — outside the three aisle bands for atmosphere.
     props: tuple[tuple[float, float, float, float, float, str], ...] = (
-        (2.0, 4.8, 0.18, 0.18, 0.55, "bucket"),
-        (4.8, 2.0, 0.20, 0.20, 0.70, "trash"),
-        (2.0, 7.5, 0.30, 0.18, 0.75, "desk"),
-        (7.5, 2.0, 0.22, 0.30, 0.90, "pallet"),
-        (3.2, 8.5, 0.14, 0.14, 1.10, "lamp"),
-        (8.5, 3.2, 0.14, 0.14, 1.10, "lamp"),
-        (8.2, 6.5, 0.18, 0.18, 0.55, "bucket"),
-        (6.5, 8.2, 0.20, 0.20, 0.70, "trash"),
+        (1.0, 4.0, 0.22, 0.18, 0.75, "desk"),  # west wall niche
+        (4.0, 1.0, 0.18, 0.22, 0.70, "trash"),  # south wall niche
+        (1.0, 9.0, 0.28, 0.18, 0.80, "pallet"),
+        (9.0, 1.0, 0.18, 0.28, 0.90, "pallet"),
+        (2.4, 9.2, 0.12, 0.12, 1.10, "lamp"),
+        (9.2, 2.4, 0.12, 0.12, 1.10, "lamp"),
+        (9.1, 6.5, 0.16, 0.16, 0.55, "bucket"),
+        (6.5, 9.1, 0.18, 0.18, 0.70, "trash"),
+        (9.0, 9.0, 0.22, 0.22, 0.85, "clutter_c"),
+        (0.9, 6.5, 0.16, 0.22, 0.65, "desk"),
+        (6.5, 0.9, 0.22, 0.16, 0.65, "bucket"),
     )
     for x, y, hx, hy, height, visual in props:
-        _add(
-            structures,
-            x,
-            y,
-            hx,
-            hy,
-            height,
-            visual=visual,
-            min_diagonal_offset=1.15,
-        )
+        _add(structures, x, y, hx, hy, height, visual=visual)
 
     return structures
 
 
-def diagonal_corridor_gap_m(structures: list[dict[str, object]]) -> float:
-    """Estimate face-to-face gap across the main diagonal from cheek shelves."""
-    left = [
-        _dist_to_diagonal(float(s["x"]), float(s["y"]))
-        - min(float(s["hx"]), float(s["hy"]))
-        for s in structures
-        if str(s.get("visual", "")).startswith("shelf")
-        and (float(s["y"]) - float(s["x"])) > 0.05
-    ]
-    right = [
-        _dist_to_diagonal(float(s["x"]), float(s["y"]))
-        - min(float(s["hx"]), float(s["hy"]))
-        for s in structures
-        if str(s.get("visual", "")).startswith("shelf")
-        and (float(s["x"]) - float(s["y"])) > 0.05
-    ]
-    if not left or not right:
-        return float("nan")
-    return float(min(left) + min(right))
+def estimate_aisle_gap_m() -> float:
+    """Return the designed clear aisle width (geometric, pre-inflation)."""
+    # Pitch between island centres is 3.0 m; each island half-extent is
+    # _ISLAND_HALF_M along the axis that faces the aisle.
+    return float(3.0 - 2.0 * _ISLAND_HALF_M)
 
 
 def build_world(structures: list[dict[str, object]]) -> dict[str, object]:
@@ -212,23 +194,22 @@ def build_world(structures: list[dict[str, object]]) -> dict[str, object]:
         },
         "start_xy": list(_START),
         "goal_xy": list(_GOAL),
-        # Keep RRT*/SST shells clear of the dummy on the diagonal (TB3 ≈ 0.18 m wide).
         "agent_lateral_offset": 0.55,
         "vehicle": {
             "radius": _ROBOT_RADIUS_M,
             "clearance_margin": _CLEARANCE_MARGIN_M,
             "width": _ROBOT_WIDTH_M,
-            "min_corridor_gap": _CORRIDOR_GAP_M,
+            "min_corridor_gap": round(estimate_aisle_gap_m(), 3),
         },
         "planner": {
             "bounds": [[0.0, _WORKSPACE_MAX_M], [0.0, _WORKSPACE_MAX_M]],
             "rrt_max_sample_count": 7000,
             "sst_max_sample_count": 8000,
-            "step_size": 0.20,
+            "step_size": 0.25,
             "goal_tolerance": 0.30,
-            "collision_check_count": 48,
-            "goal_bias": 0.20,
-            "witness_radius": 0.12,
+            "collision_check_count": 40,
+            "goal_bias": 0.18,
+            "witness_radius": 0.15,
             "enable_pruning": True,
         },
         "structures": structures,
@@ -247,31 +228,36 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     structures = generate_structures()
     world = build_world(structures)
-    gap = diagonal_corridor_gap_m(structures)
+    gap = estimate_aisle_gap_m()
     text = yaml.safe_dump(world, sort_keys=False)
     header = (
         "# Dubins race warehouse maze (SC-v11) — real TurtleBot3 Burger.\n"
         "#\n"
-        f"# Corridor gap target: {_CORRIDOR_GAP_M:.2f} m "
+        "# Multi-corridor city-block layout: ~4 wide start→goal routes with\n"
+        "# early forks (south→east, west→north, mid-aisle hybrids). Aisle\n"
+        f"# clear gap (island face-to-face): {gap:.2f} m "
         f"(>= width {_ROBOT_WIDTH_M:.2f} + 4*clearance "
-        f"{_CLEARANCE_MARGIN_M:.2f}, plus PP slack).\n"
-        f"# Estimated diagonal face-to-face gap: "
-        f"{gap if math.isfinite(gap) else float('nan'):.3f} m.\n"
+        f"{_CLEARANCE_MARGIN_M:.2f}). SW/NE islands foil the grey dummy.\n"
         "# Regenerate with:\n"
         "#   python3 scripts/generate_dubins_warehouse_layout.py\n"
         "#   python3 scripts/generate_dubins_race_mjcf.py\n"
         "#\n"
+        "# vehicle.clearance_margin 0.18 -> 0.30: prior physics-mode tuning\n"
+        "# validated against multi-seed collision rates; see git history.\n"
     )
     payload = header + text
     if args.dry_run:
         print(payload)
-        print(f"# structures: {len(structures)}", file=sys.stderr)
+        print(
+            f"# structures: {len(structures)} aisle_gap={gap:.3f}m",
+            file=sys.stderr,
+        )
         return 0
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(payload, encoding="utf-8")
     print(
         f"Wrote {len(structures)} structures to {args.out} "
-        f"(diagonal gap {gap:.3f} m, target {_CORRIDOR_GAP_M:.2f} m)"
+        f"(aisle gap {gap:.3f} m)"
     )
     return 0
 

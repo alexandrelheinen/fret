@@ -73,23 +73,34 @@
     <mesh name="lds" file="../../../third_party/robotis_mujoco_menagerie/robotis_tb3/assets/lds.stl" scale="0.001 0.001 0.001"/>
 
     <!-- Warehouse structure meshes (auto-generated) -->
-    <mesh name="str_000_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.280814 0.341084 0.497530"/>
-    <mesh name="str_001_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.076586 1.250642 0.497530"/>
-    <mesh name="str_002_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.280814 0.341084 0.497530"/>
-    <mesh name="str_003_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.076586 1.250642 0.497530"/>
-    <mesh name="str_004_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.255285 0.341084 0.497530"/>
-    <mesh name="str_005_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.229757 0.363823 0.440123"/>
-    <mesh name="str_006_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.229757 0.363823 0.440123"/>
-    <mesh name="str_007_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.229757 0.363823 0.440123"/>
-    <mesh name="str_008_mesh" file="assets/aws_warehouse/meshes/clutter_c.obj" scale="0.258415 0.354063 0.583238"/>
-    <mesh name="str_009_mesh" file="assets/aws_warehouse/meshes/bucket.obj" scale="0.382547 0.295637 0.391696"/>
-    <mesh name="str_010_mesh" file="assets/aws_warehouse/meshes/trash.obj" scale="0.276718 0.448648 0.551898"/>
-    <mesh name="str_011_mesh" file="assets/aws_warehouse/meshes/desk.obj" scale="0.680324 0.231463 0.522080"/>
-    <mesh name="str_012_mesh" file="assets/aws_warehouse/meshes/pallet.obj" scale="0.381971 1.128549 0.933380"/>
-    <mesh name="str_013_mesh" file="assets/aws_warehouse/meshes/lamp.obj" scale="0.273638 0.277858 0.726327"/>
-    <mesh name="str_014_mesh" file="assets/aws_warehouse/meshes/lamp.obj" scale="0.273638 0.277858 0.726327"/>
-    <mesh name="str_015_mesh" file="assets/aws_warehouse/meshes/bucket.obj" scale="0.382547 0.295637 0.391696"/>
-    <mesh name="str_016_mesh" file="assets/aws_warehouse/meshes/trash.obj" scale="0.276718 0.448648 0.551898"/>
+    <mesh name="str_000_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.347204 0.850000 0.497512"/>
+    <mesh name="str_001_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.156242 1.545455 0.497512"/>
+    <mesh name="str_002_mesh" file="assets/aws_warehouse/meshes/clutter_a.obj" scale="0.132499 0.143426 0.709485"/>
+    <mesh name="str_003_mesh" file="assets/aws_warehouse/meshes/bucket.obj" scale="0.297556 0.229885 0.498575"/>
+    <mesh name="str_004_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.347204 0.850000 0.497512"/>
+    <mesh name="str_005_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.156242 1.545455 0.497512"/>
+    <mesh name="str_006_mesh" file="assets/aws_warehouse/meshes/clutter_d.obj" scale="0.196614 0.348162 0.534308"/>
+    <mesh name="str_007_mesh" file="assets/aws_warehouse/meshes/trash.obj" scale="0.193638 0.313901 0.552050"/>
+    <mesh name="str_008_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.347204 0.850000 0.497512"/>
+    <mesh name="str_009_mesh" file="assets/aws_warehouse/meshes/shelf_e.obj" scale="0.156242 1.545455 0.497512"/>
+    <mesh name="str_010_mesh" file="assets/aws_warehouse/meshes/clutter_c.obj" scale="0.166128 0.227560 0.527778"/>
+    <mesh name="str_011_mesh" file="assets/aws_warehouse/meshes/desk.obj" scale="0.317460 0.180064 0.487126"/>
+    <mesh name="str_012_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.347204 0.850000 0.497512"/>
+    <mesh name="str_013_mesh" file="assets/aws_warehouse/meshes/shelf.obj" scale="0.156242 1.545455 0.497512"/>
+    <mesh name="str_014_mesh" file="assets/aws_warehouse/meshes/clutter_c.obj" scale="0.166128 0.227560 0.527778"/>
+    <mesh name="str_015_mesh" file="assets/aws_warehouse/meshes/pallet.obj" scale="0.243056 0.526316 0.726141"/>
+    <mesh name="str_016_mesh" file="assets/aws_warehouse/meshes/clutter_a.obj" scale="0.088333 0.095618 0.746826"/>
+    <mesh name="str_017_mesh" file="assets/aws_warehouse/meshes/clutter_d.obj" scale="0.131076 0.232108 0.562430"/>
+    <mesh name="str_018_mesh" file="assets/aws_warehouse/meshes/desk.obj" scale="0.498866 0.231511 0.521921"/>
+    <mesh name="str_019_mesh" file="assets/aws_warehouse/meshes/trash.obj" scale="0.248963 0.493274 0.552050"/>
+    <mesh name="str_020_mesh" file="assets/aws_warehouse/meshes/pallet.obj" scale="0.486111 0.676692 0.829876"/>
+    <mesh name="str_021_mesh" file="assets/aws_warehouse/meshes/pallet.obj" scale="0.312500 1.052632 0.933610"/>
+    <mesh name="str_022_mesh" file="assets/aws_warehouse/meshes/lamp.obj" scale="0.234604 0.238095 0.726552"/>
+    <mesh name="str_023_mesh" file="assets/aws_warehouse/meshes/lamp.obj" scale="0.234604 0.238095 0.726552"/>
+    <mesh name="str_024_mesh" file="assets/aws_warehouse/meshes/bucket.obj" scale="0.340064 0.262726 0.391738"/>
+    <mesh name="str_025_mesh" file="assets/aws_warehouse/meshes/trash.obj" scale="0.248963 0.403587 0.552050"/>
+    <mesh name="str_026_mesh" file="assets/aws_warehouse/meshes/desk.obj" scale="0.362812 0.282958 0.452331"/>
+    <mesh name="str_027_mesh" file="assets/aws_warehouse/meshes/bucket.obj" scale="0.467588 0.262726 0.462963"/>
     <!-- End warehouse structure meshes -->
   </asset>
 
@@ -113,40 +124,62 @@
     <geom name="shelf_c" type="mesh" mesh="shelf" pos="7.5 9.5 0" euler="0 0 0" material="shelf" contype="0" conaffinity="0"/>
 
     <!-- Warehouse structure block (auto-generated) -->
-    <geom name="str_000_col" class="structure_col" pos="2.491 3.509 0.65" size="0.55 0.15 0.65"/>
-    <geom name="str_000_vis" type="mesh" mesh="str_000_mesh" pos="1.941 3.359 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_001_col" class="structure_col" pos="4.709 3.691 0.65" size="0.15 0.55 0.65"/>
-    <geom name="str_001_vis" type="mesh" mesh="str_001_mesh" pos="4.559 3.141 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_002_col" class="structure_col" pos="4.891 5.909 0.65" size="0.55 0.15 0.65"/>
-    <geom name="str_002_vis" type="mesh" mesh="str_002_mesh" pos="4.341 5.759 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_003_col" class="structure_col" pos="7.109 6.091 0.65" size="0.15 0.55 0.65"/>
-    <geom name="str_003_vis" type="mesh" mesh="str_003_mesh" pos="6.959 5.541 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_004_col" class="structure_col" pos="7.091 8.109 0.65" size="0.5 0.15 0.65"/>
-    <geom name="str_004_vis" type="mesh" mesh="str_004_mesh" pos="6.591 7.959 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_005_col" class="structure_col" pos="1.736 4.664 0.57" size="0.45 0.16 0.57"/>
-    <geom name="str_005_vis" type="mesh" mesh="str_005_mesh" pos="1.286 4.504 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_006_col" class="structure_col" pos="6.464 3.536 0.57" size="0.45 0.16 0.57"/>
-    <geom name="str_006_vis" type="mesh" mesh="str_006_mesh" pos="6.014 3.376 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_007_col" class="structure_col" pos="5.336 8.264 0.57" size="0.45 0.16 0.57"/>
-    <geom name="str_007_vis" type="mesh" mesh="str_007_mesh" pos="4.886 8.104 0" material="shelf" contype="0" conaffinity="0"/>
-    <geom name="str_008_col" class="structure_col" pos="5.0 5.0 0.53" size="0.28 0.28 0.53"/>
-    <geom name="str_008_vis" type="mesh" mesh="str_008_mesh" pos="4.720 4.720 0" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_009_col" class="structure_col" pos="2.0 4.8 0.28" size="0.18 0.18 0.28"/>
-    <geom name="str_009_vis" type="mesh" mesh="str_009_mesh" pos="1.820 4.620 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_010_col" class="structure_col" pos="4.8 2.0 0.35" size="0.2 0.2 0.35"/>
-    <geom name="str_010_vis" type="mesh" mesh="str_010_mesh" pos="4.600 1.800 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_011_col" class="structure_col" pos="2.0 7.5 0.38" size="0.3 0.18 0.38"/>
-    <geom name="str_011_vis" type="mesh" mesh="str_011_mesh" pos="1.700 7.320 0" material="clutter_crate" contype="0" conaffinity="0"/>
-    <geom name="str_012_col" class="structure_col" pos="7.5 2.0 0.45" size="0.22 0.3 0.45"/>
-    <geom name="str_012_vis" type="mesh" mesh="str_012_mesh" pos="7.280 1.700 0" material="clutter_pallet" contype="0" conaffinity="0"/>
-    <geom name="str_013_col" class="structure_col" pos="3.2 8.5 0.55" size="0.14 0.14 0.55"/>
-    <geom name="str_013_vis" type="mesh" mesh="str_013_mesh" pos="3.060 8.360 0" material="tb3_hardware" contype="0" conaffinity="0"/>
-    <geom name="str_014_col" class="structure_col" pos="8.5 3.2 0.55" size="0.14 0.14 0.55"/>
-    <geom name="str_014_vis" type="mesh" mesh="str_014_mesh" pos="8.360 3.060 0" material="tb3_hardware" contype="0" conaffinity="0"/>
-    <geom name="str_015_col" class="structure_col" pos="8.2 6.5 0.28" size="0.18 0.18 0.28"/>
-    <geom name="str_015_vis" type="mesh" mesh="str_015_mesh" pos="8.020 6.320 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
-    <geom name="str_016_col" class="structure_col" pos="6.5 8.2 0.35" size="0.2 0.2 0.35"/>
-    <geom name="str_016_vis" type="mesh" mesh="str_016_mesh" pos="6.300 8.000 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_000_col" class="structure_col" pos="3.5 3.5 0.65" size="0.68 0.374 0.65"/>
+    <geom name="str_000_vis" type="mesh" mesh="str_000_mesh" pos="2.820 3.126 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_001_col" class="structure_col" pos="3.5 3.5 0.65" size="0.306 0.68 0.65"/>
+    <geom name="str_001_vis" type="mesh" mesh="str_001_mesh" pos="3.194 2.820 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_002_col" class="structure_col" pos="3.874 3.874 0.47" size="0.18 0.18 0.47"/>
+    <geom name="str_002_vis" type="mesh" mesh="str_002_mesh" pos="3.694 3.694 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_003_col" class="structure_col" pos="3.126 3.126 0.35" size="0.14 0.14 0.35"/>
+    <geom name="str_003_vis" type="mesh" mesh="str_003_mesh" pos="2.986 2.986 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_004_col" class="structure_col" pos="6.5 3.5 0.65" size="0.68 0.374 0.65"/>
+    <geom name="str_004_vis" type="mesh" mesh="str_004_mesh" pos="5.820 3.126 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_005_col" class="structure_col" pos="6.5 3.5 0.65" size="0.306 0.68 0.65"/>
+    <geom name="str_005_vis" type="mesh" mesh="str_005_mesh" pos="6.194 2.820 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_006_col" class="structure_col" pos="6.874 3.874 0.47" size="0.18 0.18 0.47"/>
+    <geom name="str_006_vis" type="mesh" mesh="str_006_mesh" pos="6.694 3.694 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="str_007_col" class="structure_col" pos="6.126 3.126 0.35" size="0.14 0.14 0.35"/>
+    <geom name="str_007_vis" type="mesh" mesh="str_007_mesh" pos="5.986 2.986 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_008_col" class="structure_col" pos="3.5 6.5 0.65" size="0.68 0.374 0.65"/>
+    <geom name="str_008_vis" type="mesh" mesh="str_008_mesh" pos="2.820 6.126 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_009_col" class="structure_col" pos="3.5 6.5 0.65" size="0.306 0.68 0.65"/>
+    <geom name="str_009_vis" type="mesh" mesh="str_009_mesh" pos="3.194 5.820 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_010_col" class="structure_col" pos="3.874 6.874 0.47" size="0.18 0.18 0.47"/>
+    <geom name="str_010_vis" type="mesh" mesh="str_010_mesh" pos="3.694 6.694 0" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_011_col" class="structure_col" pos="3.126 6.126 0.35" size="0.14 0.14 0.35"/>
+    <geom name="str_011_vis" type="mesh" mesh="str_011_mesh" pos="2.986 5.986 0" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_012_col" class="structure_col" pos="6.5 6.5 0.65" size="0.68 0.374 0.65"/>
+    <geom name="str_012_vis" type="mesh" mesh="str_012_mesh" pos="5.820 6.126 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_013_col" class="structure_col" pos="6.5 6.5 0.65" size="0.306 0.68 0.65"/>
+    <geom name="str_013_vis" type="mesh" mesh="str_013_mesh" pos="6.194 5.820 0" material="shelf" contype="0" conaffinity="0"/>
+    <geom name="str_014_col" class="structure_col" pos="6.874 6.874 0.47" size="0.18 0.18 0.47"/>
+    <geom name="str_014_vis" type="mesh" mesh="str_014_mesh" pos="6.694 6.694 0" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_015_col" class="structure_col" pos="6.126 6.126 0.35" size="0.14 0.14 0.35"/>
+    <geom name="str_015_vis" type="mesh" mesh="str_015_mesh" pos="5.986 5.986 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="str_016_col" class="structure_col" pos="4.35 4.35 0.50" size="0.12 0.12 0.50"/>
+    <geom name="str_016_vis" type="mesh" mesh="str_016_mesh" pos="4.230 4.230 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_017_col" class="structure_col" pos="5.65 5.65 0.50" size="0.12 0.12 0.50"/>
+    <geom name="str_017_vis" type="mesh" mesh="str_017_mesh" pos="5.530 5.530 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="str_018_col" class="structure_col" pos="1.0 4.0 0.38" size="0.22 0.18 0.38"/>
+    <geom name="str_018_vis" type="mesh" mesh="str_018_mesh" pos="0.780 3.820 0" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_019_col" class="structure_col" pos="4.0 1.0 0.35" size="0.18 0.22 0.35"/>
+    <geom name="str_019_vis" type="mesh" mesh="str_019_mesh" pos="3.820 0.780 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_020_col" class="structure_col" pos="1.0 9.0 0.40" size="0.28 0.18 0.40"/>
+    <geom name="str_020_vis" type="mesh" mesh="str_020_mesh" pos="0.720 8.820 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="str_021_col" class="structure_col" pos="9.0 1.0 0.45" size="0.18 0.28 0.45"/>
+    <geom name="str_021_vis" type="mesh" mesh="str_021_mesh" pos="8.820 0.720 0" material="clutter_pallet" contype="0" conaffinity="0"/>
+    <geom name="str_022_col" class="structure_col" pos="2.4 9.2 0.55" size="0.12 0.12 0.55"/>
+    <geom name="str_022_vis" type="mesh" mesh="str_022_mesh" pos="2.280 9.080 0" material="tb3_hardware" contype="0" conaffinity="0"/>
+    <geom name="str_023_col" class="structure_col" pos="9.2 2.4 0.55" size="0.12 0.12 0.55"/>
+    <geom name="str_023_vis" type="mesh" mesh="str_023_mesh" pos="9.080 2.280 0" material="tb3_hardware" contype="0" conaffinity="0"/>
+    <geom name="str_024_col" class="structure_col" pos="9.1 6.5 0.28" size="0.16 0.16 0.28"/>
+    <geom name="str_024_vis" type="mesh" mesh="str_024_mesh" pos="8.940 6.340 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_025_col" class="structure_col" pos="6.5 9.1 0.35" size="0.18 0.18 0.35"/>
+    <geom name="str_025_vis" type="mesh" mesh="str_025_mesh" pos="6.320 8.920 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
+    <geom name="str_026_col" class="structure_col" pos="0.9 6.5 0.33" size="0.16 0.22 0.33"/>
+    <geom name="str_026_vis" type="mesh" mesh="str_026_mesh" pos="0.740 6.280 0" material="clutter_crate" contype="0" conaffinity="0"/>
+    <geom name="str_027_col" class="structure_col" pos="6.5 0.9 0.33" size="0.22 0.16 0.33"/>
+    <geom name="str_027_vis" type="mesh" mesh="str_027_mesh" pos="6.280 0.740 0" material="clutter_cardboard" contype="0" conaffinity="0"/>
     <!-- End warehouse structure block -->
 
 

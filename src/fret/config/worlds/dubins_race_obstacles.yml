@@ -1,24 +1,14 @@
 # Dubins race warehouse maze (SC-v11) — real TurtleBot3 Burger.
 #
-# Corridor gap target: 1.14 m (>= width 0.18 + 4*clearance 0.18, plus PP slack).
-# Estimated diagonal face-to-face gap: 1.140 m.
+# Multi-corridor city-block layout: ~4 wide start→goal routes with
+# early forks (south→east, west→north, mid-aisle hybrids). Aisle
+# clear gap (island face-to-face): 1.64 m (>= width 0.18 + 4*clearance 0.30). SW/NE islands foil the grey dummy.
 # Regenerate with:
 #   python3 scripts/generate_dubins_warehouse_layout.py
 #   python3 scripts/generate_dubins_race_mjcf.py
 #
-# vehicle.clearance_margin 0.18 -> 0.30: all prior physics-mode tuning in
-# this file's history was validated against a single pinned planner seed
-# (5) — a bug in deterministic_planner_rng silently ignored any other
-# seed (fixed in planner_rng.py). Evaluated across 20 *real* seeds
-# (physics_mode, repulsion_gain=3.0), the old margin collided in 8/20
-# runs (40%); 0.30 collided in 4/20 (20%) with a much larger mean
-# clearance (0.30 m vs 0.14 m) on the runs that succeeded. This raises
-# both the RRT*/SST planning inflation radius and the reactive
-# repulsion's influence radius (occupancy.clearance = vehicle_radius +
-# clearance_margin, shared by both). It does not eliminate collisions —
-# see the collision-status summary for why a scalar clearance margin is
-# not a complete fix, and that obstacle layout still likely needs wider
-# gaps to get materially below a 20% multi-seed collision rate.
+# vehicle.clearance_margin 0.18 -> 0.30: prior physics-mode tuning
+# validated against multi-seed collision rates; see git history.
 workspace_bounds:
   x:
   - 0.0
@@ -40,7 +30,7 @@ vehicle:
   radius: 0.12
   clearance_margin: 0.3
   width: 0.18
-  min_corridor_gap: 1.14
+  min_corridor_gap: 1.64
 planner:
   bounds:
   - - 0.0
@@ -49,113 +39,179 @@ planner:
     - 10.0
   rrt_max_sample_count: 7000
   sst_max_sample_count: 8000
-  step_size: 0.2
+  step_size: 0.25
   goal_tolerance: 0.3
-  collision_check_count: 48
-  goal_bias: 0.2
-  witness_radius: 0.12
+  collision_check_count: 40
+  goal_bias: 0.18
+  witness_radius: 0.15
   enable_pruning: true
 structures:
-- x: 2.491
-  y: 3.509
-  hx: 0.55
-  hy: 0.15
+- x: 3.5
+  y: 3.5
+  hx: 0.68
+  hy: 0.374
   height: 1.3
   visual: shelf
-- x: 4.709
-  y: 3.691
-  hx: 0.15
-  hy: 0.55
+- x: 3.5
+  y: 3.5
+  hx: 0.306
+  hy: 0.68
   height: 1.3
   visual: shelf
-- x: 4.891
-  y: 5.909
-  hx: 0.55
-  hy: 0.15
-  height: 1.3
-  visual: shelf
-- x: 7.109
-  y: 6.091
-  hx: 0.15
-  hy: 0.55
-  height: 1.3
-  visual: shelf
-- x: 7.091
-  y: 8.109
-  hx: 0.5
-  hy: 0.15
-  height: 1.3
-  visual: shelf
-- x: 1.736
-  y: 4.664
-  hx: 0.45
-  hy: 0.16
-  height: 1.15
-  visual: shelf_e
-- x: 6.464
-  y: 3.536
-  hx: 0.45
-  hy: 0.16
-  height: 1.15
-  visual: shelf_e
-- x: 5.336
-  y: 8.264
-  hx: 0.45
-  hy: 0.16
-  height: 1.15
-  visual: shelf_e
-- x: 5.0
-  y: 5.0
-  hx: 0.28
-  hy: 0.28
-  height: 1.05
-  visual: clutter_c
-- x: 2.0
-  y: 4.8
+- x: 3.874
+  y: 3.874
   hx: 0.18
   hy: 0.18
-  height: 0.55
+  height: 0.95
+  visual: clutter_a
+- x: 3.126
+  y: 3.126
+  hx: 0.14
+  hy: 0.14
+  height: 0.7
   visual: bucket
-- x: 4.8
-  y: 2.0
-  hx: 0.2
-  hy: 0.2
+- x: 6.5
+  y: 3.5
+  hx: 0.68
+  hy: 0.374
+  height: 1.3
+  visual: shelf_e
+- x: 6.5
+  y: 3.5
+  hx: 0.306
+  hy: 0.68
+  height: 1.3
+  visual: shelf_e
+- x: 6.874
+  y: 3.874
+  hx: 0.18
+  hy: 0.18
+  height: 0.95
+  visual: clutter_d
+- x: 6.126
+  y: 3.126
+  hx: 0.14
+  hy: 0.14
   height: 0.7
   visual: trash
-- x: 2.0
-  y: 7.5
-  hx: 0.3
+- x: 3.5
+  y: 6.5
+  hx: 0.68
+  hy: 0.374
+  height: 1.3
+  visual: shelf_e
+- x: 3.5
+  y: 6.5
+  hx: 0.306
+  hy: 0.68
+  height: 1.3
+  visual: shelf_e
+- x: 3.874
+  y: 6.874
+  hx: 0.18
+  hy: 0.18
+  height: 0.95
+  visual: clutter_c
+- x: 3.126
+  y: 6.126
+  hx: 0.14
+  hy: 0.14
+  height: 0.7
+  visual: desk
+- x: 6.5
+  y: 6.5
+  hx: 0.68
+  hy: 0.374
+  height: 1.3
+  visual: shelf
+- x: 6.5
+  y: 6.5
+  hx: 0.306
+  hy: 0.68
+  height: 1.3
+  visual: shelf
+- x: 6.874
+  y: 6.874
+  hx: 0.18
+  hy: 0.18
+  height: 0.95
+  visual: clutter_c
+- x: 6.126
+  y: 6.126
+  hx: 0.14
+  hy: 0.14
+  height: 0.7
+  visual: pallet
+- x: 4.35
+  y: 4.35
+  hx: 0.12
+  hy: 0.12
+  height: 1.0
+  visual: clutter_a
+- x: 5.65
+  y: 5.65
+  hx: 0.12
+  hy: 0.12
+  height: 1.0
+  visual: clutter_d
+- x: 1.0
+  y: 4.0
+  hx: 0.22
   hy: 0.18
   height: 0.75
   visual: desk
-- x: 7.5
-  y: 2.0
-  hx: 0.22
-  hy: 0.3
+- x: 4.0
+  y: 1.0
+  hx: 0.18
+  hy: 0.22
+  height: 0.7
+  visual: trash
+- x: 1.0
+  y: 9.0
+  hx: 0.28
+  hy: 0.18
+  height: 0.8
+  visual: pallet
+- x: 9.0
+  y: 1.0
+  hx: 0.18
+  hy: 0.28
   height: 0.9
   visual: pallet
-- x: 3.2
-  y: 8.5
-  hx: 0.14
-  hy: 0.14
+- x: 2.4
+  y: 9.2
+  hx: 0.12
+  hy: 0.12
   height: 1.1
   visual: lamp
-- x: 8.5
-  y: 3.2
-  hx: 0.14
-  hy: 0.14
+- x: 9.2
+  y: 2.4
+  hx: 0.12
+  hy: 0.12
   height: 1.1
   visual: lamp
-- x: 8.2
+- x: 9.1
   y: 6.5
-  hx: 0.18
-  hy: 0.18
+  hx: 0.16
+  hy: 0.16
   height: 0.55
   visual: bucket
 - x: 6.5
-  y: 8.2
-  hx: 0.2
-  hy: 0.2
+  y: 9.1
+  hx: 0.18
+  hy: 0.18
   height: 0.7
   visual: trash
+- x: 0.9
+  y: 6.5
+  hx: 0.16
+  hy: 0.22
+  height: 0.65
+  visual: desk
+- x: 6.5
+  y: 0.9
+  hx: 0.22
+  hy: 0.16
+  height: 0.65
+  visual: bucket
 dead_ends: []

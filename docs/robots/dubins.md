@@ -48,9 +48,12 @@ FRET adapter: `fret.control.kinematics_dubins.DubinsKinematics`
 
 ## Environment
 
-Warehouse floor (AWS RoboMaker ground texture) with **rectangular structures** and
-**U-shaped dead-end alcoves**. Multiple corridors remain open from corner A to corner B,
-so RRT* and SST can choose different routes.
+Warehouse floor (AWS RoboMaker ground texture) with a **city-block shelf layout**:
+four solid islands between wide aisles (≈1.6 m face-to-face) leave about four
+start→goal routes with early forks (south→east, west→north, and two mid-aisle
+hybrids). SW/NE islands foil the grey dummy's straight diagonal. Regenerate with
+`scripts/generate_dubins_warehouse_layout.py` then
+`scripts/generate_dubins_race_mjcf.py`.
 
 ---
 
