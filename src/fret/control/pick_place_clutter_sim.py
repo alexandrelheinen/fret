@@ -1,10 +1,12 @@
-"""SC-v13c pick-and-place with mid-cell wall: planner + MPC + physics.
+"""SC-v13c/d pick-and-place with desk wall / Γ maze: planner + MPC + physics.
 
 Grasp/release phases reuse the SC-v13b FSM and MuJoCo adhesion grasp. The
 ``MOVE_PLACE`` phase plans ``pick_hover → place_hover`` with ARCO RRT* against
 an inflated wall occupancy cloud, densifies via ``TrajectoryGenerator``, then
 tracks the path with ARCO :class:`~arco.control.mpc.JointSpaceMPC` (carrot
 NMPC — replaces proportional ``ControllerNode`` joint-space tracking).
+
+SC-v13c uses a single mid-cell slab; SC-v13d uses a Γ (inverted-L) stem+cap.
 """
 
 from __future__ import annotations
@@ -47,7 +49,7 @@ _CTRL_PERIOD_S = 0.02
 
 @dataclass(frozen=True)
 class ClutterPickPlaceResult:
-    """Outcome of one SC-v13c cycle."""
+    """Outcome of one SC-v13c/d clutter / maze cycle."""
 
     state: PickPlaceState
     box_pos: npt.NDArray[np.float64]
@@ -56,32 +58,85 @@ class ClutterPickPlaceResult:
     samples: list[PickPlaceSample]
 
 
+def _scenario_id(params: dict[str, Any]) -> str:
+    """Return the MJCF / planning scenario stem from YAML params."""
+    return str(params.get("scenario_id", "omx_desk_clutter"))
+
+
+def walls_from_scenario(
+    scenario_path: str | Path | None = None,
+    *,
+    inflate: bool = False,
+) -> list[BoxObstacle]:
+    """Build wall boxes from scenario YAML (single slab or ``walls`` list)."""
+    p = load_scenario_parameters(scenario_path or _SCENARIO)
+    pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
+    raw = p.get("walls")
+    if isinstance(raw, list) and raw:
+        boxes: list[BoxObstacle] = []
+        for entry in raw:
+            if not isinstance(entry, dict):
+                raise ValueError("walls entries must be mappings")
+            boxes.append(
+                BoxObstacle(
+                    x_min=float(entry["x_min"]) - pad,
+                    y_min=-float(entry["y_half"]) - pad,
+                    z_min=float(entry.get("z_min", 0.0)),
+                    x_max=float(entry["x_max"]) + pad,
+                    y_max=float(entry["y_half"]) + pad,
+                    z_max=float(entry["z_max"]),
+                )
+            )
+        return boxes
+    return [
+        BoxObstacle(
+            x_min=float(p["wall_x_min"]) - pad,
+            y_min=-float(p["wall_y_half"]) - pad,
+            z_min=0.0,
+            x_max=float(p["wall_x_max"]) + pad,
+            y_max=float(p["wall_y_half"]) + pad,
+            z_max=float(p["wall_z_max"]),
+        )
+    ]
+
+
 def wall_from_scenario(
     scenario_path: str | Path | None = None,
     *,
     inflate: bool = False,
 ) -> BoxObstacle:
-    """Build the mid-cell wall box from scenario YAML."""
-    p = load_scenario_parameters(scenario_path or _SCENARIO)
-    pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
-    return BoxObstacle(
-        x_min=float(p["wall_x_min"]) - pad,
-        y_min=-float(p["wall_y_half"]) - pad,
-        z_min=0.0,
-        x_max=float(p["wall_x_max"]) + pad,
-        y_max=float(p["wall_y_half"]) + pad,
-        z_max=float(p["wall_z_max"]),
-    )
+    """Build the primary wall box from scenario YAML (first slab)."""
+    return walls_from_scenario(scenario_path, inflate=inflate)[0]
+
+
+def _sample_walls(
+    walls: list[BoxObstacle],
+    density: float,
+    rng: np.random.Generator,
+) -> npt.NDArray[np.float64]:
+    """Stack surface samples from every wall into one occupancy cloud."""
+    clouds = [w.sample_surface(density, rng=rng) for w in walls]
+    return np.vstack(clouds).astype(np.float64)
 
 
 def _path_metrics(
     kin: Kinematics, path: list[npt.NDArray[np.float64]]
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
+    """Return ``(min_xy_radius, min_ee_z, max_ee_z)`` along ``path``."""
     ee = np.array(
         [kin.forward_kinematics(q)[:3, 3] for q in path], dtype=np.float64
     )
     radii = np.linalg.norm(ee[:, :2], axis=1)
-    return float(np.min(radii)), float(np.min(ee[:, 2]))
+    return (
+        float(np.min(radii)),
+        float(np.min(ee[:, 2])),
+        float(np.max(ee[:, 2])),
+    )
+
+
+def _is_wall_geom(name: str | None) -> bool:
+    """True for transfer-wall geoms (``transfer_wall`` or ``transfer_wall_*``)."""
+    return bool(name) and name.startswith("transfer_wall")
 
 
 def _dry_run_transfer(
@@ -90,6 +145,7 @@ def _dry_run_transfer(
     goal: npt.NDArray[np.float64],
     *,
     joint_tol_rad: float,
+    scenario_id: str,
 ) -> bool:
     """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
     try:
@@ -98,7 +154,7 @@ def _dry_run_transfer(
         return True
 
     model = mj.MjModel.from_xml_path(
-        str(mjcf_path("open_manipulator_x", "omx_desk_clutter"))
+        str(mjcf_path("open_manipulator_x", scenario_id))
     )
     data = mj.MjData(model)
     names = ("Joint1", "Joint2", "Joint3", "Joint4")
@@ -152,7 +208,7 @@ def _dry_run_transfer(
             c = data.contact[ci]
             g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1)
             g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
-            if "transfer_wall" in {g1, g2}:
+            if _is_wall_geom(g1) or _is_wall_geom(g2):
                 hits += 1
         if tracker.complete:
             settle_after_complete += 1
@@ -195,20 +251,23 @@ def plan_transfer_path(
     validate_mujoco: bool = True,
     seed_offset: int = 0,
 ) -> tuple[list[npt.NDArray[np.float64]], bool]:
-    """Plan a dense retract path around the wall; report if the chord collides.
+    """Plan a dense retract path around the wall(s); report if the chord collides.
 
     Tries several RNG seeds, keeps only paths that retract and stay high
     enough to carry the box, and optionally dry-runs tracking in MuJoCo.
     """
-    params = load_scenario_parameters(scenario_path or _SCENARIO)
-    physical = wall_from_scenario(scenario_path, inflate=False)
-    inflated = wall_from_scenario(scenario_path, inflate=True)
+    scenario = Path(scenario_path or _SCENARIO)
+    params = load_scenario_parameters(scenario)
+    scenario_id = _scenario_id(params)
+    physical = walls_from_scenario(scenario, inflate=False)
+    inflated = walls_from_scenario(scenario, inflate=True)
     seed0 = int(params.get("planner_rng_seed", 7)) + int(seed_offset)
     density = float(params.get("occupancy_density", 1000.0))
     timeout = float(params.get("planning_timeout", 25.0))
     algo = str(params.get("planner_algorithm", "rrt_star"))
     max_r = float(params.get("max_transfer_radius_m", 0.12))
     min_z = float(params.get("min_transfer_ee_z_m", 0.145))
+    peak_z = float(params.get("min_transfer_peak_ee_z_m", 0.0))
 
     kin = Kinematics("open_manipulator_x")
     cfg = load_algorithm_config(
@@ -218,7 +277,7 @@ def plan_transfer_path(
 
     # Straight-line check against the physical wall occupancy.
     rng_phys = np.random.default_rng(seed0)
-    phys_pts = physical.sample_surface(density, rng=rng_phys)
+    phys_pts = _sample_walls(physical, density, rng_phys)
     phys_adapter = OccupancyAdapter()
     phys_adapter.update(
         OccupancyUpdatePayload(
@@ -236,7 +295,7 @@ def plan_transfer_path(
     for attempt in range(24):
         seed = seed0 + attempt
         rng = np.random.default_rng(seed)
-        pts = inflated.sample_surface(density, rng=rng)
+        pts = _sample_walls(inflated, density, rng)
         adapter = OccupancyAdapter()
         adapter.update(
             OccupancyUpdatePayload(
@@ -247,14 +306,14 @@ def plan_transfer_path(
             model="open_manipulator_x",
             occupancy_adapter=adapter,
             planner_algorithm=algo,  # type: ignore[arg-type]
-            scenario="omx_desk_clutter",
+            scenario=scenario_id,
         )
         result = planner.plan(
             PlanningRequest(
                 start_configuration=np.asarray(start, dtype=np.float64),
                 goal_configuration=np.asarray(goal, dtype=np.float64),
                 planning_timeout=timeout,
-                scenario_id="omx_desk_clutter",
+                scenario_id=scenario_id,
             )
         )
         if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
@@ -267,19 +326,28 @@ def plan_transfer_path(
         dense = [
             np.asarray(pt.positions, dtype=np.float64) for pt in traj.points
         ]
-        min_r, path_min_z = _path_metrics(kin, dense)
+        min_r, path_min_z, path_peak_z = _path_metrics(kin, dense)
         if min_r > max_r or path_min_z < min_z:
             last_err = f"geometry min_r={min_r:.3f} min_z={path_min_z:.3f}"
             continue
+        if peak_z > 0.0 and path_peak_z < peak_z:
+            last_err = (
+                f"geometry peak_z={path_peak_z:.3f} < required {peak_z:.3f}"
+            )
+            continue
         if validate_mujoco and not _dry_run_transfer(
-            dense, start, goal, joint_tol_rad=0.12
+            dense,
+            start,
+            goal,
+            joint_tol_rad=0.12,
+            scenario_id=scenario_id,
         ):
             last_err = "mujoco dry-run rejected"
             continue
         return dense, straight_collides
 
     raise RuntimeError(
-        f"SC-v13c transfer plan failed after retries ({last_err})"
+        f"{scenario_id} transfer plan failed after retries ({last_err})"
     )
 
 
@@ -312,15 +380,17 @@ def simulate_pick_place_clutter(
     scenario_path: str | Path | None = None,
     seed_offset: int = 0,
 ) -> ClutterPickPlaceResult:
-    """Run one SC-v13c cycle (physics grasp + planned MPC transfer)."""
+    """Run one SC-v13c/d cycle (physics grasp + planned MPC transfer)."""
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
         raise ImportError("mujoco is required for clutter pick-place") from exc
 
     scenario = Path(scenario_path or _SCENARIO)
+    params = load_scenario_parameters(scenario)
+    scenario_id = _scenario_id(params)
     wp = waypoints_from_scenario(scenario)
-    xml = mjcf_path("open_manipulator_x", "omx_desk_clutter")
+    xml = mjcf_path("open_manipulator_x", scenario_id)
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
 
@@ -496,7 +566,7 @@ def run_pick_place_clutter(
     scenario_path: str | Path | None = None,
     max_attempts: int = 4,
 ) -> ClutterPickPlaceResult:
-    """Execute one SC-v13c cycle; retry on place-miss / fault (planner RNG)."""
+    """Execute one SC-v13c/d cycle; retry on place-miss / fault (planner RNG)."""
     params = load_scenario_parameters(scenario_path or _SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     last: ClutterPickPlaceResult | None = None

@@ -2,8 +2,11 @@
 # (grey dummy). Showcase runs at 2× nominal Menagerie (ω=13.34 rad/s →
 # v≈0.44 m/s), capped by the race MJCF wheel ctrlrange.
 #
-# Planner agents (blue RRT* / green SST) use DubinsPathFollowingMPC with
-# soft obstacle barriers inside the optimizer (replaces Pure Pursuit + APF).
+# Planner agents (blue RRT* / green SST) use DubinsPathFollowingMPC as a
+# pure path follower: minimize contour (distance to the planned polyline)
+# and hold fluid cruise near the target speed. Obstacle avoidance stays in
+# the planner; trackers run with occupancy=None so preview-cruise taper and
+# soft barriers cannot throttle on already-cleared corridors.
 # The grey dummy keeps Pure Pursuit without repulsion so it collides on the
 # naive diagonal as a foil.
 #
@@ -22,22 +25,16 @@
     curvature_gain: 0.9
     repulsion_gain: 0.0
     update_rate: 20.0
-    # Optional overrides on top of ARCO config/mpc.yml defaults.
-    # weight_obstacle / barrier kept mild so both agents keep cruise on
-    # already-cleared planner corridors (heavy barriers made SST crawl and
-    # destroyed the concurrent-race feel vs legacy Pure Pursuit).
+    # Pure path-following weights (ARCO PathFollowingMPCConfig overrides).
     mpc:
       horizon_step_count: 20
       dt: 0.05
-      weight_contour: 10.0
-      weight_heading: 5.0
-      weight_progress: 2.5
-      weight_control: 0.05
-      weight_obstacle: 12.0
+      weight_contour: 25.0
+      weight_heading: 8.0
+      weight_progress: 5.0
+      weight_control: 0.02
+      weight_obstacle: 0.0
       obstacle_barrier_power: 2.0
-      weight_terminal: 20.0
+      weight_terminal: 40.0
       weight_slack: 1.0
       max_solver_iter_count: 40
-      # Preview cruise uses this clearance (m), not planning clearance
-      # (radius+margin≈0.42 m) which otherwise throttles to 15% cruise.
-      preview_clearance_m: 0.18

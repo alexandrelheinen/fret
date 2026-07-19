@@ -101,6 +101,16 @@ warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 **Purpose:** Mid-cell wall blocks the straight green→red transfer; planner +
 controller must retract around it under full MuJoCo physics (AWS meshes later).
 
+### SC-v13d — OpenMANIPULATOR-X Γ-wall maze (v1.3)
+
+**File:** `config/scenarios/omx_wall_maze.yml`  
+**Model:** `open_manipulator_x`
+
+**Purpose:** Inverted-L (letter Γ) obstacle — vertical stem plus horizontal
+cap toward the base — forces a maze path: grasp → retract away from the place
+target → climb over the cap → place. Arm↔wall collision bitmasks stay active
+(`contype`/`conaffinity` = 1).
+
 ---
 
 ### SC-v14 — 6-DOF challenge (v1.4)
