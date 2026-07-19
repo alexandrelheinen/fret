@@ -34,12 +34,17 @@ _CTRL_PERIOD_S = 0.02
 def waypoints_from_scenario(
     scenario_path: str | Path | None = None,
 ) -> PickPlaceWaypoints:
-    """Load joint waypoints from ``omx_pick_place.yml``."""
+    """Load joint waypoints from a pick-place scenario YAML.
+
+    Supports optional ``lift_hover_configuration`` (OMY / shared FSM) and
+    ``retreat_configuration``.
+    """
     path = Path(
         scenario_path or "src/fret/config/scenarios/omx_pick_place.yml"
     )
     p = load_scenario_parameters(path)
     retreat = p.get("retreat_configuration", p["idle_configuration"])
+    lift = p.get("lift_hover_configuration")
     return PickPlaceWaypoints(
         idle=np.asarray(p["idle_configuration"], dtype=np.float64),
         pick_hover=np.asarray(p["pick_hover_configuration"], dtype=np.float64),
@@ -49,6 +54,9 @@ def waypoints_from_scenario(
         ),
         place_grasp=np.asarray(
             p["place_grasp_configuration"], dtype=np.float64
+        ),
+        lift_hover=(
+            np.asarray(lift, dtype=np.float64) if lift is not None else None
         ),
         retreat=np.asarray(retreat, dtype=np.float64),
     )

@@ -3,6 +3,10 @@
 Same materialization pattern as :mod:`fret.mjcf.omx` — resolve Menagerie
 ``meshdir``, inject finger pads + adhesion for physics grasp on ``rh_r2`` /
 ``rh_l2``.
+
+Pad local offsets sit on the **inner** fingertip faces (toward the grasp
+volume). Outward ±Y offsets leave the pads outside the fingers so the ball
+never contacts them.
 """
 
 from __future__ import annotations
@@ -23,29 +27,33 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 )
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
-# Fingertip pads (rh_r2 / rh_l2 extend along ±Y). Sized for Ø86 mm ball (75 % open).
+# Inner fingertip pads (rh_r2 / rh_l2 open along ±Y). Sized for Ø86 mm ball.
+# contype/conaffinity bit 4 matches the ball; do **not** include pedestal bit 2
+# or pads weld to the stand and block lift.
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.030 0.016 0.022" pos="0.0 0.075 0"\n'
-    '                            friction="3.0 1.0 0.1" solref="0.014 1" '
-    'solimp="0.9 0.95 0.001"\n'
+    'size="0.020 0.012 0.022" pos="0.0 -0.010 0.020"\n'
+    '                            friction="4.0 1.5 0.2" solref="0.01 1" '
+    'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.030 0.016 0.022" pos="0.0 -0.075 0"\n'
-    '                            friction="3.0 1.0 0.1" solref="0.014 1" '
-    'solimp="0.9 0.95 0.001"\n'
+    'size="0.020 0.012 0.022" pos="0.0 0.010 0.020"\n'
+    '                            friction="4.0 1.5 0.2" solref="0.01 1" '
+    'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _ADHESION = (
     '    <adhesion name="grip_right" body="rh_r2" '
-    'ctrlrange="0 1" gain="20"/>\n'
+    'ctrlrange="0 1" gain="40"/>\n'
     '    <adhesion name="grip_left" body="rh_l2" '
-    'ctrlrange="0 1" gain="20"/>\n'
+    'ctrlrange="0 1" gain="40"/>\n'
 )
+_GRIPPER_FORCE_OLD = '<position kp="50" dampratio="1" forcerange="-3.5 3.5"/>'
+_GRIPPER_FORCE_NEW = '<position kp="100" dampratio="1" forcerange="-15 15"/>'
 
 
 def menagerie_omy_dir() -> Path:
@@ -102,6 +110,10 @@ def _inject_physical_gripper(robot_xml: str) -> str:
         if grip_act not in robot_xml:
             raise ValueError("Menagerie Gripper actuator missing for adhesion")
         robot_xml = robot_xml.replace(grip_act, grip_act + _ADHESION, 1)
+    if _GRIPPER_FORCE_OLD in robot_xml:
+        robot_xml = robot_xml.replace(
+            _GRIPPER_FORCE_OLD, _GRIPPER_FORCE_NEW, 1
+        )
     robot_xml = robot_xml.replace(
         'ctrl="0 0 0 0 0 0 0"',
         'ctrl="0 0 0 0 0 0 0 0 0"',
@@ -158,7 +170,7 @@ def ensure_omy_tabletop_mjcf() -> Path:
 
 
 def ensure_omy_pick_place_mjcf() -> Path:
-    """Build the ground-level pick + cone place MJCF (SC-v14b)."""
+    """Build the pedestal pick + cone place MJCF (SC-v14b)."""
     return ensure_omy_mjcf("omy_pick_place")
 
 
