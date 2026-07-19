@@ -35,9 +35,10 @@ Uses ARCO directly:
 | Tracking loop (RRT*/SST) | `arco.control.mpc.MPCTrackingLoop` |
 | Grey foil tracker | `arco.control.pure_pursuit.PurePursuitController` |
 
-Obstacle avoidance for the planner agents is inside the MPC soft barriers
-(replaces Pure Pursuit + APF). The grey dummy stays on Pure Pursuit with no
-repulsion so it collides on the naive diagonal.
+RRT*/SST agents track the planned polyline with path-following MPC
+(contour + cruise; no track-time occupancy barriers — avoidance stays in
+the planner). The grey dummy stays on Pure Pursuit with no repulsion so it
+collides on the naive diagonal.
 
 FRET adapter: `fret.control.kinematics_dubins.DubinsKinematics`
 

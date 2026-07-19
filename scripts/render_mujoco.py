@@ -49,10 +49,16 @@ _OMX_PICK_PLACE_SCENARIOS: frozenset[str] = frozenset(
 _OMX_DESK_CLUTTER_SCENARIOS: frozenset[str] = frozenset(
     {"omx_desk_clutter", "desk_clutter"}
 )
+_OMX_WALL_MAZE_SCENARIOS: frozenset[str] = frozenset(
+    {"omx_wall_maze", "wall_maze"}
+)
+_OMX_CLUTTER_SCENARIOS: frozenset[str] = (
+    _OMX_DESK_CLUTTER_SCENARIOS | _OMX_WALL_MAZE_SCENARIOS
+)
 _OMX_SCENARIOS: frozenset[str] = (
     _OMX_REACH_SCENARIOS
     | _OMX_PICK_PLACE_SCENARIOS
-    | _OMX_DESK_CLUTTER_SCENARIOS
+    | _OMX_CLUTTER_SCENARIOS
 )
 _OMX_MODELS: frozenset[str] = frozenset({"open_manipulator_x", "omx"})
 
@@ -179,6 +185,12 @@ def resolve_mjcf_path(
         from fret.sitl_config import mjcf_path as resolve_installed_mjcf
 
         return resolve_installed_mjcf("open_manipulator_x", "omx_desk_clutter")
+
+    if model in _OMX_MODELS and scenario in _OMX_WALL_MAZE_SCENARIOS:
+        _ensure_fret_importable()
+        from fret.sitl_config import mjcf_path as resolve_installed_mjcf
+
+        return resolve_installed_mjcf("open_manipulator_x", "omx_wall_maze")
 
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
@@ -1042,7 +1054,7 @@ def render_omx_desk_clutter_showcase_videos(
     height: int = 720,
     realtime_postprocess: bool = True,
 ) -> list[RenderResult]:
-    """Render OM-X desk-clutter MP4s (SC-v13c planned transfer around wall)."""
+    """Render OM-X clutter/maze MP4s (SC-v13c wall / SC-v13d Γ maze)."""
     mujoco, _iio = _require_mujoco()
     _ensure_fret_importable()
     from fret.control.pick_place_clutter_sim import simulate_pick_place_clutter
@@ -1061,6 +1073,13 @@ def render_omx_desk_clutter_showcase_videos(
         if duration_s is not None
         else resolve_scenario_duration(scenario, default_s=45.0)
     )
+    scenario_yaml = {
+        "omx_desk_clutter": "omx_desk_clutter.yml",
+        "desk_clutter": "omx_desk_clutter.yml",
+        "omx_wall_maze": "omx_wall_maze.yml",
+        "wall_maze": "omx_wall_maze.yml",
+    }.get(scenario, "omx_desk_clutter.yml")
+    scenario_path = Path("src/fret/config/scenarios") / scenario_yaml
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
     dt = float(model_probe.opt.timestep)
     record_every = max(1, int(round((1.0 / fps) / dt)))
@@ -1068,14 +1087,15 @@ def render_omx_desk_clutter_showcase_videos(
         duration_s=clip_s,
         joint_tol_rad=0.12,
         record_every_steps=record_every,
+        scenario_path=scenario_path,
     )
     if result.state != PickPlaceState.DONE:
         raise RuntimeError(
-            f"SC-v13c showcase FSM ended in {result.state.name}, expected DONE"
+            f"{scenario} showcase FSM ended in {result.state.name}, expected DONE"
         )
     samples = result.samples
     if len(samples) < 2:
-        raise RuntimeError("SC-v13c showcase recorded too few frames")
+        raise RuntimeError(f"{scenario} showcase recorded too few frames")
 
     pad = max(1, int(round(0.6 * fps)))
     samples = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
@@ -1409,6 +1429,20 @@ def render_showcase_videos(
             mjcf_path,
             output_dir,
             scenario="omx_desk_clutter",
+            cameras=cameras,
+            output_names=output_names,
+            duration_s=duration_s,
+            fps=fps,
+            width=width,
+            height=height,
+            realtime_postprocess=realtime_postprocess,
+        )
+    if scenario in _OMX_WALL_MAZE_SCENARIOS:
+        _ = physics_mode
+        return render_omx_desk_clutter_showcase_videos(
+            mjcf_path,
+            output_dir,
+            scenario="omx_wall_maze",
             cameras=cameras,
             output_names=output_names,
             duration_s=duration_s,

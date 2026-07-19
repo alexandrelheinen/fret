@@ -206,6 +206,7 @@ gripper (~3 cm aperture).
 | SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
 | SC-v13b | `omx_pick_place.yml` | Stretch pick green→red (FSM + MuJoCo physics) |
 | SC-v13c | `omx_desk_clutter.yml` | Mid-cell wall forces planned retract detour |
+| SC-v13d | `omx_wall_maze.yml` | Γ (inverted-L) wall forces retract → climb → place |
 
 ### Acceptance criteria
 
@@ -216,6 +217,7 @@ gripper (~3 cm aperture).
 | V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
 | V13-4 | Showcase video: overview + top-down / EE-follow |
 | V13-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
+| V13-6 | Γ-wall maze path retracts and climbs over the cap before placing |
 
 ### Implementation tasks
 
@@ -227,6 +229,7 @@ gripper (~3 cm aperture).
 | T13-04 | PickPlace FSM + ball/cone MJCF + SC-v13b physics smoke |
 | T13-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
 | T13-06 | Showcase render pipeline + metrics |
+| T13-07 | Γ-wall maze SC-v13d (stem+cap occupancy + climb filter) |
 
 ---
 

@@ -548,45 +548,6 @@ def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
     )
 
 
-class _MpcPreviewOccupancy:
-    """Occupancy view with a tighter clearance for MPC preview cruise.
-
-    Planning still uses the full ``vehicle_radius + margin`` occupancy.
-    The path-following MPC reads ``occupancy.clearance`` to taper cruise
-    before pinch points; feeding the planning clearance (~0.42 m) made
-    agents crawl on free corridors and destroyed concurrent racing.
-    """
-
-    def __init__(
-        self, base: RectStructureOccupancy, clearance_m: float
-    ) -> None:
-        self._base = base
-        self.clearance = float(clearance_m)
-
-    def nearest_obstacle(
-        self, point: npt.NDArray[np.float64]
-    ) -> tuple[float, npt.NDArray[np.float64]]:
-        """Forward nearest-obstacle queries to the planning occupancy."""
-        return self._base.nearest_obstacle(point)
-
-    def is_occupied(self, point: npt.NDArray[np.float64]) -> bool:
-        """Occupied test using the tightened MPC clearance."""
-        dist, _ = self.nearest_obstacle(point)
-        return dist < self.clearance
-
-
-def _mpc_occupancy(
-    occupancy: RectStructureOccupancy, ctrl: dict[str, Any]
-) -> _MpcPreviewOccupancy | RectStructureOccupancy:
-    """Return occupancy for MPC trackers (optional preview clearance)."""
-    mpc = ctrl.get("mpc")
-    if not isinstance(mpc, dict) or "preview_clearance_m" not in mpc:
-        return occupancy
-    return _MpcPreviewOccupancy(
-        occupancy, clearance_m=float(mpc["preview_clearance_m"])
-    )
-
-
 def _straight_line_heading(
     start: npt.NDArray[np.float64],
     goal: npt.NDArray[np.float64],
@@ -1134,12 +1095,14 @@ class DubinsRaceRunner:
         rrt_path = _path_to_tuples(rrt_plan.path)
         sst_path = _path_to_tuples(sst_plan.path)
         mpc_cfg = _mpc_config(ctrl)
-        mpc_occ = _mpc_occupancy(occupancy, ctrl)
+        # Pure path following: planner already cleared the corridor. Feeding
+        # occupancy into DubinsPathFollowingMPC tapers cruise near pinch
+        # points and injects soft barriers → stop-and-go on free segments.
         rrt_vehicle, rrt_loop = build_vehicle_mpc_sim(
-            rrt_path, vehicle_cfg, mpc_cfg, occupancy=mpc_occ
+            rrt_path, vehicle_cfg, mpc_cfg, occupancy=None
         )
         sst_vehicle, sst_loop = build_vehicle_mpc_sim(
-            sst_path, vehicle_cfg, mpc_cfg, occupancy=mpc_occ
+            sst_path, vehicle_cfg, mpc_cfg, occupancy=None
         )
 
         dummy_pose = _initial_dummy_pose(world)

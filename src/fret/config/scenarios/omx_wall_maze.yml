@@ -1,0 +1,48 @@
+# SC-v13d — OpenMANIPULATOR-X Γ-wall maze (retract → climb → place).
+#
+# Same ball / pick pedestal / place cone as SC-v13b/c, plus an inverted-L
+# (letter Γ) obstacle. MOVE_PLACE plans around the stem+cap occupancy.
+
+/**:
+  ros__parameters:
+    model: open_manipulator_x
+    scenario_id: omx_wall_maze
+    simulation_dt: 0.02
+    duration: 55.0
+    planning_timeout: 30.0
+    goal_tolerance: 0.05
+    mjcf: mjcf/omx_wall_maze.xml
+    pick_object: ball
+    ball_radius_m: 0.0125
+    pedestal_top_m: 0.098
+    pedestal_radius_m: 0.018
+    place_cone_height_m: 0.098
+    place_cone_radius_m: 0.050
+    grasp_mode: mujoco_adhesion
+    planner_algorithm: rrt_star
+    planner_rng_seed: 11
+    # Stem (vertical mid-cell slab) + cap (horizontal bar toward base).
+    walls:
+      - x_min: 0.24
+        x_max: 0.34
+        y_half: 0.008
+        z_min: 0.0
+        z_max: 0.22
+      - x_min: 0.08
+        x_max: 0.24
+        y_half: 0.030
+        z_min: 0.16
+        z_max: 0.24
+    wall_inflate_m: 0.035
+    occupancy_density: 1200.0
+    max_transfer_radius_m: 0.11
+    min_transfer_ee_z_m: 0.145
+    # Accepted paths must clear the Γ cap height somewhere.
+    min_transfer_peak_ee_z_m: 0.255
+    idle_configuration: [0.0, -1.05, 0.7, 0.7]
+    pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
+    pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
+    place_hover_configuration: [0.55, 0.416, -0.55, 0.20]
+    place_grasp_configuration: [0.55, 0.60, -0.65, 0.65]
+    pick_xy: [0.273, -0.160]
+    place_xy: [0.273, 0.160]

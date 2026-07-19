@@ -20,10 +20,15 @@ _MENAGERIE_REL = Path(
     "third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x"
 )
 _SUPPORTED_SCENES: frozenset[str] = frozenset(
-    {"omx_tabletop", "omx_pick_place", "omx_desk_clutter"}
+    {
+        "omx_tabletop",
+        "omx_pick_place",
+        "omx_desk_clutter",
+        "omx_wall_maze",
+    }
 )
 _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
-    {"omx_pick_place", "omx_desk_clutter"}
+    {"omx_pick_place", "omx_desk_clutter", "omx_wall_maze"}
 )
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
@@ -124,8 +129,8 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
     """Build a loadable OM-X scene MJCF with resolved mesh paths.
 
     Args:
-        scene: Template stem (``omx_tabletop``, ``omx_pick_place``, or
-            ``omx_desk_clutter``).
+        scene: Template stem (``omx_tabletop``, ``omx_pick_place``,
+            ``omx_desk_clutter``, or ``omx_wall_maze``).
 
     Returns:
         Path under ``src/fret/mjcf/.generated/``.
@@ -183,3 +188,8 @@ def ensure_omx_pick_place_mjcf() -> Path:
 def ensure_omx_desk_clutter_mjcf() -> Path:
     """Build the desk-clutter MJCF with mid-cell wall (SC-v13c)."""
     return ensure_omx_mjcf("omx_desk_clutter")
+
+
+def ensure_omx_wall_maze_mjcf() -> Path:
+    """Build the Γ-wall maze MJCF (SC-v13d retract → climb → place)."""
+    return ensure_omx_mjcf("omx_wall_maze")
