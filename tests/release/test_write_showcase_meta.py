@@ -19,69 +19,93 @@ def _write_timing(path: Path, clips: list[dict[str, object]]) -> None:
     )
 
 
-def test_write_showcase_meta_dubins_artifacts(tmp_path: Path) -> None:
-    """Publish step must accept Dubins artifacts in the renders folder."""
+def _stub_clip(renders: Path, name: str, *, bytes_len: int = 128) -> None:
+    (renders / name).write_bytes(b"\x00" * bytes_len)
+
+
+def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
+    """Publish step must accept the full multi-scenario render bundle."""
     renders = tmp_path / "showcase_renders"
     renders.mkdir()
-    for name in (
-        "dubins_race_overview.mp4",
-        "dubins_race_follow.mp4",
-    ):
-        (renders / name).write_bytes(b"\x00" * 128)
 
-    _write_timing(
-        renders / "dubins_timing.json",
-        [
+    clips: list[tuple[str, str, str]] = [
+        ("dubins_race", "overview", "dubins_race_timing.json"),
+        ("dubins_race", "follow", "dubins_race_timing.json"),
+        ("omx_reach", "overview", "omx_reach_timing.json"),
+        ("omx_pick_place", "overview", "omx_pick_place_timing.json"),
+        ("omx_desk_clutter", "overview", "omx_desk_clutter_timing.json"),
+        ("omx_wall_maze", "overview", "omx_wall_maze_timing.json"),
+    ]
+    timing_by_file: dict[str, list[dict[str, object]]] = {}
+    for scenario, camera, timing_name in clips:
+        mp4 = f"{scenario}_{camera}.mp4"
+        _stub_clip(renders, mp4)
+        timing_by_file.setdefault(timing_name, []).append(
             {
-                "file": "dubins_race_overview.mp4",
-                "sim_time_s": 32.0,
+                "file": mp4,
+                "sim_time_s": 12.0,
                 "real_time_factor": 1.0,
             }
-        ],
-    )
+        )
+    for timing_name, entries in timing_by_file.items():
+        _write_timing(renders / timing_name, entries)
 
     meta = write_showcase_meta(
         renders_dir=renders,
-        tag="v9.9.9",
+        tag="v1.2.3",
         repo="owner/fret",
         git_sha="abc123",
         workflow_run="https://example.com/run/1",
         output_path=tmp_path / "meta.json",
     )
 
-    assert meta["git_ref"] == "v9.9.9"
-    assert len(meta["showcases"]) == 1
+    assert meta["git_ref"] == "v1.2.3"
+    assert meta["partial"] is False
+    assert len(meta["showcases"]) == 5
+    assert meta["release_cameras"] == {
+        "mobile": ["overview", "follow"],
+        "static": ["overview"],
+    }
     assert meta["primary_videos"]["dubins_race"] == "dubins_race_overview.mp4"
+    assert meta["primary_videos"]["omx_wall_maze"] == (
+        "omx_wall_maze_overview.mp4"
+    )
     assert (tmp_path / "meta.json").is_file()
 
 
-def test_write_showcase_meta_accepts_single_scenario(tmp_path: Path) -> None:
-    """Partial release uploads should still produce valid metadata."""
+def test_write_showcase_meta_accepts_partial_bundle(tmp_path: Path) -> None:
+    """Partial uploads (e.g. one scenario) still produce valid metadata."""
     renders = tmp_path / "showcase_renders"
     renders.mkdir()
     for name in ("dubins_race_overview.mp4", "dubins_race_follow.mp4"):
-        (renders / name).write_bytes(b"\x00" * 64)
+        _stub_clip(renders, name, bytes_len=64)
 
     _write_timing(
-        renders / "dubins_timing.json",
+        renders / "dubins_race_timing.json",
         [
             {
                 "file": "dubins_race_overview.mp4",
                 "sim_time_s": 32.0,
                 "real_time_factor": 1.0,
-            }
+            },
+            {
+                "file": "dubins_race_follow.mp4",
+                "sim_time_s": 32.0,
+                "real_time_factor": 1.0,
+            },
         ],
     )
 
     meta = write_showcase_meta(
         renders_dir=renders,
-        tag="v9.9.9",
+        tag="v1.2.3-dev",
         repo="owner/fret",
         git_sha="abc123",
         workflow_run="https://example.com/run/2",
         output_path=tmp_path / "meta.json",
     )
 
-    assert meta["partial"] is False
+    assert meta["partial"] is True
     assert len(meta["showcases"]) == 1
     assert meta["showcases"][0]["scenario"] == "dubins_race"
+    assert meta["showcases"][0]["robot_class"] == "mobile"
