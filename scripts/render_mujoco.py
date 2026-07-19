@@ -88,7 +88,18 @@ _OMY_REACH_SCENARIOS: frozenset[str] = frozenset(
 _OMY_PICK_PLACE_SCENARIOS: frozenset[str] = frozenset(
     {"omy_pick_place", "pick_place_omy"}
 )
-_OMY_CLUTTER_SCENARIOS: frozenset[str] = frozenset({"omy_clutter"})
+_OMY_CLUTTER_SCENARIOS: frozenset[str] = frozenset(
+    {
+        "omy_clutter",
+        "omy_clutter_rrt",
+        "omy_clutter_sst",
+    }
+)
+_OMY_CLUTTER_SCENARIO_YAML: dict[str, str] = {
+    "omy_clutter": "omy_clutter.yml",
+    "omy_clutter_rrt": "omy_clutter_rrt.yml",
+    "omy_clutter_sst": "omy_clutter_sst.yml",
+}
 _OMY_SCENARIOS: frozenset[str] = (
     _OMY_REACH_SCENARIOS | _OMY_PICK_PLACE_SCENARIOS | _OMY_CLUTTER_SCENARIOS
 )
@@ -1563,7 +1574,8 @@ def render_omy_clutter_showcase_videos(
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
     dt = float(model_probe.opt.timestep)
     record_every = max(1, int(round((1.0 / fps) / dt)))
-    scenario_path = Path("src/fret/config/scenarios") / f"{scenario}.yml"
+    scenario_yaml = _OMY_CLUTTER_SCENARIO_YAML.get(scenario, "omy_clutter.yml")
+    scenario_path = Path("src/fret/config/scenarios") / scenario_yaml
     result = simulate_omy_clutter_pick_place(
         duration_s=clip_s,
         joint_tol_rad=0.28,
@@ -1819,7 +1831,7 @@ def render_showcase_videos(
         return render_omy_clutter_showcase_videos(
             mjcf_path,
             output_dir,
-            scenario="omy_clutter",
+            scenario=scenario,
             cameras=cameras,
             output_names=output_names,
             duration_s=duration_s,

@@ -133,7 +133,9 @@ def plan_arm_transfer_path(
 
     last_err: str | None = None
     detour_mid = params.get("transfer_detour_configuration")
-    if detour_mid is not None:
+    if detour_mid is not None and bool(
+        params.get("prefer_transfer_detour", False)
+    ):
         mid = np.asarray(detour_mid, dtype=np.float64)
         detour = [start.copy(), mid, goal.copy()]
         if all(
@@ -145,7 +147,9 @@ def plan_arm_transfer_path(
         ):
             return detour, straight_collides
 
-    max_attempts = 6 if robot_model == "omy" else 24
+    max_attempts = int(
+        params.get("max_planner_attempts", 6 if robot_model == "omy" else 24)
+    )
     for attempt in range(max_attempts):
         seed = seed0 + attempt
         rng = np.random.default_rng(seed)
@@ -186,6 +190,18 @@ def plan_arm_transfer_path(
             last_err = f"geometry min_r={min_r:.3f} min_z={path_min_z:.3f}"
             continue
         return dense, straight_collides
+
+    if detour_mid is not None:
+        mid = np.asarray(detour_mid, dtype=np.float64)
+        detour = [start.copy(), mid, goal.copy()]
+        if all(
+            phys_checker.is_collision_free(detour[i])
+            for i in range(len(detour))
+        ) and all(
+            phys_checker.is_collision_free(0.5 * (detour[i] + detour[i + 1]))
+            for i in range(len(detour) - 1)
+        ):
+            return detour, straight_collides
 
     fallback = _fallback_detour_path(
         start, goal, kin=kin, checker=phys_checker

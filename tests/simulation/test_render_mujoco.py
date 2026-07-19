@@ -95,6 +95,14 @@ def test_robot_class_release_camera_policy() -> None:
     )
 
 
+def test_resolve_mjcf_omy_clutter_planner_variants() -> None:
+    for scenario in ("omy_clutter_rrt", "omy_clutter_sst"):
+        path = rm.resolve_mjcf_path("omy", scenario, None)
+        assert path.is_file()
+        cameras = rm.list_showcase_cameras(path, scenario=scenario)
+        assert cameras == ["overview"]
+
+
 def test_resolve_mjcf_omx_wall_maze_planner_variants() -> None:
     for scenario in ("omx_wall_maze_rrt", "omx_wall_maze_sst"):
         path = rm.resolve_mjcf_path("open_manipulator_x", scenario, None)

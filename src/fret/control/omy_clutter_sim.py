@@ -32,6 +32,22 @@ _ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
 _MODEL = "omy"
 _CTRL_PERIOD_S = 0.02
 _SCENARIO = Path("src/fret/config/scenarios/omy_clutter.yml")
+_MAX_TRANSFER_WAYPOINTS = 16
+
+
+def _subsample_transfer_path(
+    path: list[npt.NDArray[np.float64]],
+    *,
+    max_points: int = _MAX_TRANSFER_WAYPOINTS,
+) -> list[npt.NDArray[np.float64]]:
+    """Keep dense planner output within sim time budgets."""
+    if len(path) <= max_points:
+        return [np.asarray(q, dtype=np.float64).copy() for q in path]
+    idx = np.linspace(0, len(path) - 1, max_points, dtype=int)
+    return [
+        np.asarray(path[int(i)], dtype=np.float64).copy()
+        for i in np.unique(idx)
+    ]
 
 
 @dataclass(frozen=True)
@@ -99,6 +115,9 @@ def simulate_omy_clutter_pick_place(
         scenario_path=scenario,
         seed_offset=seed_offset,
     )
+    transfer_path = _subsample_transfer_path(transfer_path)
+    transfer_budget_s = float(params.get("transfer_duration_s", 18.0))
+    transfer_segment_s = transfer_budget_s / max(len(transfer_path), 1)
 
     lift_z = float(params.get("lift_height_m", 0.08))
     fsm_joint_tol = min(float(joint_tol_rad), 0.15)
@@ -145,7 +164,6 @@ def simulate_omy_clutter_pick_place(
     transfer_armed = False
     transfer_idx = 0
     transfer_progress = 0.0
-    transfer_segment_s = 0.6
     descend_force_s = 2.5
     retreat_force_s = 2.0
     descend_t = 0.0

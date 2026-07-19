@@ -362,12 +362,12 @@ Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/re
 | Robot class | Scenarios (today) | Required cameras |
 |---|---|---|
 | **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric) **and** `follow` (split-screen chase) |
-| **static** | SC-v13d Γ-maze only: `omx_wall_maze_rrt` + `omx_wall_maze_sst` | `overview` only |
+| **static** | OM-X Γ-maze: `omx_wall_maze_rrt` + `omx_wall_maze_sst`; OMY pick-place `omy_pick_place` + clutter `omy_clutter_rrt` + `omy_clutter_sst` | `overview` only |
 
-OM-X release clips share the same Γ-wall geometry and JointPathMPC / joint
-control tracking; they differ only in the transfer planner (**RRT\*** vs
-**SST**). Simpler OM-X demos (`omx_reach`, pick-place, desk clutter) stay in
-the repo for development but are not release artifacts.
+OM-X and OMY clutter release clips share the same wall geometry and joint
+tracking; they differ only in the transfer planner (**RRT\*** vs **SST**).
+Simpler OM-X / OMY demos (`omx_reach`, `omy_reach`, desk clutter) stay in the
+repo for development but are not release artifacts.
 
 **Rules:**
 

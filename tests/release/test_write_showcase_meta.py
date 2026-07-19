@@ -33,6 +33,9 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
         ("dubins_race", "follow", "dubins_race_timing.json"),
         ("omx_wall_maze_rrt", "overview", "omx_wall_maze_rrt_timing.json"),
         ("omx_wall_maze_sst", "overview", "omx_wall_maze_sst_timing.json"),
+        ("omy_pick_place", "overview", "omy_pick_place_timing.json"),
+        ("omy_clutter_rrt", "overview", "omy_clutter_rrt_timing.json"),
+        ("omy_clutter_sst", "overview", "omy_clutter_sst_timing.json"),
     ]
     timing_by_file: dict[str, list[dict[str, object]]] = {}
     for scenario, camera, timing_name in clips:
@@ -59,7 +62,7 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
 
     assert meta["git_ref"] == "v1.2.3"
     assert meta["partial"] is False
-    assert len(meta["showcases"]) == 3
+    assert len(meta["showcases"]) == 6
     assert meta["release_cameras"] == {
         "mobile": ["overview", "follow"],
         "static": ["overview"],
@@ -70,6 +73,15 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
     )
     assert meta["primary_videos"]["omx_wall_maze_sst"] == (
         "omx_wall_maze_sst_overview.mp4"
+    )
+    assert meta["primary_videos"]["omy_pick_place"] == (
+        "omy_pick_place_overview.mp4"
+    )
+    assert meta["primary_videos"]["omy_clutter_rrt"] == (
+        "omy_clutter_rrt_overview.mp4"
+    )
+    assert meta["primary_videos"]["omy_clutter_sst"] == (
+        "omy_clutter_sst_overview.mp4"
     )
     assert (tmp_path / "meta.json").is_file()
 
