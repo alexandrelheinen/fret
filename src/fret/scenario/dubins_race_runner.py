@@ -274,10 +274,10 @@ class DubinsRaceSimulation:
     def step_physics(self, bridge: Any) -> bool:
         """Advance one physics SITL tick via MuJoCo actuators (v1.2).
 
-        Steps each planner agent with ARCO path-following MPC (tracking +
-        obstacle barriers inside the optimizer), then drives velocity
-        actuators with the MPC body twist. The grey dummy keeps its
-        Pure Pursuit foil with no repulsion. Goal dwell keeps
+        Steps each planner agent with ARCO path-following MPC (pure
+        contour/cruise tracking; track-time occupancy disabled), then
+        drives velocity actuators with the MPC body twist. The grey dummy
+        keeps its Pure Pursuit foil with no repulsion. Goal dwell keeps
         differential-drive agents from reversing into workspace bounds.
         There is no pre-emptive occupancy-based motion block — a post-hoc
         :class:`_CollisionMonitor` per agent stops the control loop only
