@@ -64,6 +64,7 @@ def waypoints_from_scenario(
         scenario_path or "src/fret/config/scenarios/omx_pick_place.yml"
     )
     p = load_scenario_parameters(path)
+    retreat = p.get("retreat_configuration", p["idle_configuration"])
     return PickPlaceWaypoints(
         idle=np.asarray(p["idle_configuration"], dtype=np.float64),
         pick_hover=np.asarray(p["pick_hover_configuration"], dtype=np.float64),
@@ -74,6 +75,7 @@ def waypoints_from_scenario(
         place_grasp=np.asarray(
             p["place_grasp_configuration"], dtype=np.float64
         ),
+        retreat=np.asarray(retreat, dtype=np.float64),
     )
 
 

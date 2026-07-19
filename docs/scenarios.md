@@ -106,10 +106,10 @@ controller must retract around it under full MuJoCo physics (AWS meshes later).
 **File:** `config/scenarios/omx_wall_maze.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Inverted-L (letter Γ) obstacle — vertical stem plus horizontal
-cap toward the base — forces a maze path: grasp → retract away from the place
-target → climb over the cap → place. Arm↔wall collision bitmasks stay active
-(`contype`/`conaffinity` = 1).
+**Purpose:** Inverted-L (letter Γ) obstacle — vertical stem plus a horizontal
+roof overhang toward the pick ball — forces grasp → back out from under the
+roof → climb → place (not a simple lift-and-fly over the stem). Arm↔wall
+collision bitmasks stay active (`contype`/`conaffinity` = 1).
 
 ---
 

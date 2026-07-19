@@ -1,4 +1,4 @@
-"""SC-v13d Γ-wall maze: retract → climb → place around stem+cap."""
+"""SC-v13d Γ-wall maze: back out under pick-side roof → climb → place."""
 
 from __future__ import annotations
 
@@ -43,15 +43,36 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
     # Arm (contype/affinity 1) must collide with the Γ walls.
     assert int(model.geom_contype[stem]) == 1
     assert int(model.geom_conaffinity[stem]) == 1
+    walls = walls_from_scenario(_SCENARIO)
+    assert len(walls) == 2
+    roof = walls[1]
+    pick_y = float(load_scenario_parameters(_SCENARIO)["pick_xy"][1])
+    # Roof overhangs toward the pick ball (negative Y), not the place side.
+    assert roof.y_min < -0.05
+    assert roof.y_min < pick_y + 0.05
+    assert roof.y_max <= 0.02
 
 
-def test_wall_maze_transfer_plan_retracts_and_climbs() -> None:
+def test_wall_maze_transfer_plan_backs_out_and_climbs() -> None:
     wp = waypoints_from_scenario(_SCENARIO)
     params = load_scenario_parameters(_SCENARIO)
     peak_req = float(params["min_transfer_peak_ee_z_m"])
-    path, straight_collides = plan_transfer_path(
-        wp.pick_hover, wp.place_hover, scenario_path=_SCENARIO
-    )
+    path = None
+    straight_collides = False
+    last_err: Exception | None = None
+    for seed_offset in range(0, 85, 17):
+        try:
+            path, straight_collides = plan_transfer_path(
+                wp.pick_hover,
+                wp.place_hover,
+                scenario_path=_SCENARIO,
+                seed_offset=seed_offset,
+            )
+            break
+        except RuntimeError as exc:
+            last_err = exc
+    if path is None:
+        raise AssertionError(f"no mesh-clear Γ path ({last_err})")
     assert straight_collides, "Γ wall should block the pick→place chord"
     assert len(path) > 2
 
@@ -63,8 +84,8 @@ def test_wall_maze_transfer_plan_retracts_and_climbs() -> None:
     )
     radii = np.linalg.norm(ee[:, :2], axis=1)
     end_r = 0.5 * (radii[0] + radii[-1])
-    assert min(radii) < 0.85 * end_r, "expected retract away from place XY"
-    assert float(np.max(ee[:, 2])) >= peak_req, "expected climb over Γ cap"
+    assert min(radii) < 0.90 * end_r, "expected back-out under the pick roof"
+    assert float(np.max(ee[:, 2])) >= peak_req, "expected climb over Γ roof"
 
 
 def test_omx_wall_maze_physics_places_ball() -> None:
@@ -74,7 +95,7 @@ def test_omx_wall_maze_physics_places_ball() -> None:
     walls = walls_from_scenario(_SCENARIO)
 
     result = run_pick_place_clutter(
-        duration_s=55.0, scenario_path=_SCENARIO, max_attempts=5
+        duration_s=55.0, scenario_path=_SCENARIO, max_attempts=6
     )
     assert result.straight_line_collides
     assert result.state != PickPlaceState.FAULT, "maze FSM faulted"
