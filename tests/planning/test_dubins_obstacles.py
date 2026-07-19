@@ -21,7 +21,8 @@ def test_default_obstacle_file_exists() -> None:
 
 def test_load_world_structures() -> None:
     world = load_dubins_race_world()
-    assert len(world.structures) >= 30
+    # City-block multi-corridor layout: islands + props (not a packed maze).
+    assert 20 <= len(world.structures) <= 40
     assert world.vehicle_radius > 0.0
 
 
@@ -61,6 +62,10 @@ def test_vehicle_body_clearance_samples_corners() -> None:
     assert clearance > 0.0
 
 
-def test_dead_end_parts_increase_structure_count() -> None:
+def test_multi_corridor_layout_keeps_start_goal_clear() -> None:
+    """Four aisle routes need clear pads at A/B (no dead-end packing)."""
     world = load_dubins_race_world()
-    assert len(world.structures) >= 35
+    occ = build_race_occupancy(world)
+    assert not occ.is_occupied(world.start_xy)
+    assert not occ.is_occupied(world.goal_xy)
+    assert len(world.structures) >= 20
