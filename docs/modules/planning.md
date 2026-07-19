@@ -5,7 +5,7 @@
 **Tests:** `tests/planning/`
 
 > **All releases** use ARCO SST via this module. Collision checking adapts per robot
-> (SE(2) occupancy for Dubins, manipulator FK, 6-DOF per-link FK in v1.4). See [releases.md](../releases.md).
+> (SE(2) occupancy for Dubins, manipulator FK, 6-DOF per-link FK in v1.2.4). See [releases.md](../releases.md).
 
 ---
 

@@ -99,7 +99,7 @@ and tuning workflow. Implementation spec: [mujoco_physics_v1.2.md](mujoco_physic
 
 ## Manipulation SITL
 
-OpenMANIPULATOR-X tabletop scenarios (v1.3) use MuJoCo physics SITL with
+OpenMANIPULATOR-X tabletop scenarios (v1.2.3) use MuJoCo physics SITL with
 Menagerie meshes. See [robots/open_manipulator_x.md](robots/open_manipulator_x.md).
 
 

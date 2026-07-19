@@ -1,4 +1,4 @@
-"""OpenMANIPULATOR-X kinematics via Menagerie MuJoCo FK (v1.3).
+"""OpenMANIPULATOR-X kinematics via Menagerie MuJoCo FK (v1.2.3).
 
 FK and Jacobian are evaluated on the bundled Menagerie model. IK is a
 damped least-squares numerical solver seeded from the current configuration

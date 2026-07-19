@@ -20,8 +20,8 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 |---|---|---|
 | **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, path-following MPC (`DubinsPathFollowingMPC`) | `map/vehicle.yml` / `map/city.yml` |
 | **v1.2** | *(physics upgrade — no new ARCO scenario)* | — |
-| **v1.3** manipulator | `KDTreeOccupancy`, `SSTPlanner`, `JointSpaceMPC` | `map/rrp.yml`, `map/ppp.yml` |
-| **v1.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
+| **v1.2.3** manipulator | `KDTreeOccupancy`, `SSTPlanner`, `JointSpaceMPC` | `map/rrp.yml`, `map/ppp.yml` |
+| **v1.2.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
 
 Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
 `TrajectoryPruner` for regression CI.
@@ -89,7 +89,7 @@ Reuse ARCO race infrastructure:
 
 ---
 
-## v1.3 manipulator alignment
+## v1.2.3 manipulator alignment
 
 Reproduce ARCO CI scenarios `rrp` and `rr` inside FRET `sitl.py` pipeline on
 MuJoCo physics SITL. FRET bootstrap arm kinematics map to ARCO manipulator topology.

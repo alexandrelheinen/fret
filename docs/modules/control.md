@@ -5,8 +5,8 @@
 **Tests:** `tests/control/`
 
 > **Release roadmap:** v1.1 uses ARCO Dubins path-following MPC; v1.2 enables
-> MuJoCo physics actuators; v1.3 OMX pick-and-place uses ``JointSpaceMPC``;
-> v1.4 adds 6-DOF numerical IK. See [releases.md](../releases.md).
+> MuJoCo physics actuators; v1.2.3 OMX pick-and-place uses ``JointSpaceMPC``;
+> v1.2.4 adds 6-DOF numerical IK. See [releases.md](../releases.md).
 
 ---
 

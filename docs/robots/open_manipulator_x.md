@@ -1,8 +1,8 @@
-# OpenMANIPULATOR-X (v1.3)
+# OpenMANIPULATOR-X (v1.2.3)
 
-> **Release:** v1.3 · **Scenarios:** SC-v13a (`omx_reach`), SC-v13b (`omx_pick_place`),
+> **Release:** v1.2.3 · **Scenarios:** SC-v13a (`omx_reach`), SC-v13b (`omx_pick_place`),
 > SC-v13c (`omx_desk_clutter`), SC-v13d (`omx_wall_maze`) ·
-> [Release spec](../releases.md#v13--openmanipulator-x-tabletop)
+> [Release spec](../releases.md#v123--openmanipulator-x-tabletop)
 
 ---
 
@@ -13,7 +13,7 @@ Menagerie submodule:
 
 `third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x/`
 
-v1.3 showcase:
+v1.2.3 showcase:
 
 1. **SC-v13a** — empty tabletop, end-effector pose A → B (validate command chain)
 2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
@@ -48,25 +48,18 @@ about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
 arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 
 **Pedestal height:** min clear pad_z ≈ 0.0275 m → min top ≈ 0.0175 m; with a
-**4×box-edge margin** (4·0.02 = 0.08 m) the pedestal top is **0.098 m**.
+25 mm ball, the pick pose sits ~0.04 m above the tabletop.
 
 **SC-v13b FSM:**
-`IDLE → APPROACH → DESCEND → GRASP → LIFT → MOVE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
-(with `FAULT` on timeout / drop). Grasp is **full MuJoCo physics**: injected
-finger-pad geoms close first, then low-gain adhesion holds the free ball.
-Pedestals sit at ~0.32 m fingertip radius so the arm must stretch.
+
+`IDLE → MOVE_PICK → GRASP → LIFT → MOVE_PLACE → RELEASE → DONE`
 
 **SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
-with ARCO RRT* (inflated wall occupancy) and tracked by ARCO
-``JointSpaceMPC`` (carrot NMPC) so the arm retracts around the wall.
+around the wall (not a straight joint-space line). Grasp / lift / release
 SC-v13b phase targets use the same joint-space MPC.
 
 **SC-v13d:** Γ maze (vertical stem + horizontal roof overhang toward the
-pick ball). The planner must back out from under the roof, climb, then place
-— a simple lift-and-fly over the stem is blocked. Wall geoms use
-``contype=1`` / ``conaffinity=1`` so they collide with arm collision meshes
-(Menagerie default bit 1); the ball does not collide with the wall (ball
-bits exclude 1).
+pick ball) — forces back-out from under the roof, climb, then place.
 
 ---
 
@@ -74,18 +67,15 @@ bits exclude 1).
 
 | File | Status |
 |---|---|
-| Menagerie `open_manipulator_x.xml` | ✅ Submodule |
-| `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty tabletop template |
-| `src/fret/mjcf/omx_pick_place.xml` | ✅ Tabletop + ball + place cone |
+| `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty cell (SC-v13a) |
+| `src/fret/mjcf/omx_pick_place.xml` | ✅ Ball + cone (SC-v13b) |
 | `src/fret/mjcf/omx_desk_clutter.xml` | ✅ Mid-cell wall (SC-v13c) |
 | `src/fret/mjcf/omx_wall_maze.xml` | ✅ Γ stem+cap maze (SC-v13d) |
-| `src/fret/mjcf/assets/cone.obj` | ✅ Place-funnel mesh primitive |
-| `src/fret/mjcf/omx.py` | ✅ Merges Menagerie + template → `.generated/` |
+| `src/fret/control/kinematics_open_manipulator_x.py` | ✅ Menagerie FK |
+| `src/fret/control/pick_place_fsm.py` | ✅ SC-v13b FSM |
 | `src/fret/config/scenarios/omx_reach.yml` | ✅ SC-v13a joint-space A→B |
 | `src/fret/config/scenarios/omx_pick_place.yml` | ✅ SC-v13b pick-and-place |
 | `src/fret/config/scenarios/omx_desk_clutter.yml` | ✅ SC-v13c desk clutter |
 | `src/fret/config/scenarios/omx_wall_maze.yml` | ✅ SC-v13d Γ-wall maze |
-| `src/fret/control/kinematics_open_manipulator_x.py` | ✅ MuJoCo FK / numerical IK |
-| `src/fret/control/pick_place_fsm.py` | ✅ Manipulation FSM |
 
 Simulation: [mujoco.md](../mujoco.md). Roadmap: [roadmap.md](../roadmap.md).

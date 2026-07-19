@@ -28,7 +28,7 @@ bridge/ROS layer.
 
 | Project | License | What it provides | FRET use today | Fit | Adopt? |
 |---|---|---|---|---|---|
-| [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Per-model (often Apache-2.0 / BSD) | Arms, humanoids, mobile manipulators, props | Planned for 6-DOF meshes ([robots/six_dof.md](robots/six_dof.md)); Stretch/TidyBot cited in Dubins asset notes | High for arms / props | **Yes** — import meshes for v1.4; do not take whole stack |
+| [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Per-model (often Apache-2.0 / BSD) | Arms, humanoids, mobile manipulators, props | Planned for 6-DOF meshes ([robots/six_dof.md](robots/six_dof.md)); Stretch/TidyBot cited in Dubins asset notes | High for arms / props | **Yes** — import meshes for v1.2.4; do not take whole stack |
 | [ROBOTIS MuJoCo Menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie) (`robotis_tb3`) | Apache-2.0 | TurtleBot3 Burger / Waffle with **real wheel joints + actuators** | **In use** — `turtlebot3_burger.xml` / `turtlebot3_unit.xml` + race agents; import via `scripts/import_turtlebot3_assets.py` | **Best** for true diff-drive | **Done** for unit + race wheel physics |
 | [AuTURBO/robotis_mujoco_menagerie](https://github.com/AuTURBO/robotis_mujoco_menagerie) | Apache-2.0 | Community mirror / extensions of ROBOTIS models | Not used | Same as ROBOTIS | Optional mirror if upstream layout changes |
 
@@ -61,8 +61,8 @@ bridge/ROS layer.
 | FRET robot | Preferred external source | Current FRET MJCF | Gap |
 |---|---|---|---|
 | Diff-drive / “Dubins” mobile | ROBOTIS TB3 Menagerie | `turtlebot3_unit.xml` + `dubins_race.xml` (true wheel actuators) | Race E2E controller tuning may still need work; unit physics is green |
-| OpenMANIPULATOR-X (v1.3) | Menagerie submodule | Planned | — |
-| 6-DOF (v1.4) | MuJoCo Menagerie (UR / similar) | Planned | Mesh import only |
+| OpenMANIPULATOR-X (v1.2.3) | Menagerie submodule | Shipped (`v1.2.3`) | — |
+| 6-DOF (v1.2.4) | MuJoCo Menagerie (OMY / similar) | Planned | Mesh import only |
 
 ---
 

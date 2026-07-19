@@ -71,7 +71,7 @@ on every PR gate.
 
 ---
 
-### SC-v13a — OpenMANIPULATOR-X empty reach (v1.3)
+### SC-v13a — OpenMANIPULATOR-X empty reach (v1.2.3)
 
 **File:** `config/scenarios/omx_reach.yml`  
 **Model:** `open_manipulator_x`
@@ -79,9 +79,9 @@ on every PR gate.
 **Purpose:** Validate the full command chain on an empty tabletop — EE pose A → B,
 no obstacles.
 
-**Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
+**Pass criteria:** See [releases.md § v1.2.3](releases.md#v123--openmanipulator-x-tabletop).
 
-### SC-v13b — OpenMANIPULATOR-X pick-and-place (v1.3)
+### SC-v13b — OpenMANIPULATOR-X pick-and-place (v1.2.3)
 
 **File:** `config/scenarios/omx_pick_place.yml`  
 **Model:** `open_manipulator_x`
@@ -91,9 +91,9 @@ pick a Ø 25 mm ball from the green cylinder pedestal and drop it into the red
 place cone (tip-down funnel under a transparent plate). No obstacles. AWS
 warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 
-**Pass criteria:** See [releases.md § v1.3](releases.md#v13--openmanipulator-x-tabletop).
+**Pass criteria:** See [releases.md § v1.2.3](releases.md#v123--openmanipulator-x-tabletop).
 
-### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.3)
+### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.2.3)
 
 **File:** `config/scenarios/omx_desk_clutter.yml`  
 **Model:** `open_manipulator_x`
@@ -101,7 +101,7 @@ warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 **Purpose:** Mid-cell wall blocks the straight green→red transfer; planner +
 controller must retract around it under full MuJoCo physics (AWS meshes later).
 
-### SC-v13d — OpenMANIPULATOR-X Γ-wall maze (v1.3)
+### SC-v13d — OpenMANIPULATOR-X Γ-wall maze (v1.2.3)
 
 **File:** `config/scenarios/omx_wall_maze.yml`  
 **Model:** `open_manipulator_x`
@@ -113,14 +113,14 @@ collision bitmasks stay active (`contype`/`conaffinity` = 1).
 
 ---
 
-### SC-v14 — 6-DOF challenge (v1.4)
+### SC-v14 — 6-DOF challenge (v1.2.4)
 
 **File:** `config/scenarios/six_dof_challenge.yml` *(planned)*  
 **Model:** `six_dof`
 
-**Purpose:** Capstone — 6-DOF manipulator in cluttered cell.
+**Purpose:** 6-DOF manipulator in cluttered cell — simulation capstone before v1.3 hardware.
 
-**Pass criteria:** See [releases.md § v1.4](releases.md#v14--6-dof-manipulator-final-challenge).
+**Pass criteria:** See [releases.md § v1.2.4](releases.md#v124--6-dof-manipulator-challenge).
 
 ---
 

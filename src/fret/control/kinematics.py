@@ -3,7 +3,7 @@
 Dispatches to model-specific engines:
 
 - ``"dubins"`` — Dubins mobile (v1.1)
-- ``"open_manipulator_x"`` / ``"omx"`` — Menagerie OM-X (v1.3)
+- ``"open_manipulator_x"`` / ``"omx"`` — Menagerie OM-X (v1.2.3)
 """
 
 from __future__ import annotations

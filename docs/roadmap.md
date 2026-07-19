@@ -1,6 +1,6 @@
 # FRET Project Roadmap
 
-> **Release targets:** [releases.md](releases.md) (v1.0 → v1.4)
+> **Release targets:** [releases.md](releases.md) (v1.0 → v1.3)
 
 ---
 
@@ -12,23 +12,27 @@
 * **Planning:** ARCO (SST, KDTree occupancy, trajectory pruner).
 * **Simulation:** MuJoCo — physics, contacts, rendering, and SITL for all releases.
 * **Assets:** ROBOTIS MuJoCo Menagerie + AWS RoboMaker warehouse (git submodules).
-* **Hardware path:** Raspberry Pi 5 + Arduino Mega via Micro-ROS (post v1.4).
+* **Hardware path:** Raspberry Pi 5 + Arduino Mega via Micro-ROS (**v1.3**, after debug).
 
 ---
 
 ## Release sequence
 
 ```
-v1.1  ✅  Dubins dual-robot race A→B through warehouse maze (Menagerie TB3)
+v1.1   ✅  Dubins dual-robot race A→B through warehouse maze (Menagerie TB3)
   │
   ▼
-v1.2  ✅  MuJoCo physics SITL — actuators, contacts, controller tuning
+v1.2   ✅  MuJoCo physics SITL — actuators, contacts, controller tuning
+  │
+  ├─ v1.2.3  ✅  OpenMANIPULATOR-X tabletop (Menagerie OM-X)
+  │
+  └─ v1.2.4  🔲  6-DOF manipulator challenge (Menagerie OMY / equivalent)
   │
   ▼
-v1.3  🔲  OpenMANIPULATOR-X tabletop — positional A→B (Menagerie OM-X)
+v1.3   🔲  Hardware HITL — Micro-ROS bridge (after debug)
   │
   ▼
-v1.4  🔲  6-DOF manipulator — final challenge (Menagerie OMY / equivalent)
+post v1.3     Vision, dynamic replanning
 ```
 
 Full acceptance criteria and tasks: [releases.md](releases.md).
@@ -73,7 +77,7 @@ Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
 
 ---
 
-## Phase 3 — v1.3 OpenMANIPULATOR-X tabletop 🔲
+## Phase 3 — v1.2.3 OpenMANIPULATOR-X tabletop ✅ *Complete*
 
 **Robot:** OpenMANIPULATOR-X (4-DOF + gripper) from
 `third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x`.
@@ -85,14 +89,14 @@ SC-v13c (desk clutter detour), SC-v13d (Γ-wall maze).
 - [x] Pick-and-place FSM: green → physical grasp → red → release (plain MuJoCo box)
 - [x] Desk-clutter wall: planned retract transfer (planner + controller)
 - [x] Γ-wall maze: retract → climb → place (SC-v13d)
-- [ ] Add AWS desk / clutter props; verify denser detour planning
-- [ ] Tune controller / lookahead / clearance as needed
-- [ ] Showcase video (overview + top-down / EE follow)
-- [ ] Tag `v1.3.0`
+- [x] Showcase videos (Γ-maze overview: RRT* + SST)
+- [x] Tag `v1.2.3`
+
+Optional polish (non-blocking): AWS desk / clutter props; denser detour tuning.
 
 ---
 
-## Phase 4 — v1.4 6-DOF challenge 🔲
+## Phase 4 — v1.2.4 6-DOF challenge 🔲
 
 **Robot:** Menagerie 6-DOF arm (OpenMANIPULATOR-Y preferred). **Scenario:** SC-v14.
 
@@ -100,19 +104,20 @@ SC-v13c (desk clutter detour), SC-v13d (Γ-wall maze).
 - [ ] Numerical IK + Jacobian controller
 - [ ] 6-D C-space checker with self-collision
 - [ ] Cluttered cell MJCF (AWS props)
-- [ ] Tag `v1.4.0`
+- [ ] Tag `v1.2.4`
 
 ---
 
-## Phase 5 — Hardware HITL 🔲 *Post v1.4*
+## Phase 5 — v1.3 Hardware HITL 🔲 *After debug*
 
 - [ ] Micro-ROS serial bridge (`hardware/bridge_node.py`)
 - [ ] Encoder feedback loop
 - [ ] Physical prototype integration
+- [ ] Tag `v1.3.0`
 
 ---
 
-## Phase 6 — Vision 🔲 *Future*
+## Phase 6 — Vision 🔲 *Post v1.3*
 
 - [ ] Camera-based perception
 - [ ] Dynamic replanning from visual feedback
