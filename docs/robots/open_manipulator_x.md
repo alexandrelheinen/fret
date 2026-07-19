@@ -61,11 +61,12 @@ with ARCO RRT* (inflated wall occupancy) and tracked by ARCO
 ``JointSpaceMPC`` (carrot NMPC) so the arm retracts around the wall.
 SC-v13b phase targets use the same joint-space MPC.
 
-**SC-v13d:** Γ maze (vertical stem + horizontal cap toward the base). The
-planner must retract away from the place XY, climb over the cap, then place.
-Wall geoms use ``contype=1`` / ``conaffinity=1`` so they collide with arm
-collision meshes (Menagerie default bit 1); the ball does not collide with
-the wall (ball bits exclude 1).
+**SC-v13d:** Γ maze (vertical stem + horizontal roof overhang toward the
+pick ball). The planner must back out from under the roof, climb, then place
+— a simple lift-and-fly over the stem is blocked. Wall geoms use
+``contype=1`` / ``conaffinity=1`` so they collide with arm collision meshes
+(Menagerie default bit 1); the ball does not collide with the wall (ball
+bits exclude 1).
 
 ---
 

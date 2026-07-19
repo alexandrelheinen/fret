@@ -1,14 +1,16 @@
-# SC-v13d — OpenMANIPULATOR-X Γ-wall maze (retract → climb → place).
+# SC-v13d — OpenMANIPULATOR-X Γ-wall maze (back out → climb → place).
 #
 # Same ball / pick pedestal / place cone as SC-v13b/c, plus an inverted-L
-# (letter Γ) obstacle. MOVE_PLACE plans around the stem+cap occupancy.
+# (letter Γ) obstacle: vertical stem + horizontal roof overhang toward the
+# pick ball (negative Y / "telhadinho"), so lift-and-fly over the stem is
+# blocked and the arm must back out first.
 
 /**:
   ros__parameters:
     model: open_manipulator_x
     scenario_id: omx_wall_maze
     simulation_dt: 0.02
-    duration: 55.0
+    duration: 70.0
     planning_timeout: 30.0
     goal_tolerance: 0.05
     mjcf: mjcf/omx_wall_maze.xml
@@ -21,27 +23,31 @@
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
     planner_rng_seed: 11
-    # Stem (vertical mid-cell slab) + cap (horizontal bar toward base).
+    # Stem (mid-cell) + roof overhang toward pick (asymmetric y).
     walls:
       - x_min: 0.25
         x_max: 0.34
-        y_half: 0.008
-        z_min: 0.0
-        z_max: 0.20
-      - x_min: 0.16
-        x_max: 0.26
         y_half: 0.010
-        z_min: 0.14
-        z_max: 0.19
-    wall_inflate_m: 0.02
+        z_min: 0.0
+        z_max: 0.22
+      - x_min: 0.26
+        x_max: 0.34
+        y_min: -0.15
+        y_max: 0.01
+        z_min: 0.225
+        z_max: 0.265
+    wall_inflate_m: 0.025
     occupancy_density: 1200.0
-    max_transfer_radius_m: 0.11
+    # Back-out under the pick-side roof (not a short hover chord).
+    max_transfer_radius_m: 0.16
     min_transfer_ee_z_m: 0.145
-    # Accepted paths must clear the Γ cap height somewhere.
-    min_transfer_peak_ee_z_m: 0.24
-    # Fold slightly on the place side so RETREAT need not drive Joint1
-    # through the Γ stem (center idle jams against the wall after place).
-    idle_configuration: [0.25, -1.05, 0.7, 0.7]
+    min_transfer_peak_ee_z_m: 0.21
+    lift_height_m: 0.14
+    phase_timeout_s: 60.0
+    # Start folded at center (approach under the roof); retreat on place side
+    # so Joint1 need not drive back through the stem after place.
+    idle_configuration: [0.0, -1.05, 0.7, 0.7]
+    retreat_configuration: [0.25, -1.05, 0.7, 0.7]
     pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
     pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
     place_hover_configuration: [0.55, 0.416, -0.55, 0.20]

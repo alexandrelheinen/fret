@@ -43,6 +43,12 @@ class PickPlaceWaypoints:
     pick_grasp: npt.NDArray[np.float64]
     place_hover: npt.NDArray[np.float64]
     place_grasp: npt.NDArray[np.float64]
+    # Optional fold after place (defaults to ``idle`` when omitted).
+    retreat: npt.NDArray[np.float64] | None = None
+
+    def __post_init__(self) -> None:
+        if self.retreat is None:
+            object.__setattr__(self, "retreat", self.idle.copy())
 
 
 @dataclass(frozen=True)
@@ -177,14 +183,19 @@ class PickPlaceFSM:
             return self._cmd(self._wp.place_grasp, GRIPPER_OPEN)
 
         if self._state == PickPlaceState.RETREAT:
-            # Lift clear of the placed box before slewing home.
+            # Lift clear of the placed box before slewing to the retreat fold.
+            retreat = (
+                self._wp.retreat
+                if self._wp.retreat is not None
+                else self._wp.idle
+            )
             if not self._retreat_cleared:
                 if self._reached(obs.q, self._wp.place_hover):
                     self._retreat_cleared = True
                 return self._cmd(self._wp.place_hover, GRIPPER_OPEN)
-            if self._reached(obs.q, self._wp.idle):
+            if self._reached(obs.q, retreat):
                 self._enter(PickPlaceState.DONE)
-            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+            return self._cmd(retreat, GRIPPER_OPEN)
 
         return self._cmd(self._wp.idle, GRIPPER_OPEN)
 

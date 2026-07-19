@@ -77,13 +77,20 @@ def walls_from_scenario(
         for entry in raw:
             if not isinstance(entry, dict):
                 raise ValueError("walls entries must be mappings")
+            if "y_min" in entry and "y_max" in entry:
+                y_min = float(entry["y_min"]) - pad
+                y_max = float(entry["y_max"]) + pad
+            else:
+                y_half = float(entry["y_half"])
+                y_min = -y_half - pad
+                y_max = y_half + pad
             boxes.append(
                 BoxObstacle(
                     x_min=float(entry["x_min"]) - pad,
-                    y_min=-float(entry["y_half"]) - pad,
+                    y_min=y_min,
                     z_min=float(entry.get("z_min", 0.0)),
                     x_max=float(entry["x_max"]) + pad,
-                    y_max=float(entry["y_half"]) + pad,
+                    y_max=y_max,
                     z_max=float(entry["z_max"]),
                 )
             )
@@ -137,6 +144,46 @@ def _path_metrics(
 def _is_wall_geom(name: str | None) -> bool:
     """True for transfer-wall geoms (``transfer_wall`` or ``transfer_wall_*``)."""
     return name is not None and name.startswith("transfer_wall")
+
+
+def _path_clear_of_wall_meshes(
+    dense: list[npt.NDArray[np.float64]],
+    *,
+    scenario_id: str,
+) -> bool:
+    """Return True if teleported waypoints do not touch transfer-wall meshes.
+
+    The C-space occupancy cloud is a coarse proxy; Menagerie arm meshes can
+    still graze the Γ roof on an otherwise "free" path.
+    """
+    try:
+        import mujoco as mj
+    except ImportError:  # pragma: no cover
+        return True
+
+    model = mj.MjModel.from_xml_path(
+        str(mjcf_path("open_manipulator_x", scenario_id))
+    )
+    data = mj.MjData(model)
+    names = ("Joint1", "Joint2", "Joint3", "Joint4")
+    # Hide the free ball so it cannot generate spurious contacts.
+    box_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint")
+    qid = int(model.jnt_qposadr[box_jid])
+    data.qpos[qid : qid + 3] = [0.5, 0.5, 0.5]
+    stride = max(1, len(dense) // 40)
+    for q in dense[::stride]:
+        for i, n in enumerate(names):
+            jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)
+            data.qpos[model.jnt_qposadr[jid]] = float(q[i])
+        data.qvel[:] = 0.0
+        mj.mj_forward(model, data)
+        for ci in range(data.ncon):
+            c = data.contact[ci]
+            g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1)
+            g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
+            if _is_wall_geom(g1) or _is_wall_geom(g2):
+                return False
+    return True
 
 
 def _dry_run_transfer(
@@ -292,7 +339,9 @@ def plan_transfer_path(
     )
 
     last_err: str | None = None
-    for attempt in range(24):
+    # Γ maze needs more RNG draws: roof overhang + mesh-clear reject many.
+    attempt_budget = 60 if peak_z > 0.0 else 24
+    for attempt in range(attempt_budget):
         seed = seed0 + attempt
         rng = np.random.default_rng(seed)
         pts = _sample_walls(inflated, density, rng)
@@ -335,7 +384,11 @@ def plan_transfer_path(
                 f"geometry peak_z={path_peak_z:.3f} < required {peak_z:.3f}"
             )
             continue
-        if validate_mujoco and not _dry_run_transfer(
+        if validate_mujoco and peak_z > 0.0:
+            if not _path_clear_of_wall_meshes(dense, scenario_id=scenario_id):
+                last_err = "mujoco wall-mesh contact on path"
+                continue
+        elif validate_mujoco and not _dry_run_transfer(
             dense,
             start,
             goal,
@@ -423,13 +476,19 @@ def simulate_pick_place_clutter(
         goal_tol=max(0.12, float(joint_tol_rad)),
     )
 
+    # Roof overhang leaves little vertical room on the pick side; accept a
+    # slightly lower lift confirmation than the open-cell SC-v13b/c demos.
+    lift_z = float(params.get("lift_height_m", 0.125))
+    phase_timeout = float(params.get("phase_timeout_s", 30.0))
+    if scenario_id == "omx_wall_maze":
+        phase_timeout = max(phase_timeout, 60.0)
     fsm = PickPlaceFSM(
         wp,
         joint_tol_rad=joint_tol_rad,
         grasp_hold_s=1.4,
         release_hold_s=0.8,
-        lift_height_m=0.14,
-        phase_timeout_s=30.0,
+        lift_height_m=lift_z,
+        phase_timeout_s=phase_timeout,
     )
     fsm.start()
 
@@ -448,7 +507,9 @@ def simulate_pick_place_clutter(
     record_every_steps = max(1, int(record_every_steps))
     transfer_armed = False
     ctrl_accum = 0.0
-    q_cmd = wp.pick_hover.copy()
+    # Start the command at the settled pose (not pick_hover) so maze
+    # rate-limited slews actually traverse idle → hover under the roof.
+    q_cmd = _arm_q(mj, model, data)
     last_phase_target = wp.idle.copy()
 
     for step_i in range(max_steps):
@@ -480,6 +541,18 @@ def simulate_pick_place_clutter(
                     q_cmd = wp.place_hover.copy()
                 else:
                     q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
+            elif scenario_id == "omx_wall_maze":
+                # Rate-limited joint slew (not JointSpaceMPC): MPC arcs dive
+                # into the pick-side roof, while an instantaneous jump from
+                # idle also jams the telhadinho. A slow chord stays clear.
+                target = np.asarray(cmd.q_des, dtype=np.float64)
+                delta = target - q_cmd
+                step_n = float(np.linalg.norm(delta))
+                max_step = 0.035  # rad per control tick (~1.75 rad/s)
+                if step_n <= max_step:
+                    q_cmd = target.copy()
+                else:
+                    q_cmd = q_cmd + delta * (max_step / step_n)
             else:
                 q_cmd = np.asarray(
                     phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
@@ -526,10 +599,11 @@ def simulate_pick_place_clutter(
         )
     )
 
-    # Hold idle so showcase clips end folded at home, not mid-RETREAT.
+    # Hold the retreat fold so showcase clips end at home, not mid-RETREAT.
     if fsm.state == PickPlaceState.DONE:
+        hold_q = wp.retreat if wp.retreat is not None else wp.idle
         for i, aid in enumerate(act_arm):
-            data.ctrl[aid] = float(wp.idle[i])
+            data.ctrl[aid] = float(hold_q[i])
         data.ctrl[act_grip] = GRIPPER_OPEN
         data.ctrl[act_al] = 0.0
         data.ctrl[act_ar] = 0.0
@@ -570,17 +644,24 @@ def run_pick_place_clutter(
     params = load_scenario_parameters(scenario_path or _SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     last: ClutterPickPlaceResult | None = None
+    last_err: Exception | None = None
     for attempt in range(max(1, int(max_attempts))):
-        last = simulate_pick_place_clutter(
-            duration_s=duration_s,
-            joint_tol_rad=joint_tol_rad,
-            record_every_steps=1,
-            scenario_path=scenario_path,
-            seed_offset=attempt * 17,
-        )
+        try:
+            last = simulate_pick_place_clutter(
+                duration_s=duration_s,
+                joint_tol_rad=joint_tol_rad,
+                record_every_steps=1,
+                scenario_path=scenario_path,
+                seed_offset=attempt * 17,
+            )
+        except RuntimeError as exc:
+            last_err = exc
+            continue
         if last.state != PickPlaceState.DONE:
             continue
         if float(np.linalg.norm(last.box_pos[:2] - place_xy)) < 0.08:
             return last
+    if last is None and last_err is not None:
+        raise last_err
     assert last is not None
     return last
