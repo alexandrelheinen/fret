@@ -277,8 +277,9 @@
       </body>
     </body>
 
-    <!-- Lab-scale 10 m arena: overview frames the full floor; topdown covers ~11 m. -->
-    <camera name="overview" pos="5 -4.2 9.5" xyaxes="1 0 0 0.42 0.55 0.72" fovy="48"/>
+    <!-- Lab-scale 10 m arena: isometric overview frames start A + goal B. -->
+    <!-- Runtime release overview uses MjvCamera (azimuth 135°, elev -42°). -->
+    <camera name="overview" pos="-1.5 -1.5 12.5" xyaxes="0.707 0.707 0 -0.45 0.45 0.77" fovy="42"/>
     <camera name="topdown" pos="5 5 14" xyaxes="1 0 0 0 1 0" fovy="48"/>
     <camera name="follow" pos="2.5 1.8 1.6" xyaxes="0.9 0.1 0 -0.1 0.9 0.4" fovy="50"/>
     <camera name="finish" pos="8.8 7.0 2.5" xyaxes="-0.8 0.6 0 -0.2 -0.3 0.9" fovy="45"/>
