@@ -1054,7 +1054,7 @@ def render_omx_desk_clutter_showcase_videos(
     """Render OM-X clutter/maze MP4s (SC-v13c wall / SC-v13d Γ maze)."""
     mujoco, _iio = _require_mujoco()
     _ensure_fret_importable()
-    from fret.control.pick_place_clutter_sim import simulate_pick_place_clutter
+    from fret.control.pick_place_clutter_sim import run_pick_place_clutter
     from fret.control.pick_place_fsm import PickPlaceState
 
     camera_names = (
@@ -1080,11 +1080,14 @@ def render_omx_desk_clutter_showcase_videos(
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
     dt = float(model_probe.opt.timestep)
     record_every = max(1, int(round((1.0 / fps) / dt)))
-    result = simulate_pick_place_clutter(
+    # Γ-maze transfer planning is seed-sensitive; retry like the unit tests.
+    max_attempts = 8 if scenario in _OMX_WALL_MAZE_SCENARIOS else 4
+    result = run_pick_place_clutter(
         duration_s=clip_s,
         joint_tol_rad=0.12,
-        record_every_steps=record_every,
         scenario_path=scenario_path,
+        max_attempts=max_attempts,
+        record_every_steps=record_every,
     )
     if result.state != PickPlaceState.DONE:
         raise RuntimeError(
