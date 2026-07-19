@@ -88,12 +88,16 @@ Underlying script: `scripts/render_mujoco.py` (same required flags).
 
 Release CI builds showcase MP4s on version tags (`v*.*.*`) via
 `.github/workflows/release.yml`, uploads to Cloudflare R2, and keeps a
-GitHub Actions artifact backup. Each release scenario exports two POVs:
-**overview** (oblique whole-scene) and **follow** (chase camera).
+GitHub Actions artifact backup. Camera policy (see
+[`config/release/showcase.yml`](../src/fret/config/release/showcase.yml)):
 
-| Scenario | Model | Release duration |
-|---|---|---|
-| `dubins_race` | Dubins | full simulation (real-time post-process) |
+| Scenario | Model | Class | Cameras |
+|---|---|---|---|
+| `dubins_race` | Dubins / TB3 | mobile | `overview` + split-screen `follow` |
+| `omx_reach` | OpenMANIPULATOR-X | static | `overview` |
+| `omx_pick_place` | OpenMANIPULATOR-X | static | `overview` |
+| `omx_desk_clutter` | OpenMANIPULATOR-X | static | `overview` |
+| `omx_wall_maze` | OpenMANIPULATOR-X | static | `overview` |
 
 ### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
 
@@ -104,12 +108,13 @@ token used for CI (never commit secrets to git):
 cp .env.example .env    # fill R2_* values once; .env is gitignored
 sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
-./scripts/download_showcase.sh --tag v1.2.0 --all
+./scripts/download_showcase.sh --tag v1.2.3 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
+./scripts/download_showcase.sh --scenario omx_wall_maze --camera overview
 ```
 
 Default output: `artifacts/r2/dubins_race_latest.mp4` (also gitignored).
-Use `--all` to fetch every release POV (overview + follow).
+Use `--all` to fetch every release POV.
 
 ---
 

@@ -85,9 +85,9 @@ race format (RRT* vs SST).
 | # | Criterion |
 |---|---|
 | V11-1 | Two robots plan independently; both reach B without collision with columns |
-| V11-2 | Race video shows simultaneous motion (split-screen or shared world) |
+| V11-2 | Race video shows simultaneous motion (split-screen **follow** + shared-world **overview**) |
 | V11-3 | Dubins curvature constraint respected (min turning radius) |
-| V11-4 | MP4 artifact uploaded on release tag |
+| V11-4 | MP4 artifacts uploaded on release tag (overview + follow) |
 
 ### Implementation tasks
 
@@ -215,7 +215,7 @@ gripper (~3 cm aperture).
 | V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
 | V13-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
 | V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
-| V13-4 | Showcase video: overview + top-down / EE-follow |
+| V13-4 | Showcase video: isometric **overview** only (static arm — no follow) |
 | V13-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
 | V13-6 | Γ-wall maze path retracts and climbs over the cap before placing |
 
@@ -275,7 +275,8 @@ and trajectory execution in a cluttered environment — the capstone release.
 | `v1.0.0` | Superseded bootstrap tag (not a product showcase) | — |
 | `v1.1.0` | Dubins dual race — **first product showcase** | T11-* |
 | `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
-| `v1.2.0` | MuJoCo physics SITL (Dubins) — **current** | T12-* ✅ |
+| `v1.2.0` | MuJoCo physics SITL (Dubins) | T12-* ✅ |
+| `v1.2.3` | Multi-scenario release videos (overview + mobile follow) — **current** | showcase matrix |
 | `v1.3.0` | OpenMANIPULATOR-X tabletop showcase | T13-* |
 | `v1.4.0` | 6-DOF challenge | T14-* |
 
@@ -308,9 +309,31 @@ kinematic behaviour must not regress.
 - Race showcase controller RTF / finish-time tuning on true TB3 wheel actuators
 - New robots (OpenMANIPULATOR-X, 6-DOF) and hardware HITL
 
-Every release-tag MP4 (Dubins, all camera POVs) **must** play back at
-**real-time simulation speed**. This is a hard product requirement, independent
-of kinematic vs physics render mode.
+### Release showcase videos (v1.2.3+)
+
+Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/release/showcase.yml).
+
+| Robot class | Scenarios (today) | Required cameras |
+|---|---|---|
+| **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric) **and** `follow` (split-screen chase) |
+| **static** | `omx_reach`, `omx_pick_place`, `omx_desk_clutter`, `omx_wall_maze` | `overview` only |
+
+**Rules:**
+
+- **Overview** must frame the robots and ideally start + goal (tune zoom /
+  azimuth per scenario MJCF / runtime camera constants).
+- **Follow** is mandatory for every **mobile** robot showcase, including future
+  mobile platforms. Static / tabletop arms must **not** export follow on release.
+- Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
+- Tags containing `-dev` upload under `releases/<tag>/` only and do **not**
+  update `latest/`.
+
+Orchestration: `scripts/release/render_showcase.py` +
+`.github/workflows/release.yml`.
+
+Every release-tag MP4 **must** play back at **real-time simulation speed**.
+This is a hard product requirement, independent of kinematic vs physics render
+mode.
 
 Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 `.github/workflows/release.yml`):
@@ -321,7 +344,7 @@ Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 3. Post-process with **ffmpeg** (`setpts=PTS/rtf`) so on-screen motion matches
    `sim_time_s`. Skip only when `rtf ≈ 1`.
 
-**Rules:**
+**RTF rules:**
 
 - Release CI must **not** pass `--no-realtime-postprocess`.
 - `--timing-json` is required on release renders (persists RTF per clip in
@@ -329,8 +352,8 @@ Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 - Development/debug renders may use `--no-realtime-postprocess`, but uploaded
   R2 showcase assets must always be real-time adjusted.
 
-Until v1.2.0, release CI used `--kinematic-mode`; from v1.2.0 onward it uses
-`--physics-mode`. The real-time post-process step applies in both cases.
+Until v1.2.0, release CI used `--kinematic-mode`; from v1.2.0 onward Dubins
+uses `--physics-mode`. The real-time post-process step applies in both cases.
 
 See [mujoco.md § Showcase rendering](mujoco.md#showcase-rendering-real-time-playback).
 

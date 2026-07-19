@@ -177,8 +177,9 @@ skip GL entirely.
 
 ### Download CI / release MP4 (WSL-friendly)
 
-Release CI renders two POV clips for the Dubins race showcase
-(overview and follow) and uploads them to Cloudflare R2. See
+Release CI renders isometric **overview** clips for every showcase scenario
+plus split-screen **follow** for mobile robots (TB3 race today), then uploads
+to Cloudflare R2. See
 [tutorial.md § Download from R2](tutorial.md#download-from-r2-wsl-friendly--no-mujoco-rendering-needed).
 
 ```bash

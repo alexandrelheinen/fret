@@ -228,9 +228,24 @@ Optional: `--dry-run`, `--no-loop`, `--mjcf`.
 Output (one mode required):
 
 - Single camera: `-o/--output` + `--camera`
-- All showcase cameras: `--all-cameras` + `--output-dir`
+- All release showcase cameras: `--all-cameras` + `--output-dir`
 
 Optional: `--no-tracking`, `--timing-json`, `--no-realtime-postprocess`, `--mjcf`.
+
+### Release camera policy
+
+Source of truth: [`config/release/showcase.yml`](../src/fret/config/release/showcase.yml).
+
+| Camera | Who | Framing |
+|---|---|---|
+| `overview` | **All** scenarios | Isometric top view — robots + start/goal |
+| `follow` | **Mobile** robots only (TB3 today; required for future mobile too) | Split-screen chase (one panel per agent on Dubins) |
+
+Static / tabletop arms export `overview` only. Extra MJCF cameras (`topdown`,
+`finish`, …) remain available via explicit `--camera` but are not release
+artifacts.
+
+Release CI: `scripts/release/render_showcase.py` (matrix over the manifest).
 
 ### Showcase rendering (real-time playback)
 
