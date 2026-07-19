@@ -1,4 +1,4 @@
-# OpenMANIPULATOR-X planning stack parameters (v1.3 stub).
+# OpenMANIPULATOR-X planning stack parameters (v1.2.3).
 #
 # Consumed by: TrajectoryConverter, TrajectoryGenerator, ReplanningManager.
 

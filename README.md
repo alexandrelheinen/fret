@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.2** — dual-agent Dubins race and **MuJoCo physics SITL**
-(actuator-driven `mj_step`, contact dynamics). Release showcase videos and CI
-renders use `--physics-mode` by default.
+**Current release: v1.2.3** — dual-agent Dubins race, **MuJoCo physics SITL**, and
+**OpenMANIPULATOR-X** tabletop (Γ-wall maze showcase). Release showcase videos and CI
+renders use `--physics-mode` by default for mobile scenarios.
 
 <br clear="left">
 
@@ -29,7 +29,7 @@ renders use `--physics-mode` by default.
 The Dubins showcase ships with headless render scripts, pure-Python E2E tests (no ROS
 required for CI validation), and optional ROS 2 SITL launch files.
 
-**Coming next:** OpenMANIPULATOR-X tabletop (v1.3), 6-DOF Menagerie arm (v1.4).
+**Coming next:** 6-DOF Menagerie arm challenge (v1.2.4), then hardware HITL (v1.3).
 See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
@@ -203,8 +203,8 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 | `model` | Release | Control strategy |
 |---|---|---|
 | `dubins` | v1.1 | ARCO Pure Pursuit + DubinsVehicle |
-| `open_manipulator_x` | v1.3 | Jacobian / joint-space tracking (Menagerie OM-X) |
-| `six_dof` | v1.4 | Jacobian + numerical IK (planned) |
+| `open_manipulator_x` | v1.2.3 | Jacobian / joint-space tracking (Menagerie OM-X) |
+| `six_dof` | v1.2.4 | Jacobian + numerical IK (planned) |
 
 Robot details: [docs/robots/README.md](docs/robots/README.md).
 
@@ -384,7 +384,7 @@ bash scripts/check/pre_push.sh
 
 | Topic | Document |
 |---|---|
-| Release specification (v1.1–v1.4) | [docs/releases.md](docs/releases.md) |
+| Release specification (v1.1–v1.3) | [docs/releases.md](docs/releases.md) |
 | Roadmap & milestones | [docs/roadmap.md](docs/roadmap.md) |
 | Contributing & V-cycle | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Coding guidelines | [docs/guidelines.md](docs/guidelines.md) |

@@ -1,4 +1,4 @@
-"""OpenMANIPULATOR-X MJCF helpers (v1.3 tabletop / pick-place cells).
+"""OpenMANIPULATOR-X MJCF helpers (v1.2.3 tabletop / pick-place cells).
 
 Menagerie sets ``meshdir="assets/"`` relative to ``open_manipulator_x.xml``.
 Including that file from another directory drops the meshdir, so we materialize

@@ -1,4 +1,4 @@
-# FRET Release Specification (v1.0 → v1.4)
+# FRET Release Specification (v1.0 → v1.3)
 
 > **Authoritative product roadmap.** All requirements, scenarios, and milestones trace
 > to this document.
@@ -21,8 +21,9 @@ robot class, one showcase scenario, and one article-ready visual demo.
 | **v1.0** | *(superseded)* | Bootstrap iteration — not a product showcase | — |
 | **v1.1** | Dubins mobile × 2 | Dual-robot race A→B through column forest | MuJoCo |
 | **v1.2** | Dubins (physics upgrade) | Actuator-driven SITL with contact dynamics | MuJoCo |
-| **v1.3** | OpenMANIPULATOR-X (4-DOF) | Tabletop A→B → pick-place → AWS clutter | MuJoCo |
-| **v1.4** | 6-DOF manipulator | Final challenge — full C-space planning + execution | MuJoCo |
+| **v1.2.3** | OpenMANIPULATOR-X (4-DOF) | Tabletop A→B → pick-place → Γ-wall maze | MuJoCo |
+| **v1.2.4** | 6-DOF manipulator | Cluttered-cell C-space planning + execution | MuJoCo |
+| **v1.3** | Hardware HITL | Micro-ROS bridge + physical prototype | Pi 5 + Arduino |
 
 **Platform stack (all releases):**
 
@@ -111,7 +112,7 @@ simulation integrates dynamics and resolves contacts. Robots follow physical
 laws — no open-loop pose teleportation.
 
 This release does not add a new robot or showcase scenario. It hardens the
-simulation foundation required for v1.3+ arm releases.
+simulation foundation required for v1.2.x arm releases.
 
 ### Previous limitation (v1.1, superseded)
 
@@ -183,7 +184,7 @@ Physics validation runs against the shipped release scenario:
 
 ---
 
-## v1.3 — OpenMANIPULATOR-X tabletop
+## v1.2.3 — OpenMANIPULATOR-X tabletop ✅
 
 ### Goal
 
@@ -212,33 +213,33 @@ gripper (~3 cm aperture).
 
 | # | Criterion |
 |---|---|
-| V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
-| V13-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
-| V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
-| V13-4 | Showcase videos: Γ-maze isometric **overview** for RRT* and SST (same MPC tracking; no follow) |
-| V13-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
-| V13-6 | Γ-wall maze path retracts and climbs over the cap before placing |
+| V123-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
+| V123-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
+| V123-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
+| V123-4 | Showcase videos: Γ-maze isometric **overview** for RRT* and SST (same MPC tracking; no follow) |
+| V123-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
+| V123-6 | Γ-wall maze path retracts and climbs over the cap before placing |
 
 ### Implementation tasks
 
 | ID | Task |
 |---|---|
-| T13-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
-| T13-02 | Kinematics + controller + bridge wiring for OM-X joints |
-| T13-03 | SC-v13a scenario + unit/physics smoke |
-| T13-04 | PickPlace FSM + ball/cone MJCF + SC-v13b physics smoke |
-| T13-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
-| T13-06 | Showcase render pipeline + metrics |
-| T13-07 | Γ-wall maze SC-v13d (stem+cap occupancy + climb filter) |
+| T123-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
+| T123-02 | Kinematics + controller + bridge wiring for OM-X joints |
+| T123-03 | SC-v13a scenario + unit/physics smoke |
+| T123-04 | PickPlace FSM + ball/cone MJCF + SC-v13b physics smoke |
+| T123-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
+| T123-06 | Showcase render pipeline + metrics |
+| T123-07 | Γ-wall maze SC-v13d (stem+cap occupancy + climb filter) |
 
 ---
 
-## v1.4 — 6-DOF manipulator (final challenge)
+## v1.2.4 — 6-DOF manipulator challenge
 
 ### Goal
 
 A **6-DOF revolute manipulator** (Menagerie OpenMANIPULATOR-Y preferred) performs C-space planning
-and trajectory execution in a cluttered environment — the capstone release.
+and trajectory execution in a cluttered environment — the simulation capstone before hardware.
 
 ### Scope (high level)
 
@@ -259,12 +260,41 @@ and trajectory execution in a cluttered environment — the capstone release.
 
 | # | Criterion |
 |---|---|
-| V14-1 | Collision-free 6-D path planned within 60 s |
-| V14-2 | EE reaches goal with ≤ 5 mm error under physics SITL |
-| V14-3 | Self-collision checking enabled |
-| V14-4 | Demo video + benchmark table (planning time, path length) |
+| V124-1 | Collision-free 6-D path planned within 60 s |
+| V124-2 | EE reaches goal with ≤ 5 mm error under physics SITL |
+| V124-3 | Self-collision checking enabled |
+| V124-4 | Demo video + benchmark table (planning time, path length) |
 
-*Detailed task breakdown will be written when OM-X v1.3 is complete.*
+*Detailed task breakdown (T124-*) will be written when v1.2.3 is tagged.*
+
+---
+
+## v1.3 — Hardware HITL
+
+### Goal
+
+Close the loop from FRET's ROS 2 stack to a **physical prototype**: Raspberry Pi 5 high-level
+control, Arduino Mega low-level actuation, Micro-ROS serial bridge, and encoder feedback.
+Ships after simulation milestones (v1.2.4) are debugged and stable.
+
+### Scope (high level)
+
+| Item | Detail |
+|---|---|
+| Bridge | `hardware/bridge_node.py` — `/joint_commands` → serial → motor drivers |
+| Feedback | Encoder data → `/joint_states` at ≥ 50 Hz |
+| Transport | Micro-ROS preferred; custom ASCII fallback |
+| Targets | Pi 5 + Arduino Mega + Nema 17 class steppers |
+
+### Acceptance criteria
+
+| # | Criterion |
+|---|---|
+| V13-1 | Bridge relays validated joint commands without corruption |
+| V13-2 | Encoder feedback published at ≥ 50 Hz |
+| V13-3 | End-to-end HITL smoke on at least one manipulator joint |
+
+*Detailed task breakdown (T13-*) will be written when v1.2.4 planning starts.*
 
 ---
 
@@ -276,9 +306,9 @@ and trajectory execution in a cluttered environment — the capstone release.
 | `v1.1.0` | Dubins dual race — **first product showcase** | T11-* |
 | `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
 | `v1.2.0` | MuJoCo physics SITL (Dubins) | T12-* ✅ |
-| `v1.2.3` | Multi-scenario release videos (overview + mobile follow) — **current** | showcase matrix |
-| `v1.3.0` | OpenMANIPULATOR-X tabletop showcase | T13-* |
-| `v1.4.0` | 6-DOF challenge | T14-* |
+| `v1.2.3` | OpenMANIPULATOR-X tabletop showcase (mobile + OM-X videos) — **current** | T123-* ✅ |
+| `v1.2.4` | 6-DOF challenge | T124-* |
+| `v1.3.0` | Hardware HITL | T13-* |
 
 ### v1.1.x → v1.2.0 retrospective
 
@@ -304,10 +334,14 @@ kinematic behaviour must not regress.
   ~1.73× kinematic on CI.
 - **Release pipeline:** `release.yml` uses `--physics-mode`.
 
-**Deferred to v1.3+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
+**Deferred to v1.2.4+** (see [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)):
 
 - Race showcase controller RTF / finish-time tuning on true TB3 wheel actuators
-- New robots (OpenMANIPULATOR-X, 6-DOF) and hardware HITL
+- 6-DOF manipulator (v1.2.4)
+
+**Deferred to v1.3+:**
+
+- Hardware HITL (Micro-ROS bridge)
 
 ### Release showcase videos (v1.2.3+)
 

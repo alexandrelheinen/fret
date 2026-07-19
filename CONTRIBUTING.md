@@ -528,7 +528,7 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | [docs/interfaces.md](docs/interfaces.md) | Level 2 — typed contracts, QoS, FSMs |
 | [docs/mujoco.md](docs/mujoco.md) | Level 2 — MuJoCo simulation integration |
 | [docs/simulation.md](docs/simulation.md) | User guide — MuJoCo modes and quick start |
-| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.4 |
+| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.3 |
 | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) | v1.2 physics SITL engineering spec |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |
 

@@ -1,16 +1,17 @@
-# 6-DOF Manipulator (v1.4)
+# 6-DOF Manipulator (v1.2.4)
 
-> **Release:** v1.4 · **Scenario:** SC-v14 ·
-> [Release spec](../releases.md#v14--6-dof-manipulator-final-challenge)
+> **Release:** v1.2.4 · **Scenario:** SC-v14 ·
+> [Release spec](../releases.md#v124--6-dof-manipulator-challenge)
 
 ---
 
 ## Overview
 
-The 6-DOF release is the **final challenge**: a general revolute manipulator performing
-full C-space planning and execution in a cluttered cell on **MuJoCo physics SITL**.
+The v1.2.4 release is the **simulation capstone** before v1.3 hardware: a general revolute
+manipulator performing full C-space planning and execution in a cluttered cell on
+**MuJoCo physics SITL**.
 
-Specific robot model (UR5, UR3, or custom) will be selected at the start of v1.4 work.
+Specific robot model (UR5, UR3, or custom) will be selected at the start of v1.2.4 work.
 Prefer **OpenMANIPULATOR-Y** from `third_party/robotis_mujoco_menagerie/robotis_omy` (same submodule policy as TB3 and OM-X).
 
 ---
@@ -35,6 +36,6 @@ Prefer **OpenMANIPULATOR-Y** from `third_party/robotis_mujoco_menagerie/robotis_
 | `src/fret/mjcf/six_dof_cell.xml` | MuJoCo cell + robot |
 | `src/fret/config/scenarios/six_dof_challenge.yml` | SC-v14 |
 
-*Specification will be expanded when v1.3 is complete.*
+*Specification will be expanded when v1.2.3 is tagged.*
 
 Simulation: [mujoco.md](../mujoco.md).

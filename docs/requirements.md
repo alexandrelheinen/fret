@@ -19,7 +19,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
 | Backend | Role | From |
 |---|---|---|
 | MuJoCo | Physics, contacts, rendering, SITL | v1.1 |
-| HITL | Hardware | post v1.4 |
+| HITL | Hardware | v1.3 |
 
 **FR-SYS-04:** All runtime-significant values in ROS parameters or YAML.
 
@@ -45,7 +45,7 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
 
 **FR-PLN-03:** Action feedback: iteration count, cost, elapsed time.
 
-**FR-PLN-04:** Planning timeout 30 s (60 s for v1.4 6-DOF) → `ABORTED / TIMEOUT`.
+**FR-PLN-04:** Planning timeout 30 s (60 s for v1.2.4 6-DOF) → `ABORTED / TIMEOUT`.
 
 **FR-PLN-05:** Failure → `ABORTED` with error code; no auto-retry.
 
@@ -64,8 +64,8 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
 | Release | Robot | Limit |
 |---|---|---|
 | v1.1 | Dubins | ≤ 0.5 m pose (SE(2)) |
-| v1.3 | OpenMANIPULATOR-X | ≤ 5 mm EE |
-| v1.4 | 6-DOF | ≤ 5 mm EE |
+| v1.2.3 | OpenMANIPULATOR-X | ≤ 5 mm EE |
+| v1.2.4 | 6-DOF | ≤ 5 mm EE |
 
 **FR-CTL-03:** Velocity commands published to `/joint_commands`.
 
@@ -111,7 +111,7 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 
 ---
 
-## Hardware (post v1.4)
+## Hardware (v1.3)
 
 **FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
 
@@ -141,12 +141,11 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 | Sim mode | MuJoCo `mj_step` + actuators |
 | Control rate | 50 Hz |
 
-### v1.3 — OpenMANIPULATOR-X
+### v1.2.3 — OpenMANIPULATOR-X
 
-Tabletop A→B, then pick-and-place FSM, then AWS desk clutter — Menagerie OM-X.
+Tabletop A→B, then pick-and-place FSM, then desk clutter and Γ-wall maze — Menagerie OM-X.
 
-
-### v1.4 — 6-DOF
+### v1.2.4 — 6-DOF
 
 | Parameter | Value |
 |---|---|
@@ -168,5 +167,5 @@ Tabletop A→B, then pick-and-place FSM, then AWS desk clutter — Menagerie OM-
 | FR-SIM-01–06 | v1.1 | MuJoCo launch + MP4 artifact |
 | FR-SIM-07–09 | v1.2 | Physics SITL smoke + integration tests |
 | FR-SIM-11 | v1.2+ | `tests/simulation/test_*_robot_unit.py` |
-| FR-HW-01–03 | post v1.4 | — |
+| FR-HW-01–03 | v1.3 | — |
 

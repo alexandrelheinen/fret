@@ -10,17 +10,17 @@
 
 The hardware module provides the serial communication bridge between the ROS 2
 high-level controller (Raspberry Pi 5) and the low-level actuator controller
-(Arduino Mega). It is a **Phase 3 deliverable** and is currently implemented as
+(Arduino Mega). It is a **v1.3 deliverable** and is currently implemented as
 a stub.
 
 ---
 
 ## Status
 
-> **Phase 3 — Not yet implemented.**
+> **v1.3 — Not yet implemented.**
 > The `bridge_node.py` stub exists to define the interface and maintain the
-> architecture structure. Hardware integration begins after SITL validation
-> (Milestones 1–5) is complete.
+> architecture structure. Hardware integration begins after simulation milestones
+> (v1.2.4) are debugged and stable.
 
 ---
 
@@ -49,7 +49,7 @@ RPi 5 (ROS 2)  ──[USB/UART]──  Arduino Mega (Micro-ROS)
     │  /joint_states  ◄── BridgeNode ◄── encoder data ◄── encoders
 ```
 
-The protocol will be finalized during Phase 3. Micro-ROS is the preferred
+The protocol will be finalized during v1.3. Micro-ROS is the preferred
 transport; a custom ASCII protocol is the fallback.
 
 ---
@@ -66,7 +66,7 @@ transport; a custom ASCII protocol is the fallback.
 
 ---
 
-## Satisfies Requirements (Phase 3)
+## Satisfies Requirements (v1.3)
 
 | Requirement | Description |
 |---|---|

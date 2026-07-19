@@ -112,7 +112,7 @@ src/fret/mjcf/
 ├── assets/
 │   ├── turtlebot3/         # Apache-2.0 ROBOTIS Menagerie meshes
 │   └── aws_warehouse/      # MIT-0 warehouse visuals (Dubins)
-└── (v1.3+) omx_tabletop.xml, six_dof_cell.xml, …
+└── (v1.2.3+) omx_tabletop.xml, six_dof_cell.xml, …
 ```
 
 Unit sandboxes are loaded by `fret.simulation.TurtleBot3UnitRobot` for open-loop
@@ -135,8 +135,8 @@ FRET imports third-party assets into MJCF:
 | Source | Use | Script |
 |---|---|---|
 | AWS RoboMaker warehouse | Dubins floor and shelf visuals | `scripts/import_aws_warehouse_assets.py` |
-| MuJoCo Menagerie (planned v1.4) | UR arm meshes for 6-DOF | TBD |
-| Menagerie include (v1.3) | OpenMANIPULATOR-X from submodule | Planned |
+| MuJoCo Menagerie (planned v1.2.4) | OMY / UR arm meshes for 6-DOF | TBD |
+| Menagerie include (v1.2.3) | OpenMANIPULATOR-X from submodule | Shipped |
 
 Imported meshes are converted to OBJ (meters, consistent origin). Collision
 geometry for planning may remain analytic boxes in YAML when mesh collision is
@@ -170,8 +170,8 @@ too expensive.
 | `model` | MJCF | Joint names | Integration |
 |---|---|---|---|
 | `dubins` | `dubins_race.xml` | `rrt_joint_*`, `sst_joint_*` | SE(2) per agent |
-| `open_manipulator_x` | *(v1.3)* | `Joint1`…`Joint4` (+ gripper) | Revolute (Menagerie) |
-| `six_dof` | *(v1.4)* | TBD | 6× revolute |
+| `open_manipulator_x` | *(v1.2.3)* | `Joint1`…`Joint4` (+ gripper) | Revolute (Menagerie) |
+| `six_dof` | *(v1.2.4)* | TBD | 6× revolute |
 
 ---
 
@@ -180,7 +180,7 @@ too expensive.
 Dubins planning uses analytic rectangular footprints + KD-tree occupancy;
 MuJoCo provides visual and (v1.2+) physical column contact.
 
-Arm releases (v1.3+) use FK → KDTree clearance; MuJoCo contacts apply during
+Arm releases (v1.2.3+) use FK → KDTree clearance; MuJoCo contacts apply during
 physics SITL execution.
 
 Scenario parameter: `collision_backend: mujoco` in scenario YAML.
@@ -358,5 +358,5 @@ Configuration schema: [config.md § Simulation](config.md#simulation-physics-v12
 | Dubins | Body/wheel actuation; column + floor contacts; optional inter-agent blocking |
 | Shared | `mj_step` harness, contact logging, CI-green physics mode |
 
-After v1.2, all new robots (OM-X v1.3, 6-DOF v1.4) ship with physics SITL
+After v1.2, all new robots (OM-X v1.2.3, 6-DOF v1.2.4) ship with physics SITL
 from day one — no kinematic-only phase.
