@@ -35,7 +35,7 @@
     place_hover_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
     place_grasp_configuration: [0.7097, 0.4824, 1.2992, -0.4434, 1.8866, -2.1730]
     retreat_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
-    transfer_detour_configuration: [-0.0027, 0.5722, 0.9689, -0.6246, 2.1629, 0.6124]
+    transfer_detour_configuration: [-0.3867, -0.3588, 0.817, -1.3093, 1.3634, -2.012]
     pick_xy: [0.40, -0.28]
     place_xy: [0.40, 0.28]
     walls:

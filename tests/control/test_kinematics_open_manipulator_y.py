@@ -94,6 +94,39 @@ def test_omy_pick_place_physics_smoke() -> None:
     assert float(np.linalg.norm(box_pos[:2] - place_xy)) < 0.08
 
 
+def test_omy_clutter_transfer_detour_is_collision_free() -> None:
+    """Release detour must clear the mid-cell wall (v1.2.5 regression)."""
+    from fret.control.pick_place_planning import walls_from_scenario
+    from fret.control.pick_place_sim import waypoints_from_scenario
+    from fret.planning.cspace_checker import make_cspace_checker
+    from fret.scene.occupancy_adapter import OccupancyAdapter
+    from fret.interfaces import OccupancyUpdatePayload
+
+    params = load_scenario_parameters(_CLUTTER)
+    wp = waypoints_from_scenario(_CLUTTER)
+    mid = np.asarray(params["transfer_detour_configuration"], dtype=np.float64)
+    detour = [wp.lift_hover, mid, wp.place_hover]
+
+    walls = walls_from_scenario(_CLUTTER, inflate=False)
+    kin = Kinematics("omy")
+    rng = np.random.default_rng(int(params.get("planner_rng_seed", 3)))
+    from fret.control.pick_place_planning import _sample_walls
+
+    pts = _sample_walls(walls, float(params["occupancy_density"]), rng)
+    adapter = OccupancyAdapter()
+    adapter.update(
+        OccupancyUpdatePayload(
+            obstacle_points=pts, timestamp=0.0, frame_id="world"
+        )
+    )
+    checker = make_cspace_checker(kin, adapter.get_occupancy())
+    for i, q in enumerate(detour):
+        assert checker.is_collision_free(q), f"detour waypoint {i} collides"
+    for i in range(len(detour) - 1):
+        edge_mid = 0.5 * (detour[i] + detour[i + 1])
+        assert checker.is_collision_free(edge_mid), f"detour segment {i} collides"
+
+
 @pytest.mark.slow
 def test_omy_clutter_pick_place_smoke() -> None:
     from fret.control.omy_clutter_sim import run_omy_clutter_pick_place
