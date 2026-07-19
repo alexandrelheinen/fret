@@ -136,7 +136,7 @@ def _path_metrics(
 
 def _is_wall_geom(name: str | None) -> bool:
     """True for transfer-wall geoms (``transfer_wall`` or ``transfer_wall_*``)."""
-    return bool(name) and name.startswith("transfer_wall")
+    return name is not None and name.startswith("transfer_wall")
 
 
 def _dry_run_transfer(
