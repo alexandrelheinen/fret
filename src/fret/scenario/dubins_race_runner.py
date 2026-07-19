@@ -1095,9 +1095,10 @@ class DubinsRaceRunner:
         rrt_path = _path_to_tuples(rrt_plan.path)
         sst_path = _path_to_tuples(sst_plan.path)
         mpc_cfg = _mpc_config(ctrl)
-        # Pure path following: planner already cleared the corridor. Feeding
-        # occupancy into DubinsPathFollowingMPC tapers cruise near pinch
-        # points and injects soft barriers → stop-and-go on free segments.
+        # Track the 2D planner corridor only. RRT*/SST already did obstacle
+        # avoidance in the warehouse occupancy; feeding that same map into
+        # DubinsPathFollowingMPC re-opens preview-cruise taper + soft
+        # barriers and recreates stop-and-go on free segments.
         rrt_vehicle, rrt_loop = build_vehicle_mpc_sim(
             rrt_path, vehicle_cfg, mpc_cfg, occupancy=None
         )
