@@ -23,10 +23,10 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 )
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
-# Fingertip pads (rh_r2 / rh_l2 extend along ±Y). Same contype scheme as OM-X.
+# Fingertip pads (rh_r2 / rh_l2 extend along ±Y). Sized for Ø86 mm ball (75 % open).
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.016 0.008 0.014" pos="0.0 0.055 0"\n'
+    'size="0.030 0.016 0.022" pos="0.0 0.075 0"\n'
     '                            friction="3.0 1.0 0.1" solref="0.014 1" '
     'solimp="0.9 0.95 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
@@ -34,7 +34,7 @@ _PAD_RIGHT = (
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.016 0.008 0.014" pos="0.0 -0.055 0"\n'
+    'size="0.030 0.016 0.022" pos="0.0 -0.075 0"\n'
     '                            friction="3.0 1.0 0.1" solref="0.014 1" '
     'solimp="0.9 0.95 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '

@@ -82,6 +82,8 @@ def test_omy_pick_place_physics_smoke() -> None:
     from fret.control.omy_pick_place_sim import run_omy_pick_place
     from fret.control.pick_place_fsm import PickPlaceState
 
+    params = load_scenario_parameters(_PICK)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     state, box_pos = run_omy_pick_place(
         duration_s=55.0,
         joint_tol_rad=0.22,
@@ -89,6 +91,7 @@ def test_omy_pick_place_physics_smoke() -> None:
     )
     assert state == PickPlaceState.DONE
     assert float(box_pos[2]) < 0.08
+    assert float(np.linalg.norm(box_pos[:2] - place_xy)) < 0.08
 
 
 @pytest.mark.slow
@@ -96,6 +99,8 @@ def test_omy_clutter_pick_place_smoke() -> None:
     from fret.control.omy_clutter_sim import run_omy_clutter_pick_place
     from fret.control.pick_place_fsm import PickPlaceState
 
+    params = load_scenario_parameters(_CLUTTER)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     result = run_omy_clutter_pick_place(
         duration_s=90.0,
         joint_tol_rad=0.28,
@@ -105,3 +110,4 @@ def test_omy_clutter_pick_place_smoke() -> None:
     assert result.state == PickPlaceState.DONE
     assert result.straight_line_collides
     assert len(result.transfer_path) >= 2
+    assert float(np.linalg.norm(result.box_pos[:2] - place_xy)) < 0.10

@@ -12,6 +12,7 @@ from fret.control.omy_pick_place_sim import (
     _SNAP_STATES,
     _actuator_id,
     _arm_q,
+    _drive_arm_kinematic,
     _maybe_attach_carried_ball,
     _run_ground_grasp_sequence,
     _track_toward,
@@ -100,12 +101,13 @@ def simulate_omy_clutter_pick_place(
     )
 
     lift_z = float(params.get("lift_height_m", 0.08))
+    fsm_joint_tol = min(float(joint_tol_rad), 0.15)
     fsm = PickPlaceFSM(
         wp,
         dof=6,
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
-        joint_tol_rad=joint_tol_rad,
+        joint_tol_rad=fsm_joint_tol,
         grasp_hold_s=3.5,
         release_hold_s=0.8,
         lift_height_m=lift_z,
@@ -133,6 +135,9 @@ def simulate_omy_clutter_pick_place(
         act_ar=act_ar,
     )
     fsm.force_state(PickPlaceState.LIFT)
+    carry_offset: npt.NDArray[np.float64] | None = np.asarray(
+        data.xpos[box_id], dtype=np.float64
+    ) - np.asarray(data.xpos[ee_id], dtype=np.float64)
 
     q_cmd = _arm_q(mj, model, data).copy()
     grip_cmd = OMY_GRIPPER_CLOSED
@@ -140,13 +145,12 @@ def simulate_omy_clutter_pick_place(
     transfer_armed = False
     transfer_idx = 0
     transfer_progress = 0.0
-    transfer_segment_s = 0.8
+    transfer_segment_s = 0.6
     descend_force_s = 2.5
     retreat_force_s = 2.0
     descend_t = 0.0
     retreat_t = 0.0
     prev_fsm_state = PickPlaceState.LIFT
-    carry_offset: npt.NDArray[np.float64] | None = None
 
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
@@ -214,6 +218,15 @@ def simulate_omy_clutter_pick_place(
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
+        if (
+            fsm.state
+            in {
+                PickPlaceState.MOVE_PLACE,
+                PickPlaceState.DESCEND_PLACE,
+            }
+            and carry_offset is not None
+        ):
+            _drive_arm_kinematic(mj, model, data, q_cmd, act_arm)
         data.ctrl[act_grip] = float(grip_cmd)
         adhere = adhesion_command(
             cmd.state,
