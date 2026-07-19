@@ -1,41 +1,49 @@
-# 6-DOF Manipulator (v1.2.4)
+# 6-DOF Manipulator — OpenMANIPULATOR-Y (v1.2.4)
 
-> **Release:** v1.2.4 · **Scenario:** SC-v14 ·
+> **Release:** v1.2.4 · **Scenarios:** SC-v14a–c ·
 > [Release spec](../releases.md#v124--6-dof-manipulator-challenge)
 
 ---
 
 ## Overview
 
-The v1.2.4 release is the **simulation capstone** before v1.3 hardware: a general revolute
-manipulator performing full C-space planning and execution in a cluttered cell on
-**MuJoCo physics SITL**.
+The v1.2.4 release uses **OpenMANIPULATOR-Y** from
+`third_party/robotis_mujoco_menagerie/robotis_omy` (same submodule policy as
+TB3 and OM-X). Three MuJoCo physics scenarios mirror the OM-X v1.2.3 ladder
+without intermediate maze steps:
 
-Specific robot model (UR5, UR3, or custom) will be selected at the start of v1.2.4 work.
-Prefer **OpenMANIPULATOR-Y** from `third_party/robotis_mujoco_menagerie/robotis_omy` (same submodule policy as TB3 and OM-X).
+| Scenario | File | Purpose |
+|---|---|---|
+| SC-v14a | `omy_reach.yml` | Empty tabletop joint-space reach |
+| SC-v14b | `omy_pick_place.yml` | Floor ball → cone pick-and-place |
+| SC-v14c | `omy_clutter.yml` | Cluttered floor pick-and-place with detour |
+
+Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
 
 ---
 
-## Planned capabilities
+## Capabilities
 
 | Capability | Detail |
 |---|---|
 | DOF | 6 revolute |
-| IK | Numerical (Jacobian-based) |
-| Planning | ARCO SST in 6-D |
-| Collision | Per-link FK + KDTree; self-collision in MJCF |
-| Control | Jacobian pseudoinverse at 50 Hz |
-| Simulation | MuJoCo physics SITL |
+| IK | Numerical (Jacobian-based) in `kinematics_open_manipulator_y.py` |
+| Planning | Joint-space RRT* + fallback detour for clutter transfer |
+| Control | Proportional joint tracking (JointSpaceMPC when ARCO MPC available) |
+| Simulation | MuJoCo physics SITL; ground grasp uses adhesion + kinematic carry |
 
 ---
 
-## Assets (planned)
+## Assets
 
 | File | Purpose |
 |---|---|
-| `src/fret/mjcf/six_dof_cell.xml` | MuJoCo cell + robot |
-| `src/fret/config/scenarios/six_dof_challenge.yml` | SC-v14 |
-
-*Specification will be expanded when v1.2.3 is tagged.*
+| `src/fret/mjcf/omy_tabletop.xml` | Empty reach cell |
+| `src/fret/mjcf/omy_pick_place.xml` | Floor ball + place cone |
+| `src/fret/mjcf/omy_clutter.xml` | Pick-place + transfer wall |
+| `src/fret/mjcf/omy.py` | Menagerie inject + fingertip adhesion pads |
+| `src/fret/config/scenarios/omy_*.yml` | SC-v14a–c parameters |
+| `src/fret/control/omy_pick_place_sim.py` | Ground pick-place FSM runner |
+| `src/fret/control/omy_clutter_sim.py` | Cluttered pick-place with planned detour |
 
 Simulation: [mujoco.md](../mujoco.md).

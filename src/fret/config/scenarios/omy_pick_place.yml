@@ -1,0 +1,30 @@
+# SC-v14b — OpenMANIPULATOR-Y ground pick-and-place.
+#
+# Pick: Ø 25 mm ball on the floor, far from the place cone.
+# Place: tip-down cone funnel (same pattern as OM-X SC-v13b).
+
+/**:
+  ros__parameters:
+    model: omy
+    scenario_id: omy_pick_place
+    simulation_dt: 0.02
+    duration: 45.0
+    planning_timeout: 60.0
+    goal_tolerance: 0.05
+    mjcf: mjcf/omy_pick_place.xml
+    pick_object: ball
+    ball_radius_m: 0.0125
+    place_cone_height_m: 0.098
+    place_cone_radius_m: 0.050
+    grasp_mode: mujoco_adhesion
+    lift_height_m: 0.04
+    phase_timeout_s: 60.0
+    idle_configuration: [0.0, -0.8, 1.2, 0.0, 0.5, 0.0]
+    pick_hover_configuration: [0.3864, 0.8244, 2.4514, -1.7393, 0.4059, 1.0735]
+    pick_grasp_configuration: [0.3864, 0.8244, 2.4514, -1.7393, 0.4059, 1.0735]
+    lift_hover_configuration: [0.3864, 0.4244, 2.4514, -1.7393, 0.4059, 1.0735]
+    place_hover_configuration: [0.7857, 0.9035, 1.5703, -1.5323, 0.4059, 1.0735]
+    place_grasp_configuration: [0.786, 1.154, 1.584, -1.435, 0.406, 1.074]
+    retreat_configuration: [0.7857, 0.9035, 1.5703, -1.5323, 0.4059, 1.0735]
+    pick_xy: [0.343, -0.18]
+    place_xy: [0.38, 0.22]

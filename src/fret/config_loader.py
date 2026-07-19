@@ -163,4 +163,6 @@ def planning_config_for_model(model: str) -> str:
         return "planning/dubins.yml"
     if model in {"open_manipulator_x", "omx"}:
         return "planning/open_manipulator_x.yml"
+    if model in {"omy", "six_dof", "open_manipulator_y"}:
+        return "planning/open_manipulator_y.yml"
     raise ValueError(f"No planning config for model: {model!r}")

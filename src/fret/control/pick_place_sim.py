@@ -18,6 +18,7 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.joint_mpc import build_omx_joint_mpc
+from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
     PickPlaceFSM,
@@ -27,33 +28,7 @@ from fret.control.pick_place_fsm import (
 )
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 
-# Adhesion after the jaw has closed; enabling during the close ejects the ball.
-_ADHERE_STATES = frozenset(
-    {
-        PickPlaceState.LIFT,
-        PickPlaceState.MOVE_PLACE,
-        PickPlaceState.DESCEND_PLACE,
-    }
-)
-_GRASP_ADHERE_AFTER_S = 0.6
 _CTRL_PERIOD_S = 0.02
-
-
-def adhesion_command(state: PickPlaceState, grasp_hold_t: float) -> float:
-    """Return adhesion ctrl in ``[0, 1]`` for the current FSM phase."""
-    if state == PickPlaceState.GRASP:
-        return 1.0 if float(grasp_hold_t) >= _GRASP_ADHERE_AFTER_S else 0.0
-    return 1.0 if state in _ADHERE_STATES else 0.0
-
-
-@dataclass(frozen=True)
-class PickPlaceSample:
-    """One recorded sample of an SC-v13b cycle."""
-
-    q_arm: npt.NDArray[np.float64]
-    gripper: float
-    box_qpos: npt.NDArray[np.float64]
-    state: PickPlaceState
 
 
 def waypoints_from_scenario(

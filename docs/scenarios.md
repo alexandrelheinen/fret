@@ -113,12 +113,32 @@ collision bitmasks stay active (`contype`/`conaffinity` = 1).
 
 ---
 
-### SC-v14 — 6-DOF challenge (v1.2.4)
+### SC-v14a — OpenMANIPULATOR-Y empty reach (v1.2.4)
 
-**File:** `config/scenarios/six_dof_challenge.yml` *(planned)*  
-**Model:** `six_dof`
+**File:** `config/scenarios/omy_reach.yml`  
+**Model:** `omy`
 
-**Purpose:** 6-DOF manipulator in cluttered cell — simulation capstone before v1.3 hardware.
+**Purpose:** Empty tabletop joint-space A→B — validates kinematics, MJCF, and
+SITL wiring for the 6-DOF arm (same role as SC-v13a for OM-X).
+
+### SC-v14b — OpenMANIPULATOR-Y ground pick-and-place (v1.2.4)
+
+**File:** `config/scenarios/omy_pick_place.yml`  
+**Model:** `omy`
+
+**Purpose:** Pick a Ø 86 mm ball from the **floor** at ~0.49 m forward reach
+(75 % of max gripper opening; arm stretches forward without full fold) and place
+it in a tip-down cone funnel (Ø 129 mm, height = diameter) — 6-DOF analogue of
+SC-v13b at Menagerie scale.
+
+### SC-v14c — OpenMANIPULATOR-Y cluttered ground pick-and-place (v1.2.4)
+
+**File:** `config/scenarios/omy_clutter.yml`  
+**Model:** `omy`
+
+**Purpose:** Same scaled floor ball + cone as SC-v14b, plus a mid-cell wall
+(perpendicular to the pick→place line of sight, centred between them) and
+occupancy planner so the transfer must detour (6-DOF analogue of SC-v13c).
 
 **Pass criteria:** See [releases.md § v1.2.4](releases.md#v124--6-dof-manipulator-challenge).
 

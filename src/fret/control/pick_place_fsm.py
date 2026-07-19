@@ -13,9 +13,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-# Menagerie Gripper slide: more positive ⇒ wider fingers.
+# Menagerie Gripper slide (OMX): more positive ⇒ wider fingers.
 GRIPPER_OPEN: float = 0.019
 GRIPPER_CLOSED: float = -0.01
+
+# Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, ~1 rad ≈ closed.
+OMY_GRIPPER_OPEN: float = 0.05
+OMY_GRIPPER_CLOSED: float = 0.90
 
 
 class PickPlaceState(enum.IntEnum):
@@ -43,10 +47,14 @@ class PickPlaceWaypoints:
     pick_grasp: npt.NDArray[np.float64]
     place_hover: npt.NDArray[np.float64]
     place_grasp: npt.NDArray[np.float64]
+    # Optional post-grasp lift pose (defaults to ``pick_hover``).
+    lift_hover: npt.NDArray[np.float64] | None = None
     # Optional fold after place (defaults to ``idle`` when omitted).
     retreat: npt.NDArray[np.float64] | None = None
 
     def __post_init__(self) -> None:
+        if self.lift_hover is None:
+            object.__setattr__(self, "lift_hover", self.pick_hover.copy())
         if self.retreat is None:
             object.__setattr__(self, "retreat", self.idle.copy())
 
@@ -85,18 +93,26 @@ class PickPlaceFSM:
         self,
         waypoints: PickPlaceWaypoints,
         *,
+        dof: int = 4,
+        gripper_open: float = GRIPPER_OPEN,
+        gripper_closed: float = GRIPPER_CLOSED,
         joint_tol_rad: float = 0.08,
         grasp_hold_s: float = 0.6,
         release_hold_s: float = 0.5,
         lift_height_m: float = 0.055,
         phase_timeout_s: float = 8.0,
+        drop_fault_enabled: bool = True,
     ) -> None:
         self._wp = waypoints
+        self._dof = int(dof)
+        self._gripper_open = float(gripper_open)
+        self._gripper_closed = float(gripper_closed)
         self._joint_tol = float(joint_tol_rad)
         self._grasp_hold_s = float(grasp_hold_s)
         self._release_hold_s = float(release_hold_s)
         self._lift_height_m = float(lift_height_m)
         self._phase_timeout_s = float(phase_timeout_s)
+        self._drop_fault_enabled = bool(drop_fault_enabled)
         self._state = PickPlaceState.IDLE
         self._phase_t = 0.0
         self._hold_t = 0.0
@@ -121,66 +137,78 @@ class PickPlaceFSM:
         """Return to idle and clear timers."""
         self._enter(PickPlaceState.IDLE)
 
+    def force_state(self, state: PickPlaceState) -> None:
+        """Jump to ``state`` (simulation harness hook for physics grasp)."""
+        self._enter(state)
+
     def tick(self, obs: PickPlaceObservation, dt: float) -> PickPlaceCommand:
         """Advance the FSM and return the active setpoints."""
         dt = float(dt)
         self._phase_t += dt
 
         if self._state == PickPlaceState.IDLE:
-            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+            return self._cmd(self._wp.idle, self._gripper_open)
 
         if self._state == PickPlaceState.DONE:
-            return self._cmd(self._wp.idle, GRIPPER_OPEN)
+            return self._cmd(self._wp.idle, self._gripper_open)
 
         if self._state == PickPlaceState.FAULT:
-            return self._cmd(obs.q, GRIPPER_OPEN)
+            return self._cmd(obs.q, self._gripper_open)
 
         if self._phase_t > self._phase_timeout_s:
             self._enter(PickPlaceState.FAULT)
-            return self._cmd(obs.q, GRIPPER_OPEN)
+            return self._cmd(obs.q, self._gripper_open)
 
         if self._state == PickPlaceState.APPROACH_PICK:
             if self._reached(obs.q, self._wp.pick_hover):
                 self._enter(PickPlaceState.DESCEND_PICK)
-            return self._cmd(self._wp.pick_hover, GRIPPER_OPEN)
+            return self._cmd(self._wp.pick_hover, self._gripper_open)
 
         if self._state == PickPlaceState.DESCEND_PICK:
             if self._reached(obs.q, self._wp.pick_grasp):
                 self._enter(PickPlaceState.GRASP)
-            return self._cmd(self._wp.pick_grasp, GRIPPER_OPEN)
+            return self._cmd(self._wp.pick_grasp, self._gripper_open)
 
         if self._state == PickPlaceState.GRASP:
             self._hold_t += dt
             if self._hold_t >= self._grasp_hold_s:
                 self._enter(PickPlaceState.LIFT)
-            return self._cmd(self._wp.pick_grasp, GRIPPER_CLOSED)
+            return self._cmd(self._wp.pick_grasp, self._gripper_closed)
 
         if self._state == PickPlaceState.LIFT:
-            if self._reached(obs.q, self._wp.pick_hover):
+            lift_target = (
+                self._wp.lift_hover
+                if self._wp.lift_hover is not None
+                else self._wp.pick_hover
+            )
+            if self._reached(obs.q, lift_target):
                 if float(obs.object_pos[2]) >= self._lift_height_m:
                     self._enter(PickPlaceState.MOVE_PLACE)
                 elif self._phase_t > 0.5 * self._phase_timeout_s:
                     self._enter(PickPlaceState.FAULT)
-            return self._cmd(self._wp.pick_hover, GRIPPER_CLOSED)
+            return self._cmd(lift_target, self._gripper_closed)
 
         if self._state == PickPlaceState.MOVE_PLACE:
             if self._reached(obs.q, self._wp.place_hover):
                 self._enter(PickPlaceState.DESCEND_PLACE)
             # Drop detection mid-transfer.
-            if float(obs.object_pos[2]) < 0.5 * self._lift_height_m:
+            if (
+                self._drop_fault_enabled
+                and float(obs.object_pos[2]) < 0.5 * self._lift_height_m
+            ):
                 self._enter(PickPlaceState.FAULT)
-            return self._cmd(self._wp.place_hover, GRIPPER_CLOSED)
+            return self._cmd(self._wp.place_hover, self._gripper_closed)
 
         if self._state == PickPlaceState.DESCEND_PLACE:
             if self._reached(obs.q, self._wp.place_grasp):
                 self._enter(PickPlaceState.RELEASE)
-            return self._cmd(self._wp.place_grasp, GRIPPER_CLOSED)
+            return self._cmd(self._wp.place_grasp, self._gripper_closed)
 
         if self._state == PickPlaceState.RELEASE:
             self._hold_t += dt
             if self._hold_t >= self._release_hold_s:
                 self._enter(PickPlaceState.RETREAT)
-            return self._cmd(self._wp.place_grasp, GRIPPER_OPEN)
+            return self._cmd(self._wp.place_grasp, self._gripper_open)
 
         if self._state == PickPlaceState.RETREAT:
             # Lift clear of the placed box before slewing to the retreat fold.
@@ -192,12 +220,12 @@ class PickPlaceFSM:
             if not self._retreat_cleared:
                 if self._reached(obs.q, self._wp.place_hover):
                     self._retreat_cleared = True
-                return self._cmd(self._wp.place_hover, GRIPPER_OPEN)
+                return self._cmd(self._wp.place_hover, self._gripper_open)
             if self._reached(obs.q, retreat):
                 self._enter(PickPlaceState.DONE)
-            return self._cmd(retreat, GRIPPER_OPEN)
+            return self._cmd(retreat, self._gripper_open)
 
-        return self._cmd(self._wp.idle, GRIPPER_OPEN)
+        return self._cmd(self._wp.idle, self._gripper_open)
 
     def _enter(self, state: PickPlaceState) -> None:
         self._state = state
@@ -215,7 +243,9 @@ class PickPlaceFSM:
         self, q_des: npt.NDArray[np.float64], gripper: float
     ) -> PickPlaceCommand:
         return PickPlaceCommand(
-            q_des=np.asarray(q_des, dtype=np.float64).reshape(4).copy(),
+            q_des=np.asarray(q_des, dtype=np.float64)
+            .reshape(self._dof)
+            .copy(),
             gripper=float(gripper),
             state=self._state,
         )

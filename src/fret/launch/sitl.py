@@ -71,6 +71,11 @@ def generate_launch_description() -> LaunchDescription:
         EqualsSubstitution(LaunchConfiguration("model"), "open_manipulator_x"),
         EqualsSubstitution(LaunchConfiguration("model"), "omx"),
     )
+    is_omy_model = OrSubstitution(
+        EqualsSubstitution(LaunchConfiguration("model"), "omy"),
+        EqualsSubstitution(LaunchConfiguration("model"), "six_dof"),
+        EqualsSubstitution(LaunchConfiguration("model"), "open_manipulator_y"),
+    )
 
     is_standard_mujoco = PythonExpression(
         [
@@ -94,6 +99,9 @@ def generate_launch_description() -> LaunchDescription:
 
     omx_controller_config = PathJoinSubstitution(
         [pkg_share, "config", "controllers", "open_manipulator_x.yml"]
+    )
+    omy_controller_config = PathJoinSubstitution(
+        [pkg_share, "config", "controllers", "open_manipulator_y.yml"]
     )
 
     default_perception_config = PathJoinSubstitution(
@@ -165,7 +173,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(is_dubins_race),
     )
 
-    controller_arm = Node(
+    controller_omx = Node(
         package="fret",
         executable="controller_node",
         name="controller_node",
@@ -175,6 +183,18 @@ def generate_launch_description() -> LaunchDescription:
             omx_controller_config,
         ],
         condition=IfCondition(is_omx_model),
+    )
+
+    controller_omy = Node(
+        package="fret",
+        executable="controller_node",
+        name="controller_node",
+        output="screen",
+        parameters=[
+            {"model": LaunchConfiguration("model")},
+            omy_controller_config,
+        ],
+        condition=IfCondition(is_omy_model),
     )
 
     return LaunchDescription(
@@ -189,6 +209,7 @@ def generate_launch_description() -> LaunchDescription:
             scene_acquisition_node,
             planner_node,
             perception_bridge_default,
-            controller_arm,
+            controller_omx,
+            controller_omy,
         ]
     )

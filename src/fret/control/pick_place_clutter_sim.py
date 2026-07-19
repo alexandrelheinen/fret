@@ -19,19 +19,20 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.config_loader import load_algorithm_config, planning_config_for_model
-from fret.control.joint_mpc import JointPathMPCTracker, build_omx_joint_mpc
+from fret.control.joint_mpc import (
+    JointPathMPCTracker,
+    build_joint_mpc,
+    build_omx_joint_mpc,
+)
 from fret.control.kinematics import Kinematics
+from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
     PickPlaceFSM,
     PickPlaceObservation,
     PickPlaceState,
 )
-from fret.control.pick_place_sim import (
-    PickPlaceSample,
-    adhesion_command,
-    waypoints_from_scenario,
-)
+from fret.control.pick_place_sim import waypoints_from_scenario
 from fret.interfaces import (
     OccupancyUpdatePayload,
     PlanningRequest,
@@ -45,6 +46,32 @@ from fret.sitl_config import load_scenario_parameters, mjcf_path
 
 _SCENARIO = Path("src/fret/config/scenarios/omx_desk_clutter.yml")
 _CTRL_PERIOD_S = 0.02
+_OMY_MODELS = frozenset({"omy", "six_dof", "open_manipulator_y"})
+
+
+def _robot_model(params: dict[str, Any]) -> str:
+    return str(params.get("model", "open_manipulator_x"))
+
+
+def _arm_joint_names(model: str) -> tuple[str, ...]:
+    if model in _OMY_MODELS:
+        return (
+            "Joint1",
+            "Joint2",
+            "Joint3",
+            "Joint4",
+            "Joint5",
+            "Joint6",
+        )
+    return ("Joint1", "Joint2", "Joint3", "Joint4")
+
+
+def _ee_body_name(model: str) -> str:
+    return "link6" if model in _OMY_MODELS else "link5"
+
+
+def _joint_mpc_for_model(model: str) -> Any:
+    return build_joint_mpc(6 if model in _OMY_MODELS else 4)
 
 
 @dataclass(frozen=True)
@@ -193,6 +220,7 @@ def _dry_run_transfer(
     *,
     joint_tol_rad: float,
     scenario_id: str,
+    robot_model: str = "open_manipulator_x",
 ) -> bool:
     """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
     try:
@@ -200,11 +228,9 @@ def _dry_run_transfer(
     except ImportError:  # pragma: no cover
         return True
 
-    model = mj.MjModel.from_xml_path(
-        str(mjcf_path("open_manipulator_x", scenario_id))
-    )
+    model = mj.MjModel.from_xml_path(str(mjcf_path(robot_model, scenario_id)))
     data = mj.MjData(model)
-    names = ("Joint1", "Joint2", "Joint3", "Joint4")
+    names = _arm_joint_names(robot_model)
     box_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint")
     qid = int(model.jnt_qposadr[box_jid])
     data.qpos[qid : qid + 3] = [0.5, 0.5, 0.5]
@@ -225,7 +251,7 @@ def _dry_run_transfer(
 
     tracker = JointPathMPCTracker(
         dense,
-        build_omx_joint_mpc(),
+        _joint_mpc_for_model(robot_model),
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
@@ -306,6 +332,7 @@ def plan_transfer_path(
     scenario = Path(scenario_path or _SCENARIO)
     params = load_scenario_parameters(scenario)
     scenario_id = _scenario_id(params)
+    robot_model = _robot_model(params)
     physical = walls_from_scenario(scenario, inflate=False)
     inflated = walls_from_scenario(scenario, inflate=True)
     seed0 = int(params.get("planner_rng_seed", 7)) + int(seed_offset)
@@ -316,10 +343,8 @@ def plan_transfer_path(
     min_z = float(params.get("min_transfer_ee_z_m", 0.145))
     peak_z = float(params.get("min_transfer_peak_ee_z_m", 0.0))
 
-    kin = Kinematics("open_manipulator_x")
-    cfg = load_algorithm_config(
-        planning_config_for_model("open_manipulator_x")
-    )
+    kin = Kinematics(robot_model)
+    cfg = load_algorithm_config(planning_config_for_model(robot_model))
     from fret.planning.cspace_checker import make_cspace_checker
 
     # Straight-line check against the physical wall occupancy.
@@ -354,7 +379,7 @@ def plan_transfer_path(
             )
         )
         planner = PlannerNode(
-            model="open_manipulator_x",
+            model=robot_model,
             occupancy_adapter=adapter,
             planner_algorithm=algo,  # type: ignore[arg-type]
             scenario=scenario_id,
@@ -399,6 +424,7 @@ def plan_transfer_path(
             goal,
             joint_tol_rad=0.12,
             scenario_id=scenario_id,
+            robot_model=robot_model,
         ):
             last_err = "mujoco dry-run rejected"
             continue
@@ -416,7 +442,13 @@ def _actuator_id(mj: Any, model: Any, name: str) -> int:
     return int(aid)
 
 
-def _arm_q(mj: Any, model: Any, data: Any) -> npt.NDArray[np.float64]:
+def _arm_q(
+    mj: Any,
+    model: Any,
+    data: Any,
+    names: tuple[str, ...] | None = None,
+) -> npt.NDArray[np.float64]:
+    joint_names = names or ("Joint1", "Joint2", "Joint3", "Joint4")
     return np.array(
         [
             data.qpos[
@@ -424,7 +456,7 @@ def _arm_q(mj: Any, model: Any, data: Any) -> npt.NDArray[np.float64]:
                     mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
                 ]
             ]
-            for name in ("Joint1", "Joint2", "Joint3", "Joint4")
+            for name in joint_names
         ],
         dtype=np.float64,
     )
@@ -447,20 +479,21 @@ def simulate_pick_place_clutter(
     scenario = Path(scenario_path or _SCENARIO)
     params = load_scenario_parameters(scenario)
     scenario_id = _scenario_id(params)
+    robot_model = _robot_model(params)
+    arm_names = _arm_joint_names(robot_model)
     wp = waypoints_from_scenario(scenario)
-    xml = mjcf_path("open_manipulator_x", scenario_id)
+    xml = mjcf_path(robot_model, scenario_id)
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
 
-    ee_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "link5")
+    ee_id = mj.mj_name2id(
+        model, mj.mjtObj.mjOBJ_BODY, _ee_body_name(robot_model)
+    )
     box_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box")
     box_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint")
     box_qadr = int(model.jnt_qposadr[box_jid])
 
-    act_arm = [
-        _actuator_id(mj, model, n)
-        for n in ("Joint1", "Joint2", "Joint3", "Joint4")
-    ]
+    act_arm = [_actuator_id(mj, model, n) for n in arm_names]
     act_grip = _actuator_id(mj, model, "Gripper")
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
@@ -472,10 +505,10 @@ def simulate_pick_place_clutter(
         seed_offset=seed_offset,
     )
 
-    phase_mpc = build_omx_joint_mpc()
+    phase_mpc = _joint_mpc_for_model(robot_model)
     transfer_tracker = JointPathMPCTracker(
         transfer_path,
-        build_omx_joint_mpc(),
+        _joint_mpc_for_model(robot_model),
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
@@ -483,12 +516,28 @@ def simulate_pick_place_clutter(
 
     # Roof overhang leaves little vertical room on the pick side; accept a
     # slightly lower lift confirmation than the open-cell SC-v13b/c demos.
+    from fret.control.pick_place_fsm import (
+        GRIPPER_OPEN,
+        OMY_GRIPPER_CLOSED,
+        OMY_GRIPPER_OPEN,
+    )
+
+    gripper_open = (
+        OMY_GRIPPER_OPEN if robot_model in _OMY_MODELS else GRIPPER_OPEN
+    )
+    gripper_closed = (
+        OMY_GRIPPER_CLOSED if robot_model in _OMY_MODELS else -0.01
+    )
+    fsm_dof = 6 if robot_model in _OMY_MODELS else 4
     lift_z = float(params.get("lift_height_m", 0.125))
     phase_timeout = float(params.get("phase_timeout_s", 30.0))
     if scenario_id == "omx_wall_maze":
         phase_timeout = max(phase_timeout, 60.0)
     fsm = PickPlaceFSM(
         wp,
+        dof=fsm_dof,
+        gripper_open=gripper_open,
+        gripper_closed=gripper_closed,
         joint_tol_rad=joint_tol_rad,
         grasp_hold_s=1.4,
         release_hold_s=0.8,
@@ -499,13 +548,13 @@ def simulate_pick_place_clutter(
 
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
-    data.ctrl[act_grip] = GRIPPER_OPEN
+    data.ctrl[act_grip] = gripper_open
     data.ctrl[act_al] = 0.0
     data.ctrl[act_ar] = 0.0
     for _ in range(400):
         mj.mj_step(model, data)
 
-    phase_mpc.reset(_arm_q(mj, model, data))
+    phase_mpc.reset(_arm_q(mj, model, data, arm_names))
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
@@ -514,11 +563,11 @@ def simulate_pick_place_clutter(
     ctrl_accum = 0.0
     # Start the command at the settled pose (not pick_hover) so maze
     # rate-limited slews actually traverse idle → hover under the roof.
-    q_cmd = _arm_q(mj, model, data)
+    q_cmd = _arm_q(mj, model, data, arm_names)
     last_phase_target = wp.idle.copy()
 
     for step_i in range(max_steps):
-        q = _arm_q(mj, model, data)
+        q = _arm_q(mj, model, data, arm_names)
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
@@ -580,7 +629,7 @@ def simulate_pick_place_clutter(
         if step_i % record_every_steps == 0:
             samples.append(
                 PickPlaceSample(
-                    q_arm=_arm_q(mj, model, data),
+                    q_arm=_arm_q(mj, model, data, arm_names),
                     gripper=float(data.ctrl[act_grip]),
                     box_qpos=np.asarray(
                         data.qpos[box_qadr : box_qadr + 7], dtype=np.float64
@@ -595,7 +644,7 @@ def simulate_pick_place_clutter(
     # Always record the terminal frame (record_every can skip the DONE tick).
     samples.append(
         PickPlaceSample(
-            q_arm=_arm_q(mj, model, data),
+            q_arm=_arm_q(mj, model, data, arm_names),
             gripper=float(data.ctrl[act_grip]),
             box_qpos=np.asarray(
                 data.qpos[box_qadr : box_qadr + 7], dtype=np.float64
@@ -609,7 +658,7 @@ def simulate_pick_place_clutter(
         hold_q = wp.retreat if wp.retreat is not None else wp.idle
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(hold_q[i])
-        data.ctrl[act_grip] = GRIPPER_OPEN
+        data.ctrl[act_grip] = gripper_open
         data.ctrl[act_al] = 0.0
         data.ctrl[act_ar] = 0.0
         hold_steps = max(record_every_steps, int(round(1.5 / dt)))
@@ -618,7 +667,7 @@ def simulate_pick_place_clutter(
             if step_i % record_every_steps == 0 or step_i + 1 == hold_steps:
                 samples.append(
                     PickPlaceSample(
-                        q_arm=_arm_q(mj, model, data),
+                        q_arm=_arm_q(mj, model, data, arm_names),
                         gripper=float(data.ctrl[act_grip]),
                         box_qpos=np.asarray(
                             data.qpos[box_qadr : box_qadr + 7],
