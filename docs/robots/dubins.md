@@ -35,10 +35,12 @@ Uses ARCO directly:
 | Tracking loop (RRT*/SST) | `arco.control.mpc.MPCTrackingLoop` |
 | Grey foil tracker | `arco.control.pure_pursuit.PurePursuitController` |
 
-RRT*/SST agents track the planned polyline with path-following MPC
-(contour + cruise; no track-time occupancy barriers — avoidance stays in
-the planner). The grey dummy stays on Pure Pursuit with no repulsion so it
-collides on the naive diagonal.
+RRT*/SST plan in 2D against warehouse occupancy (topological corridor).
+They then track that polyline with path-following MPC (contour + heading +
+cruise). Track-time occupancy barriers stay off so the MPC does not
+re-throttle on already-cleared corridors; avoidance remains a planner
+responsibility. The grey dummy stays on Pure Pursuit with no repulsion so
+it collides on the naive diagonal.
 
 FRET adapter: `fret.control.kinematics_dubins.DubinsKinematics`
 

@@ -2,13 +2,16 @@
 # (grey dummy). Showcase runs at 2× nominal Menagerie (ω=13.34 rad/s →
 # v≈0.44 m/s), capped by the race MJCF wheel ctrlrange.
 #
-# Planner agents (blue RRT* / green SST) use DubinsPathFollowingMPC as a
-# pure path follower: minimize contour (distance to the planned polyline)
-# and hold fluid cruise near the target speed. Obstacle avoidance stays in
-# the planner; trackers run with occupancy=None so preview-cruise taper and
-# soft barriers cannot throttle on already-cleared corridors.
-# The grey dummy keeps Pure Pursuit without repulsion so it collides on the
-# naive diagonal as a foil.
+# Planner agents (blue RRT* / green SST):
+#   1) RRT*/SST plan in 2D with full warehouse occupancy → topological
+#      corridor (pass here, then there). That is the obstacle avoidance.
+#   2) DubinsPathFollowingMPC tracks that polyline (contour + heading +
+#      cruise). Trackers use occupancy=None so the old preview-cruise
+#      taper / soft barriers cannot throttle on already-cleared corridors
+#      (that was the stop-and-go). Safety still sits in the planner path
+#      plus the post-hoc collision monitor in physics mode.
+# The grey dummy keeps Pure Pursuit without repulsion so it collides on
+# the naive diagonal as a foil.
 #
 # lookahead_distance / curvature_gain / repulsion_gain remain for the dummy
 # foil and VehicleConfig parity with ARCO build_vehicle_sim.
@@ -25,14 +28,16 @@
     curvature_gain: 0.9
     repulsion_gain: 0.0
     update_rate: 20.0
-    # Pure path-following weights (ARCO PathFollowingMPCConfig overrides).
+    # Path-following MPC. Physical horizon T=N·dt = 1.2 s ≈ 0.43 m at
+    # cruise (~3× R_min) — a bit longer than the old 1.0 s / 0.36 m window
+    # so bends are anticipated without blowing up the IPOPT NLP size.
     mpc:
-      horizon_step_count: 20
+      horizon_step_count: 24
       dt: 0.05
       weight_contour: 25.0
-      weight_heading: 8.0
-      weight_progress: 5.0
-      weight_control: 0.02
+      weight_heading: 10.0
+      weight_progress: 4.0
+      weight_control: 0.05
       weight_obstacle: 0.0
       obstacle_barrier_power: 2.0
       weight_terminal: 40.0
