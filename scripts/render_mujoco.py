@@ -31,14 +31,17 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-# Release showcase exports: one oblique overview + one follow POV per scenario.
-# Extra MJCF cameras remain available via explicit --camera flags.
-RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
+# Release showcase camera policy (see config/release/showcase.yml):
+#   * overview — isometric top view for every scenario
+#   * follow   — mobile robots only (split-screen chase); never for static arms
+# Extra MJCF cameras (topdown, finish, …) remain available via --camera.
+_MOBILE_RELEASE_CAMERAS: tuple[str, ...] = ("overview", "follow")
+_STATIC_RELEASE_CAMERAS: tuple[str, ...] = ("overview",)
+# Backward-compatible aliases used by older tests / docs.
+RELEASE_SHOWCASE_CAMERAS: tuple[str, ...] = _MOBILE_RELEASE_CAMERAS
+_DUBINS_RACE_CAMERAS: tuple[str, ...] = _MOBILE_RELEASE_CAMERAS
+_OMX_RELEASE_CAMERAS: tuple[str, ...] = _STATIC_RELEASE_CAMERAS
 
-_DUBINS_RACE_CAMERAS: tuple[str, ...] = RELEASE_SHOWCASE_CAMERAS
-
-# OM-X empty-cell / pick-place proof: top-down + oblique overview.
-_OMX_RELEASE_CAMERAS: tuple[str, ...] = ("topdown", "overview")
 _OMX_ARM_JOINTS: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4")
 _OMX_REACH_SCENARIOS: frozenset[str] = frozenset(
     {"omx_reach", "omx_tabletop", "open_manipulator_x"}
@@ -56,11 +59,10 @@ _OMX_CLUTTER_SCENARIOS: frozenset[str] = (
     _OMX_DESK_CLUTTER_SCENARIOS | _OMX_WALL_MAZE_SCENARIOS
 )
 _OMX_SCENARIOS: frozenset[str] = (
-    _OMX_REACH_SCENARIOS
-    | _OMX_PICK_PLACE_SCENARIOS
-    | _OMX_CLUTTER_SCENARIOS
+    _OMX_REACH_SCENARIOS | _OMX_PICK_PLACE_SCENARIOS | _OMX_CLUTTER_SCENARIOS
 )
 _OMX_MODELS: frozenset[str] = frozenset({"open_manipulator_x", "omx"})
+_MOBILE_SCENARIOS: frozenset[str] = frozenset({"dubins_race", "dubins"})
 
 # Freejoint base names in dubins_race.xml (TurtleBot3 agents).
 _DUBINS_BASE_JOINTS: tuple[str, str, str] = (
@@ -198,6 +200,22 @@ def resolve_mjcf_path(
     )
 
 
+def robot_class_for_scenario(scenario: str) -> str:
+    """Return ``mobile`` or ``static`` for release camera policy."""
+    if scenario in _MOBILE_SCENARIOS:
+        return "mobile"
+    if scenario in _OMX_SCENARIOS:
+        return "static"
+    raise ValueError(f"Unknown showcase scenario class: {scenario!r}")
+
+
+def release_cameras_for_scenario(scenario: str) -> tuple[str, ...]:
+    """Return required release cameras for ``scenario`` (mobile vs static)."""
+    if robot_class_for_scenario(scenario) == "mobile":
+        return _MOBILE_RELEASE_CAMERAS
+    return _STATIC_RELEASE_CAMERAS
+
+
 def list_showcase_cameras(
     mjcf_path: Path,
     *,
@@ -210,7 +228,9 @@ def list_showcase_cameras(
         scenario: Scenario stem used for fallback defaults.
 
     Returns:
-        Camera names in release-export order (overview + follow).
+        Camera names in release-export order. Mobile scenarios export
+        ``overview`` + split-screen ``follow``; static arms export
+        ``overview`` only.
     """
     root = ET.parse(mjcf_path).getroot()
     mjcf_cameras = {
@@ -218,26 +238,22 @@ def list_showcase_cameras(
         for node in root.iter("camera")
         if (name := node.get("name")) is not None
     }
-    preferred = (
-        _OMX_RELEASE_CAMERAS
-        if scenario in _OMX_SCENARIOS
-        else RELEASE_SHOWCASE_CAMERAS
-    )
+    preferred = release_cameras_for_scenario(scenario)
     if mjcf_cameras:
         release = [cam for cam in preferred if cam in mjcf_cameras]
-        if release:
+        # Mobile follow is a runtime split-screen composite — it need not
+        # exist as a named MJCF camera, but overview must.
+        if "follow" in preferred and "follow" not in release:
+            if "overview" in release:
+                release = list(dict.fromkeys([*release, "follow"]))
+        if release and "overview" in release:
             return release
         raise ValueError(
             f"MJCF {mjcf_path} has no release showcase cameras "
             f"{preferred}; found {sorted(mjcf_cameras)}"
         )
 
-    if scenario in {"dubins_race", "dubins"}:
-        return list(_DUBINS_RACE_CAMERAS)
-    if scenario in _OMX_SCENARIOS:
-        return list(_OMX_RELEASE_CAMERAS)
-
-    raise ValueError(f"No showcase cameras found in MJCF: {mjcf_path}")
+    return list(preferred)
 
 
 def showcase_output_name(scenario: str, camera: str) -> str:
@@ -553,16 +569,12 @@ _DUBINS_CAR_WIDTH_M: float = 0.72
 _DUBINS_FOLLOW_FOVY_DEG: float = 50.0
 _DUBINS_FOLLOW_FILL: float = 0.15
 _DUBINS_FOLLOW_DISTANCE_SCALE: float = 2.0
-# Static MJCF overview sits ~109 m from arena centre; chase the car midpoint at
-# one quarter of that range for a tighter release export.
-_DUBINS_OVERVIEW_STATIC_DISTANCE_M: float = 108.75
-_DUBINS_OVERVIEW_DISTANCE_SCALE: float = 0.25
-_DUBINS_OVERVIEW_DISTANCE_M: float = (
-    _DUBINS_OVERVIEW_STATIC_DISTANCE_M * _DUBINS_OVERVIEW_DISTANCE_SCALE
-)
-_DUBINS_OVERVIEW_AZIMUTH_DEG: float = 145.0
-_DUBINS_OVERVIEW_ELEVATION_DEG: float = -35.0
-_DUBINS_OVERVIEW_LOOKAT_Z_M: float = 0.4
+# Fixed isometric overview framing the full 10×10 m arena (start A + goal B
+# + all three TB3 agents). Tuned for 1280×720 release exports.
+_DUBINS_OVERVIEW_LOOKAT: tuple[float, float, float] = (5.0, 5.0, 0.25)
+_DUBINS_OVERVIEW_DISTANCE_M: float = 17.5
+_DUBINS_OVERVIEW_AZIMUTH_DEG: float = 135.0
+_DUBINS_OVERVIEW_ELEVATION_DEG: float = -42.0
 
 
 def _dubins_follow_distance(
@@ -579,32 +591,20 @@ def _dubins_follow_distance(
     return (car_width / 2.0) / (fill * math.tan(hfov_rad / 2.0))
 
 
-def _dubins_race_midpoint(
-    rrt_q: npt.NDArray[np.float64],
-    sst_q: npt.NDArray[np.float64],
-) -> tuple[float, float, float]:
-    """Return the XY midpoint between both race agents."""
-    return (
-        (float(rrt_q[0]) + float(sst_q[0])) / 2.0,
-        (float(rrt_q[1]) + float(sst_q[1])) / 2.0,
-        _DUBINS_OVERVIEW_LOOKAT_Z_M,
-    )
-
-
 def _make_dubins_overview_camera(
     mujoco: object,
-    midpoint: tuple[float, float, float],
+    lookat: tuple[float, float, float] = _DUBINS_OVERVIEW_LOOKAT,
     *,
     distance: float = _DUBINS_OVERVIEW_DISTANCE_M,
     azimuth_deg: float = _DUBINS_OVERVIEW_AZIMUTH_DEG,
     elevation_deg: float = _DUBINS_OVERVIEW_ELEVATION_DEG,
 ) -> object:
-    """Build an oblique overview camera locked on the dual-agent midpoint."""
+    """Build a fixed isometric overview of the race arena (start + goal)."""
     cam = mujoco.MjvCamera()
     cam.type = mujoco.mjtCamera.mjCAMERA_FREE
-    cam.lookat[0] = midpoint[0]
-    cam.lookat[1] = midpoint[1]
-    cam.lookat[2] = midpoint[2]
+    cam.lookat[0] = lookat[0]
+    cam.lookat[1] = lookat[1]
+    cam.lookat[2] = lookat[2]
     cam.distance = float(distance)
     cam.azimuth = float(azimuth_deg)
     cam.elevation = float(elevation_deg)
@@ -759,10 +759,7 @@ def render_dubins_race_showcase_videos(
                         axis=1,
                     )
                 elif camera == "overview":
-                    cam_overview = _make_dubins_overview_camera(
-                        mujoco,
-                        _dubins_race_midpoint(rrt_q, sst_q),
-                    )
+                    cam_overview = _make_dubins_overview_camera(mujoco)
                     renderer.update_scene(data, camera=cam_overview)
                     frame = renderer.render()
                 else:

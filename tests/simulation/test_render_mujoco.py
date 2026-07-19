@@ -53,7 +53,18 @@ def test_list_showcase_cameras_reads_mjcf() -> None:
 def test_list_showcase_cameras_omx_reach() -> None:
     path = rm.resolve_mjcf_path("open_manipulator_x", "omx_reach", None)
     cameras = rm.list_showcase_cameras(path, scenario="omx_reach")
-    assert cameras == ["topdown", "overview"]
+    # Static arms: isometric overview only (no follow on release).
+    assert cameras == ["overview"]
+
+
+def test_robot_class_release_camera_policy() -> None:
+    assert rm.robot_class_for_scenario("dubins_race") == "mobile"
+    assert rm.robot_class_for_scenario("omx_pick_place") == "static"
+    assert rm.release_cameras_for_scenario("dubins_race") == (
+        "overview",
+        "follow",
+    )
+    assert rm.release_cameras_for_scenario("omx_wall_maze") == ("overview",)
 
 
 def test_dubins_race_mjcf_loads() -> None:
@@ -91,7 +102,7 @@ def test_showcase_playback_timing_dubins_physics_cap() -> None:
 
 
 def test_resolve_scenario_duration_reads_yaml() -> None:
-    assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(55.0)
+    assert rm.resolve_scenario_duration("dubins_race") == pytest.approx(120.0)
 
 
 _RELEASE_DUBINS_CLI: list[str] = [
@@ -107,7 +118,7 @@ _RELEASE_DUBINS_CLI: list[str] = [
     "--output-dir",
     "showcase_renders",
     "--timing-json",
-    "showcase_renders/dubins_timing.json",
+    "showcase_renders/dubins_race_timing.json",
     "--full-duration",
     "--physics-mode",
     "--fps",
@@ -133,7 +144,7 @@ def test_resolve_physics_showcase_duration_caps_to_nominal() -> None:
         sim_time_s=180.0,
         duration_s=None,
     )
-    assert dubins_capped == pytest.approx(55.0)
+    assert dubins_capped == pytest.approx(120.0)
 
 
 def test_release_workflow_cli_args_parse() -> None:
@@ -145,7 +156,7 @@ def test_release_workflow_cli_args_parse() -> None:
     assert dubins_args.scenario == "dubins_race"
     assert dubins_args.all_cameras is True
     assert dubins_args.timing_json == Path(
-        "showcase_renders/dubins_timing.json"
+        "showcase_renders/dubins_race_timing.json"
     )
     assert dubins_args.no_realtime_postprocess is False
     assert dubins_args.full_duration is True
