@@ -29,8 +29,10 @@ renders use `--physics-mode` by default for mobile scenarios.
 The Dubins showcase ships with headless render scripts, pure-Python E2E tests (no ROS
 required for CI validation), and optional ROS 2 SITL launch files.
 
-**Coming next:** 6-DOF Menagerie arm challenge (v1.2.4), then hardware HITL (v1.3).
-See [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
+**Coming next:** tag **v1.2.4** (6-DOF Menagerie OMY showcase), then **v1.3** hardware
+HITL — last milestone before computer vision. Python package on `main` is already
+**1.3.0** for that development line. See [docs/roadmap.md](docs/roadmap.md) and
+[docs/releases.md](docs/releases.md).
 
 ---
 
