@@ -1454,7 +1454,7 @@ def render_omy_pick_place_showcase_videos(
     scenario_path = Path("src/fret/config/scenarios") / f"{scenario}.yml"
     state, raw_samples = simulate_omy_pick_place(
         duration_s=clip_s,
-        joint_tol_rad=0.22,
+        joint_tol_rad=0.18,
         record_every_steps=record_every,
         scenario_path=scenario_path,
     )

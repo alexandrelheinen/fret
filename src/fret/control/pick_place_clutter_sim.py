@@ -236,16 +236,28 @@ def _dry_run_transfer(
     data.qpos[qid : qid + 3] = [0.5, 0.5, 0.5]
     data.qvel[:] = 0.0
 
+    from fret.control.pick_place_fsm import (
+        GRIPPER_CLOSED,
+        OMY_GRIPPER_CLOSED,
+    )
+
+    is_omy = robot_model in _OMY_MODELS
+    grip_settle = OMY_GRIPPER_CLOSED if is_omy else GRIPPER_CLOSED
+
     def settle(cmd: npt.NDArray[np.float64], steps: int) -> None:
         for _ in range(steps):
             for i, n in enumerate(names):
                 data.ctrl[model.actuator(n).id] = float(cmd[i])
-            data.ctrl[model.actuator("Gripper").id] = -0.01
+            data.ctrl[model.actuator("Gripper").id] = float(grip_settle)
             data.ctrl[model.actuator("grip_left").id] = 0.0
             data.ctrl[model.actuator("grip_right").id] = 0.0
             mj.mj_step(model, data)
 
-    idle = np.array([0.0, -1.05, 0.7, 0.7], dtype=np.float64)
+    idle = (
+        np.array([0.0, -0.8, 1.2, 0.0, 0.5, 0.0], dtype=np.float64)
+        if is_omy
+        else np.array([0.0, -1.05, 0.7, 0.7], dtype=np.float64)
+    )
     settle(idle, 300)
     settle(start, 700)
 
@@ -275,7 +287,7 @@ def _dry_run_transfer(
                     q_cmd = np.asarray(goal, dtype=np.float64).copy()
         for i, n in enumerate(names):
             data.ctrl[model.actuator(n).id] = float(q_cmd[i])
-        data.ctrl[model.actuator("Gripper").id] = -0.01
+        data.ctrl[model.actuator("Gripper").id] = float(grip_settle)
         mj.mj_step(model, data)
         for ci in range(data.ncon):
             c = data.contact[ci]
@@ -497,13 +509,34 @@ def simulate_pick_place_clutter(
     act_grip = _actuator_id(mj, model, "Gripper")
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
+    is_omy = robot_model in _OMY_MODELS
+    pad_right_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right")
+    pad_left_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left")
 
-    transfer_path, straight_collides = plan_transfer_path(
-        wp.pick_hover,
-        wp.place_hover,
-        scenario_path=scenario,
-        seed_offset=seed_offset,
+    # OMY transfers from the post-grasp lift pose (pad-mid carry clear of pedestal).
+    transfer_start = (
+        wp.lift_hover
+        if is_omy and wp.lift_hover is not None
+        else wp.pick_hover
     )
+    if is_omy:
+        # Shared arm planner (detour YAML + RRT*/SST) — same module OMX clutter
+        # uses for wall occupancy; prefer_transfer_detour avoids 6-DOF timeouts.
+        from fret.control.pick_place_planning import plan_arm_transfer_path
+
+        transfer_path, straight_collides = plan_arm_transfer_path(
+            transfer_start,
+            wp.place_hover,
+            scenario_path=scenario,
+            seed_offset=seed_offset,
+        )
+    else:
+        transfer_path, straight_collides = plan_transfer_path(
+            transfer_start,
+            wp.place_hover,
+            scenario_path=scenario,
+            seed_offset=seed_offset,
+        )
 
     phase_mpc = _joint_mpc_for_model(robot_model)
     transfer_tracker = JointPathMPCTracker(
@@ -533,6 +566,22 @@ def simulate_pick_place_clutter(
     phase_timeout = float(params.get("phase_timeout_s", 30.0))
     if scenario_id == "omx_wall_maze":
         phase_timeout = max(phase_timeout, 60.0)
+    omy_snap = frozenset(
+        {
+            PickPlaceState.DESCEND_PICK,
+            PickPlaceState.GRASP,
+            PickPlaceState.LIFT,
+            PickPlaceState.DESCEND_PLACE,
+            PickPlaceState.RETREAT,
+        }
+    )
+    omy_carry_states = frozenset(
+        {
+            PickPlaceState.LIFT,
+            PickPlaceState.MOVE_PLACE,
+            PickPlaceState.DESCEND_PLACE,
+        }
+    )
     fsm = PickPlaceFSM(
         wp,
         dof=fsm_dof,
@@ -543,6 +592,7 @@ def simulate_pick_place_clutter(
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
+        drop_fault_enabled=not is_omy,
     )
     fsm.start()
 
@@ -560,6 +610,7 @@ def simulate_pick_place_clutter(
     samples: list[PickPlaceSample] = []
     record_every_steps = max(1, int(record_every_steps))
     transfer_armed = False
+    carrying = False
     ctrl_accum = 0.0
     # Start the command at the settled pose (not pick_hover) so maze
     # rate-limited slews actually traverse idle → hover under the roof.
@@ -574,6 +625,17 @@ def simulate_pick_place_clutter(
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
         )
         cmd = fsm.tick(obs, dt)
+
+        if is_omy:
+            if cmd.state in omy_carry_states:
+                carrying = True
+            if cmd.state in {
+                PickPlaceState.RELEASE,
+                PickPlaceState.RETREAT,
+                PickPlaceState.DONE,
+                PickPlaceState.FAULT,
+            }:
+                carrying = False
 
         if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
             transfer_armed = True
@@ -607,6 +669,10 @@ def simulate_pick_place_clutter(
                     q_cmd = target.copy()
                 else:
                     q_cmd = q_cmd + delta * (max_step / step_n)
+            elif is_omy and cmd.state in omy_snap:
+                q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
+                phase_mpc.q = q_cmd.copy()
+                phase_mpc.vel = np.zeros_like(q_cmd)
             else:
                 q_cmd = np.asarray(
                     phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
@@ -619,12 +685,36 @@ def simulate_pick_place_clutter(
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
+        if is_omy and (carrying or cmd.state in omy_snap):
+            for i, name in enumerate(arm_names):
+                jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+                data.qpos[int(model.jnt_qposadr[jid])] = float(q_cmd[i])
+                data.qvel[int(model.jnt_dofadr[jid])] = 0.0
+            mj.mj_forward(model, data)
 
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = adhesion_command(cmd.state, fsm.hold_t)
+        if is_omy:
+            adhere = adhesion_command(
+                cmd.state,
+                fsm.hold_t,
+                gripper=float(cmd.gripper),
+                gripper_closed=float(gripper_closed) - 0.05,
+            )
+        else:
+            adhere = adhesion_command(cmd.state, fsm.hold_t)
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
+
+        if is_omy and carrying and pad_right_id >= 0 and pad_left_id >= 0:
+            mid = 0.5 * (
+                np.asarray(data.geom_xpos[pad_right_id], dtype=np.float64)
+                + np.asarray(data.geom_xpos[pad_left_id], dtype=np.float64)
+            )
+            data.qpos[box_qadr : box_qadr + 3] = mid
+            dof0 = int(model.jnt_dofadr[box_jid])
+            data.qvel[dof0 : dof0 + 6] = 0.0
+            mj.mj_forward(model, data)
 
         if step_i % record_every_steps == 0:
             samples.append(

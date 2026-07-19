@@ -2,7 +2,7 @@
   <!--
     OpenMANIPULATOR-Y ground pick-and-place (SC-v14b).
 
-    Pick: Ø 86 mm ball on the floor (75 % of max gripper opening).
+    Pick: Ø 86 mm ball on a short pedestal (75 % of max gripper opening).
     Place: tip-down cone funnel — Ø 129 mm, height 129 mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -34,6 +34,7 @@
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
+    <material name="pedestal" rgba="0.45 0.46 0.48 1"/>
     <mesh name="place_cone" file="assets/cone.obj" scale="1.29037 1.29037 1.31671"/>
   </asset>
 
@@ -94,7 +95,13 @@
           size="0.07452 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <body name="pick_box" pos="0.40000 -0.28000 0.04301">
+    <geom name="pedestal_pick" type="cylinder"
+          pos="0.40000 -0.28000 0.04500"
+          size="0.03200 0.04500"
+          material="pedestal" friction="1.2 0.1 0.01"
+          contype="2" conaffinity="2"/>
+
+    <body name="pick_box" pos="0.40000 -0.28000 0.13301">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="sphere" size="0.04301"
             density="400" material="pick_ball"

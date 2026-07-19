@@ -1,4 +1,4 @@
-# SC-v14c release variant — cluttered floor pick-place planned with ARCO RRT*.
+# SC-v14c release variant — cluttered pedestal pick-place planned with ARCO RRT*.
 #
 # Same geometry / FSM / tracking as omy_clutter.yml; transfer planner differs.
 # Internal scenario_id stays omy_clutter so MJCF + wall occupancy resolve correctly.
@@ -18,23 +18,24 @@
     ball_radius_m: 0.0430
     place_cone_height_m: 0.1290
     place_cone_radius_m: 0.0645
-    grasp_mode: mujoco_adhesion
+    grasp_mode: pad_mid_carry
     planner_algorithm: rrt_star
     planner_rng_seed: 3
+    prefer_transfer_detour: true
     wall_inflate_m: 0.04
     occupancy_density: 400.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
-    lift_height_m: 0.045
+    lift_height_m: 0.200
     phase_timeout_s: 100.0
     idle_configuration: [0.0, -0.8, 1.2, 0.0, 0.5, 0.0]
-    pick_hover_configuration: [-0.3774, 1.1398, 1.3263, -1.0653, 0.4, 0.0]
-    pick_grasp_configuration: [-0.3768, 1.3165, 1.2486, -0.9829, 0.4, 0.0]
-    lift_hover_configuration: [-0.3776, 1.0592, 1.3342, -1.0973, 0.4, 0.0]
-    place_hover_configuration: [0.8446, 1.1393, 1.3071, -1.2002, 0.4, 0.0]
-    place_grasp_configuration: [0.8447, 1.2924, 1.2584, -1.1203, 0.4, 0.0]
-    retreat_configuration: [0.8446, 1.1393, 1.3071, -1.2002, 0.4, 0.0]
-    transfer_detour_configuration: [0.0835, 1.4993, 1.5207, -1.2488, 0.4, 0.0]
+    pick_hover_configuration: [-0.4205, 0.5230, 0.9171, 0.0183, 1.6759, 0.6204]
+    pick_grasp_configuration: [-0.2457, 0.6343, 1.0686, -0.0221, 1.2671, -1.9833]
+    lift_hover_configuration: [-0.4092, 0.5082, 0.7833, 0.1193, 1.6503, 0.3474]
+    place_hover_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
+    place_grasp_configuration: [0.7097, 0.4824, 1.2992, -0.4434, 1.8866, -2.1730]
+    retreat_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
+    transfer_detour_configuration: [-0.0027, 0.5722, 0.9689, -0.6246, 2.1629, 0.6124]
     pick_xy: [0.40, -0.28]
     place_xy: [0.40, 0.28]
     walls:
