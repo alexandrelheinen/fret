@@ -64,7 +64,20 @@ def test_robot_class_release_camera_policy() -> None:
         "overview",
         "follow",
     )
-    assert rm.release_cameras_for_scenario("omx_wall_maze") == ("overview",)
+    assert rm.release_cameras_for_scenario("omx_wall_maze_rrt") == (
+        "overview",
+    )
+    assert rm.release_cameras_for_scenario("omx_wall_maze_sst") == (
+        "overview",
+    )
+
+
+def test_resolve_mjcf_omx_wall_maze_planner_variants() -> None:
+    for scenario in ("omx_wall_maze_rrt", "omx_wall_maze_sst"):
+        path = rm.resolve_mjcf_path("open_manipulator_x", scenario, None)
+        assert path.is_file()
+        cameras = rm.list_showcase_cameras(path, scenario=scenario)
+        assert cameras == ["overview"]
 
 
 def test_dubins_race_mjcf_loads() -> None:
