@@ -215,7 +215,7 @@ gripper (~3 cm aperture).
 | V13-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
 | V13-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
 | V13-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
-| V13-4 | Showcase video: isometric **overview** only (static arm — no follow) |
+| V13-4 | Showcase videos: Γ-maze isometric **overview** for RRT* and SST (same MPC tracking; no follow) |
 | V13-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
 | V13-6 | Γ-wall maze path retracts and climbs over the cap before placing |
 
@@ -316,7 +316,12 @@ Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/re
 | Robot class | Scenarios (today) | Required cameras |
 |---|---|---|
 | **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric) **and** `follow` (split-screen chase) |
-| **static** | `omx_reach`, `omx_pick_place`, `omx_desk_clutter`, `omx_wall_maze` | `overview` only |
+| **static** | SC-v13d Γ-maze only: `omx_wall_maze_rrt` + `omx_wall_maze_sst` | `overview` only |
+
+OM-X release clips share the same Γ-wall geometry and JointPathMPC / joint
+control tracking; they differ only in the transfer planner (**RRT\*** vs
+**SST**). Simpler OM-X demos (`omx_reach`, pick-place, desk clutter) stay in
+the repo for development but are not release artifacts.
 
 **Rules:**
 

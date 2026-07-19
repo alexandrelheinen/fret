@@ -31,10 +31,8 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
     clips: list[tuple[str, str, str]] = [
         ("dubins_race", "overview", "dubins_race_timing.json"),
         ("dubins_race", "follow", "dubins_race_timing.json"),
-        ("omx_reach", "overview", "omx_reach_timing.json"),
-        ("omx_pick_place", "overview", "omx_pick_place_timing.json"),
-        ("omx_desk_clutter", "overview", "omx_desk_clutter_timing.json"),
-        ("omx_wall_maze", "overview", "omx_wall_maze_timing.json"),
+        ("omx_wall_maze_rrt", "overview", "omx_wall_maze_rrt_timing.json"),
+        ("omx_wall_maze_sst", "overview", "omx_wall_maze_sst_timing.json"),
     ]
     timing_by_file: dict[str, list[dict[str, object]]] = {}
     for scenario, camera, timing_name in clips:
@@ -61,14 +59,17 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
 
     assert meta["git_ref"] == "v1.2.3"
     assert meta["partial"] is False
-    assert len(meta["showcases"]) == 5
+    assert len(meta["showcases"]) == 3
     assert meta["release_cameras"] == {
         "mobile": ["overview", "follow"],
         "static": ["overview"],
     }
     assert meta["primary_videos"]["dubins_race"] == "dubins_race_overview.mp4"
-    assert meta["primary_videos"]["omx_wall_maze"] == (
-        "omx_wall_maze_overview.mp4"
+    assert meta["primary_videos"]["omx_wall_maze_rrt"] == (
+        "omx_wall_maze_rrt_overview.mp4"
+    )
+    assert meta["primary_videos"]["omx_wall_maze_sst"] == (
+        "omx_wall_maze_sst_overview.mp4"
     )
     assert (tmp_path / "meta.json").is_file()
 

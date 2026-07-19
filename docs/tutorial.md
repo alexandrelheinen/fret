@@ -94,10 +94,10 @@ GitHub Actions artifact backup. Camera policy (see
 | Scenario | Model | Class | Cameras |
 |---|---|---|---|
 | `dubins_race` | Dubins / TB3 | mobile | `overview` + split-screen `follow` |
-| `omx_reach` | OpenMANIPULATOR-X | static | `overview` |
-| `omx_pick_place` | OpenMANIPULATOR-X | static | `overview` |
-| `omx_desk_clutter` | OpenMANIPULATOR-X | static | `overview` |
-| `omx_wall_maze` | OpenMANIPULATOR-X | static | `overview` |
+| `omx_wall_maze_rrt` | OpenMANIPULATOR-X (Γ maze, RRT*) | static | `overview` |
+| `omx_wall_maze_sst` | OpenMANIPULATOR-X (Γ maze, SST) | static | `overview` |
+
+Same maze + MPC tracking for both OM-X clips; only the transfer planner changes.
 
 ### Download from R2 (WSL-friendly — no MuJoCo rendering needed)
 
@@ -110,7 +110,8 @@ sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
 ./scripts/download_showcase.sh --tag v1.2.3 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
-./scripts/download_showcase.sh --scenario omx_wall_maze --camera overview
+./scripts/download_showcase.sh --scenario omx_wall_maze_rrt --camera overview
+./scripts/download_showcase.sh --scenario omx_wall_maze_sst --camera overview
 ```
 
 Default output: `artifacts/r2/dubins_race_latest.mp4` (also gitignored).
