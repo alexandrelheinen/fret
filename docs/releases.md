@@ -287,7 +287,8 @@ and trajectory execution in a cluttered environment — the simulation capstone 
 
 Close the loop from FRET's ROS 2 stack to a **physical prototype**: Raspberry Pi 5 high-level
 control, Arduino Mega low-level actuation, Micro-ROS serial bridge, and encoder feedback.
-Ships after simulation milestones (v1.2.4) are debugged and stable.
+Ships after simulation milestones (v1.2.4) are debugged and stable. This is the **last
+product milestone before computer vision** (vision / dynamic replanning stay post-v1.3).
 
 ### Scope (high level)
 
@@ -318,9 +319,13 @@ Ships after simulation milestones (v1.2.4) are debugged and stable.
 | `v1.1.0` | Dubins dual race — **first product showcase** | T11-* |
 | `v1.1.x` | Physics-bridge iterations (v1.1 → v1.2); no new robots | See [§ v1.1.x retrospective](#v11x--v12-retrospective) below |
 | `v1.2.0` | MuJoCo physics SITL (Dubins) | T12-* ✅ |
-| `v1.2.3` | OpenMANIPULATOR-X tabletop showcase (mobile + OM-X videos) — **current** | T123-* ✅ |
-| `v1.2.4` | 6-DOF challenge | T124-* |
-| `v1.3.0` | Hardware HITL | T13-* |
+| `v1.2.3` | OpenMANIPULATOR-X tabletop showcase (mobile + OM-X videos) | T123-* ✅ |
+| `v1.2.4` | 6-DOF challenge (OMY) — **next product tag** | T124-* |
+| `v1.3.0` | Hardware HITL (last milestone before vision) | T13-* |
+
+Python package version in `pyproject.toml` is **1.3.0** once the post-v1.2.4
+development line opens (HITL). Product showcase tags remain `v1.2.4` then
+`v1.3.0`; vision work stays post-v1.3 (see [roadmap.md](roadmap.md)).
 
 ### v1.1.x → v1.2.0 retrospective
 
