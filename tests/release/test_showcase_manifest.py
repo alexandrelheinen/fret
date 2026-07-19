@@ -14,19 +14,27 @@ from showcase_manifest import (  # noqa: E402
 )
 
 
-def test_manifest_loads_all_product_scenarios() -> None:
+def test_manifest_loads_release_focus_scenarios() -> None:
     manifest = load_showcase_manifest()
     ids = {item.id for item in manifest.scenarios}
     assert ids == {
         "dubins_race",
-        "omx_reach",
-        "omx_pick_place",
-        "omx_desk_clutter",
-        "omx_wall_maze",
+        "omx_wall_maze_rrt",
+        "omx_wall_maze_sst",
     }
     assert manifest.fps == 30
     assert manifest.width == 1280
     assert manifest.height == 720
+
+
+def test_omx_release_variants_differ_only_by_planner() -> None:
+    manifest = load_showcase_manifest()
+    rrt = manifest.by_id("omx_wall_maze_rrt")
+    sst = manifest.by_id("omx_wall_maze_sst")
+    assert rrt.robot_class == sst.robot_class == "static"
+    assert rrt.cameras == sst.cameras == ("overview",)
+    assert rrt.planner_algorithm == "rrt_star"
+    assert sst.planner_algorithm == "sst"
 
 
 def test_mobile_requires_follow_static_overview_only() -> None:

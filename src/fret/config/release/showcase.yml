@@ -6,6 +6,9 @@
 #   * follow   — required for mobile robots only (split-screen chase).
 #     Static/tabletop arms must NOT export follow on release.
 #
+# OM-X release focus: SC-v13d Γ-wall maze only, twice — RRT* vs SST transfer
+# planning, same JointPathMPC / joint-control tracking pipeline.
+#
 # Regenerate clips via scripts/release/render_showcase.py or release.yml.
 
 fps: 30
@@ -23,42 +26,22 @@ scenarios:
     timing_file: dubins_race_timing.json
     primary_video: dubins_race_overview.mp4
 
-  - id: omx_reach
+  - id: omx_wall_maze_rrt
     model: open_manipulator_x
     robot_class: static
     cameras: [overview]
     physics_mode: false
     planner_algorithm: rrt_star
     collision_backend: mujoco
-    timing_file: omx_reach_timing.json
-    primary_video: omx_reach_overview.mp4
+    timing_file: omx_wall_maze_rrt_timing.json
+    primary_video: omx_wall_maze_rrt_overview.mp4
 
-  - id: omx_pick_place
+  - id: omx_wall_maze_sst
     model: open_manipulator_x
     robot_class: static
     cameras: [overview]
     physics_mode: false
-    planner_algorithm: rrt_star
+    planner_algorithm: sst
     collision_backend: mujoco
-    timing_file: omx_pick_place_timing.json
-    primary_video: omx_pick_place_overview.mp4
-
-  - id: omx_desk_clutter
-    model: open_manipulator_x
-    robot_class: static
-    cameras: [overview]
-    physics_mode: false
-    planner_algorithm: rrt_star
-    collision_backend: mujoco
-    timing_file: omx_desk_clutter_timing.json
-    primary_video: omx_desk_clutter_overview.mp4
-
-  - id: omx_wall_maze
-    model: open_manipulator_x
-    robot_class: static
-    cameras: [overview]
-    physics_mode: false
-    planner_algorithm: rrt_star
-    collision_backend: mujoco
-    timing_file: omx_wall_maze_timing.json
-    primary_video: omx_wall_maze_overview.mp4
+    timing_file: omx_wall_maze_sst_timing.json
+    primary_video: omx_wall_maze_sst_overview.mp4

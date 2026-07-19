@@ -245,6 +245,9 @@ Static / tabletop arms export `overview` only. Extra MJCF cameras (`topdown`,
 `finish`, …) remain available via explicit `--camera` but are not release
 artifacts.
 
+OM-X release focus is SC-v13d Γ-wall maze with two planner variants
+(`omx_wall_maze_rrt`, `omx_wall_maze_sst`) and the same JointPathMPC tracking.
+
 Release CI: `scripts/release/render_showcase.py` (matrix over the manifest).
 
 ### Showcase rendering (real-time playback)
