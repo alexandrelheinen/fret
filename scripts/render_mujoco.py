@@ -53,8 +53,20 @@ _OMX_DESK_CLUTTER_SCENARIOS: frozenset[str] = frozenset(
     {"omx_desk_clutter", "desk_clutter"}
 )
 _OMX_WALL_MAZE_SCENARIOS: frozenset[str] = frozenset(
-    {"omx_wall_maze", "wall_maze"}
+    {
+        "omx_wall_maze",
+        "wall_maze",
+        # Release planner variants (same Γ maze, RRT* vs SST transfer plan).
+        "omx_wall_maze_rrt",
+        "omx_wall_maze_sst",
+    }
 )
+_OMX_WALL_MAZE_SCENARIO_YAML: dict[str, str] = {
+    "omx_wall_maze": "omx_wall_maze.yml",
+    "wall_maze": "omx_wall_maze.yml",
+    "omx_wall_maze_rrt": "omx_wall_maze_rrt.yml",
+    "omx_wall_maze_sst": "omx_wall_maze_sst.yml",
+}
 _OMX_CLUTTER_SCENARIOS: frozenset[str] = (
     _OMX_DESK_CLUTTER_SCENARIOS | _OMX_WALL_MAZE_SCENARIOS
 )
@@ -1073,8 +1085,7 @@ def render_omx_desk_clutter_showcase_videos(
     scenario_yaml = {
         "omx_desk_clutter": "omx_desk_clutter.yml",
         "desk_clutter": "omx_desk_clutter.yml",
-        "omx_wall_maze": "omx_wall_maze.yml",
-        "wall_maze": "omx_wall_maze.yml",
+        **_OMX_WALL_MAZE_SCENARIO_YAML,
     }.get(scenario, "omx_desk_clutter.yml")
     scenario_path = Path("src/fret/config/scenarios") / scenario_yaml
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
@@ -1439,10 +1450,12 @@ def render_showcase_videos(
         )
     if scenario in _OMX_WALL_MAZE_SCENARIOS:
         _ = physics_mode
+        # Keep showcase id (…_rrt / …_sst) so output MP4 names distinguish
+        # planner variants; YAML still sets scenario_id=omx_wall_maze.
         return render_omx_desk_clutter_showcase_videos(
             mjcf_path,
             output_dir,
-            scenario="omx_wall_maze",
+            scenario=scenario,
             cameras=cameras,
             output_names=output_names,
             duration_s=duration_s,

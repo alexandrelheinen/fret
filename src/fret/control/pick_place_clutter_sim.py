@@ -338,6 +338,8 @@ def plan_transfer_path(
         for a in alphas
     )
 
+    from fret.scenario.planner_rng import deterministic_planner_rng
+
     last_err: str | None = None
     # Γ maze needs more RNG draws: roof overhang + mesh-clear reject many.
     attempt_budget = 60 if peak_z > 0.0 else 24
@@ -357,14 +359,17 @@ def plan_transfer_path(
             planner_algorithm=algo,  # type: ignore[arg-type]
             scenario=scenario_id,
         )
-        result = planner.plan(
-            PlanningRequest(
-                start_configuration=np.asarray(start, dtype=np.float64),
-                goal_configuration=np.asarray(goal, dtype=np.float64),
-                planning_timeout=timeout,
-                scenario_id=scenario_id,
+        # ARCO RRT*/SST call unseeded default_rng(); pin so planner variants
+        # (and release showcase seeds) are reproducible.
+        with deterministic_planner_rng(seed):
+            result = planner.plan(
+                PlanningRequest(
+                    start_configuration=np.asarray(start, dtype=np.float64),
+                    goal_configuration=np.asarray(goal, dtype=np.float64),
+                    planning_timeout=timeout,
+                    scenario_id=scenario_id,
+                )
             )
-        )
         if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
             last_err = (
                 f"status={result.status.name} code={result.error_code.name}"
