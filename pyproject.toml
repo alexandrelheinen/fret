@@ -1,6 +1,6 @@
 [project]
 name = "fret"
-version = "1.2.0"
+version = "1.2.3"
 description = "Full-stack Robotic Effector Trajectories Framework"
 requires-python = ">=3.12"
 dependencies = [
