@@ -9,6 +9,9 @@
 #
 # Requires: awscli, R2_ENDPOINT, R2_BUCKET, AWS_ACCESS_KEY_ID,
 # AWS_SECRET_ACCESS_KEY, TAG
+#
+# Tags containing "-dev" (or SKIP_LATEST=1) upload only under
+# releases/${TAG}/ and do not clobber latest/.
 set -Eeuo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -29,6 +32,12 @@ if [[ -z "${R2_ENDPOINT:-}" || -z "${R2_BUCKET:-}" ]]; then
   exit 2
 fi
 
+update_latest=1
+if [[ "${SKIP_LATEST:-0}" == "1" || "${TAG}" == *-dev* ]]; then
+  update_latest=0
+  echo "Skipping latest/ update for TAG=${TAG}"
+fi
+
 shopt -s nullglob
 matches=("${renders_dir}/${scenario_prefix}"*.mp4)
 if [[ ${#matches[@]} -eq 0 ]]; then
@@ -40,19 +49,22 @@ python3 -m pip install --break-system-packages awscli >/dev/null
 
 for mp4 in "${matches[@]}"; do
   base="$(basename "${mp4}")"
-  echo "Uploading ${base} → releases/${TAG}/ and latest/"
+  echo "Uploading ${base} → releases/${TAG}/"
   aws s3 cp "${mp4}" \
     "s3://${R2_BUCKET}/releases/${TAG}/${base}" \
     --endpoint-url "${R2_ENDPOINT}" \
     --content-type video/mp4
-  aws s3 cp "${mp4}" \
-    "s3://${R2_BUCKET}/latest/${base}" \
-    --endpoint-url "${R2_ENDPOINT}" \
-    --content-type video/mp4
+  if [[ "${update_latest}" -eq 1 ]]; then
+    echo "Uploading ${base} → latest/"
+    aws s3 cp "${mp4}" \
+      "s3://${R2_BUCKET}/latest/${base}" \
+      --endpoint-url "${R2_ENDPOINT}" \
+      --content-type video/mp4
+  fi
 done
 
 primary="${renders_dir}/${scenario_prefix}_overview.mp4"
-if [[ -f "${primary}" ]]; then
+if [[ -f "${primary}" && "${update_latest}" -eq 1 ]]; then
   echo "Updating latest/${latest_alias} from ${primary##*/}"
   aws s3 cp "${primary}" \
     "s3://${R2_BUCKET}/latest/${latest_alias}" \

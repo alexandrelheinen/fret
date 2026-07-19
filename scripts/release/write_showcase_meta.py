@@ -10,13 +10,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_EXPECTED = {
-    "dubins_race": {
-        "model": "dubins",
-        "timing_file": "dubins_timing.json",
-        "primary_video": "dubins_race_overview.mp4",
-    },
-}
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from showcase_manifest import load_showcase_manifest  # noqa: E402
 
 
 def write_showcase_meta(
@@ -27,24 +24,30 @@ def write_showcase_meta(
     git_sha: str,
     workflow_run: str,
     output_path: Path,
+    manifest_path: Path | None = None,
 ) -> dict[str, object]:
     """Build and write ``meta.json`` for a release showcase bundle."""
+    manifest = load_showcase_manifest(manifest_path)
     renders = sorted(renders_dir.glob("*.mp4"))
     if not renders:
         raise SystemExit("No showcase MP4 files were produced")
 
     showcases: list[dict[str, object]] = []
-    for scenario, cfg in _EXPECTED.items():
-        prefix = f"{scenario}_"
-        scenario_files = [path for path in renders if path.name.startswith(prefix)]
+    for scenario in manifest.scenarios:
+        prefix = f"{scenario.id}_"
+        scenario_files = [
+            path for path in renders if path.name.startswith(prefix)
+        ]
         if not scenario_files:
             continue
 
-        timing_path = renders_dir / str(cfg["timing_file"])
+        timing_path = renders_dir / scenario.timing_file
         if not timing_path.is_file():
             raise SystemExit(f"Missing timing metadata: {timing_path}")
         timing_data = json.loads(timing_path.read_text(encoding="utf-8"))
-        clip_timing = {item["file"]: item for item in timing_data.get("clips", [])}
+        clip_timing = {
+            item["file"]: item for item in timing_data.get("clips", [])
+        }
 
         videos: list[dict[str, object]] = []
         duration_s = 0.0
@@ -65,36 +68,52 @@ def write_showcase_meta(
                 }
             )
 
+        cameras_found = [video["camera"] for video in videos]
+        for required in scenario.cameras:
+            if required not in cameras_found:
+                raise SystemExit(
+                    f"Scenario {scenario.id} missing required camera "
+                    f"{required!r} (found {cameras_found})"
+                )
+
         showcases.append(
             {
-                "scenario": scenario,
-                "model": cfg["model"],
+                "scenario": scenario.id,
+                "model": scenario.model,
+                "robot_class": scenario.robot_class,
                 "duration_s": duration_s,
                 "realtime_playback": True,
-                "cameras": [video["camera"] for video in videos],
+                "cameras": cameras_found,
                 "videos": videos,
-                "primary_video": cfg["primary_video"],
+                "primary_video": scenario.primary_video,
             }
         )
 
     if not showcases:
         raise SystemExit("No showcase clips found for any scenario")
 
+    mobile_cameras = ["overview", "follow"]
+    static_cameras = ["overview"]
     meta: dict[str, object] = {
         "repo": repo,
         "git_sha": git_sha,
         "git_ref": tag,
-        "release_cameras": ["overview", "follow"],
+        "release_cameras": {
+            "mobile": mobile_cameras,
+            "static": static_cameras,
+        },
         "realtime_playback": True,
-        "partial": len(showcases) < len(_EXPECTED),
-        "fps": 30,
-        "width": 1280,
-        "height": 720,
+        "partial": len(showcases) < len(manifest.scenarios),
+        "fps": manifest.fps,
+        "width": manifest.width,
+        "height": manifest.height,
         "showcases": showcases,
         "primary_videos": {
             item["scenario"]: item["primary_video"] for item in showcases
         },
-        "rendered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "rendered_at": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
         "workflow_run": workflow_run,
     }
     output_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -135,6 +154,12 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("WORKFLOW_RUN", ""),
         help="GitHub Actions workflow run URL",
     )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=None,
+        help="Optional override for showcase.yml",
+    )
     args = parser.parse_args(argv)
 
     if not args.tag:
@@ -147,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         git_sha=args.git_sha,
         workflow_run=args.workflow_run,
         output_path=args.output,
+        manifest_path=args.manifest,
     )
     print(json.dumps(meta, indent=2))
     return 0
