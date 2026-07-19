@@ -21,10 +21,23 @@ def test_manifest_loads_release_focus_scenarios() -> None:
         "dubins_race",
         "omx_wall_maze_rrt",
         "omx_wall_maze_sst",
+        "omy_pick_place",
+        "omy_clutter_rrt",
+        "omy_clutter_sst",
     }
     assert manifest.fps == 30
     assert manifest.width == 1280
     assert manifest.height == 720
+
+
+def test_omy_release_variants_differ_only_by_planner() -> None:
+    manifest = load_showcase_manifest()
+    rrt = manifest.by_id("omy_clutter_rrt")
+    sst = manifest.by_id("omy_clutter_sst")
+    assert rrt.robot_class == sst.robot_class == "static"
+    assert rrt.cameras == sst.cameras == ("overview",)
+    assert rrt.planner_algorithm == "rrt_star"
+    assert sst.planner_algorithm == "sst"
 
 
 def test_omx_release_variants_differ_only_by_planner() -> None:

@@ -1,17 +1,17 @@
-# SC-v14c — OpenMANIPULATOR-Y cluttered ground pick-and-place.
+# SC-v14c release variant — cluttered floor pick-place planned with ARCO RRT*.
 #
-# Same scaled floor ball + cone as SC-v14b; wall blocks direct transfer.
-# Release planner variants (same geometry, RRT* vs SST transfer plan):
-#   omy_clutter_rrt.yml
-#   omy_clutter_sst.yml
+# Same geometry / FSM / tracking as omy_clutter.yml; transfer planner differs.
+# Internal scenario_id stays omy_clutter so MJCF + wall occupancy resolve correctly.
 
 /**:
   ros__parameters:
     model: omy
     scenario_id: omy_clutter
+    showcase_id: omy_clutter_rrt
     simulation_dt: 0.02
     duration: 65.0
-    planning_timeout: 20.0
+    planning_timeout: 8.0
+    max_planner_attempts: 1
     goal_tolerance: 0.05
     mjcf: mjcf/omy_clutter.xml
     pick_object: ball
@@ -21,9 +21,8 @@
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
     planner_rng_seed: 3
-    prefer_transfer_detour: true
     wall_inflate_m: 0.04
-    occupancy_density: 800.0
+    occupancy_density: 400.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
     lift_height_m: 0.045
