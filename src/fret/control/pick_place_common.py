@@ -10,7 +10,7 @@ import numpy.typing as npt
 
 from fret.control.pick_place_fsm import PickPlaceState
 
-_OMY_GRASP_PAD_MID_MAX_M = 0.050
+_OMY_GRASP_PAD_MID_MAX_M = 0.035
 
 _ADHERE_STATES = frozenset(
     {

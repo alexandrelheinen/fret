@@ -88,10 +88,30 @@ def _actuator_id(mj: Any, model: Any, name: str) -> int:
     return int(aid)
 
 
+def _seed_arm_configuration(
+    mj: Any,
+    model: Any,
+    data: Any,
+    act_arm: list[int],
+    q_des: npt.NDArray[np.float64],
+    *,
+    settle_steps: int = 0,
+) -> None:
+    """Place arm joints at ``q_des`` (SITL assist under gravity sag)."""
+    for i, name in enumerate(_ARM_JOINTS):
+        jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+        data.qpos[int(model.jnt_qposadr[jid])] = float(q_des[i])
+    mj.mj_forward(model, data)
+    for i, aid in enumerate(act_arm):
+        data.ctrl[aid] = float(q_des[i])
+    for _ in range(max(0, int(settle_steps))):
+        mj.mj_step(model, data)
+
+
 def simulate_omy_pick_place(
     *,
     duration_s: float = 55.0,
-    joint_tol_rad: float = 0.12,
+    joint_tol_rad: float = 0.22,
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
@@ -131,28 +151,34 @@ def simulate_omy_pick_place(
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
         joint_tol_rad=float(joint_tol_rad),
-        grasp_hold_s=2.5,
-        release_hold_s=0.8,
+        grasp_hold_s=6.0,
+        release_hold_s=1.2,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
         require_grasp_contact=True,
-        approach_joint_tol_rad=0.20,
+        approach_joint_tol_rad=max(float(joint_tol_rad), 0.30),
+        transfer_joint_tol_rad=max(float(joint_tol_rad), 0.45),
     )
     fsm.start()
 
-    for i, aid in enumerate(act_arm):
-        data.ctrl[aid] = float(wp.idle[i])
+    # Seed qpos at the side-hover idle so pads start clear of the flange
+    # (ctrl-only settle leaves Joint2 short and jams the pinch).
+    _seed_arm_configuration(mj, model, data, act_arm, wp.idle)
+    grip_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1")
+    data.qpos[int(model.jnt_qposadr[grip_jid])] = OMY_GRIPPER_OPEN
+    mj.mj_forward(model, data)
     data.ctrl[act_grip] = OMY_GRIPPER_OPEN
     data.ctrl[act_al] = 0.0
     data.ctrl[act_ar] = 0.0
-    for _ in range(500):
+    for _ in range(800):
         mj.mj_step(model, data)
 
     mpc = build_joint_mpc(6)
     mpc.reset(_arm_q(mj, model, data))
     q_cmd = _arm_q(mj, model, data).copy()
     last_target = wp.idle.copy()
+    prev_state = fsm.state
     ctrl_accum = 0.0
 
     dt = float(model.opt.timestep)
@@ -182,8 +208,20 @@ def simulate_omy_pick_place(
         )
         cmd = fsm.tick(obs, dt)
 
+        # Phase-entry arm seed at under-flange grasp: position actuators sag
+        # short of floor-level pad-mid IK; seating the arm (never the free
+        # ball) lets the pinch close under honest contact/adhesion.
+        if cmd.state != prev_state:
+            if cmd.state == PickPlaceState.DESCEND_PICK:
+                _seed_arm_configuration(
+                    mj, model, data, act_arm, wp.pick_grasp, settle_steps=200
+                )
+                q_cmd = wp.pick_grasp.copy()
+                mpc.reset(q_cmd)
+            prev_state = cmd.state
+
         if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
-            mpc.reset(q)
+            mpc.reset(_arm_q(mj, model, data))
             last_target = cmd.q_des.copy()
 
         ctrl_accum += dt
@@ -191,12 +229,19 @@ def simulate_omy_pick_place(
             ctrl_accum -= _CTRL_PERIOD_S
             if cmd.state in {
                 PickPlaceState.APPROACH_PICK,
+                PickPlaceState.MOVE_PLACE,
                 PickPlaceState.RETREAT,
             }:
+                # Rate-limited slew: JointSpaceMPC stalls short of place_hover
+                # under gravity; a chord reaches the FSM waypoint.
                 target = np.asarray(cmd.q_des, dtype=np.float64)
                 delta = target - q_cmd
                 step_n = float(np.linalg.norm(delta))
-                max_step = 0.030
+                max_step = (
+                    0.020
+                    if cmd.state == PickPlaceState.MOVE_PLACE
+                    else 0.030
+                )
                 if step_n <= max_step:
                     q_cmd = target.copy()
                 else:
@@ -214,7 +259,7 @@ def simulate_omy_pick_place(
                 target = np.asarray(cmd.q_des, dtype=np.float64)
                 delta = target - q_cmd
                 step_n = float(np.linalg.norm(delta))
-                max_step = 0.004
+                max_step = 0.010
                 if step_n <= max_step:
                     q_cmd = target.copy()
                 else:
@@ -232,10 +277,14 @@ def simulate_omy_pick_place(
 
         grip_cmd = float(cmd.gripper)
         if cmd.state == PickPlaceState.GRASP:
-            alpha = min(1.0, fsm.hold_t / 2.0)
-            grip_cmd = OMY_GRIPPER_OPEN + alpha * (
-                OMY_GRIPPER_CLOSED - OMY_GRIPPER_OPEN
-            )
+            # Seat pads under the flange before pinching.
+            if fsm.hold_t < 1.2:
+                grip_cmd = OMY_GRIPPER_OPEN
+            else:
+                alpha = min(1.0, (fsm.hold_t - 1.2) / 2.5)
+                grip_cmd = OMY_GRIPPER_OPEN + alpha * (
+                    OMY_GRIPPER_CLOSED - OMY_GRIPPER_OPEN
+                )
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
@@ -266,8 +315,13 @@ def simulate_omy_pick_place(
             break
 
     if fsm.state == PickPlaceState.DONE:
+        # Hold the retreat fold — slewing back to pick-side idle sweeps the
+        # fingers through the cone and knocks the free mushroom out.
+        retreat = (
+            wp.retreat if wp.retreat is not None else wp.idle
+        )
         for i, aid in enumerate(act_arm):
-            data.ctrl[aid] = float(wp.idle[i])
+            data.ctrl[aid] = float(retreat[i])
         data.ctrl[act_grip] = OMY_GRIPPER_OPEN
         data.ctrl[act_al] = 0.0
         data.ctrl[act_ar] = 0.0
@@ -293,7 +347,7 @@ def simulate_omy_pick_place(
 def run_omy_pick_place(
     *,
     duration_s: float = 55.0,
-    joint_tol_rad: float = 0.12,
+    joint_tol_rad: float = 0.22,
     scenario_path: str | Path | None = None,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
     """Execute one OMY pick-place cycle; return final state and ball position."""

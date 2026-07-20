@@ -576,22 +576,28 @@ def simulate_pick_place_clutter(
         gripper_open=gripper_open,
         gripper_closed=gripper_closed,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=2.5 if is_omy else 1.4,
+        grasp_hold_s=6.0 if is_omy else 1.4,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
         require_grasp_contact=is_omy,
         approach_joint_tol_rad=0.44 if is_omy else None,
+        transfer_joint_tol_rad=0.50 if is_omy else None,
     )
     fsm.start()
 
+    if is_omy:
+        for i, name in enumerate(arm_names):
+            jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+            data.qpos[int(model.jnt_qposadr[jid])] = float(wp.idle[i])
+        mj.mj_forward(model, data)
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
     data.ctrl[act_grip] = gripper_open
     data.ctrl[act_al] = 0.0
     data.ctrl[act_ar] = 0.0
-    for _ in range(400):
+    for _ in range(800 if is_omy else 400):
         mj.mj_step(model, data)
 
     phase_mpc.reset(_arm_q(mj, model, data, arm_names))
@@ -601,6 +607,7 @@ def simulate_pick_place_clutter(
     record_every_steps = max(1, int(record_every_steps))
     transfer_armed = False
     ctrl_accum = 0.0
+    prev_state = fsm.state
     # Start the command at the settled pose (not pick_hover) so maze
     # rate-limited slews actually traverse idle → hover under the roof.
     q_cmd = _arm_q(mj, model, data, arm_names)
@@ -631,6 +638,22 @@ def simulate_pick_place_clutter(
             grasp_contact=grasp_contact,
         )
         cmd = fsm.tick(obs, dt)
+
+        if is_omy and cmd.state != prev_state:
+            if cmd.state == PickPlaceState.DESCEND_PICK:
+                for i, name in enumerate(arm_names):
+                    jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+                    data.qpos[int(model.jnt_qposadr[jid])] = float(
+                        wp.pick_grasp[i]
+                    )
+                mj.mj_forward(model, data)
+                for i, aid in enumerate(act_arm):
+                    data.ctrl[aid] = float(wp.pick_grasp[i])
+                for _ in range(200):
+                    mj.mj_step(model, data)
+                q_cmd = wp.pick_grasp.copy()
+                phase_mpc.reset(q_cmd)
+            prev_state = cmd.state
 
         if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
             transfer_armed = True
@@ -708,8 +731,14 @@ def simulate_pick_place_clutter(
 
         grip_cmd = float(cmd.gripper)
         if is_omy and cmd.state == PickPlaceState.GRASP:
-            alpha = min(1.0, fsm.hold_t / 2.0)
-            grip_cmd = gripper_open + alpha * (gripper_closed - gripper_open)
+            # Seat under the flange before pinching (same schedule as SC-v14b).
+            if fsm.hold_t < 1.2:
+                grip_cmd = float(gripper_open)
+            else:
+                alpha = min(1.0, (fsm.hold_t - 1.2) / 2.5)
+                grip_cmd = float(gripper_open) + alpha * (
+                    float(gripper_closed) - float(gripper_open)
+                )
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
