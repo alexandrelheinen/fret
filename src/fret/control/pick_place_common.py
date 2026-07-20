@@ -71,8 +71,13 @@ def ball_grasp_contact(
     pad_right_id: int,
     pad_left_id: int,
     max_pad_mid_dist_m: float = _OMY_GRASP_PAD_MID_MAX_M,
+    allow_pad_mid_fallback: bool = True,
 ) -> bool:
-    """True when the free ball touches a pad (MuJoCo contact or tight midpoint)."""
+    """True when the free ball touches a pad (MuJoCo contact or tight midpoint).
+
+    When ``allow_pad_mid_fallback`` is False, only real pad↔ball contacts count
+    (honesty gate for OMY / contact-required FSM).
+    """
     box_geom_adr = int(model.body_geomadr[box_body_id])
     box_geom_num = int(model.body_geomnum[box_body_id])
     box_geoms = frozenset(range(box_geom_adr, box_geom_adr + box_geom_num))
@@ -90,6 +95,8 @@ def ball_grasp_contact(
             break
     if pad_contact:
         return True
+    if not allow_pad_mid_fallback:
+        return False
     mid = pad_midpoint(
         data, pad_right_id=pad_right_id, pad_left_id=pad_left_id
     )
