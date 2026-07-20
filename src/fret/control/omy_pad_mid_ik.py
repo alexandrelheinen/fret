@@ -39,7 +39,9 @@ def pad_mid_ik(
     def set_kin(q: npt.NDArray[np.floating[Any]]) -> None:
         for i, name in enumerate(arm_joints):
             adr = int(
-                model.jnt_qposadr[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)]
+                model.jnt_qposadr[
+                    mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+                ]
             )
             data.qpos[adr] = float(q[i])
         data.qpos[grip_adr] = float(grip_val)
