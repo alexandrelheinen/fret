@@ -575,8 +575,15 @@ def simulate_pick_place_clutter(
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
+        require_grasp_contact=bool(is_omy),
+        transfer_joint_tol_rad=(
+            max(float(joint_tol_rad), 0.20) if is_omy else None
+        ),
     )
     fsm.start()
+    pad_right = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right")
+    pad_left = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left")
+    from fret.control.pick_place_common import ball_grasp_contact
 
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
@@ -600,10 +607,22 @@ def simulate_pick_place_clutter(
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data, arm_names)
+        grasp_ok = None
+        if is_omy and pad_right >= 0 and pad_left >= 0:
+            grasp_ok = ball_grasp_contact(
+                mj,
+                model,
+                data,
+                box_body_id=box_id,
+                pad_right_id=pad_right,
+                pad_left_id=pad_left,
+                allow_pad_mid_fallback=False,
+            )
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
+            grasp_contact=grasp_ok,
         )
         cmd = fsm.tick(obs, dt)
 
@@ -653,7 +672,12 @@ def simulate_pick_place_clutter(
             data.ctrl[aid] = float(q_cmd[i])
 
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = adhesion_command(cmd.state, fsm.hold_t)
+        adhere = adhesion_command(
+            cmd.state,
+            fsm.hold_t,
+            gripper=float(cmd.gripper),
+            gripper_closed=float(gripper_closed),
+        )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)

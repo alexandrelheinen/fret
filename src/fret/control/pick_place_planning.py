@@ -89,6 +89,135 @@ def _path_metrics(
     )
 
 
+def _edge_free(
+    checker: Any,
+    a: npt.NDArray[np.float64],
+    b: npt.NDArray[np.float64],
+    *,
+    samples: int = 24,
+) -> bool:
+    """True when the joint-space chord ``a→b`` is collision-free."""
+    for t in np.linspace(0.0, 1.0, int(samples)):
+        if not checker.is_collision_free((1.0 - t) * a + t * b):
+            return False
+    return True
+
+
+def _omy_rrt_star_path(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    checker: Any,
+    seed: int,
+) -> list[npt.NDArray[np.float64]] | None:
+    """Run ARCO RRT* with 6-DOF-friendly parameters; return coarse path or None."""
+    try:
+        from arco.planning.continuous.rrt import RRTPlanner
+    except ImportError:  # pragma: no cover
+        try:
+            from arco.planning import RRTPlanner
+        except ImportError:
+            return None
+    from fret.planning.planner_node import _CSpaceOccupancy
+
+    kin = Kinematics("omy")
+    bounds = [(float(lo), float(hi)) for lo, hi in kin.joint_limits]
+    rng = np.random.default_rng(int(seed))
+    # ARCO RRT* has no cooperative timeout; keep sample count modest.
+    planner = RRTPlanner(
+        occupancy=_CSpaceOccupancy(checker),
+        bounds=bounds,
+        max_sample_count=2500,
+        step_size=0.50,
+        goal_tolerance=0.20,
+        collision_check_count=5,
+        goal_bias=0.35,
+    )
+    _ = rng  # seed reserved for future stochastic wrappers
+    path = planner.plan(
+        np.asarray(start, dtype=np.float64),
+        np.asarray(goal, dtype=np.float64),
+    )
+    if path is None or len(path) < 2:
+        return None
+    return [np.asarray(q, dtype=np.float64) for q in path]
+
+
+def _omy_corridor_via_path(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    checker: Any,
+) -> list[npt.NDArray[np.float64]] | None:
+    """Sampling-based via planner: pad-mid IK corridor around the mid-cell wall."""
+    try:
+        import mujoco as mj
+    except ImportError:  # pragma: no cover
+        return None
+    from fret.mjcf.omy import ensure_omy_clutter_mjcf
+
+    from fret.control.omy_pad_mid_ik import (
+        OMY_ARM_JOINTS,
+        OMY_GRIPPER_PINCH,
+        pad_mid_ik,
+    )
+
+    xml = ensure_omy_clutter_mjcf()
+    model = mj.MjModel.from_xml_path(str(xml))
+    data = mj.MjData(model)
+    pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
+    pad_left = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
+    grip_adr = int(
+        model.jnt_qposadr[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1")]
+    )
+    limits = np.array(
+        [
+            model.jnt_range[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)]
+            for n in OMY_ARM_JOINTS
+        ],
+        dtype=np.float64,
+    )
+    start = np.asarray(start, dtype=np.float64)
+    goal = np.asarray(goal, dtype=np.float64)
+    vias: list[npt.NDArray[np.float64]] = []
+    for x in np.linspace(0.18, 0.34, 6):
+        for y in np.linspace(-0.15, 0.22, 8):
+            for z in np.linspace(0.22, 0.38, 5):
+                q, err = pad_mid_ik(
+                    model,
+                    data,
+                    mj,
+                    target=np.array([x, y, z], dtype=np.float64),
+                    grip_val=OMY_GRIPPER_PINCH,
+                    seed=start,
+                    limits=limits,
+                    pad_right=pad_right,
+                    pad_left=pad_left,
+                    grip_adr=grip_adr,
+                )
+                if err > 0.015:
+                    continue
+                if not checker.is_collision_free(q):
+                    continue
+                vias.append(q)
+    # Prefer a two-via path (clearer detour), then a single via.
+    for v1 in vias:
+        if not _edge_free(checker, start, v1):
+            continue
+        for v2 in vias:
+            if float(np.linalg.norm(v1 - v2)) < 0.2:
+                continue
+            if not _edge_free(checker, v1, v2):
+                continue
+            if not _edge_free(checker, v2, goal):
+                continue
+            return [start.copy(), v1.copy(), v2.copy(), goal.copy()]
+    for v1 in vias:
+        if _edge_free(checker, start, v1) and _edge_free(checker, v1, goal):
+            return [start.copy(), v1.copy(), goal.copy()]
+    return None
+
+
 def plan_arm_transfer_path(
     start: npt.NDArray[np.float64],
     goal: npt.NDArray[np.float64],
@@ -160,28 +289,52 @@ def plan_arm_transfer_path(
                 obstacle_points=pts, timestamp=0.0, frame_id="world"
             )
         )
-        planner = PlannerNode(
-            model=robot_model,
-            occupancy_adapter=adapter,
-            planner_algorithm=algo,  # type: ignore[arg-type]
-            scenario=scenario_id,
-        )
-        with deterministic_planner_rng(seed):
-            result = planner.plan(
-                PlanningRequest(
-                    start_configuration=np.asarray(start, dtype=np.float64),
-                    goal_configuration=np.asarray(goal, dtype=np.float64),
-                    planning_timeout=timeout,
-                    scenario_id=scenario_id,
+        coarse: list[npt.NDArray[np.float64]] | None = None
+        if robot_model == "omy":
+            # 6-DOF: try ARCO RRT*/SST-friendly RRT, then IK corridor vias.
+            omy_checker = make_cspace_checker(kin, adapter.get_occupancy())
+            if algo == "rrt_star":
+                coarse = _omy_rrt_star_path(
+                    start, goal, checker=omy_checker, seed=seed
                 )
+            if coarse is None:
+                coarse = _omy_corridor_via_path(
+                    start, goal, checker=omy_checker
+                )
+            if coarse is None:
+                last_err = "omy_transfer_no_path"
+                continue
+        else:
+            planner = PlannerNode(
+                model=robot_model,
+                occupancy_adapter=adapter,
+                planner_algorithm=algo,  # type: ignore[arg-type]
+                scenario=scenario_id,
             )
-        if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
-            last_err = (
-                f"status={result.status.name} code={result.error_code.name}"
-            )
-            continue
+            with deterministic_planner_rng(seed):
+                result = planner.plan(
+                    PlanningRequest(
+                        start_configuration=np.asarray(
+                            start, dtype=np.float64
+                        ),
+                        goal_configuration=np.asarray(
+                            goal, dtype=np.float64
+                        ),
+                        planning_timeout=timeout,
+                        scenario_id=scenario_id,
+                    )
+                )
+            if result.status != PlanningStatus.SUCCESS or len(result.path) < 2:
+                last_err = (
+                    f"status={result.status.name} "
+                    f"code={result.error_code.name}"
+                )
+                continue
+            coarse = [
+                np.asarray(q, dtype=np.float64) for q in result.path
+            ]
 
-        traj = TrajectoryGenerator(kin, cfg).process(result.path)
+        traj = TrajectoryGenerator(kin, cfg).process(coarse)
         dense = [
             np.asarray(pt.positions, dtype=np.float64) for pt in traj.points
         ]
