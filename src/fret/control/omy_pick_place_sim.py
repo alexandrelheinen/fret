@@ -238,9 +238,7 @@ def simulate_omy_pick_place(
                 delta = target - q_cmd
                 step_n = float(np.linalg.norm(delta))
                 max_step = (
-                    0.020
-                    if cmd.state == PickPlaceState.MOVE_PLACE
-                    else 0.030
+                    0.020 if cmd.state == PickPlaceState.MOVE_PLACE else 0.030
                 )
                 if step_n <= max_step:
                     q_cmd = target.copy()
@@ -317,9 +315,7 @@ def simulate_omy_pick_place(
     if fsm.state == PickPlaceState.DONE:
         # Hold the retreat fold — slewing back to pick-side idle sweeps the
         # fingers through the cone and knocks the free mushroom out.
-        retreat = (
-            wp.retreat if wp.retreat is not None else wp.idle
-        )
+        retreat = wp.retreat if wp.retreat is not None else wp.idle
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(retreat[i])
         data.ctrl[act_grip] = OMY_GRIPPER_OPEN
