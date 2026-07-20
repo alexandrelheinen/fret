@@ -131,13 +131,13 @@ def simulate_omy_pick_place(
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
         joint_tol_rad=float(joint_tol_rad),
-        grasp_hold_s=3.0,
+        grasp_hold_s=2.5,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
         require_grasp_contact=True,
-        approach_joint_tol_rad=0.11,
+        approach_joint_tol_rad=0.20,
     )
     fsm.start()
 
@@ -191,7 +191,21 @@ def simulate_omy_pick_place(
             ctrl_accum -= _CTRL_PERIOD_S
             if cmd.state in {
                 PickPlaceState.APPROACH_PICK,
+                PickPlaceState.RETREAT,
+            }:
+                target = np.asarray(cmd.q_des, dtype=np.float64)
+                delta = target - q_cmd
+                step_n = float(np.linalg.norm(delta))
+                max_step = 0.030
+                if step_n <= max_step:
+                    q_cmd = target.copy()
+                else:
+                    q_cmd = q_cmd + delta * (max_step / step_n)
+                mpc.q = q_cmd.copy()
+                mpc.vel = np.zeros_like(q_cmd)
+            elif cmd.state in {
                 PickPlaceState.DESCEND_PICK,
+                PickPlaceState.GRASP,
             }:
                 q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
                 mpc.q = q_cmd.copy()
@@ -200,7 +214,7 @@ def simulate_omy_pick_place(
                 target = np.asarray(cmd.q_des, dtype=np.float64)
                 delta = target - q_cmd
                 step_n = float(np.linalg.norm(delta))
-                max_step = 0.006
+                max_step = 0.004
                 if step_n <= max_step:
                     q_cmd = target.copy()
                 else:
@@ -216,14 +230,21 @@ def simulate_omy_pick_place(
                     mpc.q = q_cmd.copy()
                     mpc.vel = np.zeros_like(q_cmd)
 
+        grip_cmd = float(cmd.gripper)
+        if cmd.state == PickPlaceState.GRASP:
+            alpha = min(1.0, fsm.hold_t / 2.0)
+            grip_cmd = OMY_GRIPPER_OPEN + alpha * (
+                OMY_GRIPPER_CLOSED - OMY_GRIPPER_OPEN
+            )
+
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
-        data.ctrl[act_grip] = float(cmd.gripper)
+        data.ctrl[act_grip] = grip_cmd
         adhere = adhesion_command(
             cmd.state,
             fsm.hold_t,
-            gripper=float(cmd.gripper),
-            gripper_closed=OMY_GRIPPER_CLOSED - 0.05,
+            gripper=grip_cmd,
+            gripper_closed=OMY_GRIPPER_CLOSED - 0.03,
         )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere

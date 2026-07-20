@@ -28,20 +28,20 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
 # Inner fingertip pads (rh_r2 / rh_l2 open along ±Y). Sized for Ø86 mm ball.
-# contype/conaffinity bit 4 matches the ball; do **not** include pedestal bit 2
-# or pads weld to the stand and block lift.
+# Pads sit low on the fingertips so pad-mid can reach a floor-resting sphere.
+# contype/conaffinity bit 4 matches the ball; do **not** include bit 2 (pedestal).
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.022 0.014 0.024" pos="0.0 -0.004 0.016"\n'
-    '                            friction="4.0 1.5 0.2" solref="0.01 1" '
+    'size="0.024 0.016 0.028" pos="0.0 -0.004 -0.012"\n'
+    '                            friction="6.0 2.0 0.2" solref="0.01 1" '
     'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.022 0.014 0.024" pos="0.0 0.004 0.016"\n'
-    '                            friction="4.0 1.5 0.2" solref="0.01 1" '
+    'size="0.024 0.016 0.028" pos="0.0 0.004 -0.012"\n'
+    '                            friction="6.0 2.0 0.2" solref="0.01 1" '
     'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
@@ -49,9 +49,9 @@ _PAD_LEFT = (
 # Strong adhesion once pads seat; delayed enable in adhesion_command.
 _ADHESION = (
     '    <adhesion name="grip_right" body="rh_r2" '
-    'ctrlrange="0 1" gain="15"/>\n'
+    'ctrlrange="0 1" gain="50"/>\n'
     '    <adhesion name="grip_left" body="rh_l2" '
-    'ctrlrange="0 1" gain="15"/>\n'
+    'ctrlrange="0 1" gain="50"/>\n'
 )
 _GRIPPER_FORCE_OLD = '<position kp="50" dampratio="1" forcerange="-3.5 3.5"/>'
 _GRIPPER_FORCE_NEW = '<position kp="100" dampratio="1" forcerange="-15 15"/>'
@@ -171,7 +171,7 @@ def ensure_omy_tabletop_mjcf() -> Path:
 
 
 def ensure_omy_pick_place_mjcf() -> Path:
-    """Build the pedestal pick + cone place MJCF (SC-v14b)."""
+    """Build the ground pick + cone place MJCF (SC-v14b)."""
     return ensure_omy_mjcf("omy_pick_place")
 
 

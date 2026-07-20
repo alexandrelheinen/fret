@@ -2,10 +2,10 @@
 """Regenerate OMY pick-place / clutter MJCF templates at Menagerie scale.
 
 Sizing rules (SC-v14b/c):
-  - Ball diameter = 75 % of OMY max pad opening (~86 mm); physics grasp uses pad contact + adhesion (no kinematic carry)
+  - Ball diameter = 65 % of OMY max pad opening (~75 mm); physics grasp uses pad contact + adhesion (no kinematic carry)
   - Cone diameter = 1.5 × ball diameter; cone height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
-  - Short pick pedestal (OMX-style) so pad-mid grasps clear the floor
+  - Ball rests on the floor (no pedestal — unstable rolling on a cylinder)
   - Clutter wall perpendicular to pick→place LOS at the midpoint
 """
 
@@ -19,13 +19,13 @@ _MJCF = _REPO / "src/fret/mjcf"
 
 # Measured from Menagerie OMY + fingertip pads (grip=0 open).
 _OMY_MAX_GRIPPER_OPENING_M = 0.1147
-_BALL_RADIUS_M = 0.75 * _OMY_MAX_GRIPPER_OPENING_M / 2.0
+# Ball diameter = 65 % of max pad opening (physics-stable ground grasp on OMY).
+_BALL_DIAMETER_FRAC = 0.65
+_BALL_RADIUS_M = _BALL_DIAMETER_FRAC * _OMY_MAX_GRIPPER_OPENING_M / 2.0
 _CONE_RADIUS_M = 1.5 * (2.0 * _BALL_RADIUS_M) / 2.0
 _CONE_HEIGHT_M = 2.0 * _CONE_RADIUS_M
-# Cylinder half-height; top = 2 * half-height; ball center = top + radius.
-_PEDESTAL_HALF_H_M = 0.045
-_PEDESTAL_RADIUS_M = 0.032
-_BALL_Z_M = 2.0 * _PEDESTAL_HALF_H_M + _BALL_RADIUS_M
+# Ball centre on the floor plane (z = 0); resting height = radius.
+_BALL_Z_M = _BALL_RADIUS_M
 
 _PICK_XY = (0.40, -0.28)
 _PLACE_XY = (0.40, 0.28)
@@ -90,7 +90,7 @@ def _scene_header(model_name: str, comment: str) -> str:
   <!--
     {comment}
 
-    Pick: Ø {ball_d_mm:.0f} mm ball on a short pedestal (75 % of max gripper opening).
+    Pick: Ø {ball_d_mm:.0f} mm ball on the floor (75 % of max gripper opening).
     Place: tip-down cone funnel — Ø {cone_d_mm:.0f} mm, height {cone_d_mm:.0f} mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -122,7 +122,6 @@ def _scene_header(model_name: str, comment: str) -> str:
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
-    <material name="pedestal" rgba="0.45 0.46 0.48 1"/>
     <mesh name="place_cone" file="assets/cone.obj" scale="{_SCALE_XY:.5f} {_SCALE_XY:.5f} {_SCALE_Z:.5f}"/>
   </asset>
 
@@ -171,12 +170,6 @@ def _scene_footer(*, clutter: bool) -> str:
           pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], goal_z)}"
           size="{zone_r:.5f} 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
-
-    <geom name="pedestal_pick" type="cylinder"
-          pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _PEDESTAL_HALF_H_M)}"
-          size="{_PEDESTAL_RADIUS_M:.5f} {_PEDESTAL_HALF_H_M:.5f}"
-          material="pedestal" friction="1.2 0.1 0.01"
-          contype="2" conaffinity="2"/>
 
     <body name="pick_box" pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _BALL_Z_M)}">
       <freejoint name="pick_box_joint"/>

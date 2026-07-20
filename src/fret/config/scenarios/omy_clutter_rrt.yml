@@ -1,4 +1,4 @@
-# SC-v14c release variant — cluttered pedestal pick-place planned with ARCO RRT*.
+# SC-v14c release variant — cluttered ground pick-place planned with ARCO RRT*.
 #
 # Same geometry / FSM / tracking as omy_clutter.yml; transfer planner differs.
 # Internal scenario_id stays omy_clutter so MJCF + wall occupancy resolve correctly.
@@ -15,9 +15,9 @@
     goal_tolerance: 0.05
     mjcf: mjcf/omy_clutter.xml
     pick_object: ball
-    ball_radius_m: 0.0430
-    place_cone_height_m: 0.1290
-    place_cone_radius_m: 0.0645
+    ball_radius_m: 0.0373
+    place_cone_height_m: 0.1118
+    place_cone_radius_m: 0.0559
     grasp_mode: pad_mid_carry
     planner_algorithm: rrt_star
     planner_rng_seed: 3
@@ -26,15 +26,15 @@
     occupancy_density: 400.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
-    lift_height_m: 0.200
-    phase_timeout_s: 100.0
+    lift_height_m: 0.0405
+    phase_timeout_s: 180.0
     idle_configuration: [0.0, -0.8, 1.2, 0.0, 0.5, 0.0]
-    pick_hover_configuration: [-0.4205, 0.5230, 0.9171, 0.0183, 1.6759, 0.6204]
-    pick_grasp_configuration: [-0.2457, 0.6343, 1.0686, -0.0221, 1.2671, -1.9833]
-    lift_hover_configuration: [-0.4092, 0.5082, 0.7833, 0.1193, 1.6503, 0.3474]
-    place_hover_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
-    place_grasp_configuration: [0.7097, 0.4824, 1.2992, -0.4434, 1.8866, -2.1730]
-    retreat_configuration: [0.6358, 0.3743, 1.4507, -0.7379, 2.0765, -2.3714]
+    pick_hover_configuration: [0.0067, 0.6395, 1.6479, -0.2564, 0.2406, 0.0016]
+    pick_grasp_configuration: [0.0067, 0.6395, 1.6479, -0.2564, 0.2406, 0.0016]
+    lift_hover_configuration: [0.0205, 0.5737, 1.6683, -0.2471, 0.2437, 0.001]
+    place_hover_configuration: [1.2305, 0.5457, 1.6156, -0.2627, 0.3878, 0.001]
+    place_grasp_configuration: [1.2295, 0.7421, 1.5888, -0.2976, 0.3947, 0.001]
+    retreat_configuration: [1.2305, 0.5457, 1.6156, -0.2627, 0.3878, 0.001]
     transfer_detour_configuration: [-0.3867, -0.3588, 0.817, -1.3093, 1.3634, -2.012]
     pick_xy: [0.40, -0.28]
     place_xy: [0.40, 0.28]
