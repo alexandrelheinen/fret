@@ -12,62 +12,15 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from scipy.optimize import minimize
 
+from fret.control.omy_pad_mid_ik import (
+    OMY_ARM_JOINTS as _ARM,
+    OMY_GRIPPER_PINCH as _GRIPPER_PINCH,
+    pad_mid_ik as _pad_mid_ik,
+)
 from fret.mjcf.omy import ensure_omy_pick_place_mjcf
 
-_ARM = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
 _GRIPPER_OPEN = 0.0
-_GRIPPER_PINCH = 1.05
-
-
-def _pad_mid_ik(
-    model: object,
-    data: object,
-    mj: object,
-    *,
-    target: np.ndarray,
-    grip_val: float,
-    seed: np.ndarray,
-    limits: np.ndarray,
-    pad_right: int,
-    pad_left: int,
-    grip_adr: int,
-) -> tuple[np.ndarray, float]:
-    """Return joint vector placing pad-mid at ``target`` (kinematic FK)."""
-    target = np.asarray(target, dtype=np.float64)
-
-    def set_kin(q: np.ndarray) -> None:
-        for i, name in enumerate(_ARM):
-            adr = int(
-                model.jnt_qposadr[  # type: ignore[attr-defined]
-                    mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
-                ]
-            )
-            data.qpos[adr] = float(q[i])  # type: ignore[attr-defined]
-        data.qpos[grip_adr] = float(grip_val)  # type: ignore[attr-defined]
-        mj.mj_forward(model, data)
-
-    def midpoint() -> np.ndarray:
-        return 0.5 * (
-            np.asarray(data.geom_xpos[pad_right], dtype=np.float64)  # type: ignore[attr-defined]
-            + np.asarray(data.geom_xpos[pad_left], dtype=np.float64)  # type: ignore[attr-defined]
-        )
-
-    def cost(q: np.ndarray) -> float:
-        set_kin(q)
-        return float(np.sum((midpoint() - target) ** 2))
-
-    res = minimize(
-        cost,
-        np.asarray(seed, dtype=np.float64),
-        method="L-BFGS-B",
-        bounds=limits,
-        options={"maxiter": 500, "ftol": 1e-14},
-    )
-    set_kin(res.x)
-    err = float(np.linalg.norm(midpoint() - target))
-    return res.x.astype(np.float64), err
 
 
 def _physics_pad_contact(

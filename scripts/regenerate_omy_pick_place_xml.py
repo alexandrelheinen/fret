@@ -29,9 +29,8 @@ _CONE_HEIGHT_M = 2.0 * _CONE_RADIUS_M
 _BALL_DENSITY = 150.0
 
 _PICK_XY = (0.40, -0.28)
-# Place sits where the loaded 6-DOF arm can actually deliver under physics
-# (Joint1 saturates before the symmetric +0.28 m mirror of the pick).
-_PLACE_XY = (0.50, 0.12)
+# Place sits where the loaded 6-DOF arm can deliver past the mid-cell wall.
+_PLACE_XY = (0.50, 0.20)
 
 # OMX reference cone (assets/cone.obj native size).
 _OMX_CONE_R = 0.05
@@ -149,12 +148,16 @@ def _scene_footer(*, clutter: bool) -> str:
     start_z = 2.0 * _PEDESTAL_HALF_H_M + 0.001
     wall_block = ""
     if clutter:
-        mid_x = (_PICK_XY[0] + _PLACE_XY[0]) / 2.0
-        # Sit the wall on the place side of the pick lift so lift_hover stays free.
-        mid_y = 0.0
+        # Mid-cell slab: blocks the straight lift→place chord but leaves a
+        # planner-feasible corridor for 6-DOF RRT* (validated sample counts).
+        wall_x = 0.45
+        wall_y = 0.0
+        wall_half = (0.07, 0.04, 0.15)  # x,y,z half-sizes → ~0.30 m tall
         wall_block = f"""
-    <geom name="transfer_wall_a" type="box" pos="{mid_x:.5f} {mid_y:.5f} 0.20000"
-          size="0.10000 0.02500 0.20000" material="transfer_wall"
+    <geom name="transfer_wall_a" type="box"
+          pos="{wall_x:.5f} {wall_y:.5f} {wall_half[2]:.5f}"
+          size="{wall_half[0]:.5f} {wall_half[1]:.5f} {wall_half[2]:.5f}"
+          material="transfer_wall"
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 """
     return f"""

@@ -1,6 +1,6 @@
 # SC-v14c — OpenMANIPULATOR-Y cluttered pedestal pick-and-place.
 #
-# Same Ø 86 mm pedestal ball + cone as SC-v14b; wall blocks direct transfer.
+# Mid-cell wall blocks the straight transfer; ARCO RRT* plans the detour.
 # Release planner variants (same geometry, RRT* vs SST transfer plan):
 #   omy_clutter_rrt.yml
 #   omy_clutter_sst.yml
@@ -10,8 +10,9 @@
     model: omy
     scenario_id: omy_clutter
     simulation_dt: 0.02
-    duration: 65.0
-    planning_timeout: 20.0
+    duration: 90.0
+    planning_timeout: 30.0
+    max_planner_attempts: 6
     goal_tolerance: 0.16
     mjcf: mjcf/omy_clutter.xml
     pick_object: ball
@@ -21,8 +22,8 @@
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
     planner_rng_seed: 3
-    prefer_transfer_detour: true
-    wall_inflate_m: 0.04
+    prefer_transfer_detour: false
+    wall_inflate_m: 0.01
     occupancy_density: 800.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
@@ -32,15 +33,15 @@
     pick_hover_configuration: [-0.1096, 0.5268, 1.9468, -0.203, -0.7949, -0.0003]
     pick_grasp_configuration: [-0.1001, 0.683, 2.0814, -0.1359, -0.7662, 0.0036]
     lift_hover_configuration: [-0.1111, 0.4469, 2.0318, -0.2439, -0.7968, -0.0141]
-    place_hover_configuration: [0.7727, 0.6537, 2.1138, -0.1731, -1.15, -0.0049]
-    place_grasp_configuration: [0.7763, 0.6618, 2.0946, -0.1455, -1.1521, 0.0129]
+    place_hover_configuration: [0.7357, 0.5744, 1.5958, -0.1011, -1.0705, 0.0347]
+    place_grasp_configuration: [0.7426, 0.7489, 1.8122, -0.0412, -1.0512, 0.0318]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
     transfer_detour_configuration: [0.1844, 0.8985, 2.1993, -0.4577, -0.5335, -0.1493]
     pick_xy: [0.40, -0.28]
-    place_xy: [0.50, 0.12]
+    place_xy: [0.50, 0.20]
     walls:
-      - x_min: 0.35
-        x_max: 0.55
-        y_min: -0.05
-        y_max: 0.05
-        z_max: 0.38
+      - x_min: 0.38
+        x_max: 0.52
+        y_min: -0.04
+        y_max: 0.04
+        z_max: 0.30
