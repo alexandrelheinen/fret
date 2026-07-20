@@ -2,8 +2,8 @@
   <!--
     OpenMANIPULATOR-Y ground pick-and-place (SC-v14b).
 
-    Pick: Ø 75 mm ball on the floor (75 % of max gripper opening).
-    Place: tip-down cone funnel — Ø 112 mm, height 112 mm.
+    Pick: mushroom — Ø 44 × 84 mm stem + Ø 64 mm flange.
+    Place: tip-down cone funnel — Ø 280 mm, height 280 mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
   -->
@@ -34,7 +34,7 @@
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
-    <mesh name="place_cone" file="assets/cone.obj" scale="1.11833 1.11833 1.14115"/>
+    <mesh name="place_cone" file="assets/cone.obj" scale="2.80000 2.80000 2.85714"/>
   </asset>
 
   <worldbody>
@@ -46,59 +46,66 @@
     <geom name="place_cone" type="mesh" mesh="place_cone"
           pos="0.40000 0.28000 0.00000"
           material="place_cone" contype="0" conaffinity="0"/>
-    <geom name="funnel_w0" type="box" size="0.00280 0.00847 0.06277" pos="0.43131 0.28000 0.05592" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w1" type="box" size="0.00280 0.00847 0.06277" pos="0.43053 0.28697 0.05592" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w2" type="box" size="0.00280 0.00847 0.06277" pos="0.42822 0.29359 0.05592" quat="0.947929 -0.052005 0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w3" type="box" size="0.00280 0.00847 0.06277" pos="0.42448 0.29953 0.05592" quat="0.917744 -0.077189 0.220592 0.321133" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w4" type="box" size="0.00280 0.00847 0.06277" pos="0.41953 0.30448 0.05592" quat="0.876018 -0.101402 0.210563 0.421868" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w5" type="box" size="0.00280 0.00847 0.06277" pos="0.41359 0.30822 0.05592" quat="0.823276 -0.124340 0.197886 0.517299" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w6" type="box" size="0.00280 0.00847 0.06277" pos="0.40697 0.31053 0.05592" quat="0.760180 -0.145714 0.182720 0.606224" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w7" type="box" size="0.00280 0.00847 0.06277" pos="0.40000 0.31131 0.05592" quat="0.687525 -0.165256 0.165256 0.687525" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w8" type="box" size="0.00280 0.00847 0.06277" pos="0.39303 0.31053 0.05592" quat="0.606224 -0.182720 0.145714 0.760180" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w9" type="box" size="0.00280 0.00847 0.06277" pos="0.38641 0.30822 0.05592" quat="0.517299 -0.197886 0.124340 0.823276" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w10" type="box" size="0.00280 0.00847 0.06277" pos="0.38047 0.30448 0.05592" quat="0.421868 -0.210563 0.101402 0.876018" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w11" type="box" size="0.00280 0.00847 0.06277" pos="0.37552 0.29953 0.05592" quat="0.321133 -0.220592 0.077189 0.917744" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w12" type="box" size="0.00280 0.00847 0.06277" pos="0.37178 0.29359 0.05592" quat="0.216359 -0.227848 0.052005 0.947929" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w13" type="box" size="0.00280 0.00847 0.06277" pos="0.36947 0.28697 0.05592" quat="0.108864 -0.232238 0.026167 0.966193" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w14" type="box" size="0.00280 0.00847 0.06277" pos="0.36869 0.28000 0.05592" quat="0.000000 -0.233707 0.000000 0.972307" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w15" type="box" size="0.00280 0.00847 0.06277" pos="0.36947 0.27303 0.05592" quat="-0.108864 -0.232238 -0.026167 0.966193" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w16" type="box" size="0.00280 0.00847 0.06277" pos="0.37178 0.26641 0.05592" quat="-0.216359 -0.227848 -0.052005 0.947929" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w17" type="box" size="0.00280 0.00847 0.06277" pos="0.37552 0.26047 0.05592" quat="-0.321133 -0.220592 -0.077189 0.917744" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w18" type="box" size="0.00280 0.00847 0.06277" pos="0.38047 0.25552 0.05592" quat="-0.421868 -0.210563 -0.101402 0.876018" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w19" type="box" size="0.00280 0.00847 0.06277" pos="0.38641 0.25178 0.05592" quat="-0.517299 -0.197886 -0.124340 0.823276" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w20" type="box" size="0.00280 0.00847 0.06277" pos="0.39303 0.24947 0.05592" quat="-0.606224 -0.182720 -0.145714 0.760180" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w21" type="box" size="0.00280 0.00847 0.06277" pos="0.40000 0.24869 0.05592" quat="-0.687525 -0.165256 -0.165256 0.687525" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w22" type="box" size="0.00280 0.00847 0.06277" pos="0.40697 0.24947 0.05592" quat="-0.760180 -0.145714 -0.182720 0.606224" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w23" type="box" size="0.00280 0.00847 0.06277" pos="0.41359 0.25178 0.05592" quat="-0.823276 -0.124340 -0.197886 0.517299" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w24" type="box" size="0.00280 0.00847 0.06277" pos="0.41953 0.25552 0.05592" quat="-0.876018 -0.101402 -0.210563 0.421868" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w25" type="box" size="0.00280 0.00847 0.06277" pos="0.42448 0.26047 0.05592" quat="-0.917744 -0.077189 -0.220592 0.321133" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w26" type="box" size="0.00280 0.00847 0.06277" pos="0.42822 0.26641 0.05592" quat="-0.947929 -0.052005 -0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_w27" type="box" size="0.00280 0.00847 0.06277" pos="0.43053 0.27303 0.05592" quat="-0.966193 -0.026167 -0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_tip" type="sphere" size="0.00447 0.00447 0.00456" pos="0.40000 0.28000 0.00456" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w0" type="box" size="0.00700 0.02120 0.15717" pos="0.47840 0.28000 0.14000" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w1" type="box" size="0.00700 0.02120 0.15717" pos="0.47644 0.29744 0.14000" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w2" type="box" size="0.00700 0.02120 0.15717" pos="0.47064 0.31402 0.14000" quat="0.947929 -0.052005 0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w3" type="box" size="0.00700 0.02120 0.15717" pos="0.46129 0.32889 0.14000" quat="0.917744 -0.077189 0.220592 0.321133" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w4" type="box" size="0.00700 0.02120 0.15717" pos="0.44889 0.34129 0.14000" quat="0.876018 -0.101402 0.210563 0.421868" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w5" type="box" size="0.00700 0.02120 0.15717" pos="0.43402 0.35064 0.14000" quat="0.823276 -0.124340 0.197886 0.517299" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w6" type="box" size="0.00700 0.02120 0.15717" pos="0.41744 0.35644 0.14000" quat="0.760180 -0.145714 0.182720 0.606224" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w7" type="box" size="0.00700 0.02120 0.15717" pos="0.40000 0.35840 0.14000" quat="0.687525 -0.165256 0.165256 0.687525" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w8" type="box" size="0.00700 0.02120 0.15717" pos="0.38256 0.35644 0.14000" quat="0.606224 -0.182720 0.145714 0.760180" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w9" type="box" size="0.00700 0.02120 0.15717" pos="0.36598 0.35064 0.14000" quat="0.517299 -0.197886 0.124340 0.823276" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w10" type="box" size="0.00700 0.02120 0.15717" pos="0.35111 0.34129 0.14000" quat="0.421868 -0.210563 0.101402 0.876018" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w11" type="box" size="0.00700 0.02120 0.15717" pos="0.33871 0.32889 0.14000" quat="0.321133 -0.220592 0.077189 0.917744" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w12" type="box" size="0.00700 0.02120 0.15717" pos="0.32936 0.31402 0.14000" quat="0.216359 -0.227848 0.052005 0.947929" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w13" type="box" size="0.00700 0.02120 0.15717" pos="0.32356 0.29744 0.14000" quat="0.108864 -0.232238 0.026167 0.966193" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w14" type="box" size="0.00700 0.02120 0.15717" pos="0.32160 0.28000 0.14000" quat="0.000000 -0.233707 0.000000 0.972307" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w15" type="box" size="0.00700 0.02120 0.15717" pos="0.32356 0.26256 0.14000" quat="-0.108864 -0.232238 -0.026167 0.966193" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w16" type="box" size="0.00700 0.02120 0.15717" pos="0.32936 0.24598 0.14000" quat="-0.216359 -0.227848 -0.052005 0.947929" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w17" type="box" size="0.00700 0.02120 0.15717" pos="0.33871 0.23111 0.14000" quat="-0.321133 -0.220592 -0.077189 0.917744" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w18" type="box" size="0.00700 0.02120 0.15717" pos="0.35111 0.21871 0.14000" quat="-0.421868 -0.210563 -0.101402 0.876018" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w19" type="box" size="0.00700 0.02120 0.15717" pos="0.36598 0.20936 0.14000" quat="-0.517299 -0.197886 -0.124340 0.823276" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w20" type="box" size="0.00700 0.02120 0.15717" pos="0.38256 0.20356 0.14000" quat="-0.606224 -0.182720 -0.145714 0.760180" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w21" type="box" size="0.00700 0.02120 0.15717" pos="0.40000 0.20160 0.14000" quat="-0.687525 -0.165256 -0.165256 0.687525" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w22" type="box" size="0.00700 0.02120 0.15717" pos="0.41744 0.20356 0.14000" quat="-0.760180 -0.145714 -0.182720 0.606224" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w23" type="box" size="0.00700 0.02120 0.15717" pos="0.43402 0.20936 0.14000" quat="-0.823276 -0.124340 -0.197886 0.517299" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w24" type="box" size="0.00700 0.02120 0.15717" pos="0.44889 0.21871 0.14000" quat="-0.876018 -0.101402 -0.210563 0.421868" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w25" type="box" size="0.00700 0.02120 0.15717" pos="0.46129 0.23111 0.14000" quat="-0.917744 -0.077189 -0.220592 0.321133" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w26" type="box" size="0.00700 0.02120 0.15717" pos="0.47064 0.24598 0.14000" quat="-0.947929 -0.052005 -0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_w27" type="box" size="0.00700 0.02120 0.15717" pos="0.47644 0.26256 0.14000" quat="-0.966193 -0.026167 -0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_tip" type="sphere" size="0.01120 0.01120 0.01143" pos="0.40000 0.28000 0.01143" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
 
     <geom name="place_plate" type="cylinder"
-          pos="0.40000 0.28000 0.11183"
-          size="0.05592 0.001"
+          pos="0.40000 0.28000 0.28000"
+          size="0.14000 0.001"
           material="place_plate" contype="0" conaffinity="0"/>
     <geom name="place_cone_rim" type="cylinder"
-          pos="0.40000 0.28000 0.11183"
-          size="0.05592 0.0015"
+          pos="0.40000 0.28000 0.28000"
+          size="0.14000 0.0015"
           material="place_cone" contype="0" conaffinity="0"/>
 
     <geom name="start_zone" type="cylinder"
           pos="0.40000 -0.28000 0.00200"
-          size="0.06592 0.001"
+          size="0.15000 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
     <geom name="goal_zone" type="cylinder"
-          pos="0.40000 0.28000 0.11283"
-          size="0.06592 0.001"
+          pos="0.40000 0.28000 0.28100"
+          size="0.15000 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <body name="pick_box" pos="0.40000 -0.28000 0.03728">
+    <body name="pick_box" pos="0.40000 -0.28000 0.04200">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="sphere" size="0.03728"
-            density="400" material="pick_ball"
-            friction="2.8 1.2 0.15" solref="0.015 1" solimp="0.9 0.95 0.001"
+      <geom name="pick_box_geom" type="cylinder"
+            size="0.02200 0.04200"
+            density="280" material="pick_ball"
+            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
+            condim="6" contype="14" conaffinity="14" priority="1"/>
+      <geom name="pick_box_flange" type="cylinder"
+            size="0.03200 0.00900"
+            pos="0 0 0.04900"
+            density="280" material="pick_ball"
+            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 

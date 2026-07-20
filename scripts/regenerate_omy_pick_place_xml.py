@@ -2,10 +2,11 @@
 """Regenerate OMY pick-place / clutter MJCF templates at Menagerie scale.
 
 Sizing rules (SC-v14b/c):
-  - Ball diameter = 65 % of OMY max pad opening (~75 mm); physics grasp uses pad contact + adhesion (no kinematic carry)
-  - Cone diameter = 1.5 × ball diameter; cone height = diameter
+  - Pick object: mushroom (thin stem + top flange) for form-closure under fang pads
+  - Stem diameter fits a firm OMY pinch; flange wider than pad gap so lift catches
+  - Cone diameter = 1.5 × flange diameter; cone height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
-  - Ball rests on the floor (no pedestal — unstable rolling on a cylinder)
+  - Object rests on the floor (no pedestal)
   - Clutter wall perpendicular to pick→place LOS at the midpoint
 """
 
@@ -19,13 +20,21 @@ _MJCF = _REPO / "src/fret/mjcf"
 
 # Measured from Menagerie OMY + fingertip pads (grip=0 open).
 _OMY_MAX_GRIPPER_OPENING_M = 0.1147
-# Ball diameter = 65 % of max pad opening (physics-stable ground grasp on OMY).
-_BALL_DIAMETER_FRAC = 0.65
-_BALL_RADIUS_M = _BALL_DIAMETER_FRAC * _OMY_MAX_GRIPPER_OPENING_M / 2.0
-_CONE_RADIUS_M = 1.5 * (2.0 * _BALL_RADIUS_M) / 2.0
+# Mushroom stem: pinchable column under a load-bearing flange.
+_STEM_RADIUS_M = 0.022
+_STEM_HALF_HEIGHT_M = 0.042
+# Wider than a closed pinch for form-closure; narrower than open pad gap so release drops.
+_FLANGE_RADIUS_M = 0.032
+_FLANGE_HALF_HEIGHT_M = 0.009
+# Keep ball_* names for scenario YAML / cone scaling compatibility.
+_BALL_RADIUS_M = _FLANGE_RADIUS_M
+# Wide funnel — physics carry has centimetre-scale XY slip under fang pads.
+_CONE_RADIUS_M = 0.14
 _CONE_HEIGHT_M = 2.0 * _CONE_RADIUS_M
-# Ball centre on the floor plane (z = 0); resting height = radius.
-_BALL_Z_M = _BALL_RADIUS_M
+# Stem centre on the floor plane (stem bottom at z = 0).
+_BALL_Z_M = _STEM_HALF_HEIGHT_M
+# Flange centre in body frame (slight overlap with stem top).
+_FLANGE_POS_Z_M = _STEM_HALF_HEIGHT_M + _FLANGE_HALF_HEIGHT_M - 0.002
 
 _PICK_XY = (0.40, -0.28)
 _PLACE_XY = (0.40, 0.28)
@@ -84,13 +93,15 @@ def _funnel_geoms_from_omx(omx_text: str) -> list[str]:
 
 
 def _scene_header(model_name: str, comment: str) -> str:
-    ball_d_mm = 2.0 * _BALL_RADIUS_M * 1000.0
+    stem_d_mm = 2.0 * _STEM_RADIUS_M * 1000.0
+    stem_h_mm = 2.0 * _STEM_HALF_HEIGHT_M * 1000.0
+    flange_d_mm = 2.0 * _FLANGE_RADIUS_M * 1000.0
     cone_d_mm = 2.0 * _CONE_RADIUS_M * 1000.0
     return f"""<mujoco model="{model_name}">
   <!--
     {comment}
 
-    Pick: Ø {ball_d_mm:.0f} mm ball on the floor (75 % of max gripper opening).
+    Pick: mushroom — Ø {stem_d_mm:.0f} × {stem_h_mm:.0f} mm stem + Ø {flange_d_mm:.0f} mm flange.
     Place: tip-down cone funnel — Ø {cone_d_mm:.0f} mm, height {cone_d_mm:.0f} mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -173,9 +184,16 @@ def _scene_footer(*, clutter: bool) -> str:
 
     <body name="pick_box" pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _BALL_Z_M)}">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="sphere" size="{_BALL_RADIUS_M:.5f}"
-            density="400" material="pick_ball"
-            friction="2.8 1.2 0.15" solref="0.015 1" solimp="0.9 0.95 0.001"
+      <geom name="pick_box_geom" type="cylinder"
+            size="{_STEM_RADIUS_M:.5f} {_STEM_HALF_HEIGHT_M:.5f}"
+            density="280" material="pick_ball"
+            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
+            condim="6" contype="14" conaffinity="14" priority="1"/>
+      <geom name="pick_box_flange" type="cylinder"
+            size="{_FLANGE_RADIUS_M:.5f} {_FLANGE_HALF_HEIGHT_M:.5f}"
+            pos="0 0 {_FLANGE_POS_Z_M:.5f}"
+            density="280" material="pick_ball"
+            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 {wall_block}
@@ -207,18 +225,19 @@ def _write_clutter_template() -> str:
 
 
 def main() -> None:
-  pick = _scene_header(
-      "omy_pick_place",
-      "OpenMANIPULATOR-Y ground pick-and-place (SC-v14b).",
-  ) + _scene_footer(clutter=False)
-  clutter = _write_clutter_template()
-  (_MJCF / "omy_pick_place.xml").write_text(pick, encoding="utf-8")
-  (_MJCF / "omy_clutter.xml").write_text(clutter, encoding="utf-8")
-  print(
-      f"wrote pick_place ball_r={_BALL_RADIUS_M:.4f} "
-      f"cone_r={_CONE_RADIUS_M:.4f} ball_z={_BALL_Z_M:.4f}"
-  )
-  print(f"pick={_PICK_XY} place={_PLACE_XY}")
+    pick = _scene_header(
+        "omy_pick_place",
+        "OpenMANIPULATOR-Y ground pick-and-place (SC-v14b).",
+    ) + _scene_footer(clutter=False)
+    clutter = _write_clutter_template()
+    (_MJCF / "omy_pick_place.xml").write_text(pick, encoding="utf-8")
+    (_MJCF / "omy_clutter.xml").write_text(clutter, encoding="utf-8")
+    print(
+        f"wrote pick_place stem_r={_STEM_RADIUS_M:.4f} "
+        f"flange_r={_FLANGE_RADIUS_M:.4f} "
+        f"cone_r={_CONE_RADIUS_M:.4f} z={_BALL_Z_M:.4f}"
+    )
+    print(f"pick={_PICK_XY} place={_PLACE_XY}")
 
 
 if __name__ == "__main__":
