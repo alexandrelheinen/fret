@@ -112,7 +112,7 @@
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 
-    <geom name="transfer_wall_a" type="box" pos="0.45000 -0.08000 0.20000"
+    <geom name="transfer_wall_a" type="box" pos="0.45000 0.00000 0.20000"
           size="0.10000 0.02500 0.20000" material="transfer_wall"
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 

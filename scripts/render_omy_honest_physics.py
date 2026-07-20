@@ -69,7 +69,7 @@ def render_honest_omy_pick_place(
 
     state, samples = simulate_omy_pick_place(
         duration_s=duration_s,
-        joint_tol_rad=0.22,
+        joint_tol_rad=0.16,
         record_every_steps=record_every,
         scenario_path=scenario_yaml,
     )
