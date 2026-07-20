@@ -15,10 +15,10 @@
     goal_tolerance: 0.12
     mjcf: mjcf/omy_clutter.xml
     pick_object: ball
-    ball_radius_m: 0.032
-    place_cone_height_m: 0.28
-    place_cone_radius_m: 0.14
-    grasp_mode: pad_mid_carry
+    ball_radius_m: 0.043
+    place_cone_height_m: 0.280
+    place_cone_radius_m: 0.140
+    grasp_mode: mujoco_adhesion
     planner_algorithm: sst
     planner_rng_seed: 7
     prefer_transfer_detour: true
@@ -26,16 +26,16 @@
     occupancy_density: 400.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
-    lift_height_m: 0.080
-    phase_timeout_s: 180.0
-    idle_configuration: [-0.2262, 1.0301, 1.2857, -0.0656, -0.1122, 0.5003]
-    pick_hover_configuration: [-0.2262, 1.0301, 1.2857, -0.0656, -0.1122, 0.5003]
-    pick_grasp_configuration: [0.0042, 0.959, 1.5527, 0.0117, -0.0009, 0.5]
-    lift_hover_configuration: [0.0426, 0.55, 1.7571, 0.0433, 0.0738, 0.4776]
-    place_hover_configuration: [1.334, 0.5466, 1.7097, 0.0344, 0.0706, 0.4772]
-    place_grasp_configuration: [1.334, 0.5466, 1.7097, 0.0344, 0.0706, 0.4772]
-    retreat_configuration: [1.2256, 0.463, 1.6305, -0.0001, 0.0233, 0.4859]
-    transfer_detour_configuration: [0.325, 1.4, 2.5, 0.03, 0.05, 0.48]
+    lift_height_m: 0.10
+    phase_timeout_s: 40.0
+    idle_configuration: [0.4299, -0.3026, 1.6221, 0.6223, 1.7346, -0.3982]
+    pick_hover_configuration: [-0.3743, 0.7023, 1.2598, -0.3664, 1.5602, 0.375]
+    pick_grasp_configuration: [-0.4196, 0.8758, 1.4208, -0.9376, 1.7271, 0.3817]
+    lift_hover_configuration: [-0.4706, 0.5616, 1.6962, -1.3001, 1.8561, 0.3807]
+    place_hover_configuration: [1.10, 0.4661, 1.7398, -1.0311, 1.0004, -0.9117]
+    place_grasp_configuration: [1.10, 0.6719, 1.8169, -1.3193, 0.9922, -0.9107]
+    retreat_configuration: [0.4299, -0.3026, 1.6221, 0.6223, 1.7346, -0.3982]
+    transfer_detour_configuration: [0.2000, 0.8000, 2.1111, 0.0000, 0.5000, 0.3000]
     pick_xy: [0.40, -0.28]
     place_xy: [0.40, 0.28]
     walls:

@@ -25,11 +25,7 @@ from fret.control.joint_mpc import (
     build_omx_joint_mpc,
 )
 from fret.control.kinematics import Kinematics
-from fret.control.pick_place_common import (
-    PickPlaceSample,
-    adhesion_command,
-    ball_grasp_contact,
-)
+from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
     PickPlaceFSM,
@@ -514,8 +510,6 @@ def simulate_pick_place_clutter(
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
     is_omy = robot_model in _OMY_MODELS
-    pad_right_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right")
-    pad_left_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left")
 
     # OMY transfers from the post-grasp lift pose (pad-mid carry above floor ball).
     transfer_start = (
@@ -576,28 +570,20 @@ def simulate_pick_place_clutter(
         gripper_open=gripper_open,
         gripper_closed=gripper_closed,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=6.0 if is_omy else 1.4,
+        grasp_hold_s=1.4,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
-        require_grasp_contact=is_omy,
-        approach_joint_tol_rad=0.44 if is_omy else None,
-        transfer_joint_tol_rad=0.50 if is_omy else None,
     )
     fsm.start()
 
-    if is_omy:
-        for i, name in enumerate(arm_names):
-            jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
-            data.qpos[int(model.jnt_qposadr[jid])] = float(wp.idle[i])
-        mj.mj_forward(model, data)
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
     data.ctrl[act_grip] = gripper_open
     data.ctrl[act_al] = 0.0
     data.ctrl[act_ar] = 0.0
-    for _ in range(800 if is_omy else 400):
+    for _ in range(400):
         mj.mj_step(model, data)
 
     phase_mpc.reset(_arm_q(mj, model, data, arm_names))
@@ -607,7 +593,6 @@ def simulate_pick_place_clutter(
     record_every_steps = max(1, int(record_every_steps))
     transfer_armed = False
     ctrl_accum = 0.0
-    prev_state = fsm.state
     # Start the command at the settled pose (not pick_hover) so maze
     # rate-limited slews actually traverse idle → hover under the roof.
     q_cmd = _arm_q(mj, model, data, arm_names)
@@ -615,45 +600,12 @@ def simulate_pick_place_clutter(
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data, arm_names)
-        grasp_contact = None
-        if (
-            is_omy
-            and pad_right_id >= 0
-            and pad_left_id >= 0
-            and fsm.state
-            in {PickPlaceState.DESCEND_PICK, PickPlaceState.GRASP}
-        ):
-            grasp_contact = ball_grasp_contact(
-                mj,
-                model,
-                data,
-                box_body_id=box_id,
-                pad_right_id=pad_right_id,
-                pad_left_id=pad_left_id,
-            )
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
-            grasp_contact=grasp_contact,
         )
         cmd = fsm.tick(obs, dt)
-
-        if is_omy and cmd.state != prev_state:
-            if cmd.state == PickPlaceState.DESCEND_PICK:
-                for i, name in enumerate(arm_names):
-                    jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
-                    data.qpos[int(model.jnt_qposadr[jid])] = float(
-                        wp.pick_grasp[i]
-                    )
-                mj.mj_forward(model, data)
-                for i, aid in enumerate(act_arm):
-                    data.ctrl[aid] = float(wp.pick_grasp[i])
-                for _ in range(200):
-                    mj.mj_step(model, data)
-                q_cmd = wp.pick_grasp.copy()
-                phase_mpc.reset(q_cmd)
-            prev_state = cmd.state
 
         if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
             transfer_armed = True
@@ -687,38 +639,6 @@ def simulate_pick_place_clutter(
                     q_cmd = target.copy()
                 else:
                     q_cmd = q_cmd + delta * (max_step / step_n)
-            elif is_omy and cmd.state in {
-                PickPlaceState.APPROACH_PICK,
-                PickPlaceState.RETREAT,
-            }:
-                target = np.asarray(cmd.q_des, dtype=np.float64)
-                delta = target - q_cmd
-                step_n = float(np.linalg.norm(delta))
-                max_step = 0.030
-                if step_n <= max_step:
-                    q_cmd = target.copy()
-                else:
-                    q_cmd = q_cmd + delta * (max_step / step_n)
-                phase_mpc.q = q_cmd.copy()
-                phase_mpc.vel = np.zeros_like(q_cmd)
-            elif is_omy and cmd.state in {
-                PickPlaceState.DESCEND_PICK,
-                PickPlaceState.GRASP,
-            }:
-                q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
-                phase_mpc.q = q_cmd.copy()
-                phase_mpc.vel = np.zeros_like(q_cmd)
-            elif is_omy and cmd.state == PickPlaceState.LIFT:
-                target = np.asarray(cmd.q_des, dtype=np.float64)
-                delta = target - q_cmd
-                step_n = float(np.linalg.norm(delta))
-                max_step = 0.008
-                if step_n <= max_step:
-                    q_cmd = target.copy()
-                else:
-                    q_cmd = q_cmd + delta * (max_step / step_n)
-                phase_mpc.q = q_cmd.copy()
-                phase_mpc.vel = np.zeros_like(q_cmd)
             else:
                 q_cmd = np.asarray(
                     phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
@@ -729,30 +649,11 @@ def simulate_pick_place_clutter(
                     phase_mpc.q = q_cmd.copy()
                     phase_mpc.vel = np.zeros_like(q_cmd)
 
-        grip_cmd = float(cmd.gripper)
-        if is_omy and cmd.state == PickPlaceState.GRASP:
-            # Seat under the flange before pinching (same schedule as SC-v14b).
-            if fsm.hold_t < 1.2:
-                grip_cmd = float(gripper_open)
-            else:
-                alpha = min(1.0, (fsm.hold_t - 1.2) / 2.5)
-                grip_cmd = float(gripper_open) + alpha * (
-                    float(gripper_closed) - float(gripper_open)
-                )
-
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
 
-        data.ctrl[act_grip] = grip_cmd
-        if is_omy:
-            adhere = adhesion_command(
-                cmd.state,
-                fsm.hold_t,
-                gripper=grip_cmd,
-                gripper_closed=float(gripper_closed) - 0.03,
-            )
-        else:
-            adhere = adhesion_command(cmd.state, fsm.hold_t)
+        data.ctrl[act_grip] = float(cmd.gripper)
+        adhere = adhesion_command(cmd.state, fsm.hold_t)
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
@@ -784,9 +685,9 @@ def simulate_pick_place_clutter(
         )
     )
 
-    # Hold the retreat fold so showcase clips end at home, not mid-RETREAT.
+    # Hold idle so showcase clips end at home (same contract as OMX / SC-v14b).
     if fsm.state == PickPlaceState.DONE:
-        hold_q = wp.retreat if wp.retreat is not None else wp.idle
+        hold_q = wp.idle
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(hold_q[i])
         data.ctrl[act_grip] = gripper_open

@@ -5,8 +5,9 @@ Same materialization pattern as :mod:`fret.mjcf.omx` — resolve Menagerie
 ``rh_l2``.
 
 Pad local offsets sit on the **inner** fingertip faces (toward the grasp
-volume). Outward ±Y offsets leave the pads outside the fingers so the ball
-never contacts them.
+volume). Finger *mesh* collisions are disabled so only the pads interact with
+the ball (same design intent as OMX injected pads); pads still collide with
+the floor and the free ball. No body↔world contact excludes.
 """
 
 from __future__ import annotations
@@ -27,34 +28,45 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 )
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
-# Inner fingertip pads (rh_r2 / rh_l2 open along ±Y). Sized for mushroom stem pinch.
-# Pads sit low on the fingertips so pad-mid can reach a floor-resting stem.
-# contype/conaffinity bit 4 matches the pick object; do **not** include bit 2.
+# Pads extend below the fingertip so a floor-ball equator is reachable without
+# driving bulky Menagerie finger meshes into the plane.
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.028 0.018 0.032" pos="0.0 -0.002 -0.018"\n'
-    '                            friction="8.0 2.5 0.25" solref="0.008 1" '
-    'solimp="0.96 0.99 0.001"\n'
+    'size="0.024 0.024 0.032" pos="0.0 0.014 -0.055"\n'
+    '                            friction="4.0 1.2 0.12" solref="0.012 1" '
+    'solimp="0.92 0.96 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.028 0.018 0.032" pos="0.0 0.002 -0.018"\n'
-    '                            friction="8.0 2.5 0.25" solref="0.008 1" '
-    'solimp="0.96 0.99 0.001"\n'
+    'size="0.024 0.024 0.032" pos="0.0 -0.014 -0.055"\n'
+    '                            friction="4.0 1.2 0.12" solref="0.012 1" '
+    'solimp="0.92 0.96 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
-# Adhesion backs form-closure on the mushroom flange during transfer.
+# Mass-scaled OMX tennis-grip adhesion (OMX gain 12 on a much lighter ball).
 _ADHESION = (
     '    <adhesion name="grip_right" body="rh_r2" '
-    'ctrlrange="0 1" gain="400"/>\n'
+    'ctrlrange="0 1" gain="80"/>\n'
     '    <adhesion name="grip_left" body="rh_l2" '
-    'ctrlrange="0 1" gain="400"/>\n'
+    'ctrlrange="0 1" gain="80"/>\n'
 )
 _GRIPPER_FORCE_OLD = '<position kp="50" dampratio="1" forcerange="-3.5 3.5"/>'
 _GRIPPER_FORCE_NEW = '<position kp="120" dampratio="1" forcerange="-40 40"/>'
+_ARM_JOINT12_OLD = (
+    '<position kp="80.0" dampratio="3.0" forcerange="-61.4 61.4"/>'
+)
+_ARM_JOINT12_NEW = (
+    '<position kp="400.0" dampratio="2.0" forcerange="-120 120"/>'
+)
+_ARM_JOINT_DISTAL_OLD = (
+    '<position kp="80.0" dampratio="3.0" forcerange="-31.7 31.7"/>'
+)
+_ARM_JOINT_DISTAL_NEW = (
+    '<position kp="400.0" dampratio="2.0" forcerange="-80 80"/>'
+)
 
 
 def menagerie_omy_dir() -> Path:
@@ -94,7 +106,7 @@ def _scene_additions(template_text: str) -> str:
 
 
 def _inject_physical_gripper(robot_xml: str) -> str:
-    """Add finger pads + adhesion actuators for physics grasp."""
+    """Add finger pads + adhesion; pads are the only gripping surfaces."""
     r2_anchor = '<joint name="rh_r2" class="Gripper_mimic"/>\n'
     l2_anchor = '<joint name="rh_l2" class="Gripper_mimic_pos"/>\n'
     if r2_anchor not in robot_xml or l2_anchor not in robot_xml:
@@ -115,27 +127,21 @@ def _inject_physical_gripper(robot_xml: str) -> str:
         robot_xml = robot_xml.replace(
             _GRIPPER_FORCE_OLD, _GRIPPER_FORCE_NEW, 1
         )
-    # Floor-level mushroom grasps tip link6/finger meshes into the plane;
-    # that contact saturates Joint1 and blocks transfer. Keep pad↔object
-    # contacts; only exclude distal wrist/finger bodies vs world/floor.
-    if 'body1="link6" body2="world"' not in robot_xml:
-        contact_anchor = "<contact>\n"
-        if contact_anchor not in robot_xml:
-            raise ValueError(
-                "Menagerie contact block missing for floor exclude"
-            )
+    if _ARM_JOINT12_OLD in robot_xml:
+        robot_xml = robot_xml.replace(_ARM_JOINT12_OLD, _ARM_JOINT12_NEW, 1)
+    if _ARM_JOINT_DISTAL_OLD in robot_xml:
         robot_xml = robot_xml.replace(
-            contact_anchor,
-            contact_anchor
-            + '    <exclude body1="link4" body2="world"/>\n'
-            + '    <exclude body1="link5" body2="world"/>\n'
-            + '    <exclude body1="link6" body2="world"/>\n'
-            + '    <exclude body1="rh_r1" body2="world"/>\n'
-            + '    <exclude body1="rh_l1" body2="world"/>\n'
-            + '    <exclude body1="rh_r2" body2="world"/>\n'
-            + '    <exclude body1="rh_l2" body2="world"/>\n',
-            1,
+            _ARM_JOINT_DISTAL_OLD, _ARM_JOINT_DISTAL_NEW
         )
+    # Neutralize bulky finger mesh collisions — pads grip (as on OMX).
+    for mesh_name in ("r1", "r2", "l1", "l2"):
+        old = f'<geom mesh="{mesh_name}" class="collision"/>'
+        new = (
+            f'<geom mesh="{mesh_name}" class="collision" '
+            f'contype="0" conaffinity="0"/>'
+        )
+        if old in robot_xml:
+            robot_xml = robot_xml.replace(old, new)
     robot_xml = robot_xml.replace(
         'ctrl="0 0 0 0 0 0 0"',
         'ctrl="0 0 0 0 0 0 0 0 0"',
