@@ -150,7 +150,8 @@ def _scene_footer(*, clutter: bool) -> str:
     wall_block = ""
     if clutter:
         mid_x = (_PICK_XY[0] + _PLACE_XY[0]) / 2.0
-        mid_y = (_PICK_XY[1] + _PLACE_XY[1]) / 2.0
+        # Sit the wall on the place side of the pick lift so lift_hover stays free.
+        mid_y = 0.0
         wall_block = f"""
     <geom name="transfer_wall_a" type="box" pos="{mid_x:.5f} {mid_y:.5f} 0.20000"
           size="0.10000 0.02500 0.20000" material="transfer_wall"
