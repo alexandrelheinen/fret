@@ -66,6 +66,8 @@ class PickPlaceObservation:
     q: npt.NDArray[np.float64]
     object_pos: npt.NDArray[np.float64]
     ee_pos: npt.NDArray[np.float64]
+    # When set, GRASP waits for pad contact before advancing (OMY physics grasp).
+    grasp_contact: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +104,8 @@ class PickPlaceFSM:
         lift_height_m: float = 0.055,
         phase_timeout_s: float = 8.0,
         drop_fault_enabled: bool = True,
+        require_grasp_contact: bool = False,
+        approach_joint_tol_rad: float | None = None,
     ) -> None:
         self._wp = waypoints
         self._dof = int(dof)
@@ -113,6 +117,12 @@ class PickPlaceFSM:
         self._lift_height_m = float(lift_height_m)
         self._phase_timeout_s = float(phase_timeout_s)
         self._drop_fault_enabled = bool(drop_fault_enabled)
+        self._require_grasp_contact = bool(require_grasp_contact)
+        self._approach_tol = (
+            float(approach_joint_tol_rad)
+            if approach_joint_tol_rad is not None
+            else self._joint_tol
+        )
         self._state = PickPlaceState.IDLE
         self._phase_t = 0.0
         self._hold_t = 0.0
@@ -160,18 +170,28 @@ class PickPlaceFSM:
             return self._cmd(obs.q, self._gripper_open)
 
         if self._state == PickPlaceState.APPROACH_PICK:
-            if self._reached(obs.q, self._wp.pick_hover):
+            if self._reached(
+                obs.q, self._wp.pick_hover, tol=self._approach_tol
+            ):
                 self._enter(PickPlaceState.DESCEND_PICK)
             return self._cmd(self._wp.pick_hover, self._gripper_open)
 
         if self._state == PickPlaceState.DESCEND_PICK:
             if self._reached(obs.q, self._wp.pick_grasp):
-                self._enter(PickPlaceState.GRASP)
+                if (
+                    not self._require_grasp_contact
+                    or obs.grasp_contact is True
+                ):
+                    self._enter(PickPlaceState.GRASP)
             return self._cmd(self._wp.pick_grasp, self._gripper_open)
 
         if self._state == PickPlaceState.GRASP:
             self._hold_t += dt
-            if self._hold_t >= self._grasp_hold_s:
+            grasp_ready = self._hold_t >= self._grasp_hold_s
+            if self._require_grasp_contact:
+                if obs.grasp_contact is not True:
+                    grasp_ready = False
+            if grasp_ready:
                 self._enter(PickPlaceState.LIFT)
             return self._cmd(self._wp.pick_grasp, self._gripper_closed)
 
@@ -235,9 +255,14 @@ class PickPlaceFSM:
             self._retreat_cleared = False
 
     def _reached(
-        self, q: npt.NDArray[np.float64], target: npt.NDArray[np.float64]
+        self,
+        q: npt.NDArray[np.float64],
+        target: npt.NDArray[np.float64],
+        *,
+        tol: float | None = None,
     ) -> bool:
-        return float(np.linalg.norm(q - target)) <= self._joint_tol
+        limit = self._joint_tol if tol is None else float(tol)
+        return float(np.linalg.norm(q - target)) <= limit
 
     def _cmd(
         self, q_des: npt.NDArray[np.float64], gripper: float

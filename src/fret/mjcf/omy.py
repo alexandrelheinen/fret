@@ -32,7 +32,7 @@ _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 # or pads weld to the stand and block lift.
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.020 0.012 0.022" pos="0.0 -0.010 0.020"\n'
+    'size="0.022 0.014 0.024" pos="0.0 -0.004 0.016"\n'
     '                            friction="4.0 1.5 0.2" solref="0.01 1" '
     'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
@@ -40,17 +40,18 @@ _PAD_RIGHT = (
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.020 0.012 0.022" pos="0.0 0.010 0.020"\n'
+    'size="0.022 0.014 0.024" pos="0.0 0.004 0.016"\n'
     '                            friction="4.0 1.5 0.2" solref="0.01 1" '
     'solimp="0.95 0.99 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
+# Strong adhesion once pads seat; delayed enable in adhesion_command.
 _ADHESION = (
     '    <adhesion name="grip_right" body="rh_r2" '
-    'ctrlrange="0 1" gain="40"/>\n'
+    'ctrlrange="0 1" gain="15"/>\n'
     '    <adhesion name="grip_left" body="rh_l2" '
-    'ctrlrange="0 1" gain="40"/>\n'
+    'ctrlrange="0 1" gain="15"/>\n'
 )
 _GRIPPER_FORCE_OLD = '<position kp="50" dampratio="1" forcerange="-3.5 3.5"/>'
 _GRIPPER_FORCE_NEW = '<position kp="100" dampratio="1" forcerange="-15 15"/>'

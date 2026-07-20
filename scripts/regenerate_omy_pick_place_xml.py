@@ -2,7 +2,7 @@
 """Regenerate OMY pick-place / clutter MJCF templates at Menagerie scale.
 
 Sizing rules (SC-v14b/c):
-  - Ball diameter = 75 % of OMY max pad opening (~114.7 mm)
+  - Ball diameter = 75 % of OMY max pad opening (~86 mm); physics grasp uses pad contact + adhesion (no kinematic carry)
   - Cone diameter = 1.5 × ball diameter; cone height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
   - Short pick pedestal (OMX-style) so pad-mid grasps clear the floor
