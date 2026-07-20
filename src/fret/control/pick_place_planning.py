@@ -154,13 +154,12 @@ def _omy_corridor_via_path(
         import mujoco as mj
     except ImportError:  # pragma: no cover
         return None
-    from fret.mjcf.omy import ensure_omy_clutter_mjcf
-
     from fret.control.omy_pad_mid_ik import (
         OMY_ARM_JOINTS,
         OMY_GRIPPER_PINCH,
         pad_mid_ik,
     )
+    from fret.mjcf.omy import ensure_omy_clutter_mjcf
 
     xml = ensure_omy_clutter_mjcf()
     model = mj.MjModel.from_xml_path(str(xml))
@@ -317,9 +316,7 @@ def plan_arm_transfer_path(
                         start_configuration=np.asarray(
                             start, dtype=np.float64
                         ),
-                        goal_configuration=np.asarray(
-                            goal, dtype=np.float64
-                        ),
+                        goal_configuration=np.asarray(goal, dtype=np.float64),
                         planning_timeout=timeout,
                         scenario_id=scenario_id,
                     )
@@ -330,9 +327,7 @@ def plan_arm_transfer_path(
                     f"code={result.error_code.name}"
                 )
                 continue
-            coarse = [
-                np.asarray(q, dtype=np.float64) for q in result.path
-            ]
+            coarse = [np.asarray(q, dtype=np.float64) for q in result.path]
 
         traj = TrajectoryGenerator(kin, cfg).process(coarse)
         dense = [
