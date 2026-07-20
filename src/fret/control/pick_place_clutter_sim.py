@@ -517,7 +517,7 @@ def simulate_pick_place_clutter(
     pad_right_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right")
     pad_left_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left")
 
-    # OMY transfers from the post-grasp lift pose (pad-mid carry clear of pedestal).
+    # OMY transfers from the post-grasp lift pose (pad-mid carry above floor ball).
     transfer_start = (
         wp.lift_hover
         if is_omy and wp.lift_hover is not None
@@ -576,13 +576,13 @@ def simulate_pick_place_clutter(
         gripper_open=gripper_open,
         gripper_closed=gripper_closed,
         joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=3.0 if is_omy else 1.4,
+        grasp_hold_s=2.5 if is_omy else 1.4,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
         require_grasp_contact=is_omy,
-        approach_joint_tol_rad=0.11 if is_omy else None,
+        approach_joint_tol_rad=0.44 if is_omy else None,
     )
     fsm.start()
 
@@ -666,6 +666,19 @@ def simulate_pick_place_clutter(
                     q_cmd = q_cmd + delta * (max_step / step_n)
             elif is_omy and cmd.state in {
                 PickPlaceState.APPROACH_PICK,
+                PickPlaceState.RETREAT,
+            }:
+                target = np.asarray(cmd.q_des, dtype=np.float64)
+                delta = target - q_cmd
+                step_n = float(np.linalg.norm(delta))
+                max_step = 0.030
+                if step_n <= max_step:
+                    q_cmd = target.copy()
+                else:
+                    q_cmd = q_cmd + delta * (max_step / step_n)
+                phase_mpc.q = q_cmd.copy()
+                phase_mpc.vel = np.zeros_like(q_cmd)
+            elif is_omy and cmd.state in {
                 PickPlaceState.DESCEND_PICK,
                 PickPlaceState.GRASP,
             }:
@@ -676,7 +689,7 @@ def simulate_pick_place_clutter(
                 target = np.asarray(cmd.q_des, dtype=np.float64)
                 delta = target - q_cmd
                 step_n = float(np.linalg.norm(delta))
-                max_step = 0.012
+                max_step = 0.008
                 if step_n <= max_step:
                     q_cmd = target.copy()
                 else:
@@ -693,16 +706,21 @@ def simulate_pick_place_clutter(
                     phase_mpc.q = q_cmd.copy()
                     phase_mpc.vel = np.zeros_like(q_cmd)
 
+        grip_cmd = float(cmd.gripper)
+        if is_omy and cmd.state == PickPlaceState.GRASP:
+            alpha = min(1.0, fsm.hold_t / 2.0)
+            grip_cmd = gripper_open + alpha * (gripper_closed - gripper_open)
+
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
 
-        data.ctrl[act_grip] = float(cmd.gripper)
+        data.ctrl[act_grip] = grip_cmd
         if is_omy:
             adhere = adhesion_command(
                 cmd.state,
                 fsm.hold_t,
-                gripper=float(cmd.gripper),
-                gripper_closed=float(gripper_closed) - 0.05,
+                gripper=grip_cmd,
+                gripper_closed=float(gripper_closed) - 0.03,
             )
         else:
             adhere = adhesion_command(cmd.state, fsm.hold_t)

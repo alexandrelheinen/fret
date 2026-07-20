@@ -10,7 +10,7 @@ import numpy.typing as npt
 
 from fret.control.pick_place_fsm import PickPlaceState
 
-_OMY_GRASP_PAD_MID_MAX_M = 0.022
+_OMY_GRASP_PAD_MID_MAX_M = 0.050
 
 _ADHERE_STATES = frozenset(
     {
@@ -19,7 +19,7 @@ _ADHERE_STATES = frozenset(
         PickPlaceState.DESCEND_PLACE,
     }
 )
-_GRASP_ADHERE_AFTER_S = 0.35
+_GRASP_ADHERE_AFTER_S = 0.15
 
 
 def adhesion_command(
@@ -31,7 +31,17 @@ def adhesion_command(
 ) -> float:
     """Return adhesion ctrl in ``[0, 1]`` for the current FSM phase."""
     if state == PickPlaceState.GRASP:
+        if (
+            gripper is not None
+            and float(gripper) >= float(gripper_closed) - 0.05
+        ):
+            return 1.0
         if float(grasp_hold_t) < _GRASP_ADHERE_AFTER_S:
+            if (
+                gripper is not None
+                and float(gripper) >= float(gripper_closed) - 0.08
+            ):
+                return 0.8
             return 0.0
         if gripper is not None and float(gripper) < float(gripper_closed):
             return 0.0

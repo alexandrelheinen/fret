@@ -17,9 +17,10 @@ import numpy.typing as npt
 GRIPPER_OPEN: float = 0.019
 GRIPPER_CLOSED: float = -0.01
 
-# Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, ~1 rad ≈ closed.
+# Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, ~1 rad ≈ fully closed.
+# Pinch for the ground ball (Ø ≈ 75 mm at 65 % of max opening) — not a full close.
 OMY_GRIPPER_OPEN: float = 0.05
-OMY_GRIPPER_CLOSED: float = 0.90
+OMY_GRIPPER_CLOSED: float = 0.24
 
 
 class PickPlaceState(enum.IntEnum):
