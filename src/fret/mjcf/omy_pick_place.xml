@@ -2,7 +2,7 @@
   <!--
     OpenMANIPULATOR-Y ground pick-and-place (SC-v14b).
 
-    Pick: mushroom — Ø 44 × 84 mm stem + Ø 64 mm flange.
+    Pick: Ø 86 mm sphere on the floor.
     Place: tip-down cone funnel — Ø 280 mm, height 280 mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -94,18 +94,12 @@
           size="0.15000 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <body name="pick_box" pos="0.40000 -0.28000 0.04200">
+    <body name="pick_box" pos="0.40000 -0.28000 0.04300">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="cylinder"
-            size="0.02200 0.04200"
-            density="280" material="pick_ball"
-            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
-            condim="6" contype="14" conaffinity="14" priority="1"/>
-      <geom name="pick_box_flange" type="cylinder"
-            size="0.03200 0.00900"
-            pos="0 0 0.04900"
-            density="280" material="pick_ball"
-            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
+      <geom name="pick_box_geom" type="sphere"
+            size="0.04300"
+            density="150.0" material="pick_ball"
+            friction="3.0 1.0 0.1" solref="0.014 1" solimp="0.9 0.95 0.001"
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 

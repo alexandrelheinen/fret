@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Regenerate OMY pick-place / clutter MJCF templates at Menagerie scale.
 
-Sizing rules (SC-v14b/c):
-  - Pick object: mushroom (thin stem + top flange) for form-closure under fang pads
-  - Stem diameter fits a firm OMY pinch; flange wider than pad gap so lift catches
-  - Cone diameter = 1.5 × flange diameter; cone height = diameter
+Sizing rules (SC-v14b/c, matching docs/scenarios.md):
+  - Pick object: Ø 86 mm sphere on the floor (6-DOF analogue of OMX SC-v13b)
+  - Cone diameter = 1.5 × ball diameter; cone height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
   - Object rests on the floor (no pedestal)
   - Clutter wall perpendicular to pick→place LOS at the midpoint
@@ -18,23 +17,13 @@ from pathlib import Path
 _REPO = Path(__file__).resolve().parents[1]
 _MJCF = _REPO / "src/fret/mjcf"
 
-# Measured from Menagerie OMY + fingertip pads (grip=0 open).
-_OMY_MAX_GRIPPER_OPENING_M = 0.1147
-# Mushroom stem: pinchable column under a load-bearing flange.
-_STEM_RADIUS_M = 0.022
-_STEM_HALF_HEIGHT_M = 0.042
-# Wider than a closed pinch for form-closure; narrower than open pad gap so release drops.
-_FLANGE_RADIUS_M = 0.032
-_FLANGE_HALF_HEIGHT_M = 0.009
-# Keep ball_* names for scenario YAML / cone scaling compatibility.
-_BALL_RADIUS_M = _FLANGE_RADIUS_M
-# Wide funnel — physics carry has centimetre-scale XY slip under fang pads.
+# SC-v14b: Ø 86 mm floor ball.
+_BALL_RADIUS_M = 0.043
+_BALL_Z_M = _BALL_RADIUS_M
+# Funnel wider than 1.5× ball diameter — physics place has centimetre slip.
 _CONE_RADIUS_M = 0.14
 _CONE_HEIGHT_M = 2.0 * _CONE_RADIUS_M
-# Stem centre on the floor plane (stem bottom at z = 0).
-_BALL_Z_M = _STEM_HALF_HEIGHT_M
-# Flange centre in body frame (slight overlap with stem top).
-_FLANGE_POS_Z_M = _STEM_HALF_HEIGHT_M + _FLANGE_HALF_HEIGHT_M - 0.002
+_BALL_DENSITY = 150.0
 
 _PICK_XY = (0.40, -0.28)
 _PLACE_XY = (0.40, 0.28)
@@ -48,11 +37,13 @@ _SCALE_Z = _CONE_HEIGHT_M / _OMX_CONE_H
 
 _FUNNEL_ATTR = (
     'rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" '
-    "contype=\"2\" conaffinity=\"2\""
+    'contype="2" conaffinity="2"'
 )
 
 
-def _xf_pos(omx_x: float, omx_y: float, omx_z: float) -> tuple[float, float, float]:
+def _xf_pos(
+    omx_x: float, omx_y: float, omx_z: float
+) -> tuple[float, float, float]:
     """Map OMX place-relative coordinates to OMY scene."""
     dx = (omx_x - _OMX_PLACE[0]) * _SCALE_XY
     dy = (omx_y - _OMX_PLACE[1]) * _SCALE_XY
@@ -93,15 +84,13 @@ def _funnel_geoms_from_omx(omx_text: str) -> list[str]:
 
 
 def _scene_header(model_name: str, comment: str) -> str:
-    stem_d_mm = 2.0 * _STEM_RADIUS_M * 1000.0
-    stem_h_mm = 2.0 * _STEM_HALF_HEIGHT_M * 1000.0
-    flange_d_mm = 2.0 * _FLANGE_RADIUS_M * 1000.0
+    ball_d_mm = 2.0 * _BALL_RADIUS_M * 1000.0
     cone_d_mm = 2.0 * _CONE_RADIUS_M * 1000.0
     return f"""<mujoco model="{model_name}">
   <!--
     {comment}
 
-    Pick: mushroom — Ø {stem_d_mm:.0f} × {stem_h_mm:.0f} mm stem + Ø {flange_d_mm:.0f} mm flange.
+    Pick: Ø {ball_d_mm:.0f} mm sphere on the floor.
     Place: tip-down cone funnel — Ø {cone_d_mm:.0f} mm, height {cone_d_mm:.0f} mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -148,7 +137,6 @@ def _scene_footer(*, clutter: bool) -> str:
     zone_r = _CONE_RADIUS_M + 0.01
     plate_z = _CONE_HEIGHT_M
     goal_z = plate_z + 0.001
-    tip_z = 0.004 * _SCALE_Z
     wall_block = ""
     if clutter:
         mid_x = (_PICK_XY[0] + _PLACE_XY[0]) / 2.0
@@ -184,16 +172,10 @@ def _scene_footer(*, clutter: bool) -> str:
 
     <body name="pick_box" pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _BALL_Z_M)}">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="cylinder"
-            size="{_STEM_RADIUS_M:.5f} {_STEM_HALF_HEIGHT_M:.5f}"
-            density="280" material="pick_ball"
-            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
-            condim="6" contype="14" conaffinity="14" priority="1"/>
-      <geom name="pick_box_flange" type="cylinder"
-            size="{_FLANGE_RADIUS_M:.5f} {_FLANGE_HALF_HEIGHT_M:.5f}"
-            pos="0 0 {_FLANGE_POS_Z_M:.5f}"
-            density="280" material="pick_ball"
-            friction="5.0 2.0 0.25" solref="0.01 1" solimp="0.95 0.99 0.001"
+      <geom name="pick_box_geom" type="sphere"
+            size="{_BALL_RADIUS_M:.5f}"
+            density="{_BALL_DENSITY:.1f}" material="pick_ball"
+            friction="3.0 1.0 0.1" solref="0.014 1" solimp="0.9 0.95 0.001"
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 {wall_block}
@@ -233,8 +215,7 @@ def main() -> None:
     (_MJCF / "omy_pick_place.xml").write_text(pick, encoding="utf-8")
     (_MJCF / "omy_clutter.xml").write_text(clutter, encoding="utf-8")
     print(
-        f"wrote pick_place stem_r={_STEM_RADIUS_M:.4f} "
-        f"flange_r={_FLANGE_RADIUS_M:.4f} "
+        f"wrote pick_place ball_r={_BALL_RADIUS_M:.4f} "
         f"cone_r={_CONE_RADIUS_M:.4f} z={_BALL_Z_M:.4f}"
     )
     print(f"pick={_PICK_XY} place={_PLACE_XY}")

@@ -1,34 +1,31 @@
 # SC-v14b — OpenMANIPULATOR-Y ground pick-and-place.
 #
-# Pick: mushroom (Ø44 mm stem + Ø64 mm flange) on the floor; fang pinch under
-# the flange gives form-closure carry (no kinematic latch). Side-entry approach
-# avoids jamming pads on the flange. Place: wide tip-down cone funnel.
-# Waypoints are actuator setpoints (physics sag compensated), not pure FK.
+# Pick: Ø 86 mm sphere on the floor; pad pinch + mass-scaled adhesion (OMX
+# tennis-grip pattern). Place: tip-down cone funnel. Idle is a distinct fold;
+# retreat returns to idle. No qpos teleports / floor body excludes.
 
 /**:
   ros__parameters:
     model: omy
     scenario_id: omy_pick_place
     simulation_dt: 0.02
-    duration: 55.0
+    duration: 45.0
     planning_timeout: 60.0
     goal_tolerance: 0.12
     mjcf: mjcf/omy_pick_place.xml
     pick_object: ball
-    ball_radius_m: 0.032
+    ball_radius_m: 0.043
     place_cone_height_m: 0.280
     place_cone_radius_m: 0.140
-    grasp_mode: pad_mid_carry
-    lift_height_m: 0.080
-    phase_timeout_s: 180.0
-    # Pad-mid IK: side hover → under-flange open grasp → lift → place (overshoot Y).
-    idle_configuration: [-0.2262, 1.0301, 1.2857, -0.0656, -0.1122, 0.5003]
-    pick_hover_configuration: [-0.2262, 1.0301, 1.2857, -0.0656, -0.1122, 0.5003]
-    pick_grasp_configuration: [0.0042, 0.959, 1.5527, 0.0117, -0.0009, 0.5]
-    lift_hover_configuration: [0.0426, 0.5468, 1.7047, 0.0433, 0.0738, 0.4776]
-    place_hover_configuration: [1.334, 0.5466, 1.7097, 0.0344, 0.0706, 0.4772]
-    # Open at transfer hover — lowering into the cone slips the flange grasp.
-    place_grasp_configuration: [1.334, 0.5466, 1.7097, 0.0344, 0.0706, 0.4772]
-    retreat_configuration: [1.2256, 0.463, 1.6305, -0.0001, 0.0233, 0.4859]
+    grasp_mode: mujoco_adhesion
+    lift_height_m: 0.10
+    phase_timeout_s: 40.0
+    idle_configuration: [0.4299, -0.3026, 1.6221, 0.6223, 1.7346, -0.3982]
+    pick_hover_configuration: [-0.3743, 0.7023, 1.2598, -0.3664, 1.5602, 0.375]
+    pick_grasp_configuration: [-0.4196, 0.8758, 1.4208, -0.9376, 1.7271, 0.3817]
+    lift_hover_configuration: [-0.4706, 0.5616, 1.6962, -1.3001, 1.8561, 0.3807]
+    place_hover_configuration: [1.10, 0.4661, 1.7398, -1.0311, 1.0004, -0.9117]
+    place_grasp_configuration: [1.10, 0.6719, 1.8169, -1.3193, 0.9922, -0.9107]
+    retreat_configuration: [0.4299, -0.3026, 1.6221, 0.6223, 1.7346, -0.3982]
     pick_xy: [0.40, -0.28]
     place_xy: [0.40, 0.28]

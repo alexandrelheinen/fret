@@ -17,10 +17,10 @@ import numpy.typing as npt
 GRIPPER_OPEN: float = 0.019
 GRIPPER_CLOSED: float = -0.01
 
-# Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, ~1 rad ≈ fully closed.
-# Firm pinch on the mushroom stem (Ø ≈ 44 mm); flange provides form-closure.
-OMY_GRIPPER_OPEN: float = 0.05
-OMY_GRIPPER_CLOSED: float = 0.85
+# Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, 1.1 ≈ fully closed.
+# Closed setpoint pinches the SC-v14b Ø 86 mm floor ball.
+OMY_GRIPPER_OPEN: float = 0.0
+OMY_GRIPPER_CLOSED: float = 1.05
 
 
 class PickPlaceState(enum.IntEnum):
@@ -185,16 +185,17 @@ class PickPlaceFSM:
             return self._cmd(self._wp.pick_hover, self._gripper_open)
 
         if self._state == PickPlaceState.DESCEND_PICK:
-            # Side-entry / under-flange grasps have no pad contact until the
-            # fingers close in GRASP — do not gate descend→grasp on contact.
             if self._reached(obs.q, self._wp.pick_grasp):
-                self._enter(PickPlaceState.GRASP)
+                if (
+                    not self._require_grasp_contact
+                    or obs.grasp_contact is True
+                ):
+                    self._enter(PickPlaceState.GRASP)
             return self._cmd(self._wp.pick_grasp, self._gripper_open)
 
         if self._state == PickPlaceState.GRASP:
             self._hold_t += dt
             grasp_ready = self._hold_t >= self._grasp_hold_s
-            # Contact is required only after the pinch (GRASP→LIFT), not before.
             if self._require_grasp_contact:
                 if obs.grasp_contact is not True:
                     grasp_ready = False
@@ -209,11 +210,7 @@ class PickPlaceFSM:
                 else self._wp.pick_hover
             )
             lifted = float(obs.object_pos[2]) >= self._lift_height_m
-            # Allow transfer once the object is up; actuators may settle a few
-            # centimetres short of the lift waypoint under payload.
-            if lifted and (
-                self._reached(obs.q, lift_target) or self._phase_t > 1.5
-            ):
+            if lifted and self._reached(obs.q, lift_target):
                 self._enter(PickPlaceState.MOVE_PLACE)
             elif (
                 not lifted
@@ -237,11 +234,7 @@ class PickPlaceFSM:
             return self._cmd(self._wp.place_hover, self._gripper_closed)
 
         if self._state == PickPlaceState.DESCEND_PLACE:
-            # Same loaded-arm saturation as MOVE_PLACE; place_grasp may equal
-            # place_hover when opening above the cone rather than lowering in.
-            if self._reached(
-                obs.q, self._wp.place_grasp, tol=self._transfer_tol
-            ):
+            if self._reached(obs.q, self._wp.place_grasp):
                 self._enter(PickPlaceState.RELEASE)
             return self._cmd(self._wp.place_grasp, self._gripper_closed)
 
@@ -259,12 +252,10 @@ class PickPlaceFSM:
                 else self._wp.idle
             )
             if not self._retreat_cleared:
-                if self._reached(
-                    obs.q, self._wp.place_hover, tol=self._transfer_tol
-                ):
+                if self._reached(obs.q, self._wp.place_hover):
                     self._retreat_cleared = True
                 return self._cmd(self._wp.place_hover, self._gripper_open)
-            if self._reached(obs.q, retreat, tol=self._transfer_tol):
+            if self._reached(obs.q, retreat):
                 self._enter(PickPlaceState.DONE)
             return self._cmd(retreat, self._gripper_open)
 
