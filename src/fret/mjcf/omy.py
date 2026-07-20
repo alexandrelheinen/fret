@@ -121,7 +121,9 @@ def _inject_physical_gripper(robot_xml: str) -> str:
     if 'body1="link6" body2="world"' not in robot_xml:
         contact_anchor = "<contact>\n"
         if contact_anchor not in robot_xml:
-            raise ValueError("Menagerie contact block missing for floor exclude")
+            raise ValueError(
+                "Menagerie contact block missing for floor exclude"
+            )
         robot_xml = robot_xml.replace(
             contact_anchor,
             contact_anchor
