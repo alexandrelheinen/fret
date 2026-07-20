@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute OMY pad-mid IK waypoints for ground-ball pick-place scenarios.
+"""Compute OMY pad-mid IK waypoints for pedestal-ball pick-place scenarios.
 
 Targets the midpoint between injected finger pads (not link6). Uses sequential
 numerical IK on the Menagerie model with pads injected via
@@ -70,51 +70,46 @@ def _pad_mid_ik(
     return res.x.astype(np.float64), err
 
 
-def _physics_refine(
+def _physics_pad_contact(
     model: object,
     data: object,
     mj: object,
     *,
     seed: np.ndarray,
     grip_val: float,
-    ball_pos: np.ndarray,
-    limits: np.ndarray,
-    pad_right: int,
-    pad_left: int,
     arm_act: list[int],
     grip_act: int,
     box_body: int,
-    box_qadr: int,
-) -> tuple[np.ndarray, float]:
-    """Refine ``seed`` so physics pad-mid seats on the ball centre."""
-
-    def cost(q: np.ndarray) -> float:
-        data.qpos[box_qadr : box_qadr + 3] = ball_pos  # type: ignore[attr-defined]
-        data.qpos[box_qadr + 3 : box_qadr + 7] = np.array(  # type: ignore[attr-defined]
-            [1.0, 0.0, 0.0, 0.0], dtype=np.float64
-        )
-        data.qvel[box_qadr : box_qadr + 6] = 0.0  # type: ignore[attr-defined]
-        for i, aid in enumerate(arm_act):
-            data.ctrl[aid] = float(q[i])  # type: ignore[attr-defined]
-        data.ctrl[grip_act] = float(grip_val)  # type: ignore[attr-defined]
-        for _ in range(900):
-            mj.mj_step(model, data)
-        mid = 0.5 * (
-            np.asarray(data.geom_xpos[pad_right], dtype=np.float64)  # type: ignore[attr-defined]
-            + np.asarray(data.geom_xpos[pad_left], dtype=np.float64)  # type: ignore[attr-defined]
-        )
-        ball = np.asarray(data.xpos[box_body], dtype=np.float64)  # type: ignore[attr-defined]
-        return float(np.sum((mid - ball) ** 2))
-
-    res = minimize(
-        cost,
-        np.asarray(seed, dtype=np.float64),
-        method="L-BFGS-B",
-        bounds=limits,
-        options={"maxiter": 40, "ftol": 1e-10},
+) -> tuple[bool, float]:
+    """Settle under ctrl and report pad↔ball contact + pad-mid distance."""
+    for i, aid in enumerate(arm_act):
+        data.ctrl[aid] = float(seed[i])  # type: ignore[attr-defined]
+    data.ctrl[grip_act] = float(grip_val)  # type: ignore[attr-defined]
+    for _ in range(1200):
+        mj.mj_step(model, data)
+    pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
+    pad_left = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
+    mid = 0.5 * (
+        np.asarray(data.geom_xpos[pad_right], dtype=np.float64)  # type: ignore[attr-defined]
+        + np.asarray(data.geom_xpos[pad_left], dtype=np.float64)  # type: ignore[attr-defined]
     )
-    err = float(np.sqrt(cost(res.x)))
-    return res.x.astype(np.float64), err
+    ball = np.asarray(data.xpos[box_body], dtype=np.float64)  # type: ignore[attr-defined]
+    dist = float(np.linalg.norm(mid - ball))
+    box_geom_adr = int(model.body_geomadr[box_body])  # type: ignore[attr-defined]
+    box_geom_num = int(model.body_geomnum[box_body])  # type: ignore[attr-defined]
+    box_geoms = frozenset(range(box_geom_adr, box_geom_adr + box_geom_num))
+    contact = False
+    for ci in range(int(data.ncon)):  # type: ignore[attr-defined]
+        c = data.contact[ci]  # type: ignore[attr-defined]
+        g1, g2 = int(c.geom1), int(c.geom2)
+        if g1 not in box_geoms and g2 not in box_geoms:
+            continue
+        other = g2 if g1 in box_geoms else g1
+        name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, other) or ""
+        if name.startswith("pad_"):
+            contact = True
+            break
+    return contact, dist
 
 
 def compute_waypoints(
@@ -122,10 +117,11 @@ def compute_waypoints(
     pick_xy: tuple[float, float] = (0.40, -0.28),
     place_xy: tuple[float, float] = (0.40, 0.28),
     ball_radius_m: float = 0.043,
+    ball_pick_z_m: float | None = None,
     gripper_pinch: float = _GRIPPER_PINCH,
     idle: np.ndarray | None = None,
 ) -> dict[str, list[float]]:
-    """Return named joint waypoints for one ground-ball pick-place cycle."""
+    """Return named joint waypoints for one pedestal-ball pick-place cycle."""
     import mujoco as mj
 
     xml = ensure_omy_pick_place_mjcf()
@@ -134,8 +130,6 @@ def compute_waypoints(
     pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
     pad_left = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
     box_body = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box"))
-    box_j = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint"))
-    box_qadr = int(model.jnt_qposadr[box_j])
     grip_j = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1"))
     grip_adr = int(model.jnt_qposadr[grip_j])
     grip_act = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_ACTUATOR, "Gripper"))
@@ -151,11 +145,16 @@ def compute_waypoints(
         dtype=np.float64,
     )
 
-    ball_pick = np.array(
-        [pick_xy[0], pick_xy[1], ball_radius_m], dtype=np.float64
+    mj.mj_forward(model, data)
+    pick_z = (
+        float(ball_pick_z_m)
+        if ball_pick_z_m is not None
+        else float(data.xpos[box_body][2])
     )
+    ball_pick = np.array([pick_xy[0], pick_xy[1], pick_z], dtype=np.float64)
+    # Place releases into the funnel; pad-mid aims near cone entry height.
     ball_place = np.array(
-        [place_xy[0], place_xy[1], ball_radius_m], dtype=np.float64
+        [place_xy[0], place_xy[1], ball_radius_m + 0.06], dtype=np.float64
     )
     # Folded home (distinct from hover) — mirrors OMX idle vs approach.
     seed = (
@@ -197,30 +196,23 @@ def compute_waypoints(
         )
         if err > 0.008:
             raise RuntimeError(f"{name} pad-mid IK failed (err={err:.4f} m)")
-        ball_pos = (
-            ball_pick
-            if name.startswith("pick") or name in {"lift_hover", "idle"}
-            else ball_place
-        )
-        if name != "idle":
-            q, perr = _physics_refine(
+        if name == "pick_grasp":
+            # Fresh sim: settle at kinematic grasp and require real pad contact.
+            data_chk = mj.MjData(model)
+            ok, pdist = _physics_pad_contact(
                 model,
-                data,
+                data_chk,
                 mj,
                 seed=q,
                 grip_val=gv,
-                ball_pos=ball_pos,
-                limits=limits,
-                pad_right=pad_right,
-                pad_left=pad_left,
                 arm_act=arm_act,
                 grip_act=grip_act,
                 box_body=box_body,
-                box_qadr=box_qadr,
             )
-            if name == "pick_grasp" and perr > 0.025:
+            if not ok:
                 raise RuntimeError(
-                    f"{name} physics pad-seat failed (err={perr * 1000:.1f} mm)"
+                    f"{name} physics pad contact missing "
+                    f"(pad-mid dist={pdist * 1000:.1f} mm)"
                 )
         out[name] = [round(float(v), 4) for v in q]
         seed = q
@@ -234,7 +226,7 @@ def main() -> None:
         "--ball-radius-m",
         type=float,
         default=0.043,
-        help="Floor-ball radius in metres (SC-v14b default 0.043)",
+        help="Ball radius in metres (SC-v14b default 0.043)",
     )
     args = parser.parse_args()
     wp = compute_waypoints(ball_radius_m=float(args.ball_radius_m))

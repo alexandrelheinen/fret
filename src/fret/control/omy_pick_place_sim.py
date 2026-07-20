@@ -8,8 +8,8 @@ Stack (shared with OpenMANIPULATOR-X):
 4. MuJoCo position actuators — low-level joint control
 
 Physics grasp only: Menagerie finger pads close on the free ball, then MuJoCo
-adhesion (OMX-scale gain) holds it through lift/transfer. No kinematic arm
-snaps, floor contact excludes, or ball teleports.
+adhesion (modest assist) holds it through lift/transfer. No kinematic arm
+snaps, floor contact excludes, MPC-bypass setpoints, or ball teleports.
 """
 
 from __future__ import annotations
@@ -21,7 +21,11 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.joint_mpc import build_joint_mpc
-from fret.control.pick_place_common import PickPlaceSample, adhesion_command
+from fret.control.pick_place_common import (
+    PickPlaceSample,
+    adhesion_command,
+    ball_grasp_contact,
+)
 from fret.control.pick_place_fsm import (
     OMY_GRIPPER_CLOSED,
     OMY_GRIPPER_OPEN,
@@ -87,7 +91,7 @@ def _actuator_id(mj: Any, model: Any, name: str) -> int:
 def simulate_omy_pick_place(
     *,
     duration_s: float = 45.0,
-    joint_tol_rad: float = 0.12,
+    joint_tol_rad: float = 0.16,
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
@@ -109,26 +113,29 @@ def simulate_omy_pick_place(
     box_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box")
     box_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pick_box_joint")
     box_qadr = int(model.jnt_qposadr[box_jid])
+    pad_right = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right")
+    pad_left = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left")
 
     act_arm = [_actuator_id(mj, model, n) for n in _ARM_JOINTS]
     act_grip = _actuator_id(mj, model, "Gripper")
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
 
-    lift_z = float(params.get("lift_height_m", 0.10))
-    phase_timeout = float(params.get("phase_timeout_s", 40.0))
+    lift_z = float(params.get("lift_height_m", 0.19))
+    phase_timeout = float(params.get("phase_timeout_s", 45.0))
     fsm = PickPlaceFSM(
         wp,
         dof=6,
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
         joint_tol_rad=float(joint_tol_rad),
-        grasp_hold_s=2.0,
+        grasp_hold_s=1.4,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
-        transfer_joint_tol_rad=max(float(joint_tol_rad), 0.35),
+        require_grasp_contact=True,
+        transfer_joint_tol_rad=max(float(joint_tol_rad), 0.20),
     )
     fsm.start()
 
@@ -151,19 +158,23 @@ def simulate_omy_pick_place(
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
     record_every_steps = max(1, int(record_every_steps))
-    _FINE = {
-        PickPlaceState.DESCEND_PICK,
-        PickPlaceState.GRASP,
-        PickPlaceState.LIFT,
-        PickPlaceState.DESCEND_PLACE,
-    }
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data)
+        grasp_ok = ball_grasp_contact(
+            mj,
+            model,
+            data,
+            box_body_id=box_id,
+            pad_right_id=pad_right,
+            pad_left_id=pad_left,
+            allow_pad_mid_fallback=False,
+        )
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
+            grasp_contact=grasp_ok,
         )
         cmd = fsm.tick(obs, dt)
 
@@ -174,25 +185,23 @@ def simulate_omy_pick_place(
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
-            if cmd.state in _FINE:
-                # Direct position setpoints for grasp/lift (ctrl only — not
-                # qpos writes). MPC carrot lags under payload on the 6-DOF.
-                q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
+            q_cmd = np.asarray(
+                mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
+            )
+            if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
+                q_cmd = cmd.q_des.copy()
                 mpc.q = q_cmd.copy()
                 mpc.vel = np.zeros_like(q_cmd)
-            else:
-                q_cmd = np.asarray(
-                    mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
-                )
-                if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
-                    q_cmd = cmd.q_des.copy()
-                    mpc.q = q_cmd.copy()
-                    mpc.vel = np.zeros_like(q_cmd)
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = adhesion_command(cmd.state, fsm.hold_t)
+        adhere = adhesion_command(
+            cmd.state,
+            fsm.hold_t,
+            gripper=float(cmd.gripper),
+            gripper_closed=OMY_GRIPPER_CLOSED,
+        )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)

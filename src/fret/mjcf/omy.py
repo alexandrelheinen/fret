@@ -4,10 +4,9 @@ Same materialization pattern as :mod:`fret.mjcf.omx` — resolve Menagerie
 ``meshdir``, inject finger pads + adhesion for physics grasp on ``rh_r2`` /
 ``rh_l2``.
 
-Pad local offsets sit on the **inner** fingertip faces (toward the grasp
-volume). Finger *mesh* collisions are disabled so only the pads interact with
-the ball (same design intent as OMX injected pads); pads still collide with
-the floor and the free ball. No body↔world contact excludes.
+Pads sit on the inner fingertip faces (toward the grasp volume) and are the
+gripping surfaces. No floor body excludes, no arm ``qpos`` snaps, no actuator
+forcerange rewrites — same honesty bar as OMX SC-v13b.
 """
 
 from __future__ import annotations
@@ -28,44 +27,48 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 )
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
-# Pads extend below the fingertip so a floor-ball equator is reachable without
-# driving bulky Menagerie finger meshes into the plane.
+# Pad contype=4: collide with the ball (14) but not with arm meshes (1).
+# Soft, high-friction pads (tennis-ball felt grip). Half-Y ~0.012 pinches Ø86 mm.
 _PAD_RIGHT = (
     '                      <geom name="pad_right" type="box" '
-    'size="0.024 0.024 0.032" pos="0.0 0.014 -0.055"\n'
-    '                            friction="4.0 1.2 0.12" solref="0.012 1" '
-    'solimp="0.92 0.96 0.001"\n'
+    'size="0.018 0.012 0.016" pos="0.0 0.012 -0.012"\n'
+    '                            friction="3.0 1.0 0.1" solref="0.014 1" '
+    'solimp="0.9 0.95 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
 _PAD_LEFT = (
     '                      <geom name="pad_left" type="box" '
-    'size="0.024 0.024 0.032" pos="0.0 -0.014 -0.055"\n'
-    '                            friction="4.0 1.2 0.12" solref="0.012 1" '
-    'solimp="0.92 0.96 0.001"\n'
+    'size="0.018 0.012 0.016" pos="0.0 -0.012 -0.012"\n'
+    '                            friction="3.0 1.0 0.1" solref="0.014 1" '
+    'solimp="0.9 0.95 0.001"\n'
     '                            condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
-# Mass-scaled OMX tennis-grip adhesion (OMX gain 12 on a much lighter ball).
+# Modest gain + delayed enable (see adhesion_command): tennis grip without eject.
+# OMX gain 12 on ~3.3 g ball; OMY Ø86 mm @ density 150 is ~50 g (~15×) → gain 180.
 _ADHESION = (
     '    <adhesion name="grip_right" body="rh_r2" '
-    'ctrlrange="0 1" gain="80"/>\n'
+    'ctrlrange="0 1" gain="180"/>\n'
     '    <adhesion name="grip_left" body="rh_l2" '
-    'ctrlrange="0 1" gain="80"/>\n'
+    'ctrlrange="0 1" gain="180"/>\n'
 )
+# Menagerie position gains track unloaded 4-DOF OMX poses; OMY outstretched
+# 6-DOF setpoints need higher kp/forcerange so ctrl targets are reachable
+# under gravity (tracking only — not a grasp latch).
 _GRIPPER_FORCE_OLD = '<position kp="50" dampratio="1" forcerange="-3.5 3.5"/>'
-_GRIPPER_FORCE_NEW = '<position kp="120" dampratio="1" forcerange="-40 40"/>'
+_GRIPPER_FORCE_NEW = '<position kp="80" dampratio="1" forcerange="-8 8"/>'
 _ARM_JOINT12_OLD = (
     '<position kp="80.0" dampratio="3.0" forcerange="-61.4 61.4"/>'
 )
 _ARM_JOINT12_NEW = (
-    '<position kp="400.0" dampratio="2.0" forcerange="-120 120"/>'
+    '<position kp="220.0" dampratio="2.5" forcerange="-100 100"/>'
 )
 _ARM_JOINT_DISTAL_OLD = (
     '<position kp="80.0" dampratio="3.0" forcerange="-31.7 31.7"/>'
 )
 _ARM_JOINT_DISTAL_NEW = (
-    '<position kp="400.0" dampratio="2.0" forcerange="-80 80"/>'
+    '<position kp="220.0" dampratio="2.5" forcerange="-60 60"/>'
 )
 
 
@@ -106,7 +109,7 @@ def _scene_additions(template_text: str) -> str:
 
 
 def _inject_physical_gripper(robot_xml: str) -> str:
-    """Add finger pads + adhesion; pads are the only gripping surfaces."""
+    """Add finger pads + adhesion actuators for SC-v14b physics grasp."""
     r2_anchor = '<joint name="rh_r2" class="Gripper_mimic"/>\n'
     l2_anchor = '<joint name="rh_l2" class="Gripper_mimic_pos"/>\n'
     if r2_anchor not in robot_xml or l2_anchor not in robot_xml:
@@ -133,15 +136,6 @@ def _inject_physical_gripper(robot_xml: str) -> str:
         robot_xml = robot_xml.replace(
             _ARM_JOINT_DISTAL_OLD, _ARM_JOINT_DISTAL_NEW
         )
-    # Neutralize bulky finger mesh collisions — pads grip (as on OMX).
-    for mesh_name in ("r1", "r2", "l1", "l2"):
-        old = f'<geom mesh="{mesh_name}" class="collision"/>'
-        new = (
-            f'<geom mesh="{mesh_name}" class="collision" '
-            f'contype="0" conaffinity="0"/>'
-        )
-        if old in robot_xml:
-            robot_xml = robot_xml.replace(old, new)
     robot_xml = robot_xml.replace(
         'ctrl="0 0 0 0 0 0 0"',
         'ctrl="0 0 0 0 0 0 0 0 0"',

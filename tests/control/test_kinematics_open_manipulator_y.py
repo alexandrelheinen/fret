@@ -91,6 +91,35 @@ def test_omy_pick_place_physics_smoke() -> None:
     assert any(s.state == PickPlaceState.LIFT for s in samples)
 
 
+@pytest.mark.slow
+def test_omy_pick_place_physics_moves_ball_into_place_cone() -> None:
+    """Idle→pinch→hold→place→idle under physics (OMX honesty bar)."""
+    from fret.control.omy_pick_place_sim import (
+        run_omy_pick_place,
+        waypoints_from_scenario,
+    )
+    from fret.control.pick_place_fsm import PickPlaceState
+
+    params = load_scenario_parameters(_PICK)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
+    pick_xy = np.asarray(params["pick_xy"], dtype=np.float64)
+    cone_r = float(params.get("place_cone_radius_m", 0.14))
+    wp = waypoints_from_scenario(_PICK)
+    state, ball = run_omy_pick_place(
+        duration_s=45.0,
+        joint_tol_rad=0.16,
+        scenario_path=_PICK,
+    )
+    assert state != PickPlaceState.FAULT, "OMY pick-place FSM faulted"
+    assert state == PickPlaceState.DONE, f"ended in {state.name}"
+    assert float(np.linalg.norm(ball[:2] - place_xy)) < cone_r
+    assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
+    assert float(ball[2]) < 0.08
+    # Retreat holds the distinct idle fold (not hover/retreat alias).
+    assert float(np.linalg.norm(wp.idle - wp.pick_hover)) > 0.3
+    assert np.allclose(wp.retreat, wp.idle)
+
+
 def test_omy_clutter_transfer_detour_is_collision_free() -> None:
     """Release detour must clear the mid-cell wall (v1.2.5 regression)."""
     from fret.control.pick_place_planning import walls_from_scenario
