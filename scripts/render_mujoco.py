@@ -1149,7 +1149,7 @@ def render_omx_desk_clutter_showcase_videos(
     max_attempts = 8 if scenario in _OMX_WALL_MAZE_SCENARIOS else 4
     result = run_pick_place_clutter(
         duration_s=clip_s,
-        joint_tol_rad=0.12,
+        joint_tol_rad=0.22,
         scenario_path=scenario_path,
         max_attempts=max_attempts,
         record_every_steps=record_every,
@@ -1281,7 +1281,7 @@ def render_omx_pick_place_showcase_videos(
     record_every = max(1, int(round((1.0 / fps) / dt)))
     state, samples = simulate_pick_place(
         duration_s=clip_s,
-        joint_tol_rad=0.12,
+        joint_tol_rad=0.22,
         record_every_steps=record_every,
     )
     if state != PickPlaceState.DONE:
@@ -1454,7 +1454,7 @@ def render_omy_pick_place_showcase_videos(
     scenario_path = Path("src/fret/config/scenarios") / f"{scenario}.yml"
     state, raw_samples = simulate_omy_pick_place(
         duration_s=clip_s,
-        joint_tol_rad=0.18,
+        joint_tol_rad=0.22,
         record_every_steps=record_every,
         scenario_path=scenario_path,
     )
@@ -1578,7 +1578,7 @@ def render_omy_clutter_showcase_videos(
     scenario_path = Path("src/fret/config/scenarios") / scenario_yaml
     result = simulate_omy_clutter_pick_place(
         duration_s=clip_s,
-        joint_tol_rad=0.28,
+        joint_tol_rad=0.22,
         scenario_path=scenario_path,
         seed_offset=0,
     )

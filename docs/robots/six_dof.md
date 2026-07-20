@@ -30,7 +30,7 @@ Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
 | IK | Numerical (Jacobian-based) in `kinematics_open_manipulator_y.py` |
 | Planning | Joint-space RRT* + fallback detour for clutter transfer |
 | Control | Shared stack with OMX: ``PickPlaceFSM`` → planner (clutter) → ARCO ``JointSpaceMPC`` → MuJoCo joints |
-| Simulation | MuJoCo SITL; pad-mid grasp targets + pad-mid carry through lift/transfer (fang + Ø86 mm ball) |
+| Simulation | MuJoCo SITL; physics pad contact + adhesion grasp (no kinematic carry or ball teleport) |
 
 ---
 

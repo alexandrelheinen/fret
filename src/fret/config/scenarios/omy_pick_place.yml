@@ -19,7 +19,7 @@
     place_cone_radius_m: 0.0645
     grasp_mode: pad_mid_carry
     lift_height_m: 0.200
-    phase_timeout_s: 75.0
+    phase_timeout_s: 120.0
     idle_configuration: [0.0, -0.8, 1.2, 0.0, 0.5, 0.0]
     pick_hover_configuration: [-0.4205, 0.5230, 0.9171, 0.0183, 1.6759, 0.6204]
     pick_grasp_configuration: [-0.2457, 0.6343, 1.0686, -0.0221, 1.2671, -1.9833]

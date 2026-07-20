@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from fret.control.pick_place_fsm import PickPlaceState
+
+_OMY_GRASP_PAD_MID_MAX_M = 0.022
 
 _ADHERE_STATES = frozenset(
     {
@@ -16,7 +19,7 @@ _ADHERE_STATES = frozenset(
         PickPlaceState.DESCEND_PLACE,
     }
 )
-_GRASP_ADHERE_AFTER_S = 0.6
+_GRASP_ADHERE_AFTER_S = 0.35
 
 
 def adhesion_command(
@@ -34,6 +37,54 @@ def adhesion_command(
             return 0.0
         return 1.0
     return 1.0 if state in _ADHERE_STATES else 0.0
+
+
+def pad_midpoint(
+    data: Any,
+    *,
+    pad_right_id: int,
+    pad_left_id: int,
+) -> npt.NDArray[np.float64]:
+    """World-frame midpoint between injected finger pads."""
+    return 0.5 * (
+        np.asarray(data.geom_xpos[pad_right_id], dtype=np.float64)
+        + np.asarray(data.geom_xpos[pad_left_id], dtype=np.float64)
+    )
+
+
+def ball_grasp_contact(
+    mj: Any,
+    model: Any,
+    data: Any,
+    *,
+    box_body_id: int,
+    pad_right_id: int,
+    pad_left_id: int,
+    max_pad_mid_dist_m: float = _OMY_GRASP_PAD_MID_MAX_M,
+) -> bool:
+    """True when the free ball touches a pad (MuJoCo contact or tight midpoint)."""
+    box_geom_adr = int(model.body_geomadr[box_body_id])
+    box_geom_num = int(model.body_geomnum[box_body_id])
+    box_geoms = frozenset(range(box_geom_adr, box_geom_adr + box_geom_num))
+    pad_contact = False
+    for ci in range(int(data.ncon)):
+        contact = data.contact[ci]
+        g1 = int(contact.geom1)
+        g2 = int(contact.geom2)
+        if g1 not in box_geoms and g2 not in box_geoms:
+            continue
+        other = g2 if g1 in box_geoms else g1
+        name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, other) or ""
+        if name.startswith("pad_"):
+            pad_contact = True
+            break
+    if pad_contact:
+        return True
+    mid = pad_midpoint(
+        data, pad_right_id=pad_right_id, pad_left_id=pad_left_id
+    )
+    ball = np.asarray(data.xpos[box_body_id], dtype=np.float64)
+    return float(np.linalg.norm(ball - mid)) <= float(max_pad_mid_dist_m)
 
 
 @dataclass(frozen=True)

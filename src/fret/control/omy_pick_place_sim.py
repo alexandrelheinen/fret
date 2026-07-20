@@ -7,10 +7,9 @@ Stack (shared with OpenMANIPULATOR-X):
 3. ARCO ``JointSpaceMPC`` — carrot tracking of each phase target
 4. MuJoCo position actuators — low-level joint control
 
-OMY-specific: fang gripper + Ø86 mm ball cannot rely on MuJoCo adhesion alone
-for a reliable lift, so during ``LIFT`` / ``MOVE_PLACE`` / ``DESCEND_PLACE`` the
-ball is carried at the pad midpoint while the arm still follows the MPC
-command (kinematic follow). No parallel FSM / ``force_state`` timers.
+Physics grasp only: Menagerie finger pads close on the free ball, then MuJoCo
+adhesion holds it through lift/transfer. The FSM waits for pad contact before
+lifting. No kinematic arm snaps or ball teleports.
 """
 
 from __future__ import annotations
@@ -22,7 +21,11 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.control.joint_mpc import build_joint_mpc
-from fret.control.pick_place_common import PickPlaceSample, adhesion_command
+from fret.control.pick_place_common import (
+    PickPlaceSample,
+    adhesion_command,
+    ball_grasp_contact,
+)
 from fret.control.pick_place_fsm import (
     OMY_GRIPPER_CLOSED,
     OMY_GRIPPER_OPEN,
@@ -37,22 +40,6 @@ _ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
 _MODEL = "omy"
 _CTRL_PERIOD_S = 0.02
 _SCENARIO = Path("src/fret/config/scenarios/omy_pick_place.yml")
-_CARRY_STATES = frozenset(
-    {
-        PickPlaceState.LIFT,
-        PickPlaceState.MOVE_PLACE,
-        PickPlaceState.DESCEND_PLACE,
-    }
-)
-_SNAP_STATES = frozenset(
-    {
-        PickPlaceState.DESCEND_PICK,
-        PickPlaceState.GRASP,
-        PickPlaceState.LIFT,
-        PickPlaceState.DESCEND_PLACE,
-        PickPlaceState.RETREAT,
-    }
-)
 
 
 def waypoints_from_scenario(
@@ -101,52 +88,14 @@ def _actuator_id(mj: Any, model: Any, name: str) -> int:
     return int(aid)
 
 
-def _drive_arm_to(
-    mj: Any,
-    model: Any,
-    data: Any,
-    q_des: npt.NDArray[np.float64],
-    act_arm: list[int],
-) -> None:
-    """Set arm ``qpos``/``ctrl`` together so 6-DOF targets stay reachable."""
-    q_des = np.asarray(q_des, dtype=np.float64)
-    for i, name in enumerate(_ARM_JOINTS):
-        jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
-        data.qpos[int(model.jnt_qposadr[jid])] = float(q_des[i])
-        data.qvel[int(model.jnt_dofadr[jid])] = 0.0
-        data.ctrl[act_arm[i]] = float(q_des[i])
-    mj.mj_forward(model, data)
-
-
-def _attach_ball_to_pads(
-    mj: Any,
-    model: Any,
-    data: Any,
-    *,
-    box_qadr: int,
-    box_jid: int,
-    pad_right_id: int,
-    pad_left_id: int,
-) -> None:
-    """Latch the free ball at the fingertip pad midpoint."""
-    mid = 0.5 * (
-        np.asarray(data.geom_xpos[pad_right_id], dtype=np.float64)
-        + np.asarray(data.geom_xpos[pad_left_id], dtype=np.float64)
-    )
-    data.qpos[box_qadr : box_qadr + 3] = mid
-    dof_adr = int(model.jnt_dofadr[box_jid])
-    data.qvel[dof_adr : dof_adr + 6] = 0.0
-    mj.mj_forward(model, data)
-
-
 def simulate_omy_pick_place(
     *,
     duration_s: float = 55.0,
-    joint_tol_rad: float = 0.18,
+    joint_tol_rad: float = 0.12,
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
-    """Run one OMY pick-place cycle (FSM → MPC → joints + pad-mid carry)."""
+    """Run one OMY pick-place cycle (FSM → MPC → joints + physics grasp)."""
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
@@ -182,11 +131,13 @@ def simulate_omy_pick_place(
         gripper_open=OMY_GRIPPER_OPEN,
         gripper_closed=OMY_GRIPPER_CLOSED,
         joint_tol_rad=float(joint_tol_rad),
-        grasp_hold_s=1.4,
+        grasp_hold_s=3.0,
         release_hold_s=0.8,
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
-        drop_fault_enabled=False,
+        drop_fault_enabled=True,
+        require_grasp_contact=True,
+        approach_joint_tol_rad=0.11,
     )
     fsm.start()
 
@@ -202,7 +153,6 @@ def simulate_omy_pick_place(
     mpc.reset(_arm_q(mj, model, data))
     q_cmd = _arm_q(mj, model, data).copy()
     last_target = wp.idle.copy()
-    carrying = False
     ctrl_accum = 0.0
 
     dt = float(model.opt.timestep)
@@ -212,22 +162,25 @@ def simulate_omy_pick_place(
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data)
+        grasp_contact = (
+            ball_grasp_contact(
+                mj,
+                model,
+                data,
+                box_body_id=box_id,
+                pad_right_id=pad_right_id,
+                pad_left_id=pad_left_id,
+            )
+            if fsm.state in {PickPlaceState.DESCEND_PICK, PickPlaceState.GRASP}
+            else None
+        )
         obs = PickPlaceObservation(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
+            grasp_contact=grasp_contact,
         )
         cmd = fsm.tick(obs, dt)
-
-        if cmd.state in _CARRY_STATES:
-            carrying = True
-        if cmd.state in {
-            PickPlaceState.RELEASE,
-            PickPlaceState.RETREAT,
-            PickPlaceState.DONE,
-            PickPlaceState.FAULT,
-        }:
-            carrying = False
 
         if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
             mpc.reset(q)
@@ -236,8 +189,22 @@ def simulate_omy_pick_place(
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
-            if cmd.state in _SNAP_STATES:
+            if cmd.state in {
+                PickPlaceState.APPROACH_PICK,
+                PickPlaceState.DESCEND_PICK,
+            }:
                 q_cmd = np.asarray(cmd.q_des, dtype=np.float64).copy()
+                mpc.q = q_cmd.copy()
+                mpc.vel = np.zeros_like(q_cmd)
+            elif cmd.state == PickPlaceState.LIFT:
+                target = np.asarray(cmd.q_des, dtype=np.float64)
+                delta = target - q_cmd
+                step_n = float(np.linalg.norm(delta))
+                max_step = 0.006
+                if step_n <= max_step:
+                    q_cmd = target.copy()
+                else:
+                    q_cmd = q_cmd + delta * (max_step / step_n)
                 mpc.q = q_cmd.copy()
                 mpc.vel = np.zeros_like(q_cmd)
             else:
@@ -251,10 +218,6 @@ def simulate_omy_pick_place(
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
-        # Stiff follow on grasp/carry/retreat so pad-mid IK targets are met.
-        if carrying or cmd.state in _SNAP_STATES:
-            _drive_arm_to(mj, model, data, q_cmd, act_arm)
-
         data.ctrl[act_grip] = float(cmd.gripper)
         adhere = adhesion_command(
             cmd.state,
@@ -265,17 +228,6 @@ def simulate_omy_pick_place(
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
-
-        if carrying:
-            _attach_ball_to_pads(
-                mj,
-                model,
-                data,
-                box_qadr=box_qadr,
-                box_jid=box_jid,
-                pad_right_id=pad_right_id,
-                pad_left_id=pad_left_id,
-            )
 
         if step_i % record_every_steps == 0:
             samples.append(
@@ -320,7 +272,7 @@ def simulate_omy_pick_place(
 def run_omy_pick_place(
     *,
     duration_s: float = 55.0,
-    joint_tol_rad: float = 0.18,
+    joint_tol_rad: float = 0.12,
     scenario_path: str | Path | None = None,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
     """Execute one OMY pick-place cycle; return final state and ball position."""
