@@ -39,9 +39,9 @@ _OMX_PLACE = (0.273, 0.160)
 _SCALE_XY = _CONE_RADIUS_M / _OMX_CONE_R
 _SCALE_Z = _CONE_HEIGHT_M / _OMX_CONE_H
 
-# Funnel walls: rigid ball catcher (OMX SC-v13b pattern, contype=2).
-# Visual mesh stays non-colliding; funnel_w*/tip collide with the ball.
-# Place waypoints stay ~½ EE above the rim — drop in, never enter the cone.
+# Funnel walls: rigid ball catcher (OMX SC-v13b: contype=2 pedestal class).
+# Visual mesh non-colliding; funnel_w*/tip collide with the ball (not ghost).
+# Place EE stays above the rim and drops — never enters the funnel volume.
 _FUNNEL_ATTR = (
     'rgba="0.55 0.42 0.35 0" friction="0.45 0.05 0.01" '
     'contype="2" conaffinity="2"'
