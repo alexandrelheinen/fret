@@ -60,4 +60,5 @@ if pytest tests/ \
     ok "Unit tests: PASSED"
 else
     fail "Unit tests: FAILED"
+    exit 1
 fi

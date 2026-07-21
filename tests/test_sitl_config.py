@@ -92,8 +92,20 @@ def test_resolve_package_file_from_source_tree() -> None:
 
 
 def test_mjcf_path_dubins_race() -> None:
-    from fret.sitl_config import mjcf_path
+    from fret.sitl_config import mjcf_path, resolve_source_mjcf
 
     path = mjcf_path("dubins", "dubins_race")
     assert path.name == "dubins_race.xml"
     assert path.is_file()
+    # Prefer source-tree resolve so ../../../third_party mesh refs work.
+    assert path == resolve_source_mjcf("dubins_race.xml")
+
+
+def test_resolve_source_mjcf_follows_symlink_to_source() -> None:
+    from fret.sitl_config import package_source_root, resolve_source_mjcf
+
+    path = resolve_source_mjcf("dubins_race.xml")
+    assert path.is_absolute()
+    assert (
+        path == (package_source_root() / "mjcf" / "dubins_race.xml").resolve()
+    )

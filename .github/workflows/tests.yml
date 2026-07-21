@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build workspace
         uses: ./.github/actions/ros-build
@@ -59,6 +61,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install coverage
         run: python3 -m pip install --break-system-packages coverage
@@ -88,6 +92,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build workspace
         uses: ./.github/actions/ros-build
@@ -111,6 +117,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build workspace
         uses: ./.github/actions/ros-build

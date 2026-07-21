@@ -578,7 +578,9 @@ class MuJoCoBridgeCore:
             return
 
         self._mujoco = mujoco
-        self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
+        self._model = mujoco.MjModel.from_xml_path(
+            str(self._mjcf_path.resolve())
+        )
         self._data = mujoco.MjData(self._model)
         self._qpos_adrs, self._qvel_adrs = _bind_joint_addresses(
             self._model,
@@ -908,7 +910,9 @@ class DubinsRaceBridgeCore:
 
         try:
             self._mujoco = mujoco
-            self._model = mujoco.MjModel.from_xml_path(str(self._mjcf_path))
+            self._model = mujoco.MjModel.from_xml_path(
+                str(self._mjcf_path.resolve())
+            )
             self._data = mujoco.MjData(self._model)
             qpos_adrs, _qvel_adrs = _bind_joint_addresses(
                 self._model,
