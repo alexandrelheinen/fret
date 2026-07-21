@@ -100,4 +100,5 @@ if pytest "${PATHS[@]}" \
     ok "Unit shard ${SHARD}: PASSED"
 else
     fail "Unit shard ${SHARD}: FAILED"
+    exit 1
 fi

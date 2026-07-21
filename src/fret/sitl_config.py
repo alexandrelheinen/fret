@@ -108,6 +108,30 @@ def resolve_package_file(*parts: str) -> pathlib.Path:
     raise FileNotFoundError(f"Package file not found: {joined}")
 
 
+def resolve_source_mjcf(filename: str) -> pathlib.Path:
+    """Return an MJCF path MuJoCo can load with relative mesh includes.
+
+    Prefer the source-tree file (via ``Path.resolve()``) so refs like
+    ``../../../third_party/...`` resolve against the repo root. Loading the
+    installed share path string breaks those refs under ``colcon
+    --symlink-install`` because MuJoCo keys meshdir off the path argument,
+    not the symlink target.
+
+    Args:
+        filename: MJCF basename under ``mjcf/`` (e.g. ``dubins_race.xml``).
+
+    Returns:
+        Absolute filesystem path to an existing MJCF file.
+
+    Raises:
+        FileNotFoundError: If the file cannot be located.
+    """
+    source = package_source_root() / "mjcf" / filename
+    if source.is_file():
+        return source.resolve()
+    return resolve_package_file("mjcf", filename).resolve()
+
+
 def scenario_config_path(stem: str) -> pathlib.Path:
     """Return ``config/scenarios/<stem>.yml`` from share or source."""
     return resolve_package_file("config", "scenarios", f"{stem}.yml")
@@ -131,18 +155,18 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         _DUBINS_RACE_SCENARIO,
         "dubins",
     }:
-        return resolve_package_file("mjcf", "dubins_race.xml")
+        return resolve_source_mjcf("dubins_race.xml")
     if model == _DIFFDRIVE_MODEL and scenario in {
         "diffdrive_unit",
         "diffdrive",
     }:
-        return resolve_package_file("mjcf", "diffdrive_unit.xml")
+        return resolve_source_mjcf("diffdrive_unit.xml")
     if model in {"turtlebot3", "tb3"} and scenario in {
         "turtlebot3_unit",
         "turtlebot3",
         "tb3",
     }:
-        return resolve_package_file("mjcf", "turtlebot3_unit.xml")
+        return resolve_source_mjcf("turtlebot3_unit.xml")
     if model in {"open_manipulator_x", "omx"} and scenario in {
         "omx_reach",
         "omx_tabletop",

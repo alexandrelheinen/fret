@@ -97,6 +97,7 @@ class TurtleBot3UnitRobot:
         )
         if not path.is_file():
             raise FileNotFoundError(f"TurtleBot3 unit MJCF not found: {path}")
+        path = path.resolve()
 
         self._mujoco = mujoco
         self._mjcf_path = path
