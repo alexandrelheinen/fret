@@ -39,11 +39,12 @@ _OMX_PLACE = (0.273, 0.160)
 _SCALE_XY = _CONE_RADIUS_M / _OMX_CONE_R
 _SCALE_Z = _CONE_HEIGHT_M / _OMX_CONE_H
 
-# Visual funnel only — colliding walls block the loaded OMY wrist at the
-# reachable place pose. Placement is scored by XY in the cone radius (floor).
+# Funnel walls: rigid ball catcher (OMX SC-v13b pattern, contype=2).
+# Visual mesh stays non-colliding; funnel_w*/tip collide with the ball.
+# Place waypoints stay ~½ EE above the rim — drop in, never enter the cone.
 _FUNNEL_ATTR = (
-    'rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" '
-    'contype="0" conaffinity="0"'
+    'rgba="0.55 0.42 0.35 0" friction="0.45 0.05 0.01" '
+    'contype="2" conaffinity="2"'
 )
 
 
@@ -167,6 +168,7 @@ def _scene_footer(*, clutter: bool) -> str:
           material="start_zone" friction="1.2 0.1 0.01"
           contype="2" conaffinity="2"/>
 
+    <!-- Visual mesh only; funnel_w* / funnel_tip carry rigid collision. -->
     <geom name="place_cone" type="mesh" mesh="place_cone"
           pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], 0.0)}"
           material="place_cone" contype="0" conaffinity="0"/>

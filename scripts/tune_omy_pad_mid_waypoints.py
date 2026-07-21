@@ -68,8 +68,12 @@ def _physics_pad_contact(
 def compute_waypoints(
     *,
     pick_xy: tuple[float, float] = (0.40, -0.28),
-    place_xy: tuple[float, float] = (0.40, 0.28),
+    place_xy: tuple[float, float] = (0.50, 0.20),
     ball_radius_m: float = 0.043,
+    cone_height_m: float = 0.280,
+    # Half end-effector package (~pads+fingers) above the rim for the drop.
+    # Target slightly high so residual IK error still clears the rim.
+    place_drop_clearance_m: float = 0.050,
     ball_pick_z_m: float | None = None,
     gripper_pinch: float = _GRIPPER_PINCH,
     idle: np.ndarray | None = None,
@@ -105,9 +109,10 @@ def compute_waypoints(
         else float(data.xpos[box_body][2])
     )
     ball_pick = np.array([pick_xy[0], pick_xy[1], pick_z], dtype=np.float64)
-    # Place releases into the funnel; pad-mid aims near cone entry height.
-    ball_place = np.array(
-        [place_xy[0], place_xy[1], ball_radius_m + 0.06], dtype=np.float64
+    # Drop from above the rim — never put the EE inside the colliding funnel.
+    drop_z = float(cone_height_m) + float(place_drop_clearance_m)
+    place_drop = np.array(
+        [place_xy[0], place_xy[1], drop_z], dtype=np.float64
     )
     # Folded home (distinct from hover) — mirrors OMX idle vs approach.
     seed = (
@@ -124,14 +129,10 @@ def compute_waypoints(
         ("lift_hover", ball_pick + np.array([0.0, 0.0, 0.14]), gripper_pinch),
         (
             "place_hover",
-            ball_place + np.array([0.0, 0.0, 0.14]),
+            place_drop + np.array([0.0, 0.0, 0.10]),
             gripper_pinch,
         ),
-        (
-            "place_grasp",
-            ball_place + np.array([0.0, 0.0, 0.06]),
-            gripper_pinch,
-        ),
+        ("place_grasp", place_drop.copy(), gripper_pinch),
     ]
     out: dict[str, list[float]] = {}
     for name, target, gv in specs:

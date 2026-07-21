@@ -20,7 +20,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.joint_mpc import build_joint_mpc
+from fret.config_loader import load_algorithm_config, planning_config_for_model
+from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
+from fret.control.kinematics import Kinematics
 from fret.control.pick_place_common import (
     PickPlaceSample,
     adhesion_command,
@@ -34,6 +36,7 @@ from fret.control.pick_place_fsm import (
     PickPlaceState,
     PickPlaceWaypoints,
 )
+from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 
 _ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
@@ -148,11 +151,41 @@ def simulate_omy_pick_place(
     for _ in range(400):
         mj.mj_step(model, data)
 
-    mpc = build_joint_mpc(6)
-    mpc.reset(_arm_q(mj, model, data))
+    # High mid-cell via keeps the carried ball clear of the colliding funnel
+    # during open-cell transfer (joint chord otherwise clips the rim).
+    via = params.get("transfer_via_configuration")
+    lift = wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
+    if via is not None:
+        coarse = [
+            np.asarray(lift, dtype=np.float64),
+            np.asarray(via, dtype=np.float64),
+            np.asarray(wp.place_hover, dtype=np.float64),
+        ]
+        kin = Kinematics(_MODEL)
+        cfg = load_algorithm_config(planning_config_for_model(_MODEL))
+        traj = TrajectoryGenerator(kin, cfg).process(coarse)
+        transfer_path = [
+            np.asarray(pt.positions, dtype=np.float64) for pt in traj.points
+        ]
+    else:
+        transfer_path = [
+            np.asarray(lift, dtype=np.float64),
+            np.asarray(wp.place_hover, dtype=np.float64),
+        ]
+    transfer_tracker = JointPathMPCTracker(
+        transfer_path,
+        build_joint_mpc(6),
+        race_speed=1.2,
+        max_carrot_lag=0.40,
+        goal_tol=max(0.12, float(joint_tol_rad)),
+    )
+
+    phase_mpc = build_joint_mpc(6)
+    phase_mpc.reset(_arm_q(mj, model, data))
     q_cmd = _arm_q(mj, model, data).copy()
     last_target = wp.idle.copy()
     ctrl_accum = 0.0
+    transfer_armed = False
 
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
@@ -178,20 +211,33 @@ def simulate_omy_pick_place(
         )
         cmd = fsm.tick(obs, dt)
 
-        if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
-            mpc.reset(q)
-            last_target = cmd.q_des.copy()
-
-        ctrl_accum += dt
-        if ctrl_accum >= _CTRL_PERIOD_S:
-            ctrl_accum -= _CTRL_PERIOD_S
-            q_cmd = np.asarray(
-                mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
-            )
-            if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
-                q_cmd = cmd.q_des.copy()
-                mpc.q = q_cmd.copy()
-                mpc.vel = np.zeros_like(q_cmd)
+        if cmd.state == PickPlaceState.MOVE_PLACE:
+            if not transfer_armed:
+                transfer_tracker.reset(q)
+                transfer_armed = True
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                if transfer_tracker.complete:
+                    q_cmd = wp.place_hover.copy()
+                else:
+                    q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
+        else:
+            transfer_armed = False
+            if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
+                phase_mpc.reset(q)
+                last_target = cmd.q_des.copy()
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                q_cmd = np.asarray(
+                    phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
+                    dtype=np.float64,
+                )
+                if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
+                    q_cmd = cmd.q_des.copy()
+                    phase_mpc.q = q_cmd.copy()
+                    phase_mpc.vel = np.zeros_like(q_cmd)
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

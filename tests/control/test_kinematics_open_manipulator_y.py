@@ -112,9 +112,36 @@ def test_omy_pick_place_physics_moves_ball_into_place_cone() -> None:
     )
     assert state != PickPlaceState.FAULT, "OMY pick-place FSM faulted"
     assert state == PickPlaceState.DONE, f"ended in {state.name}"
+    cone_h = float(params.get("place_cone_height_m", 0.28))
     assert float(np.linalg.norm(ball[:2] - place_xy)) < cone_r
     assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
-    assert float(ball[2]) < 0.08
+    # Ball settles inside the colliding funnel (not on the floor outside).
+    assert float(ball[2]) < cone_h
+    assert float(ball[2]) < 0.16
+    # Place drop stays above the rim (half-EE clearance), not inside the cone.
+    from fret.mjcf.omy import ensure_omy_pick_place_mjcf
+    import mujoco as mj
+
+    model = mj.MjModel.from_xml_path(str(ensure_omy_pick_place_mjcf()))
+    data = mj.MjData(model)
+    pad_r = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
+    pad_l = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
+    for i, name in enumerate(
+        ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
+    ):
+        adr = int(
+            model.jnt_qposadr[
+                mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+            ]
+        )
+        data.qpos[adr] = float(wp.place_grasp[i])
+    mj.mj_forward(model, data)
+    pad_mid_z = float(
+        0.5 * (data.geom_xpos[pad_r][2] + data.geom_xpos[pad_l][2])
+    )
+    assert (
+        pad_mid_z > cone_h + 0.02
+    ), f"place_grasp pad-mid z={pad_mid_z:.3f} must clear rim {cone_h:.3f}"
     # Retreat holds the distinct idle fold (not hover/retreat alias).
     assert float(np.linalg.norm(wp.idle - wp.pick_hover)) > 0.3
     assert np.allclose(wp.retreat, wp.idle)
@@ -133,7 +160,9 @@ def test_omy_clutter_transfer_plan_detours_wall() -> None:
         seed_offset=0,
     )
     assert straight_collides, "wall should block the straight lift→place chord"
-    assert len(path) >= 4, f"expected densified plan, got {len(path)} waypoints"
+    assert (
+        len(path) >= 4
+    ), f"expected densified plan, got {len(path)} waypoints"
 
 
 @pytest.mark.slow
