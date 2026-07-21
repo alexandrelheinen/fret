@@ -21,14 +21,19 @@ def _mujoco_available() -> bool:
     not _mujoco_available(), reason="mujoco package not installed"
 )
 def test_physics_joint_states_match_simulated_qpos() -> None:
-    """V12-4: physics step advances qpos — no open-loop pose injection."""
+    """V12-4: physics step advances qpos — no open-loop pose injection.
+
+    Spawn in open space near the start zone. ``(6, 6)`` penetrates warehouse
+    structure geoms; contact then shoves the chassis backward and the
+    actuator-advance assertion fails for the wrong reason.
+    """
     cfg = _load_merged_bridge_config(_resolve_config_path(None))
     cfg = dict(cfg)
     cfg["physics_mode"] = True
     physics = physics_config_from_bridge_yaml(cfg, "dubins", physics_mode=True)
     core = make_dubins_race_bridge_core(
-        initial_rrt=np.array([6.0, 6.0, 0.0]),
-        initial_sst=np.array([6.0, 6.4, 0.0]),
+        initial_rrt=np.array([1.2, 1.2, 0.0]),
+        initial_sst=np.array([1.2, 1.5, 0.0]),
         physics_config=physics,
     )
     assert core.physics_mode is True
