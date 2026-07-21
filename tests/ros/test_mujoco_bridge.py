@@ -333,8 +333,10 @@ def test_get_collision_forces_n_detects_real_structure_contact() -> None:
         initial_sst=np.array([1.2, 1.5, 0.0]),
         physics_config=physics,
     )
+    # ~0.44 m gap at 0.5 m/s needs >40 physics ticks before impact force
+    # registers (observed first contact around step 43 under Jazzy/MuJoCo).
     rrt_force = 0.0
-    for _ in range(40):
+    for _ in range(120):
         core.step_physics(
             np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         )
