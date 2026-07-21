@@ -73,7 +73,7 @@ def compute_waypoints(
     cone_height_m: float = 0.280,
     # Half end-effector package (~pads+fingers) above the rim for the drop.
     # Target slightly high so residual IK error still clears the rim.
-    place_drop_clearance_m: float = 0.050,
+    place_drop_clearance_m: float = 0.120,
     ball_pick_z_m: float | None = None,
     gripper_pinch: float = _GRIPPER_PINCH,
     idle: np.ndarray | None = None,

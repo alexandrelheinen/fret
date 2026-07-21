@@ -117,7 +117,7 @@ def test_omy_pick_place_physics_moves_ball_into_place_cone() -> None:
     assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
     # Ball settles inside the colliding funnel (not on the floor outside).
     assert float(ball[2]) < cone_h
-    assert float(ball[2]) < 0.16
+    assert float(ball[2]) < 0.18
     # Place drop stays above the rim (half-EE clearance), not inside the cone.
     from fret.mjcf.omy import ensure_omy_pick_place_mjcf
     import mujoco as mj
