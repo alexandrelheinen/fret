@@ -322,11 +322,13 @@ product milestone before computer vision** (vision / dynamic replanning stay pos
 | `v1.2.3` | OpenMANIPULATOR-X tabletop showcase (mobile + OM-X videos) | T123-* ✅ |
 | `v1.2.4` | 6-DOF challenge (OMY) — **next product tag** | T124-* |
 | `v1.2.5` | Patch: OMY clutter showcase detour (failed `v1.2.4` release CI) | T124-* |
+| `v1.2.6` | Patch: PlotJuggler telemetry CSV/JSON beside showcase videos on R2 (FR-SIM-12) | FR-SIM-12 |
 | `v1.3.0` | Hardware HITL (last milestone before vision) | T13-* |
 
 Python package version in `pyproject.toml` is **1.3.0** once the post-v1.2.4
-development line opens (HITL). Product showcase tags remain `v1.2.4`, patch
-`v1.2.5`, then `v1.3.0`; vision work stays post-v1.3 (see [roadmap.md](roadmap.md)).
+development line opens (HITL). Product showcase tags remain `v1.2.4`, patches
+`v1.2.5` / `v1.2.6`, then `v1.3.0`; vision work stays post-v1.3
+(see [roadmap.md](roadmap.md)).
 
 ### v1.1.x → v1.2.0 retrospective
 
@@ -382,8 +384,12 @@ repo for development but are not release artifacts.
 - **Follow** is mandatory for every **mobile** robot showcase, including future
   mobile platforms. Static / tabletop arms must **not** export follow on release.
 - Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
-- Tags containing `-dev` upload under `releases/<tag>/` only and do **not**
-  update `latest/`.
+- Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags
+  (`-dev`, probes, …) upload under `releases/<tag>/` only.
+- Showcase renders also write matching telemetry
+  (`<scenario>_overview.csv` + `.json`) next to the overview MP4; the
+  R2 uploader publishes them beside the videos (FR-SIM-12). Download with
+  `./scripts/download_showcase.sh --tag v1.2.6 --with-telemetry`.
 
 Orchestration: `scripts/release/render_showcase.py` +
 `.github/workflows/release.yml`.

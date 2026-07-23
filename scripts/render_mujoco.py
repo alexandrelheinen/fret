@@ -1164,6 +1164,9 @@ def render_omx_desk_clutter_showcase_videos(
         scenario_path=scenario_path,
         max_attempts=max_attempts,
         record_every_steps=record_every,
+        telemetry_enabled=True,
+        telemetry_output_dir=output_dir,
+        telemetry_csv_basename=f"{scenario}_overview",
     )
     if result.state != PickPlaceState.DONE:
         raise RuntimeError(
@@ -1468,6 +1471,9 @@ def render_omy_pick_place_showcase_videos(
         joint_tol_rad=0.22,
         record_every_steps=record_every,
         scenario_path=scenario_path,
+        telemetry_enabled=True,
+        telemetry_output_dir=output_dir,
+        telemetry_csv_basename=f"{scenario}_overview",
     )
     if state != PickPlaceState.DONE:
         raise RuntimeError(
@@ -1592,6 +1598,9 @@ def render_omy_clutter_showcase_videos(
         joint_tol_rad=0.22,
         scenario_path=scenario_path,
         seed_offset=0,
+        telemetry_enabled=True,
+        telemetry_output_dir=output_dir,
+        telemetry_csv_basename=f"{scenario}_overview",
     )
     if result.state != PickPlaceState.DONE:
         raise RuntimeError(

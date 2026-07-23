@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.2.3** — dual-agent Dubins race, **MuJoCo physics SITL**, and
-**OpenMANIPULATOR-X** tabletop (Γ-wall maze showcase). Release showcase videos and CI
-renders use `--physics-mode` by default for mobile scenarios.
+**Current release: v1.2.6** — dual-agent Dubins race, **MuJoCo physics SITL**,
+OM-X / OMY tabletop showcases, plus **PlotJuggler telemetry** CSV/JSON beside
+release videos on R2. Mobile showcase renders use `--physics-mode` by default.
 
 <br clear="left">
 
@@ -328,14 +328,14 @@ After a version tag, CI uploads overview + follow MP4s to Cloudflare R2:
 
 ```bash
 ./scripts/download_showcase.sh --list
-./scripts/download_showcase.sh --tag v1.2.0 --all
+./scripts/download_showcase.sh --tag v1.2.6 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
-# Video + matching PlotJuggler CSV/JSON (same basename)
-./scripts/download_showcase.sh --scenario dubins_race --with-telemetry
+# Video + matching PlotJuggler CSV/JSON (same basename; from v1.2.6)
+./scripts/download_showcase.sh --tag v1.2.6 --scenario dubins_race --with-telemetry
 ```
 
 R2 layout is per scenario folder (`latest/<scenario>/<scenario>_overview.mp4`
-alongside `<scenario>_overview.csv`). Requires R2 credentials — see
+alongside `<scenario>_overview.csv` / `.json`). Requires R2 credentials — see
 [.env.example](.env.example).
 
 ### 5. Full ROS 2 workspace (SITL)
