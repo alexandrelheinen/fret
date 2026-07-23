@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# Upload one scenario's showcase MP4s to Cloudflare R2.
+# Upload one scenario's showcase MP4s + matching telemetry to Cloudflare R2.
+#
+# Layout (per scenario folder; video and log share the same basename):
+#   releases/${TAG}/${scenario}/${scenario}_overview.mp4
+#   releases/${TAG}/${scenario}/${scenario}_overview.csv
+#   releases/${TAG}/${scenario}/${scenario}_overview.json
+#   releases/${TAG}/${scenario}/${scenario}_follow.mp4
+#   latest/${scenario}/...   (skipped for *-dev* tags / SKIP_LATEST=1)
 #
 # Usage:
 #   upload_scenario_r2.sh <scenario_prefix> <latest_alias_basename>
@@ -9,9 +16,6 @@
 #
 # Requires: awscli, R2_ENDPOINT, R2_BUCKET, AWS_ACCESS_KEY_ID,
 # AWS_SECRET_ACCESS_KEY, TAG
-#
-# Tags containing "-dev" (or SKIP_LATEST=1) upload only under
-# releases/${TAG}/ and do not clobber latest/.
 set -Eeuo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -47,27 +51,47 @@ fi
 
 python3 -m pip install --break-system-packages awscli >/dev/null
 
+upload_file() {
+  local src="$1"
+  local dest_key="$2"
+  local content_type="$3"
+  echo "Uploading $(basename "${src}") → ${dest_key}"
+  aws s3 cp "${src}" \
+    "s3://${R2_BUCKET}/${dest_key}" \
+    --endpoint-url "${R2_ENDPOINT}" \
+    --content-type "${content_type}"
+}
+
+release_prefix="releases/${TAG}/${scenario_prefix}"
+latest_prefix="latest/${scenario_prefix}"
+
 for mp4 in "${matches[@]}"; do
   base="$(basename "${mp4}")"
-  echo "Uploading ${base} → releases/${TAG}/"
-  aws s3 cp "${mp4}" \
-    "s3://${R2_BUCKET}/releases/${TAG}/${base}" \
-    --endpoint-url "${R2_ENDPOINT}" \
-    --content-type video/mp4
+  upload_file "${mp4}" "${release_prefix}/${base}" "video/mp4"
   if [[ "${update_latest}" -eq 1 ]]; then
-    echo "Uploading ${base} → latest/"
-    aws s3 cp "${mp4}" \
-      "s3://${R2_BUCKET}/latest/${base}" \
-      --endpoint-url "${R2_ENDPOINT}" \
-      --content-type video/mp4
+    upload_file "${mp4}" "${latest_prefix}/${base}" "video/mp4"
+  fi
+
+  # Matching telemetry (same basename as the video stem).
+  stem="${base%.mp4}"
+  csv="${renders_dir}/${stem}.csv"
+  manifest="${renders_dir}/${stem}.json"
+  if [[ -f "${csv}" ]]; then
+    upload_file "${csv}" "${release_prefix}/${stem}.csv" "text/csv"
+    if [[ "${update_latest}" -eq 1 ]]; then
+      upload_file "${csv}" "${latest_prefix}/${stem}.csv" "text/csv"
+    fi
+  fi
+  if [[ -f "${manifest}" ]]; then
+    upload_file "${manifest}" "${release_prefix}/${stem}.json" "application/json"
+    if [[ "${update_latest}" -eq 1 ]]; then
+      upload_file "${manifest}" "${latest_prefix}/${stem}.json" "application/json"
+    fi
   fi
 done
 
 primary="${renders_dir}/${scenario_prefix}_overview.mp4"
 if [[ -f "${primary}" && "${update_latest}" -eq 1 ]]; then
-  echo "Updating latest/${latest_alias} from ${primary##*/}"
-  aws s3 cp "${primary}" \
-    "s3://${R2_BUCKET}/latest/${latest_alias}" \
-    --endpoint-url "${R2_ENDPOINT}" \
-    --content-type video/mp4
+  echo "Updating ${latest_prefix}/${latest_alias} from ${primary##*/}"
+  upload_file "${primary}" "${latest_prefix}/${latest_alias}" "video/mp4"
 fi

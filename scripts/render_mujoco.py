@@ -551,6 +551,9 @@ def simulate_dubins_race_poses(
     duration_s: float | None,
     fps: int,
     physics_mode: bool = False,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.float64],
@@ -570,6 +573,10 @@ def simulate_dubins_race_poses(
         record_poses=True,
         physics_mode=physics_mode,
         planner_rng_seed=(SHOWCASE_PLANNER_RNG_SEED if physics_mode else None),
+        telemetry_enabled=telemetry_enabled,
+        telemetry_output_dir=telemetry_output_dir,
+        telemetry_csv_basename=telemetry_csv_basename
+        or f"{scenario}_overview",
     )
     if not result.both_reached_goal:
         raise RuntimeError(
@@ -744,11 +751,15 @@ def render_dubins_race_showcase_videos(
     if not camera_names:
         raise ValueError("At least one showcase camera is required")
 
+    output_dir.mkdir(parents=True, exist_ok=True)
     rrt_poses, sst_poses, dummy_poses, sim_time_s = simulate_dubins_race_poses(
         scenario,
         duration_s=duration_s,
         fps=fps,
         physics_mode=physics_mode,
+        telemetry_enabled=True,
+        telemetry_output_dir=output_dir,
+        telemetry_csv_basename=f"{scenario}_overview",
     )
     _assert_dubins_race_moves(rrt_poses, sst_poses)
     render_duration_s = float(len(rrt_poses)) / float(fps)

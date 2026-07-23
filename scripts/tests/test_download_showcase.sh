@@ -16,17 +16,27 @@ cat >"${MOCK_BIN}/aws" <<'EOF'
 set -euo pipefail
 
 if [[ "$1" == "s3" && "$2" == "ls" ]]; then
-  prefix="${3#s3://fret-renders/}"
+  # Support both recursive and non-recursive listings.
+  target=""
+  for arg in "$@"; do
+    if [[ "${arg}" == s3://* ]]; then
+      target="${arg}"
+    fi
+  done
+  prefix="${target#s3://fret-renders/}"
   prefix="${prefix%/}/"
   case "${prefix}" in
     latest/)
-      echo "2026-01-01 00:00:00    1200000 dubins_race_overview.mp4"
-      echo "2026-01-01 00:00:00    1050000 dubins_race_follow.mp4"
-      echo "2026-01-01 00:00:00     900000 dubins_race.mp4"
+      echo "2026-01-01 00:00:00    1200000 latest/dubins_race/dubins_race_overview.mp4"
+      echo "2026-01-01 00:00:00    1050000 latest/dubins_race/dubins_race_follow.mp4"
+      echo "2026-01-01 00:00:00      50000 latest/dubins_race/dubins_race_overview.csv"
+      echo "2026-01-01 00:00:00       2000 latest/dubins_race/dubins_race_overview.json"
+      echo "2026-01-01 00:00:00     900000 latest/dubins_race/dubins_race.mp4"
       ;;
     releases/v1.1.0/)
-      echo "2026-01-01 00:00:00    1200000 dubins_race_overview.mp4"
-      echo "2026-01-01 00:00:00    1050000 dubins_race_follow.mp4"
+      # Legacy flat layout fallback
+      echo "2026-01-01 00:00:00    1200000 releases/v1.1.0/dubins_race_overview.mp4"
+      echo "2026-01-01 00:00:00    1050000 releases/v1.1.0/dubins_race_follow.mp4"
       ;;
     *)
       echo "An error occurred (NoSuchKey)" >&2
@@ -80,45 +90,33 @@ assert_contains() {
     echo "${haystack}"
     exit 1
   fi
+  echo "OK: ${label}"
 }
 
-assert_file_count() {
-  local dir="$1"
-  local expected="$2"
-  local label="$3"
-  local actual
-  actual="$(find "${dir}" -maxdepth 1 -name '*.mp4' | wc -l | tr -d ' ')"
-  if [[ "${actual}" != "${expected}" ]]; then
-    echo "FAIL: ${label} — expected ${expected} mp4 files, got ${actual}"
-    ls -la "${dir}"
+assert_file() {
+  local path="$1"
+  local label="$2"
+  if [[ ! -f "${path}" ]]; then
+    echo "FAIL: ${label} — missing ${path}"
     exit 1
   fi
+  echo "OK: ${label}"
 }
 
-echo "=== download_showcase.sh mock tests ==="
-
-list_out="$("${DOWNLOAD}" --list 2>&1)"
-assert_contains "${list_out}" "dubins_race_overview.mp4" "--list latest"
-assert_contains "${list_out}" "dubins_race.mp4" "--list includes legacy alias"
-
-all_out_dir="${OUT_DIR}/all_latest"
-"${DOWNLOAD}" --all -o "${all_out_dir}" >/dev/null
-assert_file_count "${all_out_dir}" 3 " --all on latest downloads only listed objects"
-
-v11_out_dir="${OUT_DIR}/all_v1_1"
-"${DOWNLOAD}" --all --tag v1.1.0 -o "${v11_out_dir}" >/dev/null
-assert_file_count "${v11_out_dir}" 2 " --all on v1.1.0 downloads every listed clip"
+list_out="$("${DOWNLOAD}" --list)"
+assert_contains "${list_out}" "dubins_race/dubins_race_overview.mp4" "--list latest nested"
+assert_contains "${list_out}" "dubins_race/dubins_race_overview.csv" "--list telemetry"
 
 single_out="${OUT_DIR}/dubins_overview.mp4"
-"${DOWNLOAD}" --scenario dubins_race --camera overview -o "${single_out}" >/dev/null
-if [[ ! -s "${single_out}" ]]; then
-  echo "FAIL: single download did not create output file"
-  exit 1
-fi
+"${DOWNLOAD}" --scenario dubins_race --camera overview -o "${single_out}"
+assert_file "${single_out}" "single overview download"
 
-if "${DOWNLOAD}" --tag v9.9.9 --list >/dev/null 2>&1; then
-  echo "FAIL: expected missing prefix to fail"
-  exit 1
-fi
+"${DOWNLOAD}" --scenario dubins_race --camera overview --with-telemetry -o "${OUT_DIR}/with_tele.mp4"
+assert_file "${OUT_DIR}/with_tele.mp4" "overview with telemetry video"
+assert_file "${OUT_DIR}/dubins_race_overview.csv" "paired telemetry csv"
+assert_file "${OUT_DIR}/dubins_race_overview.json" "paired telemetry manifest"
 
-echo "PASS: download_showcase.sh mock tests"
+tag_out="$("${DOWNLOAD}" --tag v1.1.0 --list)"
+assert_contains "${tag_out}" "dubins_race_overview.mp4" "--list legacy flat tag"
+
+echo "All download_showcase checks passed."

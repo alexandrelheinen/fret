@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Download FRET showcase MP4s from a private Cloudflare R2 bucket.
+# Download FRET showcase MP4s (+ optional matching telemetry) from Cloudflare R2.
 #
-# Release CI uploads two POVs per scenario: overview (whole scene) + follow.
-# This script lists objects under latest/ or releases/<tag>/ and downloads
-# only files that actually exist in the bucket (no hard-coded manifest).
+# Preferred layout (per scenario folder; video/log share basename):
+#   latest/<scenario>/<scenario>_overview.mp4
+#   latest/<scenario>/<scenario>_overview.csv
+#   latest/<scenario>/<scenario>_overview.json
+#   releases/<tag>/<scenario>/...
+#
+# Legacy flat keys (pre-telemetry) are still discovered as a fallback:
+#   latest/<scenario>_overview.mp4
 #
 # Credentials (pick one):
 #   1. Copy .env.example → .env at repo root (recommended; .env is gitignored)
@@ -15,6 +20,7 @@
 #   ./scripts/download_showcase.sh
 #   ./scripts/download_showcase.sh --list
 #   ./scripts/download_showcase.sh --scenario dubins_race
+#   ./scripts/download_showcase.sh --scenario dubins_race --with-telemetry
 #   ./scripts/download_showcase.sh --tag v1.1.0 --scenario dubins_race --camera follow
 #   ./scripts/download_showcase.sh --all --tag v1.1.0
 #   ./scripts/download_showcase.sh -o /tmp/fret_demo.mp4
@@ -31,17 +37,17 @@ usage() {
   cat <<'EOF'
 Usage: download_showcase.sh [OPTIONS]
 
-Download MuJoCo showcase videos uploaded by the Release GitHub Actions workflow.
-Objects are discovered by listing the R2 prefix; missing files are skipped with
---all or reported with a clear error for a single-file download.
+Download MuJoCo showcase videos (and optional telemetry CSV/JSON) uploaded by
+the Release GitHub Actions workflow.
 
 Options:
   --latest              Download from latest/ (default)
   --tag VERSION         Download from releases/VERSION/
-  --list                List available MP4 objects and exit
-  --scenario NAME       Filter by scenario prefix (e.g. dubins_race)
+  --list                List available objects and exit
+  --scenario NAME       Filter by scenario id (e.g. dubins_race)
   --camera NAME         POV clip: overview or follow (default: overview)
-  --all                 Download every MP4 in the prefix (optionally filtered)
+  --with-telemetry      Also download matching .csv / .json next to the video
+  --all                 Download every object in the prefix (optionally filtered)
   -o PATH               Output file path (single download) or directory (--all)
   -h, --help            Show this help
 
@@ -94,75 +100,107 @@ download_object() {
   ok "Saved ${output_path} ($(du -h "${output_path}" | cut -f1))"
 }
 
-legacy_primary_object() {
-  local scenario="$1"
-  case "${scenario}" in
-    dubins_race) echo "dubins_race.mp4" ;;
-    *)
-      fail "Unknown scenario: ${scenario}"
-      exit 1
-      ;;
-  esac
-}
+# Populated by load_collected_objects on success. Values are keys relative to
+# the selected prefix (may include "<scenario>/<file>").
+COLLECTED_OBJECTS=()
 
-list_r2_mp4_objects() {
+list_r2_objects() {
   local prefix="$1"
   local listing=""
   if ! listing="$(
-    aws s3 ls "s3://${R2_BUCKET}/${prefix}/" --endpoint-url "${R2_ENDPOINT}" 2>&1
+    aws s3 ls "s3://${R2_BUCKET}/${prefix}/" --recursive --endpoint-url "${R2_ENDPOINT}" 2>&1
   )"; then
-    fail "Cannot list s3://${R2_BUCKET}/${prefix}/"
-    echo "${listing}" >&2
-    return 1
+    # Fallback for mocks / older aws that reject --recursive on empty.
+    if ! listing="$(
+      aws s3 ls "s3://${R2_BUCKET}/${prefix}/" --endpoint-url "${R2_ENDPOINT}" 2>&1
+    )"; then
+      fail "Cannot list s3://${R2_BUCKET}/${prefix}/"
+      echo "${listing}" >&2
+      return 1
+    fi
   fi
 
-  local object_name=""
   local -a objects=()
+  local line="" object_name=""
   while IFS= read -r line; do
     [[ -z "${line}" ]] && continue
+    # Recursive lines: "DATE TIME SIZE key"; non-recursive: "... name"
     object_name="${line##* }"
-    if [[ "${object_name}" == *.mp4 ]]; then
-      objects+=("${object_name}")
+    # Strip leading "<prefix>/" when aws returns full keys.
+    if [[ "${object_name}" == "${prefix}/"* ]]; then
+      object_name="${object_name#${prefix}/}"
     fi
+    [[ -z "${object_name}" || "${object_name}" == */ ]] && continue
+    objects+=("${object_name}")
   done <<<"${listing}"
 
   if ((${#objects[@]} == 0)); then
-    fail "No MP4 objects found under s3://${R2_BUCKET}/${prefix}/"
+    fail "No objects found under s3://${R2_BUCKET}/${prefix}/"
     return 1
   fi
-
   printf '%s\n' "${objects[@]}"
+}
+
+object_basename() {
+  local object_name="$1"
+  echo "${object_name##*/}"
 }
 
 object_matches_scenario() {
   local object_name="$1"
   local scenario="$2"
-  [[ "${object_name}" == "${scenario}.mp4" || "${object_name}" == "${scenario}_"* ]]
+  local base
+  base="$(object_basename "${object_name}")"
+  [[ "${object_name}" == "${scenario}/"* \
+    || "${base}" == "${scenario}.mp4" \
+    || "${base}" == "${scenario}_"* \
+    || "${base}" == "${scenario}."* ]]
 }
 
 object_matches_camera() {
   local object_name="$1"
   local scenario="$2"
   local camera="$3"
-  if [[ "${object_name}" == "${scenario}_${camera}.mp4" ]]; then
-    return 0
-  fi
-  if [[ "${camera}" == "overview" && "${object_name}" == "$(legacy_primary_object "${scenario}")" ]]; then
-    return 0
-  fi
-  return 1
+  local base
+  base="$(object_basename "${object_name}")"
+  [[ "${base}" == "${scenario}_${camera}.mp4" \
+    || ( "${camera}" == "overview" && "${base}" == "${scenario}.mp4" ) ]]
+}
+
+is_telemetry_object() {
+  local object_name="$1"
+  local base
+  base="$(object_basename "${object_name}")"
+  [[ "${base}" == *.csv || "${base}" == *.json ]]
+}
+
+is_mp4_object() {
+  local object_name="$1"
+  local base
+  base="$(object_basename "${object_name}")"
+  [[ "${base}" == *.mp4 ]]
 }
 
 filter_objects() {
   local scenario="${1:-}"
   local camera="${2:-}"
-  shift 2 || true
+  local include_telemetry="${3:-0}"
+  shift 3 || true
   local objects=("$@")
   local filtered=()
   local object_name=""
 
   for object_name in "${objects[@]}"; do
     if [[ -n "${scenario}" ]] && ! object_matches_scenario "${object_name}" "${scenario}"; then
+      continue
+    fi
+    if is_telemetry_object "${object_name}"; then
+      if [[ "${include_telemetry}" -eq 1 ]]; then
+        filtered+=("${object_name}")
+      fi
+      continue
+    fi
+    if ! is_mp4_object "${object_name}"; then
       continue
     fi
     if [[ -n "${camera}" ]] && ! object_matches_camera "${object_name}" "${scenario}" "${camera}"; then
@@ -176,36 +214,29 @@ filter_objects() {
   fi
 }
 
-# Populated by load_collected_objects on success.
-COLLECTED_OBJECTS=()
-
 load_collected_objects() {
   local prefix="$1"
   local scenario="${2:-}"
   local camera="${3:-}"
+  local include_telemetry="${4:-0}"
   local -a objects=()
   local listed=""
 
   COLLECTED_OBJECTS=()
-  if ! listed="$(list_r2_mp4_objects "${prefix}")"; then
+  if ! listed="$(list_r2_objects "${prefix}")"; then
     return 1
   fi
   mapfile -t objects <<<"${listed}"
 
-  if [[ -n "${scenario}" || -n "${camera}" ]]; then
-    mapfile -t COLLECTED_OBJECTS < <(
-      filter_objects "${scenario}" "${camera}" "${objects[@]}"
-    )
-    if ((${#COLLECTED_OBJECTS[@]} == 0)); then
-      fail "No matching MP4 objects under s3://${R2_BUCKET}/${prefix}/"
-      info "Available objects:"
-      printf '  %s\n' "${objects[@]}"
-      return 1
-    fi
-    return 0
+  mapfile -t COLLECTED_OBJECTS < <(
+    filter_objects "${scenario}" "${camera}" "${include_telemetry}" "${objects[@]}"
+  )
+  if ((${#COLLECTED_OBJECTS[@]} == 0)); then
+    fail "No matching objects under s3://${R2_BUCKET}/${prefix}/"
+    info "Available objects:"
+    printf '  %s\n' "${objects[@]}"
+    return 1
   fi
-
-  COLLECTED_OBJECTS=("${objects[@]}")
   return 0
 }
 
@@ -213,7 +244,7 @@ print_object_list() {
   local prefix="$1"
   local scenario="${2:-}"
 
-  if ! load_collected_objects "${prefix}" "${scenario}" ""; then
+  if ! load_collected_objects "${prefix}" "${scenario}" "" 1; then
     exit 1
   fi
   info "Objects under s3://${R2_BUCKET}/${prefix}/:"
@@ -224,15 +255,16 @@ select_single_object() {
   local prefix="$1"
   local scenario="$2"
   local camera="$3"
-  local canonical="${scenario}_${camera}.mp4"
+  local canonical_nested="${scenario}/${scenario}_${camera}.mp4"
+  local canonical_flat="${scenario}_${camera}.mp4"
   local object_name=""
 
-  if ! load_collected_objects "${prefix}" "${scenario}" "${camera}"; then
+  if ! load_collected_objects "${prefix}" "${scenario}" "${camera}" 0; then
     return 1
   fi
 
   for object_name in "${COLLECTED_OBJECTS[@]}"; do
-    if [[ "${object_name}" == "${canonical}" ]]; then
+    if [[ "${object_name}" == "${canonical_nested}" || "${object_name}" == "${canonical_flat}" ]]; then
       echo "${object_name}"
       return 0
     fi
@@ -244,6 +276,29 @@ select_single_object() {
   echo "${COLLECTED_OBJECTS[0]}"
 }
 
+matching_telemetry_keys() {
+  local prefix="$1"
+  local video_key="$2"
+  local stem=""
+  local base=""
+  base="$(object_basename "${video_key}")"
+  stem="${base%.mp4}"
+  local dir=""
+  if [[ "${video_key}" == */* ]]; then
+    dir="${video_key%/*}/"
+  fi
+  local listed=""
+  listed="$(list_r2_objects "${prefix}")" || return 0
+  local object_name=""
+  while IFS= read -r object_name; do
+    [[ -z "${object_name}" ]] && continue
+    if [[ "${object_name}" == "${dir}${stem}.csv" || "${object_name}" == "${dir}${stem}.json" \
+      || "${object_name}" == "${stem}.csv" || "${object_name}" == "${stem}.json" ]]; then
+      echo "${object_name}"
+    fi
+  done <<<"${listed}"
+}
+
 MODE="latest"
 TAG=""
 SCENARIO=""
@@ -251,6 +306,7 @@ SCENARIO_EXPLICIT=0
 CAMERA="overview"
 DOWNLOAD_ALL=0
 LIST_ONLY=0
+WITH_TELEMETRY=0
 OUTPUT=""
 
 while [[ $# -gt 0 ]]; do
@@ -276,6 +332,10 @@ while [[ $# -gt 0 ]]; do
     --camera)
       CAMERA="${2:?--camera requires overview or follow}"
       shift 2
+      ;;
+    --with-telemetry)
+      WITH_TELEMETRY=1
+      shift
       ;;
     --all)
       DOWNLOAD_ALL=1
@@ -328,12 +388,12 @@ if [[ "${DOWNLOAD_ALL}" -eq 1 ]]; then
   out_dir="${OUTPUT:-${REPO_ROOT}/artifacts/r2/${prefix##*/}}"
   mkdir -p "${out_dir}"
   if [[ "${SCENARIO_EXPLICIT}" -eq 1 ]]; then
-    load_collected_objects "${prefix}" "${SCENARIO}" "" || exit 1
+    load_collected_objects "${prefix}" "${SCENARIO}" "" "${WITH_TELEMETRY}" || exit 1
   else
-    load_collected_objects "${prefix}" "" "" || exit 1
+    load_collected_objects "${prefix}" "" "" "${WITH_TELEMETRY}" || exit 1
   fi
   for object_name in "${COLLECTED_OBJECTS[@]}"; do
-    download_object "${prefix}/${object_name}" "${out_dir}/${object_name}"
+    download_object "${prefix}/${object_name}" "${out_dir}/$(object_basename "${object_name}")"
   done
   ok "Downloaded ${#COLLECTED_OBJECTS[@]} file(s) to ${out_dir}"
   exit 0
@@ -350,5 +410,13 @@ if [[ "${MODE}" == "latest" && "${CAMERA}" == "overview" && -z "${OUTPUT}" ]]; t
   OUTPUT="${REPO_ROOT}/artifacts/r2/${SCENARIO}_latest.mp4"
 fi
 
-OUTPUT="${OUTPUT:-${REPO_ROOT}/artifacts/r2/${object_name}}"
+OUTPUT="${OUTPUT:-${REPO_ROOT}/artifacts/r2/$(object_basename "${object_name}")}"
 download_object "${prefix}/${object_name}" "${OUTPUT}"
+
+if [[ "${WITH_TELEMETRY}" -eq 1 ]]; then
+  out_dir="$(dirname "${OUTPUT}")"
+  while IFS= read -r tele_key; do
+    [[ -z "${tele_key}" ]] && continue
+    download_object "${prefix}/${tele_key}" "${out_dir}/$(object_basename "${tele_key}")"
+  done < <(matching_telemetry_keys "${prefix}" "${object_name}")
+fi
