@@ -31,15 +31,15 @@ def test_manifest_loads_release_focus_scenarios() -> None:
 
 
 def test_dubins_release_shows_finish_with_hold_and_lower_res() -> None:
-    """Dubins: full race × 1.25 hold @ 960×540 / 20 fps (no follow)."""
+    """Dubins: full race → fixed 40 s video @ 960×540 / 20 fps (no follow)."""
     dubins = load_showcase_manifest().by_id("dubins_race")
     assert dubins.cameras == ("overview",)
     assert dubins.requires_follow is False
     assert dubins.fps == 20
     assert dubins.width == 960
     assert dubins.height == 540
-    assert dubins.clip_scale == 1.25
-    assert dubins.clip_duration_s is None
+    assert dubins.clip_duration_s == 40.0
+    assert dubins.clip_scale is None
     assert dubins.effective_fps(30) == 20
     assert dubins.effective_width(1280) == 960
     assert dubins.effective_height(720) == 540

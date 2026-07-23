@@ -575,6 +575,7 @@ def simulate_dubins_race_poses(
     telemetry_output_dir: Path | None = None,
     telemetry_csv_basename: str | None = None,
     clip_scale: float = 1.0,
+    video_duration_s: float | None = None,
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.float64],
@@ -592,9 +593,17 @@ def simulate_dubins_race_poses(
 
     if float(clip_scale) <= 0.0:
         raise ValueError(f"clip_scale must be > 0 (got {clip_scale!r})")
+    if video_duration_s is not None and float(video_duration_s) <= 0.0:
+        raise ValueError(
+            f"video_duration_s must be > 0 (got {video_duration_s!r})"
+        )
+    if video_duration_s is not None and abs(float(clip_scale) - 1.0) > 1e-9:
+        raise ValueError(
+            "video_duration_s and clip_scale are mutually exclusive"
+        )
 
-    # Showcase clips may request a fixed duration; stop the sim at that
-    # horizon instead of waiting for both agents to finish (Layer B).
+    # Optional early-stop (Layer B / --duration). Release clips that only set
+    # --video-duration keep a full race so the finish is on screen.
     early_stop_s = float(duration_s) if duration_s is not None else None
     result = DubinsRaceRunner().run(
         record_poses=True,
@@ -651,7 +660,9 @@ def simulate_dubins_race_poses(
         sim_time_s,
         duration_s,
     )
-    if duration_s is None and float(clip_scale) != 1.0:
+    if video_duration_s is not None:
+        render_duration_s = float(video_duration_s)
+    elif duration_s is None and float(clip_scale) != 1.0:
         render_duration_s = float(clip_scale) * float(sim_time_s)
 
     race_frames = max(2, int(round(float(sim_time_s) * float(fps))))
@@ -805,6 +816,7 @@ def render_dubins_race_showcase_videos(
     realtime_postprocess: bool = True,
     physics_mode: bool = False,
     clip_scale: float = 1.0,
+    video_duration_s: float | None = None,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -826,6 +838,7 @@ def render_dubins_race_showcase_videos(
         telemetry_output_dir=output_dir,
         telemetry_csv_basename=f"{scenario}_overview",
         clip_scale=clip_scale,
+        video_duration_s=video_duration_s,
     )
     # Clipped exports (fixed duration) only need a few metres of transit;
     # full-race / clip_scale exports keep the warehouse 5 m easting bar.
@@ -1837,6 +1850,7 @@ def render_showcase_videos(
     realtime_postprocess: bool = True,
     physics_mode: bool = False,
     clip_scale: float = 1.0,
+    video_duration_s: float | None = None,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -1857,6 +1871,7 @@ def render_showcase_videos(
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
             clip_scale=clip_scale,
+            video_duration_s=video_duration_s,
         )
     if scenario in _OMX_REACH_SCENARIOS:
         _ = physics_mode  # OM-X showcase always steps position actuators.
@@ -2041,6 +2056,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--video-duration",
+        type=float,
+        default=None,
+        help=(
+            "With --full-duration, set absolute video length in seconds "
+            "(hold after finish or trim; does not early-stop the sim)"
+        ),
+    )
+    parser.add_argument(
         "--fps",
         type=int,
         required=True,
@@ -2174,8 +2198,17 @@ def main(argv: list[str] | None = None) -> int:
     physics_mode = bool(args.physics_mode) and not args.kinematic_mode
 
     clip_scale = float(args.clip_scale)
+    video_duration_s = (
+        float(args.video_duration)
+        if args.video_duration is not None
+        else None
+    )
     if duration_s is not None and abs(clip_scale - 1.0) > 1e-9:
         parser.error("--clip-scale requires --full-duration")
+    if duration_s is not None and video_duration_s is not None:
+        parser.error("--video-duration requires --full-duration")
+    if video_duration_s is not None and abs(clip_scale - 1.0) > 1e-9:
+        parser.error("--video-duration and --clip-scale are mutually exclusive")
 
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
@@ -2194,6 +2227,7 @@ def main(argv: list[str] | None = None) -> int:
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
             clip_scale=clip_scale,
+            video_duration_s=video_duration_s,
         )
         for result in results:
             timing = result.timing
@@ -2252,6 +2286,7 @@ def main(argv: list[str] | None = None) -> int:
         realtime_postprocess=realtime_postprocess,
         physics_mode=physics_mode,
         clip_scale=clip_scale,
+        video_duration_s=video_duration_s,
     )
     for result in results:
         timing = result.timing
