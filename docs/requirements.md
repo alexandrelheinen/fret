@@ -106,7 +106,14 @@ unit-style bases) shall respond to open-loop actuator commands under pure
 velocity surgery. Optional tests under `tests/simulation/` validate basic
 motions; they need not gate every PR.
 
+**FR-SIM-12:** Opt-in time-series telemetry of simulation/control state shall
+export a PlotJuggler-compatible CSV under `/tmp/fret_telemetry/`, using the
+series naming grammar `agent.quantity_frame.component` defined in
+[modules/telemetry.md](modules/telemetry.md). Contact JSONL (FR-SIM-08) remains
+a separate path.
+
 Full integration specification: [mujoco.md](mujoco.md).
+Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
 Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_benchmark.md).
 
 ---
