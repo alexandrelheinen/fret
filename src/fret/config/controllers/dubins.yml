@@ -5,11 +5,15 @@
 # Planner agents (blue RRT* / green SST):
 #   1) RRT*/SST plan in 2D with full warehouse occupancy → topological
 #      corridor (pass here, then there). That is the obstacle avoidance.
-#   2) DubinsPathFollowingMPC tracks that polyline (contour + heading +
-#      cruise). Trackers use occupancy=None so the old preview-cruise
-#      taper / soft barriers cannot throttle on already-cleared corridors
-#      (that was the stop-and-go). Safety still sits in the planner path
-#      plus the post-hoc collision monitor in physics mode.
+#   2) DubinsPathFollowingMPC tracks that polyline with progress-first
+#      contouring (ARCO ≥ arco#147): prefer arc-length progress over
+#      zero-fitting stiff planner kinks. Trackers use occupancy=None so
+#      preview-cruise taper / soft barriers cannot throttle on already-
+#      cleared corridors. Safety still sits in the planner path plus the
+#      post-hoc collision monitor in physics mode.
+#   3) Lab-scale weights (aisles ≈1.6 m, chassis half-width ≈0.09 m,
+#      cruise ≈0.36 m/s) — do NOT copy ARCO city meters (8 m deadzone /
+#      14 m/s). Set contour_deadzone: 0 to restore classic contouring.
 # The grey dummy keeps Pure Pursuit without repulsion so it collides on
 # the naive diagonal as a foil.
 #
@@ -28,18 +32,21 @@
     curvature_gain: 0.9
     repulsion_gain: 0.0
     update_rate: 20.0
-    # Path-following MPC. Physical horizon T=N·dt = 1.2 s ≈ 0.43 m at
-    # cruise (~3× R_min) — a bit longer than the old 1.0 s / 0.36 m window
-    # so bends are anticipated without blowing up the IPOPT NLP size.
+    # Path-following MPC (progress-first). Physical horizon T=N·dt = 1.2 s
+    # ≈ 0.43 m at cruise (~3× R_min). weight_lag pulls s forward; contour
+    # cost applies only outside contour_deadzone so the tracker may widen
+    # infeasible polyline kinks while arc-length keeps advancing.
     mpc:
       horizon_step_count: 24
       dt: 0.05
-      weight_contour: 25.0
-      weight_heading: 10.0
-      weight_progress: 4.0
-      weight_control: 0.05
+      weight_contour: 4.0          # excess only (outside deadzone)
+      weight_heading: 3.0
+      weight_progress: 3.0
+      weight_lag: 12.0             # prefer advancing s
+      contour_deadzone: 0.10       # [m] ~chassis half-width scale
+      weight_control: 0.2
       weight_obstacle: 0.0
       obstacle_barrier_power: 2.0
-      weight_terminal: 40.0
+      weight_terminal: 8.0
       weight_slack: 1.0
       max_solver_iter_count: 40

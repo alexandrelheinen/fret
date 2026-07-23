@@ -513,39 +513,52 @@ def _vehicle_config(ctrl: dict[str, Any]) -> VehicleConfig:
 
 
 def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
-    """Load path-following MPC weights; cruise comes from vehicle config."""
+    """Load path-following MPC weights; cruise comes from vehicle config.
+
+    Forwards progress-first fields (``weight_lag``, ``contour_deadzone``)
+    from ``ctrl["mpc"]``. Race trackers still pass ``occupancy=None`` at
+    construction — avoidance remains a planner responsibility.
+    """
     base = PathFollowingMPCConfig.create_from_config(
         cruise_speed=float(ctrl["cruise_speed"])
     )
     mpc = ctrl.get("mpc")
     if not isinstance(mpc, dict):
         return base
-    return PathFollowingMPCConfig(
-        horizon_step_count=int(
-            mpc.get("horizon_step_count", base.horizon_step_count)
-        ),
-        dt=float(mpc.get("dt", base.dt)),
-        cruise_speed=float(ctrl["cruise_speed"]),
-        weight_contour=float(mpc.get("weight_contour", base.weight_contour)),
-        weight_heading=float(mpc.get("weight_heading", base.weight_heading)),
-        weight_progress=float(
-            mpc.get("weight_progress", base.weight_progress)
-        ),
-        weight_control=float(mpc.get("weight_control", base.weight_control)),
-        weight_obstacle=float(
-            mpc.get("weight_obstacle", base.weight_obstacle)
-        ),
-        obstacle_barrier_power=float(
-            mpc.get("obstacle_barrier_power", base.obstacle_barrier_power)
-        ),
-        weight_terminal=float(
-            mpc.get("weight_terminal", base.weight_terminal)
-        ),
-        weight_slack=float(mpc.get("weight_slack", base.weight_slack)),
-        max_solver_iter_count=int(
-            mpc.get("max_solver_iter_count", base.max_solver_iter_count)
-        ),
+
+    def _opt_float(key: str) -> float | None:
+        return float(mpc[key]) if key in mpc else None
+
+    def _opt_int(key: str) -> int | None:
+        return int(mpc[key]) if key in mpc else None
+
+    cfg = base.with_horizon_overrides(
+        step_count=_opt_int("horizon_step_count"),
+        dt=_opt_float("dt"),
+    ).with_weight_overrides(
+        contour=_opt_float("weight_contour"),
+        heading=_opt_float("weight_heading"),
+        progress=_opt_float("weight_progress"),
+        lag=_opt_float("weight_lag"),
+        control=_opt_float("weight_control"),
+        obstacle=_opt_float("weight_obstacle"),
+        terminal=_opt_float("weight_terminal"),
+        slack=_opt_float("weight_slack"),
+        contour_deadzone=_opt_float("contour_deadzone"),
     )
+    barrier = _opt_float("obstacle_barrier_power")
+    max_iter = _opt_int("max_solver_iter_count")
+    if barrier is not None or max_iter is not None:
+        cfg = replace(
+            cfg,
+            obstacle_barrier_power=(
+                barrier if barrier is not None else cfg.obstacle_barrier_power
+            ),
+            max_solver_iter_count=(
+                max_iter if max_iter is not None else cfg.max_solver_iter_count
+            ),
+        )
+    return cfg
 
 
 def _straight_line_heading(
