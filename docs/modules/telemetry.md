@@ -484,6 +484,8 @@ manifest.
 ## References
 
 - Existing contact/metrics pattern: [mujoco_physics_v1.2.md](../mujoco_physics_v1.2.md) §4, `src/fret/ros/mujoco_physics_log.py`
-- PlotJuggler CSV loader: [PlotJuggler DataLoadCSV](https://github.com/facontidavide/PlotJuggler)
+- PlotJuggler: [PlotJuggler](https://github.com/facontidavide/PlotJuggler) (CSV loader + `-l` layouts)
+- Checked-in layouts: [`src/fret/telemetry/layouts/`](../../src/fret/telemetry/layouts/) (`index.yaml`, `*.xml`)
+- Launcher: `scripts/plotjuggler.sh`; baseline generator: `scripts/gen_plotjuggler_layouts.py`
 - Ownership boundary: [arco.md](../arco.md) § Ownership boundary
 - Coding standards: [guidelines.md](../guidelines.md)

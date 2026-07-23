@@ -36,8 +36,10 @@ if [[ -z "${R2_ENDPOINT:-}" || -z "${R2_BUCKET:-}" ]]; then
   exit 2
 fi
 
+# Only promote clean semver tags (vX.Y.Z) to latest/. Suffixes like
+# -dev / -agent-probe stay under releases/<tag>/ only.
 update_latest=1
-if [[ "${SKIP_LATEST:-0}" == "1" || "${TAG}" == *-dev* ]]; then
+if [[ "${SKIP_LATEST:-0}" == "1" || ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   update_latest=0
   echo "Skipping latest/ update for TAG=${TAG}"
 fi
