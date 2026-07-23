@@ -47,12 +47,13 @@ def _video_argv(
     ]
     for camera in scenario.cameras:
         argv.extend(["--camera", camera])
+    # Always simulate the full race for release; clip_* only sizes the video
+    # (hold after finish or trim), so a ~38 s race becomes a clean 40 s clip.
+    argv.append("--full-duration")
     if scenario.clip_duration_s is not None:
-        argv.extend(["--duration", str(scenario.clip_duration_s)])
-    else:
-        argv.append("--full-duration")
-        if scenario.clip_scale is not None:
-            argv.extend(["--clip-scale", str(scenario.clip_scale)])
+        argv.extend(["--video-duration", str(scenario.clip_duration_s)])
+    elif scenario.clip_scale is not None:
+        argv.extend(["--clip-scale", str(scenario.clip_scale)])
     if scenario.physics_mode:
         argv.append("--physics-mode")
     return argv
