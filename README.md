@@ -43,6 +43,7 @@ src/fret/
 ├── control/           # Per-robot kinematics and controllers
 ├── planning/          # PlannerNode, C-space checkers, trajectory post-processing
 ├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
+├── telemetry/         # Opt-in PlotJuggler CSV logger (FR-SIM-12)
 ├── scene/             # Scene acquisition → occupancy adapter
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
@@ -366,10 +367,43 @@ bash scripts/check/pre_push.sh
 
 ---
 
+## Telemetry logs (PlotJuggler)
+
+Opt-in time-series logging for debugging motion quality (FR-SIM-12). Agents
+register the fields they emit (`tb3_sst.position_enu.x`, …); each sim tick
+appends one CSV row. Spec: [docs/modules/telemetry.md](docs/modules/telemetry.md).
+
+```bash
+# Enable for any scenario runner / render
+export FRET_TELEMETRY_ENABLED=1
+# or pass telemetry_enabled=True to DubinsRaceRunner.run(...)
+
+# Output (default):
+#   /tmp/fret_telemetry/<run_id>/<basename>.csv
+#   /tmp/fret_telemetry/<run_id>/<basename>.json   # manifest / units
+
+# Matplotlib companion plots (also useful when PlotJuggler is unavailable)
+python3 scripts/plot_telemetry.py \
+  --csv /tmp/fret_telemetry/.../dubins_race_overview.csv \
+  --output-dir /tmp/fret_telemetry_plots
+```
+
+Open the CSV in [PlotJuggler](https://github.com/facontidavide/PlotJuggler) →
+DataLoad CSV → time axis **`t`**.
+
+Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
+
+| ENU paths | Yaw / body speed |
+|---|---|
+| <img src="docs/images/telemetry/dubins_race_overview_xy.png" alt="Dubins telemetry XY" width="360" /> | <img src="docs/images/telemetry/dubins_race_overview_timeseries.png" alt="Dubins telemetry timeseries" width="360" /> |
+
+---
+
 ## Documentation
 
 | Topic | Document |
 |---|---|
+| Telemetry (PlotJuggler CSV) | [docs/modules/telemetry.md](docs/modules/telemetry.md) |
 | v1.2 physics implementation spec | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
