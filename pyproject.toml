@@ -42,6 +42,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "fret" = ["config/**/*", "mjcf/**/*"]
+"fret.telemetry.layouts" = ["*.xml", "*.yaml", "README.md"]
 
 [tool.black]
 line-length = 79

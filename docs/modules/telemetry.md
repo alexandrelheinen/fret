@@ -2,9 +2,10 @@
 
 **Package:** `fret.telemetry`  
 **Source:** `src/fret/telemetry/`  
+**Layouts:** `src/fret/telemetry/layouts/` (PlotJuggler `.xml`, not under `docs/`)  
 **Tests:** `tests/telemetry/`  
 **Debug / plot tool:** [PlotJuggler](https://github.com/facontidavide/PlotJuggler) (CSV loader)  
-**Status:** Implemented (CSV writer + scenario hooks + release R2 layout).
+**Status:** Implemented (CSV writer + scenario hooks + release R2 layout + layouts).
 
 > **V-cycle:** Level 1–2 design artifact. Implementation must not start until
 > acceptance criteria below are agreed. Related requirement: proposed
@@ -243,9 +244,43 @@ t,tb3_rrt.orientation_enu.yaw,tb3_rrt.position_enu.x,tb3_rrt.position_enu.y,tb3_
 2. Select `/tmp/fret_telemetry/<run_id>/telemetry.csv`.
 3. Choose time axis column **`t`** (not index).
 4. Confirm delimiter `,`.
-5. Drag series (e.g. `tb3_sst.velocity_body.x`) onto plots.
+5. Drag series (e.g. `tb3_sst.velocity_body.x`) onto plots — **or** load a
+   checked-in layout (below).
 
 Compatibility target: PlotJuggler ≥ 3.x CSV plugin (`DataLoadCSV`).
+
+### 5.3.1 Checked-in layouts (location)
+
+PlotJuggler layout XML lives next to the telemetry producer:
+
+```text
+src/fret/telemetry/layouts/
+  index.yaml          # scenario_id → layout basename
+  dubins_race.xml
+  omx_arm.xml         # shared by OMX pick-place / maze / clutter / reach
+  omy_arm.xml         # shared by OMY pick-place / clutter / reach
+  README.md           # why not docs/; regenerate notes
+```
+
+**Not under `docs/`:** docs are prose and static images; layouts are
+operational UI assets loaded by PlotJuggler / `scripts/plotjuggler.sh`.
+**Not under `config/`:** they mirror the FR-SIM-12 series schema (owned by
+`fret.telemetry`), not scenario YAML parameters.
+
+```bash
+bash scripts/plotjuggler.sh \
+  --csv /tmp/fret_telemetry/<run_id>/telemetry.csv \
+  --scenario dubins_race
+
+# or
+plotjuggler -d /path/to/telemetry.csv \
+  -l src/fret/telemetry/layouts/dubins_race.xml
+```
+
+Resolve in Python: `fret.telemetry.layout_path_for_scenario("dubins_race")`.
+Regenerate hand-authored baselines with
+`python3 scripts/gen_plotjuggler_layouts.py`, or overwrite after
+**File → Save Layout** in PlotJuggler against a real CSV.
 
 ### 5.4 `manifest.json`
 

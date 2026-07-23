@@ -1,0 +1,13 @@
+# Map scenario_id → PlotJuggler layout XML (basename under this directory).
+# Shared schemas reuse one layout (e.g. all OMX arms → omx_arm.xml).
+
+dubins_race: dubins_race.xml
+
+omx_pick_place: omx_arm.xml
+omx_wall_maze: omx_arm.xml
+omx_desk_clutter: omx_arm.xml
+omx_reach: omx_arm.xml
+
+omy_pick_place: omy_arm.xml
+omy_clutter: omy_arm.xml
+omy_reach: omy_arm.xml

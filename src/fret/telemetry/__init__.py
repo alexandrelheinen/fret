@@ -6,6 +6,11 @@ CSV contract.
 
 from __future__ import annotations
 
+from fret.telemetry.layout_paths import (
+    layout_path_for_scenario,
+    layouts_dir,
+    load_layout_index,
+)
 from fret.telemetry.naming import (
     FRAMES,
     SeriesId,
@@ -36,6 +41,9 @@ __all__ = [
     "TelemetrySession",
     "build_series_id",
     "default_telemetry_dir",
+    "layout_path_for_scenario",
+    "layouts_dir",
+    "load_layout_index",
     "make_run_id",
     "merge_values",
     "open_scenario_telemetry",
