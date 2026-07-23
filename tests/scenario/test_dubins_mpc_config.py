@@ -21,12 +21,12 @@ def test_mpc_config_forwards_progress_first_fields_from_yaml() -> None:
     """``_mpc_config`` must round-trip weight_lag / contour_deadzone."""
     ctrl = load_ros_parameters_yaml(_DUBINS_CTRL)
     cfg = _mpc_config(ctrl)
-    assert cfg.weight_lag == 12.0
+    assert cfg.weight_lag == 10.0
     assert cfg.contour_deadzone == 0.10
-    assert cfg.weight_contour == 4.0
-    assert cfg.weight_heading == 3.0
+    assert cfg.weight_contour == 8.0
+    assert cfg.weight_heading == 4.0
     assert cfg.weight_progress == 3.0
-    assert cfg.weight_terminal == 8.0
+    assert cfg.weight_terminal == 12.0
     assert cfg.horizon_step_count == 24
     assert cfg.dt == 0.05
     assert cfg.cruise_speed == float(ctrl["cruise_speed"])
