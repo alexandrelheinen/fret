@@ -43,7 +43,7 @@ src/fret/
 ├── control/           # Per-robot kinematics and controllers
 ├── planning/          # PlannerNode, C-space checkers, trajectory post-processing
 ├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
-├── telemetry/         # Opt-in PlotJuggler CSV logger (FR-SIM-12)
+├── telemetry/         # Opt-in PlotJuggler CSV logger + layouts (FR-SIM-12)
 ├── scene/             # Scene acquisition → occupancy adapter
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
@@ -390,10 +390,17 @@ export FRET_TELEMETRY_ENABLED=1
 python3 scripts/plot_telemetry.py \
   --csv /tmp/fret_telemetry/.../dubins_race_overview.csv \
   --output-dir /tmp/fret_telemetry_plots
+
+# PlotJuggler with a checked-in scenario layout (not under docs/)
+bash scripts/plotjuggler.sh \
+  --csv /tmp/fret_telemetry/.../dubins_race_overview.csv \
+  --scenario dubins_race
+# layouts: src/fret/telemetry/layouts/  (see index.yaml)
 ```
 
 Open the CSV in [PlotJuggler](https://github.com/facontidavide/PlotJuggler) →
-DataLoad CSV → time axis **`t`**.
+DataLoad CSV → time axis **`t`**, or use the launcher above so the layout
+auto-loads the main panes (paths, yaw, speed, path error / EE + joints).
 
 Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 
