@@ -52,6 +52,9 @@ def simulate_omy_clutter_pick_place(
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
     seed_offset: int = 0,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> OmyClutterResult:
     """Run one OMY clutter cycle via the shared modular clutter runner."""
     result = simulate_pick_place_clutter(
@@ -60,6 +63,9 @@ def simulate_omy_clutter_pick_place(
         record_every_steps=record_every_steps,
         scenario_path=scenario_path or _SCENARIO,
         seed_offset=seed_offset,
+        telemetry_enabled=telemetry_enabled,
+        telemetry_output_dir=telemetry_output_dir,
+        telemetry_csv_basename=telemetry_csv_basename,
     )
     return _as_omy(result)
 
@@ -71,6 +77,9 @@ def run_omy_clutter_pick_place(
     scenario_path: str | Path | None = None,
     seed_offset: int = 0,
     max_attempts: int = 4,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> OmyClutterResult:
     """Execute OMY clutter pick-place with place-xy retries."""
     del seed_offset  # retries use seed_offset internally
@@ -79,5 +88,8 @@ def run_omy_clutter_pick_place(
         joint_tol_rad=joint_tol_rad,
         scenario_path=scenario_path or _SCENARIO,
         max_attempts=max_attempts,
+        telemetry_enabled=telemetry_enabled,
+        telemetry_output_dir=telemetry_output_dir,
+        telemetry_csv_basename=telemetry_csv_basename,
     )
     return _as_omy(result)

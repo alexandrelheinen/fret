@@ -43,6 +43,12 @@ from fret.planning.planner_node import PlannerNode
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import load_scenario_parameters, mjcf_path
+from fret.telemetry.scenario_hooks import (
+    arm_sample_values,
+    close_telemetry,
+    open_scenario_telemetry,
+    setup_arm_telemetry,
+)
 
 _SCENARIO = Path("src/fret/config/scenarios/omx_desk_clutter.yml")
 _CTRL_PERIOD_S = 0.02
@@ -83,6 +89,8 @@ class ClutterPickPlaceResult:
     transfer_path: list[npt.NDArray[np.float64]]
     straight_line_collides: bool
     samples: list[PickPlaceSample]
+    telemetry_csv_path: Path | None = None
+    telemetry_manifest_path: Path | None = None
 
 
 def _scenario_id(params: dict[str, Any]) -> str:
@@ -481,6 +489,9 @@ def simulate_pick_place_clutter(
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
     seed_offset: int = 0,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> ClutterPickPlaceResult:
     """Run one SC-v13c/d cycle (physics grasp + planned MPC transfer)."""
     try:
@@ -493,10 +504,21 @@ def simulate_pick_place_clutter(
     scenario_id = _scenario_id(params)
     robot_model = _robot_model(params)
     arm_names = _arm_joint_names(robot_model)
+    agent_name = "omy" if robot_model in _OMY_MODELS else "omx"
     wp = waypoints_from_scenario(scenario)
     xml = mjcf_path(robot_model, scenario_id)
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
+    tele = open_scenario_telemetry(
+        scenario_id,
+        enabled=telemetry_enabled,
+        output_dir=telemetry_output_dir,
+        csv_basename=telemetry_csv_basename or f"{scenario_id}_overview",
+        dt_nominal_s=float(model.opt.timestep),
+    )
+    joint_components: list[str] = []
+    if tele is not None:
+        joint_components = setup_arm_telemetry(tele, agent_name, arm_names)
 
     ee_id = mj.mj_name2id(
         model, mj.mjtObj.mjOBJ_BODY, _ee_body_name(robot_model)
@@ -682,6 +704,19 @@ def simulate_pick_place_clutter(
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
 
+        if tele is not None:
+            q_now = _arm_q(mj, model, data, arm_names)
+            tele.record(
+                step_i * dt,
+                arm_sample_values(
+                    agent_name,
+                    joint_components,
+                    q_now,
+                    np.asarray(data.xpos[ee_id], dtype=np.float64),
+                ),
+                tick=step_i,
+            )
+
         if step_i % record_every_steps == 0:
             samples.append(
                 PickPlaceSample(
@@ -720,6 +755,18 @@ def simulate_pick_place_clutter(
         hold_steps = max(record_every_steps, int(round(1.5 / dt)))
         for step_i in range(hold_steps):
             mj.mj_step(model, data)
+            if tele is not None:
+                q_now = _arm_q(mj, model, data, arm_names)
+                tele.record(
+                    (max_steps + step_i) * dt,
+                    arm_sample_values(
+                        agent_name,
+                        joint_components,
+                        q_now,
+                        np.asarray(data.xpos[ee_id], dtype=np.float64),
+                    ),
+                    tick=max_steps + step_i,
+                )
             if step_i % record_every_steps == 0 or step_i + 1 == hold_steps:
                 samples.append(
                     PickPlaceSample(
@@ -734,12 +781,15 @@ def simulate_pick_place_clutter(
                 )
 
     box_pos = np.asarray(data.xpos[box_id], dtype=np.float64).copy()
+    tele_csv, tele_manifest = close_telemetry(tele)
     return ClutterPickPlaceResult(
         state=fsm.state,
         box_pos=box_pos,
         transfer_path=transfer_path,
         straight_line_collides=straight_collides,
         samples=samples,
+        telemetry_csv_path=tele_csv,
+        telemetry_manifest_path=tele_manifest,
     )
 
 
@@ -750,6 +800,9 @@ def run_pick_place_clutter(
     scenario_path: str | Path | None = None,
     max_attempts: int = 4,
     record_every_steps: int = 1,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> ClutterPickPlaceResult:
     """Execute one SC-v13c/d cycle; retry on place-miss / fault (planner RNG)."""
     params = load_scenario_parameters(scenario_path or _SCENARIO)
@@ -764,6 +817,9 @@ def run_pick_place_clutter(
                 record_every_steps=record_every_steps,
                 scenario_path=scenario_path,
                 seed_offset=attempt * 17,
+                telemetry_enabled=telemetry_enabled,
+                telemetry_output_dir=telemetry_output_dir,
+                telemetry_csv_basename=telemetry_csv_basename,
             )
         except RuntimeError as exc:
             last_err = exc

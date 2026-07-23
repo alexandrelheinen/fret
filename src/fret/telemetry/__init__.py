@@ -13,6 +13,10 @@ from fret.telemetry.naming import (
     parse_series_id,
     validate_series_id,
 )
+from fret.telemetry.scenario_hooks import (
+    open_scenario_telemetry,
+    resolve_telemetry_enabled,
+)
 from fret.telemetry.session import (
     TelemetryAgent,
     TelemetrySession,
@@ -34,9 +38,11 @@ __all__ = [
     "default_telemetry_dir",
     "make_run_id",
     "merge_values",
+    "open_scenario_telemetry",
     "parse_series_id",
     "register_arm_agent",
     "register_se2_mobile_agent",
+    "resolve_telemetry_enabled",
     "se2_pose_values",
     "telemetry_enabled_from_env",
     "validate_series_id",
