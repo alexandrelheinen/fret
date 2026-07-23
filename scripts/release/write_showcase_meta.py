@@ -118,7 +118,8 @@ def write_showcase_meta(
     if not showcases:
         raise SystemExit("No showcase clips found for any scenario")
 
-    mobile_cameras = ["overview", "follow"]
+    # CI-required cameras (follow is optional for mobile; see showcase.yml).
+    mobile_cameras = ["overview"]
     static_cameras = ["overview"]
     meta: dict[str, object] = {
         "repo": repo,

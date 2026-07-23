@@ -1,10 +1,15 @@
 # Release showcase matrix (v1.2.3+).
 #
 # Camera policy:
-#   * overview — isometric top view for EVERY scenario (frame robots +
-#     start/goal). Tune zoom/azimuth per MJCF / runtime camera constants.
-#   * follow   — required for mobile robots only (split-screen chase).
+#   * overview — required for EVERY scenario (frame robots + start/goal).
+#   * follow   — optional for mobile robots (split-screen chase). Omitted from
+#     the Dubins release job so encode stays under ~10 min CI budget; render
+#     locally with scripts/video.sh --camera follow when needed.
 #     Static/tabletop arms must NOT export follow on release.
+#
+# Per-scenario overrides (optional):
+#   * fps              — encode frame rate (default: top-level fps)
+#   * clip_duration_s  — fixed clip length via --duration (omit → --full-duration)
 #
 # Static release focus:
 #   * OM-X SC-v13d Γ-wall maze — RRT* vs SST (v1.2.3)
@@ -20,7 +25,10 @@ scenarios:
   - id: dubins_race
     model: dubins
     robot_class: mobile
-    cameras: [overview, follow]
+    cameras: [overview]
+    # CI budget: 30 s × 20 fps × 1 cam ≈ 600 frames (encode << 10 min).
+    fps: 20
+    clip_duration_s: 30.0
     physics_mode: true
     planner_algorithm: sst
     collision_backend: mujoco

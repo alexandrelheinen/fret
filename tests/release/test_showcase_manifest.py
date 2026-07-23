@@ -30,6 +30,17 @@ def test_manifest_loads_release_focus_scenarios() -> None:
     assert manifest.height == 720
 
 
+def test_dubins_release_is_overview_only_with_clip_budget() -> None:
+    """Dubins CI encode budget: overview @ 20 fps × 30 s (no follow)."""
+    dubins = load_showcase_manifest().by_id("dubins_race")
+    assert dubins.cameras == ("overview",)
+    assert dubins.requires_follow is False
+    assert dubins.fps == 20
+    assert dubins.clip_duration_s == 30.0
+    assert dubins.effective_fps(30) == 20
+    assert dubins.physics_mode is True
+
+
 def test_omy_release_variants_differ_only_by_planner() -> None:
     manifest = load_showcase_manifest()
     rrt = manifest.by_id("omy_clutter_rrt")
@@ -50,17 +61,15 @@ def test_omx_release_variants_differ_only_by_planner() -> None:
     assert sst.planner_algorithm == "sst"
 
 
-def test_mobile_requires_follow_static_overview_only() -> None:
+def test_overview_required_follow_optional_for_mobile() -> None:
     manifest = load_showcase_manifest()
     for item in manifest.scenarios:
-        if item.robot_class == "mobile":
-            assert item.cameras == ("overview", "follow")
-            assert item.requires_follow is True
-        else:
-            assert item.cameras == ("overview",)
+        assert "overview" in item.cameras
+        if item.robot_class == "static":
+            assert "follow" not in item.cameras
             assert item.requires_follow is False
 
 
 def test_release_cameras_for_robot_class() -> None:
-    assert release_cameras_for_robot_class("mobile") == ("overview", "follow")
+    assert release_cameras_for_robot_class("mobile") == ("overview",)
     assert release_cameras_for_robot_class("static") == ("overview",)

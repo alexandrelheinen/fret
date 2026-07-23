@@ -31,10 +31,17 @@ class ShowcaseScenario:
     collision_backend: str
     timing_file: str
     primary_video: str
+    fps: int | None = None
+    clip_duration_s: float | None = None
 
     @property
     def requires_follow(self) -> bool:
-        return self.robot_class == "mobile"
+        """True when this entry lists a follow camera (optional for mobile)."""
+        return "follow" in self.cameras
+
+    def effective_fps(self, default_fps: int) -> int:
+        """Return per-scenario fps override or the manifest default."""
+        return int(self.fps) if self.fps is not None else int(default_fps)
 
 
 @dataclass(frozen=True)
@@ -64,14 +71,12 @@ def _parse_scenario(raw: dict[str, Any]) -> ShowcaseScenario:
         raise ValueError(
             f"scenario {raw.get('id')!r} must include overview camera"
         )
-    if robot_class == "mobile" and "follow" not in cameras:
-        raise ValueError(
-            f"mobile scenario {raw.get('id')!r} must include follow camera"
-        )
     if robot_class == "static" and "follow" in cameras:
         raise ValueError(
             f"static scenario {raw.get('id')!r} must not export follow"
         )
+    fps_raw = raw.get("fps")
+    clip_raw = raw.get("clip_duration_s")
     return ShowcaseScenario(
         id=str(raw["id"]),
         model=str(raw["model"]),
@@ -82,6 +87,10 @@ def _parse_scenario(raw: dict[str, Any]) -> ShowcaseScenario:
         collision_backend=str(raw.get("collision_backend", "mujoco")),
         timing_file=str(raw["timing_file"]),
         primary_video=str(raw["primary_video"]),
+        fps=int(fps_raw) if fps_raw is not None else None,
+        clip_duration_s=(
+            float(clip_raw) if clip_raw is not None else None
+        ),
     )
 
 
@@ -108,9 +117,12 @@ def load_showcase_manifest(
 def release_cameras_for_robot_class(
     robot_class: RobotClass,
 ) -> tuple[str, ...]:
-    """Return the required release camera set for a robot class."""
-    if robot_class == "mobile":
-        return ("overview", "follow")
+    """Return the CI-required release camera set for a robot class.
+
+    Follow is optional for mobile (local / optional workflow only) so the
+    Dubins encode budget stays under ~10 minutes.
+    """
+    _ = robot_class
     return ("overview",)
 
 
@@ -154,6 +166,8 @@ def main(argv: list[str] | None = None) -> int:
                     "collision_backend": s.collision_backend,
                     "timing_file": s.timing_file,
                     "primary_video": s.primary_video,
+                    "fps": s.fps,
+                    "clip_duration_s": s.clip_duration_s,
                 }
                 for s in manifest.scenarios
             ],

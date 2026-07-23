@@ -30,13 +30,12 @@ def _video_argv(
         scenario.model,
         "--scenario",
         scenario.id,
-        "--all-cameras",
         "--output-dir",
         str(output_dir),
         "--timing-json",
         str(output_dir / scenario.timing_file),
         "--fps",
-        str(manifest.fps),
+        str(scenario.effective_fps(manifest.fps)),
         "--width",
         str(manifest.width),
         "--height",
@@ -45,8 +44,13 @@ def _video_argv(
         scenario.collision_backend,
         "--planner-algorithm",
         scenario.planner_algorithm,
-        "--full-duration",
     ]
+    for camera in scenario.cameras:
+        argv.extend(["--camera", camera])
+    if scenario.clip_duration_s is not None:
+        argv.extend(["--duration", str(scenario.clip_duration_s)])
+    else:
+        argv.append("--full-duration")
     if scenario.physics_mode:
         argv.append("--physics-mode")
     return argv

@@ -30,7 +30,6 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
 
     clips: list[tuple[str, str, str]] = [
         ("dubins_race", "overview", "dubins_race_timing.json"),
-        ("dubins_race", "follow", "dubins_race_timing.json"),
         ("omx_wall_maze_rrt", "overview", "omx_wall_maze_rrt_timing.json"),
         ("omx_wall_maze_sst", "overview", "omx_wall_maze_sst_timing.json"),
         ("omy_pick_place", "overview", "omy_pick_place_timing.json"),
@@ -64,7 +63,7 @@ def test_write_showcase_meta_all_scenarios(tmp_path: Path) -> None:
     assert meta["partial"] is False
     assert len(meta["showcases"]) == 6
     assert meta["release_cameras"] == {
-        "mobile": ["overview", "follow"],
+        "mobile": ["overview"],
         "static": ["overview"],
     }
     assert meta["primary_videos"]["dubins_race"] == "dubins_race_overview.mp4"
