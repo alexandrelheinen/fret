@@ -36,11 +36,13 @@ Uses ARCO directly:
 | Grey foil tracker | `arco.control.pure_pursuit.PurePursuitController` |
 
 RRT*/SST plan in 2D against warehouse occupancy (topological corridor).
-They then track that polyline with path-following MPC (contour + heading +
-cruise). Track-time occupancy barriers stay off so the MPC does not
-re-throttle on already-cleared corridors; avoidance remains a planner
-responsibility. The grey dummy stays on Pure Pursuit with no repulsion so
-it collides on the naive diagonal.
+They then track that polyline with **progress-first** path-following MPC
+(ARCO arco#147): lag weight + lab-scaled contour deadzone (~0.10 m)
+prefer arc-length progress over hugging infeasible planner kinks.
+Track-time occupancy barriers stay off so the MPC does not re-throttle
+on already-cleared corridors; avoidance remains a planner responsibility.
+The grey dummy stays on Pure Pursuit with no repulsion so it collides on
+the naive diagonal. See [arco.md § Progress-first contouring](../arco.md#progress-first-contouring-arco147).
 
 FRET adapter: `fret.control.kinematics_dubins.DubinsKinematics`
 

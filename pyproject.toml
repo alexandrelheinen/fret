@@ -6,7 +6,9 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "pyyaml>=6.0",
-    "arco[mpc] @ git+https://github.com/alexandrelheinen/arco.git@v0.3.2",
+    # Pin includes arco#147 progress-first contouring (weight_lag,
+    # contour_deadzone). Bump to a release tag when ARCO cuts one past v0.3.3.
+    "arco[mpc] @ git+https://github.com/alexandrelheinen/arco.git@5ad245a2f41ae7cdf5ca9fdf77711fc37d8f7500",
 ]
 
 [project.optional-dependencies]
