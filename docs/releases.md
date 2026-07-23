@@ -385,6 +385,9 @@ repo for development but are not release artifacts.
   ships overview-only at `fps: 20`, `clip_duration_s: 30` (~600 frames).
   Render follow locally with `scripts/video.sh --camera follow` when needed.
   Static / tabletop arms must **not** export follow on release.
+- Dubins showcase sims early-stop at `clip_duration_s` (`max_sim_time_s`) so
+  a slow finisher cannot stretch the encode job; full-race acceptance stays in
+  pytest (both agents must still reach goal under physics).
 - Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
 - Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags
   (`-dev`, probes, …) upload under `releases/<tag>/` only.

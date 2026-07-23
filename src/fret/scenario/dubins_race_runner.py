@@ -1267,11 +1267,29 @@ class DubinsRaceRunner:
         telemetry_enabled: bool | None = None,
         telemetry_output_dir: pathlib.Path | None = None,
         telemetry_csv_basename: str | None = None,
+        max_sim_time_s: float | None = None,
     ) -> DubinsRaceRunResult:
-        """Execute dual planning, simultaneous tracking, and race metrics."""
+        """Execute dual planning, simultaneous tracking, and race metrics.
+
+        Args:
+            max_sim_time_s: Optional early-stop wall for showcase clip export.
+                When set, the loop ends at this sim time even if both agents
+                have not reached the goal yet (full-race tests leave this
+                ``None`` and still wait for ``session.finished`` / timeout).
+        """
         params = self.load_parameters()
         race_timeout = float(params["race_timeout"])
-        max_steps = int(race_timeout / float(params["simulation_dt"]))
+        dt = float(params["simulation_dt"])
+        if max_sim_time_s is not None:
+            if float(max_sim_time_s) <= 0.0:
+                raise ValueError(
+                    f"max_sim_time_s must be > 0 (got {max_sim_time_s!r})"
+                )
+            # Cap by race_timeout so callers cannot exceed scenario policy.
+            stop_s = min(float(max_sim_time_s), race_timeout)
+            max_steps = int(stop_s / dt) + 1
+        else:
+            max_steps = int(race_timeout / dt)
         scenario_id = str(params.get("scenario_id", "dubins_race"))
 
         rng_ctx = (
@@ -1368,6 +1386,11 @@ class DubinsRaceRunner:
                     bridge.set_sst_pose(session.sst_vehicle.pose)
                     bridge.set_dummy_pose(session.dummy_pose)
             if session.finished:
+                break
+            if (
+                max_sim_time_s is not None
+                and session.sim_time_s + 1e-9 >= float(max_sim_time_s)
+            ):
                 break
 
         result = session.to_result(

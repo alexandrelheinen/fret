@@ -569,6 +569,9 @@ def simulate_dubins_race_poses(
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
     from fret.scenario.planner_rng import SHOWCASE_PLANNER_RNG_SEED
 
+    # Showcase clips may request a fixed duration; stop the sim at that
+    # horizon instead of waiting for both agents to finish (Layer B).
+    early_stop_s = float(duration_s) if duration_s is not None else None
     result = DubinsRaceRunner().run(
         record_poses=True,
         physics_mode=physics_mode,
@@ -577,12 +580,21 @@ def simulate_dubins_race_poses(
         telemetry_output_dir=telemetry_output_dir,
         telemetry_csv_basename=telemetry_csv_basename
         or f"{scenario}_overview",
+        max_sim_time_s=early_stop_s,
     )
-    if not result.both_reached_goal:
+    if early_stop_s is None and not result.both_reached_goal:
         raise RuntimeError(
             "Dubins race simulation failed before both agents reached goal "
             f"(race_duration_s={result.race_duration_s:.1f}, "
             f"max_cross_track_error_m={result.max_cross_track_error_m:.2f})"
+        )
+    if early_stop_s is not None and result.race_duration_s + 1e-6 < min(
+        early_stop_s, 1.0
+    ):
+        raise RuntimeError(
+            "Dubins showcase early-stop produced a near-empty trajectory "
+            f"(race_duration_s={result.race_duration_s:.2f}, "
+            f"max_sim_time_s={early_stop_s:.2f})"
         )
     if physics_mode and result.min_obstacle_clearance_m < 0.0:
         raise RuntimeError(
