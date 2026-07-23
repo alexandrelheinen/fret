@@ -17,7 +17,7 @@ import pathlib
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
-from typing import Any, Literal, cast
+from typing import Any, Literal, Mapping, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -45,6 +45,13 @@ from fret.planning.dubins_obstacles import (
     load_dubins_race_world,
     vehicle_body_clearance,
 )
+from fret.telemetry.scenario_hooks import (
+    close_telemetry,
+    dubins_agent_values,
+    open_scenario_telemetry,
+    setup_dubins_telemetry,
+)
+from fret.telemetry.session import TelemetrySession
 
 _make_dubins_race_bridge_core: Any
 try:
@@ -102,6 +109,8 @@ class DubinsRaceRunResult:
     penetration_violations: int = 0
     physics_metrics_path: pathlib.Path | None = None
     column_contacts_logged: bool = False
+    telemetry_csv_path: pathlib.Path | None = None
+    telemetry_manifest_path: pathlib.Path | None = None
 
 
 # Collision monitor: stop an agent's control loop after a real
@@ -201,6 +210,14 @@ class DubinsRaceSimulation:
     )
     rrt_collision: _CollisionMonitor = field(default_factory=_CollisionMonitor)
     sst_collision: _CollisionMonitor = field(default_factory=_CollisionMonitor)
+    telemetry: TelemetrySession | None = None
+    telemetry_tick: int = 0
+    _last_rrt_metrics: dict[str, Any] = field(default_factory=dict)
+    _last_sst_metrics: dict[str, Any] = field(default_factory=dict)
+    _last_rrt_cmd: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    _last_sst_cmd: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    _last_dummy_cmd: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    physics_mode_active: bool = False
 
     @property
     def finished(self) -> bool:
@@ -212,11 +229,14 @@ class DubinsRaceSimulation:
         if self.finished:
             return True
 
+        rrt_metrics: dict[str, Any] = self._last_rrt_metrics
+        sst_metrics: dict[str, Any] = self._last_sst_metrics
         if self.rrt_finish is None:
-            metrics = self.rrt_loop.step(self.rrt_path, self.dt)
+            rrt_metrics = self.rrt_loop.step(self.rrt_path, self.dt)
+            self._last_rrt_metrics = rrt_metrics
             self.max_cross_track_error_m = max(
                 self.max_cross_track_error_m,
-                abs(float(metrics["cross_track_error"])),
+                abs(float(rrt_metrics["cross_track_error"])),
             )
             if (
                 _distance_to_goal(self.rrt_vehicle.pose, self.world.goal_xy)
@@ -225,10 +245,11 @@ class DubinsRaceSimulation:
                 self.rrt_finish = self.sim_time_s
 
         if self.sst_finish is None:
-            metrics = self.sst_loop.step(self.sst_path, self.dt)
+            sst_metrics = self.sst_loop.step(self.sst_path, self.dt)
+            self._last_sst_metrics = sst_metrics
             self.max_cross_track_error_m = max(
                 self.max_cross_track_error_m,
-                abs(float(metrics["cross_track_error"])),
+                abs(float(sst_metrics["cross_track_error"])),
             )
             if (
                 _distance_to_goal(self.sst_vehicle.pose, self.world.goal_xy)
@@ -239,8 +260,74 @@ class DubinsRaceSimulation:
         self.rrt_pose_history.append(self.rrt_vehicle.pose)
         self.sst_pose_history.append(self.sst_vehicle.pose)
         self._step_dummy_kinematic()
+        self._record_telemetry(
+            rrt_metrics=rrt_metrics,
+            sst_metrics=sst_metrics,
+            rrt_cmd_speed=float(rrt_metrics.get("mpc_speed_cmd", 0.0)),
+            rrt_cmd_omega=float(rrt_metrics.get("mpc_turn_rate_cmd", 0.0)),
+            sst_cmd_speed=float(sst_metrics.get("mpc_speed_cmd", 0.0)),
+            sst_cmd_omega=float(sst_metrics.get("mpc_turn_rate_cmd", 0.0)),
+            dummy_cmd=self._last_dummy_cmd,
+        )
         self.sim_time_s += self.dt
         return self.finished
+
+    def _record_telemetry(
+        self,
+        *,
+        rrt_metrics: Mapping[str, Any],
+        sst_metrics: Mapping[str, Any],
+        rrt_cmd_speed: float,
+        rrt_cmd_omega: float,
+        sst_cmd_speed: float,
+        sst_cmd_omega: float,
+        dummy_cmd: tuple[float, float, float],
+    ) -> None:
+        """Emit one telemetry row when a session is attached."""
+        if self.telemetry is None:
+            return
+        dummy_speed = float(math.hypot(dummy_cmd[0], dummy_cmd[1]))
+        values: dict[str, float] = {
+            **dubins_agent_values(
+                "tb3_rrt",
+                pose=self.rrt_vehicle.pose,
+                speed=float(rrt_metrics.get("speed", self.rrt_vehicle.speed)),
+                turn_rate=float(
+                    rrt_metrics.get("turn_rate", self.rrt_vehicle.turn_rate)
+                ),
+                cmd_speed=rrt_cmd_speed,
+                cmd_omega=rrt_cmd_omega,
+                cross_track=float(rrt_metrics.get("cross_track_error", 0.0)),
+                progress=float(rrt_metrics.get("mpc_progress", 0.0)),
+            ),
+            **dubins_agent_values(
+                "tb3_sst",
+                pose=self.sst_vehicle.pose,
+                speed=float(sst_metrics.get("speed", self.sst_vehicle.speed)),
+                turn_rate=float(
+                    sst_metrics.get("turn_rate", self.sst_vehicle.turn_rate)
+                ),
+                cmd_speed=sst_cmd_speed,
+                cmd_omega=sst_cmd_omega,
+                cross_track=float(sst_metrics.get("cross_track_error", 0.0)),
+                progress=float(sst_metrics.get("mpc_progress", 0.0)),
+            ),
+            **dubins_agent_values(
+                "tb3_dummy",
+                pose=self.dummy_pose,
+                speed=dummy_speed,
+                turn_rate=float(dummy_cmd[2]),
+                cmd_speed=dummy_speed,
+                cmd_omega=float(dummy_cmd[2]),
+            ),
+            "mujoco.physics_mode_ctrl.val": (
+                1.0 if self.physics_mode_active else 0.0
+            ),
+        }
+        self.telemetry.record(
+            self.sim_time_s, values, tick=self.telemetry_tick
+        )
+        self.telemetry_tick += 1
 
     def _step_dummy_kinematic(self) -> None:
         """Advance the dummy with path tracking on the straight start→goal line."""
@@ -257,6 +344,11 @@ class DubinsRaceSimulation:
             occupancy=self.occupancy,
         )
         self.dummy_stopped = stopped
+        self._last_dummy_cmd = (
+            (0.0, 0.0, 0.0)
+            if stopped
+            else (float(cmd[0]), float(cmd[1]), float(cmd[2]))
+        )
         if stopped:
             self.dummy_pose_history.append(self.dummy_pose)
             return
@@ -410,6 +502,20 @@ class DubinsRaceSimulation:
         self.rrt_pose_history.append(self.rrt_vehicle.pose)
         self.sst_pose_history.append(self.sst_vehicle.pose)
         self.dummy_pose_history.append(self.dummy_pose)
+        self._last_rrt_metrics = rrt_metrics
+        self._last_sst_metrics = sst_metrics
+        self._last_rrt_cmd = rrt_cmd
+        self._last_sst_cmd = sst_cmd
+        self._last_dummy_cmd = dummy_cmd
+        self._record_telemetry(
+            rrt_metrics=rrt_metrics,
+            sst_metrics=sst_metrics,
+            rrt_cmd_speed=float(math.hypot(rrt_cmd[0], rrt_cmd[1])),
+            rrt_cmd_omega=float(rrt_cmd[2]),
+            sst_cmd_speed=float(math.hypot(sst_cmd[0], sst_cmd[1])),
+            sst_cmd_omega=float(sst_cmd[2]),
+            dummy_cmd=dummy_cmd,
+        )
         self.sim_time_s += self.dt
         return self.finished
 
@@ -1158,11 +1264,15 @@ class DubinsRaceRunner:
         physics_mode: bool = False,
         contact_log_enabled: bool = False,
         planner_rng_seed: int | None = None,
+        telemetry_enabled: bool | None = None,
+        telemetry_output_dir: pathlib.Path | None = None,
+        telemetry_csv_basename: str | None = None,
     ) -> DubinsRaceRunResult:
         """Execute dual planning, simultaneous tracking, and race metrics."""
         params = self.load_parameters()
         race_timeout = float(params["race_timeout"])
         max_steps = int(race_timeout / float(params["simulation_dt"]))
+        scenario_id = str(params.get("scenario_id", "dubins_race"))
 
         rng_ctx = (
             deterministic_planner_rng(planner_rng_seed)
@@ -1185,6 +1295,18 @@ class DubinsRaceRunner:
                 max_cross_track_error_m=0.0,
                 min_obstacle_clearance_m=0.0,
             )
+
+        tele = open_scenario_telemetry(
+            scenario_id,
+            enabled=telemetry_enabled,
+            output_dir=telemetry_output_dir,
+            csv_basename=telemetry_csv_basename or f"{scenario_id}_overview",
+            dt_nominal_s=session.dt,
+        )
+        if tele is not None:
+            setup_dubins_telemetry(tele, physics_mode=physics_mode)
+            session.telemetry = tele
+            session.physics_mode_active = bool(physics_mode)
 
         bridge = None
         use_mujoco = self._sync_mujoco or physics_mode or contact_log_enabled
@@ -1253,6 +1375,7 @@ class DubinsRaceRunner:
             sst_plan,
             race_duration_s=session.sim_time_s,
         )
+        tele_csv, tele_manifest = close_telemetry(session.telemetry)
         contact_log_path = None
         contact_event_count = 0
         max_contact_force_n = 0.0
@@ -1291,6 +1414,8 @@ class DubinsRaceRunner:
                 penetration_violations=penetration_violations,
                 physics_metrics_path=physics_metrics_path,
                 column_contacts_logged=column_contacts_logged,
+                telemetry_csv_path=tele_csv,
+                telemetry_manifest_path=tele_manifest,
             )
         return DubinsRaceRunResult(
             rrt_plan=result.rrt_plan,
@@ -1316,4 +1441,6 @@ class DubinsRaceRunner:
             penetration_violations=penetration_violations,
             physics_metrics_path=physics_metrics_path,
             column_contacts_logged=column_contacts_logged,
+            telemetry_csv_path=tele_csv,
+            telemetry_manifest_path=tele_manifest,
         )

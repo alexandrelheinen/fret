@@ -38,6 +38,12 @@ from fret.control.pick_place_fsm import (
 )
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.sitl_config import load_scenario_parameters, mjcf_path
+from fret.telemetry.scenario_hooks import (
+    arm_sample_values,
+    close_telemetry,
+    open_scenario_telemetry,
+    setup_arm_telemetry,
+)
 
 _ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
 _MODEL = "omy"
@@ -97,6 +103,9 @@ def simulate_omy_pick_place(
     joint_tol_rad: float = 0.16,
     record_every_steps: int = 1,
     scenario_path: str | Path | None = None,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
     """Run one OMY pick-place cycle (FSM → MPC → joints + physics grasp)."""
     try:
@@ -111,6 +120,16 @@ def simulate_omy_pick_place(
     xml = mjcf_path(_MODEL, scenario_id)
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
+    tele = open_scenario_telemetry(
+        scenario_id,
+        enabled=telemetry_enabled,
+        output_dir=telemetry_output_dir,
+        csv_basename=telemetry_csv_basename or f"{scenario_id}_overview",
+        dt_nominal_s=float(model.opt.timestep),
+    )
+    joint_components: list[str] = []
+    if tele is not None:
+        joint_components = setup_arm_telemetry(tele, "omy", _ARM_JOINTS)
 
     ee_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "link6")
     box_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box")
@@ -252,6 +271,19 @@ def simulate_omy_pick_place(
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
 
+        if tele is not None:
+            q_now = _arm_q(mj, model, data)
+            tele.record(
+                step_i * dt,
+                arm_sample_values(
+                    "omy",
+                    joint_components,
+                    q_now,
+                    np.asarray(data.xpos[ee_id], dtype=np.float64),
+                ),
+                tick=step_i,
+            )
+
         if step_i % record_every_steps == 0:
             samples.append(
                 PickPlaceSample(
@@ -290,6 +322,7 @@ def simulate_omy_pick_place(
                     )
                 )
 
+    close_telemetry(tele)
     return fsm.state, samples
 
 

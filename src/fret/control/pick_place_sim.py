@@ -27,6 +27,12 @@ from fret.control.pick_place_fsm import (
     PickPlaceWaypoints,
 )
 from fret.sitl_config import load_scenario_parameters, mjcf_path
+from fret.telemetry.scenario_hooks import (
+    arm_sample_values,
+    close_telemetry,
+    open_scenario_telemetry,
+    setup_arm_telemetry,
+)
 
 _CTRL_PERIOD_S = 0.02
 
@@ -88,6 +94,9 @@ def simulate_pick_place(
     duration_s: float = 25.0,
     joint_tol_rad: float = 0.12,
     record_every_steps: int = 1,
+    telemetry_enabled: bool | None = None,
+    telemetry_output_dir: Path | None = None,
+    telemetry_csv_basename: str | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
     """Run one SC-v13b cycle and optionally record trajectory samples."""
     try:
@@ -99,6 +108,17 @@ def simulate_pick_place(
     xml = mjcf_path("open_manipulator_x", "omx_pick_place")
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
+    joint_names = ("Joint1", "Joint2", "Joint3", "Joint4")
+    tele = open_scenario_telemetry(
+        "omx_pick_place",
+        enabled=telemetry_enabled,
+        output_dir=telemetry_output_dir,
+        csv_basename=telemetry_csv_basename or "omx_pick_place_overview",
+        dt_nominal_s=float(model.opt.timestep),
+    )
+    joint_components: list[str] = []
+    if tele is not None:
+        joint_components = setup_arm_telemetry(tele, "omx", joint_names)
 
     ee_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "link5")
     box_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box")
@@ -178,6 +198,19 @@ def simulate_pick_place(
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
 
+        if tele is not None:
+            q_now = _arm_q(mj, model, data)
+            tele.record(
+                step_i * dt,
+                arm_sample_values(
+                    "omx",
+                    joint_components,
+                    q_now,
+                    np.asarray(data.xpos[ee_id], dtype=np.float64),
+                ),
+                tick=step_i,
+            )
+
         if step_i % record_every_steps == 0:
             samples.append(
                 PickPlaceSample(
@@ -204,6 +237,18 @@ def simulate_pick_place(
         hold_steps = max(record_every_steps, int(round(0.6 / dt)))
         for step_i in range(hold_steps):
             mj.mj_step(model, data)
+            if tele is not None:
+                q_now = _arm_q(mj, model, data)
+                tele.record(
+                    (max_steps + step_i) * dt,
+                    arm_sample_values(
+                        "omx",
+                        joint_components,
+                        q_now,
+                        np.asarray(data.xpos[ee_id], dtype=np.float64),
+                    ),
+                    tick=max_steps + step_i,
+                )
             if step_i % record_every_steps == 0:
                 samples.append(
                     PickPlaceSample(
@@ -217,6 +262,7 @@ def simulate_pick_place(
                     )
                 )
 
+    close_telemetry(tele)
     return fsm.state, samples
 
 

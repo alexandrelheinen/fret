@@ -1,10 +1,10 @@
 # Telemetry Module (specification)
 
-**Package (planned):** `fret.telemetry`  
-**Source (planned):** `src/fret/telemetry/`  
-**Tests (planned):** `tests/telemetry/`  
+**Package:** `fret.telemetry`  
+**Source:** `src/fret/telemetry/`  
+**Tests:** `tests/telemetry/`  
 **Debug / plot tool:** [PlotJuggler](https://github.com/facontidavide/PlotJuggler) (CSV loader)  
-**Status:** Specification only — not implemented yet.
+**Status:** Implemented (CSV writer + scenario hooks + release R2 layout).
 
 > **V-cycle:** Level 1–2 design artifact. Implementation must not start until
 > acceptance criteria below are agreed. Related requirement: proposed
