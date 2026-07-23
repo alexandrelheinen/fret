@@ -16,6 +16,11 @@
 #      14 m/s). Tuned so RRT*/SST finish warehouse bends without stalling
 #      (issue-suggested contour=4/lag=12 stalled SST on showcase seed).
 #      Set contour_deadzone: 0 to restore classic contouring.
+#   4) FRET builds the MPC tracker via ``_build_vehicle_mpc_sim`` so
+#      weight_lag / contour_deadzone survive into the live NLP. ARCO's
+#      ``build_vehicle_mpc_sim`` currently rebuilds PathFollowingMPCConfig
+#      without those fields (silent drop → lag=0), which made SST crawl
+#      (~141 s). With lag preserved, showcase seed finishes ~38 s.
 # The grey dummy keeps Pure Pursuit without repulsion so it collides on
 # the naive diagonal as a foil.
 #

@@ -39,6 +39,11 @@ def test_physics_pose_history_non_negative_clearance() -> None:
     )
     assert result.both_reached_goal is True
     assert result.min_obstacle_clearance_m >= 0.0
+    # Progress-first lag must stay live; without it SST crawls (~141 s) and
+    # the release encode job blows the 10 min budget even with a 30 s clip.
+    assert result.race_duration_s < 90.0
+    assert result.sst_time_to_goal_s is not None
+    assert result.sst_time_to_goal_s < 90.0
 
 
 def test_physics_agents_finish_without_lateral_skid() -> None:
