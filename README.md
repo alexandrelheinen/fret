@@ -330,9 +330,13 @@ After a version tag, CI uploads overview + follow MP4s to Cloudflare R2:
 ./scripts/download_showcase.sh --list
 ./scripts/download_showcase.sh --tag v1.2.0 --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
+# Video + matching PlotJuggler CSV/JSON (same basename)
+./scripts/download_showcase.sh --scenario dubins_race --with-telemetry
 ```
 
-Requires R2 credentials — see [.env.example](.env.example).
+R2 layout is per scenario folder (`latest/<scenario>/<scenario>_overview.mp4`
+alongside `<scenario>_overview.csv`). Requires R2 credentials — see
+[.env.example](.env.example).
 
 ### 5. Full ROS 2 workspace (SITL)
 
