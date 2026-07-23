@@ -369,7 +369,7 @@ Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/re
 
 | Robot class | Scenarios (today) | Required cameras |
 |---|---|---|
-| **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric) **and** `follow` (split-screen chase) |
+| **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric); `follow` optional / local |
 | **static** | OM-X Γ-maze: `omx_wall_maze_rrt` + `omx_wall_maze_sst`; OMY pick-place `omy_pick_place` + clutter `omy_clutter_rrt` + `omy_clutter_sst` | `overview` only |
 
 OM-X and OMY clutter release clips share the same wall geometry and joint
@@ -381,8 +381,10 @@ repo for development but are not release artifacts.
 
 - **Overview** must frame the robots and ideally start + goal (tune zoom /
   azimuth per scenario MJCF / runtime camera constants).
-- **Follow** is mandatory for every **mobile** robot showcase, including future
-  mobile platforms. Static / tabletop arms must **not** export follow on release.
+- **Follow** is optional for mobile release jobs (CI encode budget). Dubins
+  ships overview-only at `fps: 20`, `clip_duration_s: 30` (~600 frames).
+  Render follow locally with `scripts/video.sh --camera follow` when needed.
+  Static / tabletop arms must **not** export follow on release.
 - Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
 - Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags
   (`-dev`, probes, …) upload under `releases/<tag>/` only.

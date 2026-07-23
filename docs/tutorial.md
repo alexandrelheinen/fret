@@ -93,7 +93,7 @@ GitHub Actions artifact backup. Camera policy (see
 
 | Scenario | Model | Class | Cameras |
 |---|---|---|---|
-| `dubins_race` | Dubins / TB3 | mobile | `overview` + split-screen `follow` |
+| `dubins_race` | Dubins / TB3 | mobile | `overview` (follow optional / local) |
 | `omx_wall_maze_rrt` | OpenMANIPULATOR-X (Γ maze, RRT*) | static | `overview` |
 | `omx_wall_maze_sst` | OpenMANIPULATOR-X (Γ maze, SST) | static | `overview` |
 | `omy_pick_place` | OpenMANIPULATOR-Y (floor ball → cone) | static | `overview` |

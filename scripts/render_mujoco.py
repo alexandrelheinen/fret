@@ -2047,12 +2047,19 @@ def _validate_render_cli(
             missing.append("--output-dir")
         if args.output is not None:
             parser.error("--output cannot be used with --all-cameras")
-    elif args.cameras and len(args.cameras) > 1:
-        if args.output_dir is None:
+    elif args.cameras:
+        # One or more explicit cameras: prefer --output-dir (release matrix);
+        # single-camera callers may still use -o/--output.
+        if args.output_dir is None and args.output is None:
+            missing.append("--output-dir (or -o/--output for one camera)")
+        if (
+            args.output_dir is None
+            and args.output is not None
+            and len(args.cameras) > 1
+        ):
             missing.append("--output-dir")
     elif args.output is None:
         missing.append("-o/--output")
-    elif not args.cameras:
         missing.append("--camera")
 
     if missing:
@@ -2104,9 +2111,8 @@ def main(argv: list[str] | None = None) -> int:
 
     cameras = args.cameras
     assert cameras is not None
-    if len(cameras) == 1:
+    if len(cameras) == 1 and args.output is not None:
         output = args.output
-        assert output is not None
         result = render_video(
             mjcf_path,
             output,
@@ -2128,6 +2134,8 @@ def main(argv: list[str] | None = None) -> int:
             f"rtf={timing.real_time_factor:.3f}, "
             f"mean={result.frame_mean:.1f})"
         )
+        if args.timing_json is not None:
+            write_showcase_timing_json([result], args.timing_json)
         return 0
 
     assert args.output_dir is not None
@@ -2154,6 +2162,8 @@ def main(argv: list[str] | None = None) -> int:
             f"sim={timing.sim_time_s:.1f}s, "
             f"rtf={timing.real_time_factor:.3f})"
         )
+    if args.timing_json is not None:
+        write_showcase_timing_json(results, args.timing_json)
     return 0
 
 
