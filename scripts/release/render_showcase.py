@@ -37,9 +37,9 @@ def _video_argv(
         "--fps",
         str(scenario.effective_fps(manifest.fps)),
         "--width",
-        str(manifest.width),
+        str(scenario.effective_width(manifest.width)),
         "--height",
-        str(manifest.height),
+        str(scenario.effective_height(manifest.height)),
         "--collision-backend",
         scenario.collision_backend,
         "--planner-algorithm",
@@ -51,6 +51,8 @@ def _video_argv(
         argv.extend(["--duration", str(scenario.clip_duration_s)])
     else:
         argv.append("--full-duration")
+        if scenario.clip_scale is not None:
+            argv.extend(["--clip-scale", str(scenario.clip_scale)])
     if scenario.physics_mode:
         argv.append("--physics-mode")
     return argv
