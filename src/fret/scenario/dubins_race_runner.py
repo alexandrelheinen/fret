@@ -21,13 +21,19 @@ from typing import Any, Literal, Mapping, cast
 
 import numpy as np
 import numpy.typing as npt
-from arco.control.mpc import MPCTrackingLoop, PathFollowingMPCConfig
+from arco.control.mpc import (
+    DubinsPathFollowingMPC,
+    DubinsVehicleLimits,
+    MPCTrackingLoop,
+    PathFollowingMPCConfig,
+)
 from arco.control.tracking import TrackingLoop
+from arco.guidance.vehicle import DubinsVehicle
 from arco.planning.continuous import RRTPlanner, SSTPlanner, TrajectoryPruner
 from arco.simulator.sim.tracking import (
     VehicleConfig,
-    build_vehicle_mpc_sim,
     build_vehicle_sim,
+    initial_heading,
 )
 
 from fret.config_loader import (
@@ -616,6 +622,50 @@ def _vehicle_config(ctrl: dict[str, Any]) -> VehicleConfig:
         curvature_gain=float(ctrl["curvature_gain"]),
         repulsion_gain=float(ctrl["repulsion_gain"]),
     )
+
+
+def _build_vehicle_mpc_sim(
+    waypoints: list[tuple[float, float]],
+    cfg: VehicleConfig,
+    mpc_cfg: PathFollowingMPCConfig,
+    *,
+    occupancy: Any = None,
+) -> tuple[Any, MPCTrackingLoop]:
+    """Build Dubins + path-following MPC without dropping progress-first fields.
+
+    ARCO's ``build_vehicle_mpc_sim`` rebuilds :class:`PathFollowingMPCConfig`
+    and omits ``weight_lag`` / ``contour_deadzone`` (silently → 0). FRET keeps
+    the caller's full config and only overrides ``cruise_speed`` from
+    :class:`VehicleConfig`.
+    """
+    x0, y0 = waypoints[0]
+    theta0 = initial_heading(waypoints)
+    vehicle = DubinsVehicle(
+        x=x0,
+        y=y0,
+        heading=theta0,
+        max_speed=cfg.max_speed,
+        min_speed=cfg.min_speed,
+        max_turn_rate=cfg.max_turn_rate,
+        max_acceleration=cfg.max_acceleration,
+        max_turn_rate_dot=cfg.max_turn_rate_dot,
+    )
+    limits = DubinsVehicleLimits(
+        max_speed=cfg.max_speed,
+        min_speed=cfg.min_speed,
+        max_turn_rate=cfg.max_turn_rate,
+        max_acceleration=cfg.max_acceleration,
+        max_turn_rate_dot=cfg.max_turn_rate_dot,
+    )
+    effective = replace(mpc_cfg, cruise_speed=cfg.cruise_speed)
+    tracker = DubinsPathFollowingMPC(
+        vehicle_limits=limits,
+        config=effective,
+        occupancy=occupancy,
+    )
+    tracker.set_reference(waypoints)
+    loop = MPCTrackingLoop(vehicle, tracker, cruise_speed=cfg.cruise_speed)
+    return vehicle, loop
 
 
 def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
@@ -1218,10 +1268,10 @@ class DubinsRaceRunner:
         # avoidance in the warehouse occupancy; feeding that same map into
         # DubinsPathFollowingMPC re-opens preview-cruise taper + soft
         # barriers and recreates stop-and-go on free segments.
-        rrt_vehicle, rrt_loop = build_vehicle_mpc_sim(
+        rrt_vehicle, rrt_loop = _build_vehicle_mpc_sim(
             rrt_path, vehicle_cfg, mpc_cfg, occupancy=None
         )
-        sst_vehicle, sst_loop = build_vehicle_mpc_sim(
+        sst_vehicle, sst_loop = _build_vehicle_mpc_sim(
             sst_path, vehicle_cfg, mpc_cfg, occupancy=None
         )
 
