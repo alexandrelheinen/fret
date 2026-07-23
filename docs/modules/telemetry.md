@@ -192,12 +192,23 @@ Optional extra timebases (not for PlotJuggler primary axis):
 
 ```text
 /tmp/fret_telemetry/<run_id>/
-  telemetry.csv      # PlotJuggler primary input
-  manifest.json      # schema, units, agents, frames used
+  <basename>.csv     # PlotJuggler primary input
+  <basename>.json    # schema, units, agents, frames used
 ```
 
 `<run_id>` default: `{scenario_id}_{YYYYMMDD_HHMMSS}_{pid}`  
 Configurable override via config / env `FRET_TELEMETRY_DIR`.
+
+Release / R2 layout (same basename as the overview video):
+
+```text
+releases/<tag>/<scenario>/
+  <scenario>_overview.mp4
+  <scenario>_overview.csv
+  <scenario>_overview.json
+  <scenario>_follow.mp4          # when present
+latest/<scenario>/...
+```
 
 ### 5.2 CSV format (PlotJuggler contract)
 

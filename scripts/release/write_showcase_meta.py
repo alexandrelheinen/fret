@@ -50,6 +50,7 @@ def write_showcase_meta(
         }
 
         videos: list[dict[str, object]] = []
+        logs: list[dict[str, object]] = []
         duration_s = 0.0
         for path in sorted(scenario_files):
             camera = path.stem.removeprefix(prefix)
@@ -60,6 +61,7 @@ def write_showcase_meta(
                 {
                     "camera": camera,
                     "file": path.name,
+                    "r2_key": f"{scenario.id}/{path.name}",
                     "bytes": path.stat().st_size,
                     "sim_time_s": sim_time_s,
                     "real_time_factor": float(
@@ -67,6 +69,28 @@ def write_showcase_meta(
                     ),
                 }
             )
+            csv_path = renders_dir / f"{path.stem}.csv"
+            manifest_path = renders_dir / f"{path.stem}.json"
+            if csv_path.is_file():
+                logs.append(
+                    {
+                        "kind": "telemetry_csv",
+                        "file": csv_path.name,
+                        "r2_key": f"{scenario.id}/{csv_path.name}",
+                        "bytes": csv_path.stat().st_size,
+                        "pairs_with": path.name,
+                    }
+                )
+            if manifest_path.is_file():
+                logs.append(
+                    {
+                        "kind": "telemetry_manifest",
+                        "file": manifest_path.name,
+                        "r2_key": f"{scenario.id}/{manifest_path.name}",
+                        "bytes": manifest_path.stat().st_size,
+                        "pairs_with": path.name,
+                    }
+                )
 
         cameras_found = [video["camera"] for video in videos]
         for required in scenario.cameras:
@@ -85,6 +109,8 @@ def write_showcase_meta(
                 "realtime_playback": True,
                 "cameras": cameras_found,
                 "videos": videos,
+                "logs": logs,
+                "r2_prefix": f"{scenario.id}/",
                 "primary_video": scenario.primary_video,
             }
         )
