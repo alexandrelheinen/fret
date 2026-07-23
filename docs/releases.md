@@ -382,23 +382,23 @@ repo for development but are not release artifacts.
 - **Overview** must frame the robots and ideally start + goal (tune zoom /
   azimuth per scenario MJCF / runtime camera constants).
 - **Follow** is optional for mobile and **not** on the blocking release path.
-  Dubins ships overview-only at `fps: 20`, `clip_duration_s: 30` (~600 frames)
-  so the encode job stays under ~10 min. A separate non-blocking follow job
-  was considered and **deferred**: a second 720p camera at the same clip
-  length roughly doubles encode wall time and would push the Dubins leg back
-  over budget on current runners. Render follow locally when needed:
+  Dubins ships overview-only at `fps: 20`, `960×540`, `clip_scale: 1.25`
+  (full race + 25% hold after finish; ~950 frames) so the encode job stays
+  under ~10 min. A separate non-blocking follow job was considered and
+  **deferred**: a second camera roughly doubles encode wall time. Render
+  follow locally when needed:
 
   ```bash
   ./scripts/video.sh --model dubins --scenario dubins_race \
-    --camera follow --duration 30 --fps 20 --physics-mode \
+    --camera follow --full-duration --clip-scale 1.25 --fps 20 \
+    --width 960 --height 540 --physics-mode \
     --collision-backend mujoco --planner-algorithm sst \
     -o /tmp/dubins_race_follow.mp4
   ```
 
   Static / tabletop arms must **not** export follow on release.
-- Dubins showcase sims early-stop at `clip_duration_s` (`max_sim_time_s`) so
-  a slow finisher cannot stretch the encode job; full-race acceptance stays in
-  pytest (both agents must still reach goal under physics).
+- Dubins may use `clip_duration_s` (early-stop) or `clip_scale` (full race ×
+  scale with hold). Full-race acceptance stays in pytest.
 - Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
 - Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags
   (`-dev`, probes, …) upload under `releases/<tag>/` only.

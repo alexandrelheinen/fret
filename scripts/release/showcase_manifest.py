@@ -32,7 +32,10 @@ class ShowcaseScenario:
     timing_file: str
     primary_video: str
     fps: int | None = None
+    width: int | None = None
+    height: int | None = None
     clip_duration_s: float | None = None
+    clip_scale: float | None = None
 
     @property
     def requires_follow(self) -> bool:
@@ -42,6 +45,20 @@ class ShowcaseScenario:
     def effective_fps(self, default_fps: int) -> int:
         """Return per-scenario fps override or the manifest default."""
         return int(self.fps) if self.fps is not None else int(default_fps)
+
+    def effective_width(self, default_width: int) -> int:
+        """Return per-scenario width override or the manifest default."""
+        return (
+            int(self.width) if self.width is not None else int(default_width)
+        )
+
+    def effective_height(self, default_height: int) -> int:
+        """Return per-scenario height override or the manifest default."""
+        return (
+            int(self.height)
+            if self.height is not None
+            else int(default_height)
+        )
 
 
 @dataclass(frozen=True)
@@ -76,7 +93,20 @@ def _parse_scenario(raw: dict[str, Any]) -> ShowcaseScenario:
             f"static scenario {raw.get('id')!r} must not export follow"
         )
     fps_raw = raw.get("fps")
+    width_raw = raw.get("width")
+    height_raw = raw.get("height")
     clip_raw = raw.get("clip_duration_s")
+    scale_raw = raw.get("clip_scale")
+    if clip_raw is not None and scale_raw is not None:
+        raise ValueError(
+            f"scenario {raw.get('id')!r} cannot set both "
+            "clip_duration_s and clip_scale"
+        )
+    if scale_raw is not None and float(scale_raw) <= 0.0:
+        raise ValueError(
+            f"scenario {raw.get('id')!r} clip_scale must be > 0 "
+            f"(got {scale_raw!r})"
+        )
     return ShowcaseScenario(
         id=str(raw["id"]),
         model=str(raw["model"]),
@@ -88,9 +118,12 @@ def _parse_scenario(raw: dict[str, Any]) -> ShowcaseScenario:
         timing_file=str(raw["timing_file"]),
         primary_video=str(raw["primary_video"]),
         fps=int(fps_raw) if fps_raw is not None else None,
+        width=int(width_raw) if width_raw is not None else None,
+        height=int(height_raw) if height_raw is not None else None,
         clip_duration_s=(
             float(clip_raw) if clip_raw is not None else None
         ),
+        clip_scale=(float(scale_raw) if scale_raw is not None else None),
     )
 
 
@@ -167,7 +200,10 @@ def main(argv: list[str] | None = None) -> int:
                     "timing_file": s.timing_file,
                     "primary_video": s.primary_video,
                     "fps": s.fps,
+                    "width": s.width,
+                    "height": s.height,
                     "clip_duration_s": s.clip_duration_s,
+                    "clip_scale": s.clip_scale,
                 }
                 for s in manifest.scenarios
             ],

@@ -545,6 +545,26 @@ def _resample_pose_history(
     )
 
 
+def _resample_pose_history_with_hold(
+    history: npt.NDArray[np.float64],
+    *,
+    race_frames: int,
+    total_frames: int,
+) -> npt.NDArray[np.float64]:
+    """Resample the race in real time, then hold the final pose.
+
+    Used when ``clip_scale > 1`` so the video shows the finish and a short
+    dwell without time-compressing the race itself.
+    """
+    race_n = max(2, int(race_frames))
+    total_n = max(race_n, int(total_frames))
+    race = _resample_pose_history(history, race_n)
+    if total_n == race_n:
+        return race
+    hold = np.repeat(race[-1:], total_n - race_n, axis=0)
+    return np.vstack([race, hold])
+
+
 def simulate_dubins_race_poses(
     scenario: str = "dubins_race",
     *,
@@ -554,6 +574,7 @@ def simulate_dubins_race_poses(
     telemetry_enabled: bool | None = None,
     telemetry_output_dir: Path | None = None,
     telemetry_csv_basename: str | None = None,
+    clip_scale: float = 1.0,
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.float64],
@@ -568,6 +589,9 @@ def simulate_dubins_race_poses(
     _ensure_fret_importable()
     from fret.scenario.dubins_race_runner import DubinsRaceRunner
     from fret.scenario.planner_rng import SHOWCASE_PLANNER_RNG_SEED
+
+    if float(clip_scale) <= 0.0:
+        raise ValueError(f"clip_scale must be > 0 (got {clip_scale!r})")
 
     # Showcase clips may request a fixed duration; stop the sim at that
     # horizon instead of waiting for both agents to finish (Layer B).
@@ -627,11 +651,28 @@ def simulate_dubins_race_poses(
         sim_time_s,
         duration_s,
     )
-    n_frames = max(2, int(round(render_duration_s * fps)))
+    if duration_s is None and float(clip_scale) != 1.0:
+        render_duration_s = float(clip_scale) * float(sim_time_s)
+
+    race_frames = max(2, int(round(float(sim_time_s) * float(fps))))
+    total_frames = max(2, int(round(float(render_duration_s) * float(fps))))
+    if total_frames > race_frames:
+        return (
+            _resample_pose_history_with_hold(
+                rrt_hist, race_frames=race_frames, total_frames=total_frames
+            ),
+            _resample_pose_history_with_hold(
+                sst_hist, race_frames=race_frames, total_frames=total_frames
+            ),
+            _resample_pose_history_with_hold(
+                dummy_hist, race_frames=race_frames, total_frames=total_frames
+            ),
+            sim_time_s,
+        )
     return (
-        _resample_pose_history(rrt_hist, n_frames),
-        _resample_pose_history(sst_hist, n_frames),
-        _resample_pose_history(dummy_hist, n_frames),
+        _resample_pose_history(rrt_hist, total_frames),
+        _resample_pose_history(sst_hist, total_frames),
+        _resample_pose_history(dummy_hist, total_frames),
         sim_time_s,
     )
 
@@ -763,6 +804,7 @@ def render_dubins_race_showcase_videos(
     height: int = 720,
     realtime_postprocess: bool = True,
     physics_mode: bool = False,
+    clip_scale: float = 1.0,
 ) -> list[RenderResult]:
     """Render dual-agent Dubins race MP4s (V11-2 / V11-4)."""
     mujoco, _iio = _require_mujoco()
@@ -783,8 +825,10 @@ def render_dubins_race_showcase_videos(
         telemetry_enabled=True,
         telemetry_output_dir=output_dir,
         telemetry_csv_basename=f"{scenario}_overview",
+        clip_scale=clip_scale,
     )
-    # Clipped exports (release budget) only need a few metres of transit.
+    # Clipped exports (fixed duration) only need a few metres of transit;
+    # full-race / clip_scale exports keep the warehouse 5 m easting bar.
     min_span = (
         5.0
         if duration_s is None
@@ -792,10 +836,19 @@ def render_dubins_race_showcase_videos(
     )
     _assert_dubins_race_moves(rrt_poses, sst_poses, min_east_span_m=min_span)
     render_duration_s = float(len(rrt_poses)) / float(fps)
-    timing = showcase_playback_timing(
-        wall_sim_time_s=sim_time_s,
-        render_duration_s=render_duration_s,
-    )
+    if render_duration_s > sim_time_s + 0.02:
+        # Hold-after-finish (clip_scale > 1): keep RTF=1 so ffmpeg does not
+        # compress away the dwell; stash true race time in wall_sim_time_s.
+        timing = ShowcaseTiming(
+            sim_time_s=render_duration_s,
+            render_duration_s=render_duration_s,
+            wall_sim_time_s=sim_time_s,
+        )
+    else:
+        timing = showcase_playback_timing(
+            wall_sim_time_s=sim_time_s,
+            render_duration_s=render_duration_s,
+        )
 
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)
@@ -1783,6 +1836,7 @@ def render_showcase_videos(
     use_tracking: bool = True,
     realtime_postprocess: bool = True,
     physics_mode: bool = False,
+    clip_scale: float = 1.0,
 ) -> list[RenderResult]:
     """Render one MP4 per showcase camera in a single simulation pass.
 
@@ -1802,6 +1856,7 @@ def render_showcase_videos(
             height=height,
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
+            clip_scale=clip_scale,
         )
     if scenario in _OMX_REACH_SCENARIOS:
         _ = physics_mode  # OM-X showcase always steps position actuators.
@@ -1977,6 +2032,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the full simulated motion at real-time speed",
     )
     parser.add_argument(
+        "--clip-scale",
+        type=float,
+        default=1.0,
+        help=(
+            "With --full-duration, set video length to scale×sim_time "
+            "(scale>1 holds the final pose after the finish)"
+        ),
+    )
+    parser.add_argument(
         "--fps",
         type=int,
         required=True,
@@ -2109,6 +2173,10 @@ def main(argv: list[str] | None = None) -> int:
     realtime_postprocess = not args.no_realtime_postprocess
     physics_mode = bool(args.physics_mode) and not args.kinematic_mode
 
+    clip_scale = float(args.clip_scale)
+    if duration_s is not None and abs(clip_scale - 1.0) > 1e-9:
+        parser.error("--clip-scale requires --full-duration")
+
     if args.all_cameras:
         cameras = list_showcase_cameras(mjcf_path, scenario=args.scenario)
         results = render_showcase_videos(
@@ -2125,6 +2193,7 @@ def main(argv: list[str] | None = None) -> int:
             use_tracking=use_tracking,
             realtime_postprocess=realtime_postprocess,
             physics_mode=physics_mode,
+            clip_scale=clip_scale,
         )
         for result in results:
             timing = result.timing
@@ -2182,6 +2251,7 @@ def main(argv: list[str] | None = None) -> int:
         use_tracking=use_tracking,
         realtime_postprocess=realtime_postprocess,
         physics_mode=physics_mode,
+        clip_scale=clip_scale,
     )
     for result in results:
         timing = result.timing

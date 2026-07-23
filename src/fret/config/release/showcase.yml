@@ -9,7 +9,10 @@
 #
 # Per-scenario overrides (optional):
 #   * fps              — encode frame rate (default: top-level fps)
-#   * clip_duration_s  — fixed clip length via --duration (omit → --full-duration)
+#   * width / height   — encode resolution (default: top-level)
+#   * clip_duration_s  — fixed clip length via --duration (early-stops sim)
+#   * clip_scale       — with --full-duration, video length = scale × sim_time
+#                        (scale > 1 holds the final pose after the finish)
 #
 # Static release focus:
 #   * OM-X SC-v13d Γ-wall maze — RRT* vs SST (v1.2.3)
@@ -26,9 +29,12 @@ scenarios:
     model: dubins
     robot_class: mobile
     cameras: [overview]
-    # CI budget: 30 s × 20 fps × 1 cam ≈ 600 frames (encode << 10 min).
+    # Full race (~38 s) × 1.25 hold-after-finish ≈ 47 s video.
+    # 960×540 @ 20 fps ≈ 950 frames; fewer pixels keep encode << 10 min.
     fps: 20
-    clip_duration_s: 30.0
+    width: 960
+    height: 540
+    clip_scale: 1.25
     physics_mode: true
     planner_algorithm: sst
     collision_backend: mujoco
