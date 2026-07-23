@@ -639,14 +639,25 @@ def simulate_dubins_race_poses(
 def _assert_dubins_race_moves(
     rrt_poses: npt.NDArray[np.float64],
     sst_poses: npt.NDArray[np.float64],
+    *,
+    min_east_span_m: float = 5.0,
 ) -> None:
-    """Fail fast when a release clip would show static agents."""
+    """Fail fast when a release clip would show static agents.
+
+    Full-race exports keep a 5 m easting bar (warehouse A→B ≈ 7.6 m).
+    Clipped showcase exports (``clip_duration_s``) use a lower bar so a
+    30 s window of a live race is not rejected when SST is still mid-map.
+    """
     rrt_span = rrt_poses.max(axis=0) - rrt_poses.min(axis=0)
     sst_span = sst_poses.max(axis=0) - sst_poses.min(axis=0)
-    if float(rrt_span[0]) < 5.0 or float(sst_span[0]) < 5.0:
+    if (
+        float(rrt_span[0]) < min_east_span_m
+        or float(sst_span[0]) < min_east_span_m
+    ):
         raise RuntimeError(
             "Dubins race clip lacks horizontal transit "
-            f"(RRT* span={rrt_span[:2]}, SST span={sst_span[:2]})"
+            f"(min_east_span_m={min_east_span_m}, "
+            f"RRT* span={rrt_span[:2]}, SST span={sst_span[:2]})"
         )
 
 
@@ -773,7 +784,13 @@ def render_dubins_race_showcase_videos(
         telemetry_output_dir=output_dir,
         telemetry_csv_basename=f"{scenario}_overview",
     )
-    _assert_dubins_race_moves(rrt_poses, sst_poses)
+    # Clipped exports (release budget) only need a few metres of transit.
+    min_span = (
+        5.0
+        if duration_s is None
+        else min(5.0, max(2.5, 0.10 * float(duration_s)))
+    )
+    _assert_dubins_race_moves(rrt_poses, sst_poses, min_east_span_m=min_span)
     render_duration_s = float(len(rrt_poses)) / float(fps)
     timing = showcase_playback_timing(
         wall_sim_time_s=sim_time_s,
