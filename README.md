@@ -375,7 +375,8 @@ bash scripts/check/pre_push.sh
 
 Opt-in time-series logging for debugging motion quality (FR-SIM-12). Agents
 register the fields they emit (`tb3_sst.position_enu.x`, …); each sim tick
-appends one CSV row. Spec: [docs/modules/telemetry.md](docs/modules/telemetry.md).
+appends one CSV row. Full PlotJuggler / layout guide:
+[docs/modules/telemetry.md](docs/modules/telemetry.md) §5.3.
 
 ```bash
 # Enable for any scenario runner / render
@@ -391,16 +392,14 @@ python3 scripts/plot_telemetry.py \
   --csv /tmp/fret_telemetry/.../dubins_race_overview.csv \
   --output-dir /tmp/fret_telemetry_plots
 
-# PlotJuggler with a checked-in scenario layout (not under docs/)
+# PlotJuggler + checked-in layout (src/fret/telemetry/layouts/, not docs/)
 bash scripts/plotjuggler.sh \
   --csv /tmp/fret_telemetry/.../dubins_race_overview.csv \
   --scenario dubins_race
-# layouts: src/fret/telemetry/layouts/  (see index.yaml)
 ```
 
-Open the CSV in [PlotJuggler](https://github.com/facontidavide/PlotJuggler) →
-DataLoad CSV → time axis **`t`**, or use the launcher above so the layout
-auto-loads the main panes (paths, yaw, speed, path error / EE + joints).
+Layouts auto-load the main panes (Dubins: paths / yaw / speed / path error;
+arms: EE + joints). Time axis is always column **`t`**.
 
 Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 
@@ -414,7 +413,7 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 
 | Topic | Document |
 |---|---|
-| Telemetry (PlotJuggler CSV) | [docs/modules/telemetry.md](docs/modules/telemetry.md) |
+| Telemetry + PlotJuggler layouts | [docs/modules/telemetry.md](docs/modules/telemetry.md) §5.3 |
 | v1.2 physics implementation spec | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |

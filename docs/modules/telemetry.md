@@ -238,49 +238,103 @@ t,tb3_rrt.orientation_enu.yaw,tb3_rrt.position_enu.x,tb3_rrt.position_enu.y,tb3_
 0.05,0.58,1.41,1.02,0.51,1.03,1.41
 ```
 
-### 5.3 PlotJuggler load procedure
+### 5.3 PlotJuggler
+
+[PlotJuggler](https://github.com/facontidavide/PlotJuggler) is the primary
+offline viewer for FRET telemetry CSVs. Compatibility target: PlotJuggler ≥ 3.x
+with the built-in **DataLoad CSV** plugin.
+
+Install PlotJuggler from upstream (AppImage, package manager, or ROS
+`plotjuggler-ros` / `plotjuggler` packages). FRET does not vendor the binary;
+only the CSV contract and layout XML live in this repo.
+
+#### Manual load
 
 1. Open PlotJuggler → **Data Loader** → **CSV**.
-2. Select `/tmp/fret_telemetry/<run_id>/telemetry.csv`.
-3. Choose time axis column **`t`** (not index).
+2. Select `/tmp/fret_telemetry/<run_id>/<basename>.csv` (or a release
+   `<scenario>_overview.csv`).
+3. Choose time axis column **`t`** (not row index, not `t_wall`).
 4. Confirm delimiter `,`.
-5. Drag series (e.g. `tb3_sst.velocity_body.x`) onto plots — **or** load a
-   checked-in layout (below).
+5. Drag series (e.g. `tb3_sst.velocity_body.x`) onto plots, **or** load a
+   checked-in layout (§5.3.1).
 
-Compatibility target: PlotJuggler ≥ 3.x CSV plugin (`DataLoadCSV`).
+Headless / CI evidence without PlotJuggler: `scripts/plot_telemetry.py`
+(Matplotlib PNGs).
 
-### 5.3.1 Checked-in layouts (location)
+#### 5.3.1 Checked-in layouts
 
-PlotJuggler layout XML lives next to the telemetry producer:
+Layout XML automates the main panes for each scenario family so operators do
+not rebuild dashboards by hand.
 
-```text
-src/fret/telemetry/layouts/
-  index.yaml          # scenario_id → layout basename
-  dubins_race.xml
-  omx_arm.xml         # shared by OMX pick-place / maze / clutter / reach
-  omy_arm.xml         # shared by OMY pick-place / clutter / reach
-  README.md           # why not docs/; regenerate notes
-```
+**Location:** `src/fret/telemetry/layouts/` (next to `fret.telemetry`).
 
-**Not under `docs/`:** docs are prose and static images; layouts are
-operational UI assets loaded by PlotJuggler / `scripts/plotjuggler.sh`.
-**Not under `config/`:** they mirror the FR-SIM-12 series schema (owned by
-`fret.telemetry`), not scenario YAML parameters.
+| Path | Role |
+|---|---|
+| `index.yaml` | `scenario_id` → layout basename |
+| `dubins_race.xml` | TB3 / Dubins race |
+| `omx_arm.xml` | Shared OMX pick-place / maze / clutter / reach |
+| `omy_arm.xml` | Shared OMY pick-place / clutter / reach |
+| `README.md` | Short asset notes (regenerate / location rationale) |
+
+**Why not `docs/`:** docs are prose and static images; layouts are operational
+UI assets loaded by PlotJuggler. **Why not `config/`:** they mirror the
+FR-SIM-12 series schema owned by `fret.telemetry`, not scenario YAML params.
+
+| Layout | Scenarios (`index.yaml`) | Panes |
+|---|---|---|
+| `dubins_race.xml` | `dubins_race` | ENU XY paths; yaw; body speed; cross-track / progress; commands |
+| `omx_arm.xml` | `omx_pick_place`, `omx_wall_maze`, `omx_desk_clutter`, `omx_reach` | EE XYZ vs `t`; EE XY; joint angles |
+| `omy_arm.xml` | `omy_pick_place`, `omy_clutter`, `omy_reach` | EE XYZ vs `t`; EE XY; joint angles |
+
+Colors for Dubins agents match `scripts/plot_telemetry.py` (RRT* blue, SST
+green, dummy grey).
+
+#### Launcher
 
 ```bash
+# List scenario → layout mappings
+bash scripts/plotjuggler.sh --list
+
+# Open CSV + matching layout (requires plotjuggler on PATH)
 bash scripts/plotjuggler.sh \
   --csv /tmp/fret_telemetry/<run_id>/telemetry.csv \
   --scenario dubins_race
 
-# or
+# Explicit layout file
+bash scripts/plotjuggler.sh \
+  --csv /path/to/telemetry.csv \
+  --layout src/fret/telemetry/layouts/omx_arm.xml
+
+# Equivalent one-liner
 plotjuggler -d /path/to/telemetry.csv \
   -l src/fret/telemetry/layouts/dubins_race.xml
 ```
 
-Resolve in Python: `fret.telemetry.layout_path_for_scenario("dubins_race")`.
-Regenerate hand-authored baselines with
-`python3 scripts/gen_plotjuggler_layouts.py`, or overwrite after
-**File → Save Layout** in PlotJuggler against a real CSV.
+Still confirm time axis **`t`** if the CSV loader prompts. Missing curves
+(older CSV / different agent set) become placeholders in PlotJuggler; drag
+extra series from the timeseries list as needed.
+
+Python helper:
+
+```python
+from fret.telemetry import layout_path_for_scenario
+
+layout_path_for_scenario("dubins_race")
+# → .../src/fret/telemetry/layouts/dubins_race.xml
+```
+
+#### Updating layouts
+
+1. Prefer **File → Save Layout** in PlotJuggler against a real telemetry CSV,
+   then overwrite the matching XML under `layouts/`.
+2. Or regenerate the checked-in baselines after series-set changes:
+
+   ```bash
+   python3 scripts/gen_plotjuggler_layouts.py
+   ```
+
+3. Keep `index.yaml` in sync when adding a new `scenario_id` (reuse an existing
+   layout basename when the series schema matches).
 
 ### 5.4 `manifest.json`
 
