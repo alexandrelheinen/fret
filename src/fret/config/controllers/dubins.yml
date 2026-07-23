@@ -13,7 +13,9 @@
 #      post-hoc collision monitor in physics mode.
 #   3) Lab-scale weights (aisles ≈1.6 m, chassis half-width ≈0.09 m,
 #      cruise ≈0.36 m/s) — do NOT copy ARCO city meters (8 m deadzone /
-#      14 m/s). Set contour_deadzone: 0 to restore classic contouring.
+#      14 m/s). Tuned so RRT*/SST finish warehouse bends without stalling
+#      (issue-suggested contour=4/lag=12 stalled SST on showcase seed).
+#      Set contour_deadzone: 0 to restore classic contouring.
 # The grey dummy keeps Pure Pursuit without repulsion so it collides on
 # the naive diagonal as a foil.
 #
@@ -39,14 +41,14 @@
     mpc:
       horizon_step_count: 24
       dt: 0.05
-      weight_contour: 4.0          # excess only (outside deadzone)
-      weight_heading: 3.0
+      weight_contour: 8.0          # excess only (outside deadzone)
+      weight_heading: 4.0
       weight_progress: 3.0
-      weight_lag: 12.0             # prefer advancing s
+      weight_lag: 10.0             # prefer advancing s
       contour_deadzone: 0.10       # [m] ~chassis half-width scale
-      weight_control: 0.2
+      weight_control: 0.15
       weight_obstacle: 0.0
       obstacle_barrier_power: 2.0
-      weight_terminal: 8.0
+      weight_terminal: 12.0
       weight_slack: 1.0
       max_solver_iter_count: 40
