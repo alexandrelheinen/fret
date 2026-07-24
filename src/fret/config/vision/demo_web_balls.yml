@@ -1,0 +1,67 @@
+# Web photo gallery for HSV ball-detection demos (Wikimedia Commons).
+#
+# Edit this list freely: add ``url`` and/or local ``path``. The gallery script
+# downloads URLs into --cache-dir, runs fret.vision, writes 16:9 annotated
+# panels, and optionally uploads to Cloudflare R2.
+#
+# Usage:
+#   python3 scripts/vision_web_ball_gallery.py \
+#     --images src/fret/config/vision/demo_web_balls.yml \
+#     --vision-config src/fret/config/vision/hsv_blob_tennis_yellow.yml \
+#     --upload-r2
+
+vision_config: vision/hsv_blob_tennis_yellow.yml
+
+# Output canvas (16:9). Image pane = 2/3 width; text pane = 1/3 width.
+canvas:
+  width: 1920
+  height: 1080
+
+r2:
+  # Keys under the bucket (aws s3 --endpoint R2).
+  prefix: evidence/vision_web_balls
+  # latest/ mirror skipped unless promote_latest: true
+  promote_latest: false
+
+images:
+  - id: tennis_ball2
+    url: https://upload.wikimedia.org/wikipedia/commons/a/aa/Tennis_ball2.jpg
+    title: Tennis ball (close studio shot)
+    source_page: https://commons.wikimedia.org/wiki/File:Tennis_ball2.jpg
+    notes: Classic yellow felt; expected easy HSV hit.
+
+  - id: tennis_ball_closeup
+    url: https://upload.wikimedia.org/wikipedia/commons/4/41/Closeup_of_a_tennis_ball_%282%29.jpg
+    title: Tennis ball close-up
+    source_page: https://commons.wikimedia.org/wiki/File:Closeup_of_a_tennis_ball_(2).jpg
+    notes: Very close; large blob / high circularity.
+
+  - id: tennis_racket_and_balls
+    url: https://upload.wikimedia.org/wikipedia/commons/3/3e/Tennis_Racket_and_Balls.jpg
+    title: Racket + two balls on court
+    source_page: https://commons.wikimedia.org/wiki/File:Tennis_Racket_and_Balls.jpg
+    notes: Multi-object; detector returns the best single blob.
+
+  - id: golden_retriever_tennis
+    url: https://upload.wikimedia.org/wikipedia/commons/c/c0/Golden_Retriever_with_tennis_ball.jpg
+    title: Golden Retriever with tennis ball
+    source_page: https://commons.wikimedia.org/wiki/File:Golden_Retriever_with_tennis_ball.jpg
+    notes: Dog-fetch scene; ball may be small / partially occluded.
+
+  - id: weimaraner_tennis_paco
+    url: https://upload.wikimedia.org/wikipedia/commons/8/81/Weimaraner_tennis_ball_Paco.jpg
+    title: Weimaraner (Paco) with tennis ball
+    source_page: https://commons.wikimedia.org/wiki/File:Weimaraner_tennis_ball_Paco.jpg
+    notes: Outdoor dog + ball; lighting harder than studio.
+
+  - id: jrt_with_ball
+    url: https://upload.wikimedia.org/wikipedia/commons/b/b4/JRT_with_Ball.jpg
+    title: Jack Russell Terrier with yellow ball
+    source_page: https://commons.wikimedia.org/wiki/File:JRT_with_Ball.jpg
+    notes: Motion / grass background clutter.
+
+  # Add your own photos here when ready, e.g.:
+  # - id: my_photo_01
+  #   path: /abs/or/repo/relative/path.jpg
+  #   title: Lab shot
+  #   notes: ...
