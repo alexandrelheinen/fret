@@ -13,11 +13,9 @@ from pathlib import Path
 
 import numpy as np
 
-from fret.control.omy_pad_mid_ik import (
-    OMY_ARM_JOINTS as _ARM,
-    OMY_GRIPPER_PINCH as _GRIPPER_PINCH,
-    pad_mid_ik as _pad_mid_ik,
-)
+from fret.control.omy_pad_mid_ik import OMY_ARM_JOINTS as _ARM
+from fret.control.omy_pad_mid_ik import OMY_GRIPPER_PINCH as _GRIPPER_PINCH
+from fret.control.omy_pad_mid_ik import pad_mid_ik as _pad_mid_ik
 from fret.mjcf.omy import ensure_omy_pick_place_mjcf
 
 _GRIPPER_OPEN = 0.0
@@ -35,9 +33,19 @@ def _physics_pad_contact(
     box_body: int,
 ) -> tuple[bool, float]:
     """Settle under ctrl and report pad↔ball contact + pad-mid distance."""
+    for i, name in enumerate(_ARM):
+        adr = int(
+            model.jnt_qposadr[  # type: ignore[attr-defined]
+                mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+            ]
+        )
+        data.qpos[adr] = float(seed[i])  # type: ignore[attr-defined]
+    grip_j = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1"))
+    data.qpos[int(model.jnt_qposadr[grip_j])] = float(grip_val)  # type: ignore[attr-defined]
     for i, aid in enumerate(arm_act):
         data.ctrl[aid] = float(seed[i])  # type: ignore[attr-defined]
     data.ctrl[grip_act] = float(grip_val)  # type: ignore[attr-defined]
+    mj.mj_forward(model, data)
     for _ in range(1200):
         mj.mj_step(model, data)
     pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
@@ -111,9 +119,7 @@ def compute_waypoints(
     ball_pick = np.array([pick_xy[0], pick_xy[1], pick_z], dtype=np.float64)
     # Drop from above the rim — never put the EE inside the colliding funnel.
     drop_z = float(cone_height_m) + float(place_drop_clearance_m)
-    place_drop = np.array(
-        [place_xy[0], place_xy[1], drop_z], dtype=np.float64
-    )
+    place_drop = np.array([place_xy[0], place_xy[1], drop_z], dtype=np.float64)
     # Folded home (distinct from hover) — mirrors OMX idle vs approach.
     seed = (
         np.asarray(idle, dtype=np.float64)
