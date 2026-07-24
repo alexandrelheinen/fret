@@ -1,6 +1,6 @@
-# SC-v14b — OpenMANIPULATOR-Y pedestal pick-and-place.
+# SC-v14b — OpenMANIPULATOR-Y floor pick-and-place.
 #
-# Pick: Ø 86 mm sphere on a short pedestal; pad pinch + mass-scaled adhesion
+# Pick: Ø 86 mm sphere on the floor; pad pinch + mass-scaled adhesion
 # (OMX tennis-grip pattern). Place: tip-down cone at the loaded reachable pose.
 # Idle is a distinct fold; retreat returns to idle. No qpos teleports, floor
 # body excludes, finger-mesh collision disable, or MPC-bypass setpoints.
@@ -19,16 +19,17 @@
     place_cone_height_m: 0.280
     place_cone_radius_m: 0.140
     grasp_mode: mujoco_adhesion
-    lift_height_m: 0.19
+    # Floor ball centre ~0.043 m; adhered lift settles near ~0.12 m pad mid.
+    lift_height_m: 0.10
     phase_timeout_s: 45.0
     idle_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    pick_hover_configuration: [-0.1464, 0.3627, 2.0772, -0.0892, -0.7000, -0.0003]
-    pick_grasp_configuration: [-0.1549, 0.5978, 2.2293, -0.1627, -0.7409, -0.0127]
-    lift_hover_configuration: [-0.1723, 0.3509, 2.1828, -0.2917, -0.7862, -0.0334]
+    pick_hover_configuration: [-0.2011, 0.6388, 2.1264, -0.2088, -0.8766, -0.0005]
+    pick_grasp_configuration: [-0.1518, 0.8030, 2.1535, -0.0835, -0.7328, 0.0094]
+    lift_hover_configuration: [-0.1588, 0.4894, 2.2404, -0.2132, -0.7513, -0.0234]
     place_hover_configuration: [0.4304, 0.3638, 1.4970, -0.1607, -0.9983, 0.0291]
     place_grasp_configuration: [0.4238, 0.3699, 1.8269, -0.2693, -1.0145, -0.0051]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
     # High mid-cell via: carry clears the colliding place funnel before drop.
-    transfer_via_configuration: [0.1466, 0.2300, 1.9708, -0.3719, -0.9482, -0.0312]
+    transfer_via_configuration: [0.1568, 0.2551, 2.2177, -0.3336, -0.9252, -0.0427]
     pick_xy: [0.350, -0.300]
     place_xy: [0.480, 0.000]

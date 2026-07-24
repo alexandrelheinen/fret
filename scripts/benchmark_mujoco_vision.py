@@ -33,8 +33,8 @@ _CAMS = ("gate_cam_left", "gate_cam_right")
 
 # Nominal ball-centre Z from MJCF body pos (pedestal rest).
 _BALL_Z = {
-    "omx_pick_place": 0.1105,
-    "omy_pick_place": 0.1330,
+    "omx_pick_place": 0.0125,
+    "omy_pick_place": 0.0430,
 }
 
 # Scenario anchors + coarse grid covering side pick (±Y) and front place (+X).

@@ -5,8 +5,9 @@ Same materialization pattern as :mod:`fret.mjcf.omx` — resolve Menagerie
 ``rh_l2``.
 
 Pads sit on the inner fingertip faces (toward the grasp volume) and are the
-gripping surfaces. No floor body excludes, no arm ``qpos`` snaps, no actuator
-forcerange rewrites — same honesty bar as OMX SC-v13b.
+gripping surfaces. No arm ``qpos`` snaps. Floor pick-place remaps distal
+collision bits so wrist/finger STLs can close on a floor ball without fighting
+the plane (and without jamming the place funnel on transfer).
 """
 
 from __future__ import annotations
@@ -144,6 +145,38 @@ def _inject_physical_gripper(robot_xml: str) -> str:
     return robot_xml
 
 
+def _enable_floor_pick_contacts(robot_xml: str) -> str:
+    """Remap distal collision bits for floor-ball grasp (SC-v14b).
+
+    Menagerie wrist/finger STLs penetrate the plane at a true floor pinch.
+    Distal meshes use pad bit 4 (ball only): no floor fight on pinch, and no
+    funnel-wall jam on transfer (cone is bit 2). Proximal links keep bit 1.
+    """
+    # Wrist / flange / fingers: ball only (same bit as pads).
+    for mesh in ("link5", "link6", "r1", "r2", "l1", "l2"):
+        old = f'<geom mesh="{mesh}" class="collision"/>'
+        new = (
+            f'<geom mesh="{mesh}" class="collision" '
+            'contype="4" conaffinity="4"/>'
+        )
+        if old in robot_xml:
+            robot_xml = robot_xml.replace(old, new, 1)
+    robot_xml = robot_xml.replace(
+        '<geom pos="0 -0.103 0" mesh="flange" class="collision"/>',
+        '<geom pos="0 -0.103 0" mesh="flange" class="collision" '
+        'contype="4" conaffinity="4"/>',
+        1,
+    )
+    robot_xml = robot_xml.replace(
+        '<geom pos="0 -0.109 0" quat="0.500398 0.5 0.5 -0.499602" '
+        'mesh="base" class="collision"/>',
+        '<geom pos="0 -0.109 0" quat="0.500398 0.5 0.5 -0.499602" '
+        'mesh="base" class="collision" contype="4" conaffinity="4"/>',
+        1,
+    )
+    return robot_xml
+
+
 def ensure_omy_mjcf(scene: str = "omy_tabletop") -> Path:
     """Build a loadable OMY scene MJCF with resolved mesh paths."""
     menagerie = menagerie_omy_dir()
@@ -168,6 +201,8 @@ def ensure_omy_mjcf(scene: str = "omy_tabletop") -> Path:
     )
     if scene in _PHYSICAL_GRIPPER_SCENES:
         robot = _inject_physical_gripper(robot)
+    if scene == "omy_pick_place":
+        robot = _enable_floor_pick_contacts(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")
     robot_body = robot.rstrip()[: -len("</mujoco>")].rstrip()

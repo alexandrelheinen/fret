@@ -168,7 +168,7 @@ def simulate_pick_place(
         joint_tol_rad=joint_tol_rad,
         grasp_hold_s=1.4,
         release_hold_s=0.8,
-        lift_height_m=0.14,
+        lift_height_m=0.06,
         phase_timeout_s=20.0,
         auto_start_on_ball=use_vision,
     )

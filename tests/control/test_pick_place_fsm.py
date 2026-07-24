@@ -48,7 +48,7 @@ def test_fsm_happy_path_transitions() -> None:
         )
         return fsm.tick(obs, dt)
 
-    cmd = step(wp.idle, 0.1105)
+    cmd = step(wp.idle, 0.0125)
     assert cmd.state == PickPlaceState.APPROACH_PICK
     assert cmd.gripper == pytest.approx(GRIPPER_OPEN)
     assert cmd.motion is MotionKind.PLAN_TO_GOAL
@@ -56,23 +56,24 @@ def test_fsm_happy_path_transitions() -> None:
     assert cmd.plan_goal is not None
     assert np.allclose(cmd.plan_goal, wp.pick_hover)
 
-    cmd = step(wp.idle, 0.1105)
+    cmd = step(wp.idle, 0.0125)
     assert cmd.needs_plan is False  # edge trigger only on entry
 
-    step(wp.pick_hover, 0.1105)
+    step(wp.pick_hover, 0.0125)
     assert fsm.state == PickPlaceState.DESCEND_PICK
 
-    step(wp.pick_grasp, 0.1105)
+    step(wp.pick_grasp, 0.0125)
     assert fsm.state == PickPlaceState.GRASP
-    cmd = step(wp.pick_grasp, 0.1105)
+    cmd = step(wp.pick_grasp, 0.0125)
     assert cmd.gripper == pytest.approx(GRIPPER_CLOSED)
     assert cmd.motion is MotionKind.HOLD
 
     for _ in range(5):
-        step(wp.pick_grasp, 0.1105)
+        step(wp.pick_grasp, 0.0125)
     assert fsm.state == PickPlaceState.LIFT
 
-    step(wp.pick_hover, 0.18)
+    lift_q = wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
+    step(lift_q, 0.08)
     assert fsm.state == PickPlaceState.MOVE_PLACE
 
     step(wp.place_hover, 0.18)
@@ -171,6 +172,6 @@ def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
     ), f"ball XY {ball[:2]} not near place {place_xy}"
     assert (
         float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
-    ), "ball should leave the pick pedestal"
+    ), "ball should leave the pick spot"
     # Settled in the tip-down cone (not still at plate height ~0.11).
     assert float(ball[2]) < 0.08, "ball should settle down inside the cone"
