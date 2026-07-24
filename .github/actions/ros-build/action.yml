@@ -10,6 +10,10 @@ runs:
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
           xvfb \
+          libegl1 \
+          libegl-mesa0 \
+          libgles2 \
+          libgl1 \
           python3-pip \
           curl \
           gnupg
