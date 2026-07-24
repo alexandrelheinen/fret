@@ -37,23 +37,73 @@ one downward-facing camera on the centreline of the workspace.
 | --- | --- |
 | Height | Above max EE / wall obstacles used in SC-v13/14 clutter |
 | FOV | Cover pick region + approach; place fixture may be partial |
-| Intrinsics | Fixed; stored in `config/vision/cameras_*.yml` |
+| Intrinsics | Fixed; stored in `config/vision/*_portal_overhead.yml` |
 | Extrinsics | `T_world_cam` from MJCF body pose; unit-tested vs model |
 
 **Why portal over eye-in-hand (for v1.4):** simpler calibration, no motion blur
 during detection-before-grasp, matches “detect then pick” FSM. Wrist cameras
 may be studied later; they are not the v1.4 default.
 
+### Shipped MJCF mounts (T14-01)
+
+| Cell | Portal body | Cam-A | Eye (world) | `fovy` |
+| --- | --- | --- | --- | --- |
+| OM-X pick / clutter / maze | `vision_portal` @ `(0.273, 0, 0)` | `overhead` | `(0.273, 0, 0.96)` | 45° |
+| OMY pick / clutter | `vision_portal` @ `(0.40, 0, 0)` | `overhead` | `(0.40, 0, 1.30)` | 50° |
+
+Posts + beam + camera plate are visual-only (`contype=0`). Release encode
+cameras `overview` / `follow` remain free-floating (not perception sensors).
+
+Adapter: `fret.simulation.MujocoCameraAdapter` (MuJoCo → OpenCV optical frame).
+
+---
+
+## Required camera resolution
+
+| Setting | Value | Rationale |
+| --- | --- | --- |
+| **Perception render** | **1280 × 720** | OM-X Ø25 mm ball ≈ 20–26 px diameter under portal FOV; 640×480 drops to ~13 px and is too fragile for HSV gates |
+| Showcase encode | 1280 × 720 (`offwidth`/`offheight`) | Unchanged; independent of perception YAML |
+| Fixture / web demos | may stay 640 × 480 | Synthetic / qualitative only |
+
+Constants: `PERCEPTION_WIDTH_PX` / `PERCEPTION_HEIGHT_PX` in
+`fret.simulation.mujoco_camera`.
+
+---
+
+## Benchmark gates (first PR — detect + lift only)
+
+Measured on seeded OM-X / OMY pick-place cells at rest (ball on pedestal).
+Oracle: MuJoCo `pick_box` body pose. Image GT: pinhole projection of that pose
+through live extrinsics/intrinsics.
+
+| Metric | Gate |
+| --- | --- |
+| Image centre error vs projection | ≤ **5 px** |
+| World XY error (OM-X) | ≤ **15 mm** |
+| World XY error (OMY) | ≤ **20 mm** |
+| World Z error (plane lift) | ≤ **5 mm** |
+| YAML ↔ live MJCF extrinsics / intrinsics | ≤ 1e-6 (m / rad-scale) |
+
+CI: `tests/simulation/test_mujoco_portal_vision.py`.  
+Local chart: `scripts/benchmark_mujoco_vision.py`.
+
+**Out of scope for this PR:** feeding `BallObservation` into the FSM / replacing
+`pick_xy` (T14-03).
+
 ---
 
 ## Optional second camera
 
-If multi-view lift is selected during algorithm discussion:
+If multi-view lift is selected later:
 
 - Cam-B on the portal leg or a side post, ~30–45° toward the pick region.
 - Baseline and overlap documented in the camera YAML.
 - Fusion stays inside `PoseLifter` / detector implementations; scenarios only
   list camera ids.
+
+Monocular HSV + plane remains the primary path; Cam-B is **not** required for
+the first portal PR.
 
 ---
 
@@ -61,16 +111,8 @@ If multi-view lift is selected during algorithm discussion:
 
 Each SC-v16 cell must:
 
-1. Include portal geometry (simple boxes OK) + `<camera>` elements.
-2. Reference calibration YAML from the scenario file.
+1. Include portal geometry (simple boxes OK) + `<camera name="overhead">`.
+2. Reference calibration YAML from the scenario file (when SC-v16 lands).
 3. Keep **place / dispenser** pose as ros parameters (known).
-4. Expose a MuJoCo adapter that renders RGB for listed camera names each tick
-   (or each pick cycle).
-
----
-
-## Open points (resolve during T14-01)
-
-- Exact portal dimensions per OM-X vs OMY cell scale.
-- Whether clutter walls require Cam-B for V14 acceptance or remain optional.
-- Sync rate: 10–30 Hz vision vs 50 Hz control (vision may run slower).
+4. Expose a MuJoCo adapter that renders RGB for listed camera names
+   (`MujocoCameraAdapter` — done for Cam-A).

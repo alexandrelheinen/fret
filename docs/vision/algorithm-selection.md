@@ -19,11 +19,12 @@ metric `BallObservation` when calibration and scene geometry allow.
 
 | Item | Choice |
 | --- | --- |
-| Cameras | 1× overhead (portal later in v1.4 MJCF) |
+| Cameras | 1× overhead on MJCF portal (`vision_portal` / Cam-A) |
 | Robot proprioception | Not used in vision |
 | Library | OpenCV (`opencv-python-headless`) |
-| Config | `config/vision/hsv_blob_overhead.yml` |
-| Factory | `fret.vision.build_hsv_plane_pipeline()` |
+| Config | `config/vision/omx_portal_overhead.yml`, `omy_portal_overhead.yml` (+ fixture `hsv_blob_overhead.yml`) |
+| Factory | `fret.vision.build_hsv_plane_pipeline(path=...)` |
+| Perception resolution | **1280×720** (see [camera-layout.md](camera-layout.md)) |
 
 Public contracts (`CameraFrame`, protocols, `BallVisionPipeline`) remain
 usable with other detectors/lifters.

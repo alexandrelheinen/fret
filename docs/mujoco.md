@@ -240,9 +240,11 @@ Source of truth: [`config/release/showcase.yml`](../src/fret/config/release/show
 |---|---|---|
 | `overview` | **All** scenarios | Isometric top view — robots + start/goal |
 | `follow` | **Mobile** robots only (TB3 today; required for future mobile too) | Split-screen chase (one panel per agent on Dubins) |
+| `overhead` | Manipulator cells (perception, v1.4) | Portal-mounted Cam-A — **not** a release encode camera |
 
-Static / tabletop arms export `overview` only. Extra MJCF cameras (`topdown`,
-`finish`, …) remain available via explicit `--camera` but are not release
+Perception `overhead` lives on the `vision_portal` body; see
+[vision/camera-layout.md](vision/camera-layout.md). Extra MJCF cameras
+(`finish`, …) remain available via explicit `--camera` but are not release
 artifacts.
 
 OM-X release focus is SC-v13d Γ-wall maze with two planner variants

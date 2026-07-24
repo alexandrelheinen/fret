@@ -396,12 +396,12 @@ positions**. Simulate cameras in MuJoCo with a **realistic mount**. The
 
 ### Implementation tasks
 
-| ID | Task |
-|---|---|
-| T14-01 | Camera mount MJCF + calibration YAML for OM-X / OMY cells |
-| T14-02 | MuJoCo image adapter → `fret.vision` |
-| T14-03 | Replace hardcoded ball pose in runners with vision output |
-| T14-04 | SC-v16 scenarios + tests; update showcase matrix when clips are ready |
+| ID | Task | Status |
+|---|---|---|
+| T14-01 | Camera mount MJCF + calibration YAML for OM-X / OMY cells | ✅ portal + `*_portal_overhead.yml` |
+| T14-02 | MuJoCo image adapter → `fret.vision` | ✅ `MujocoCameraAdapter` + CI benchmarks |
+| T14-03 | Replace hardcoded ball pose in runners with vision output | 🔲 next PR |
+| T14-04 | SC-v16 scenarios + tests; update showcase matrix when clips are ready | 🔲 |
 
 ---
 

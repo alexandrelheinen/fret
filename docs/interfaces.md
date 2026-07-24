@@ -412,4 +412,12 @@ selection.
 
 `BallDetector`, `BallTracker`, `PoseLifter` — see `fret.vision.protocols`.
 `BallVisionPipeline.process(frames) -> BallObservation | None` orchestrates
-them (Level-3 stub until wired).
+them.
+
+### MuJoCo camera adapter (v1.4)
+
+`fret.simulation.MujocoCameraAdapter` renders a named MJCF camera
+(default `overhead`) at **1280×720**, converts MuJoCo `cam_xmat` to the
+OpenCV optical frame, and returns `CameraFrame` plus live
+intrinsics/extrinsics. It does **not** publish to ROS or drive the FSM; that
+wiring is T14-03.

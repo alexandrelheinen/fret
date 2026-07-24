@@ -1,0 +1,41 @@
+# OMY portal overhead Cam-A (v1.4 T14-01).
+#
+# MJCF: vision_portal body in omy_pick_place / omy_clutter.
+# Resolution locked at 1280×720 (see docs/vision/camera-layout.md).
+
+camera_id: overhead
+
+intrinsics:
+  camera_id: overhead
+  width: 1280
+  height: 720
+  fx: 772.0224913834411
+  fy: 772.0224913834411
+  cx: 639.5
+  cy: 359.5
+
+extrinsics:
+  camera_id: overhead
+  t_world_cam:
+    - [0.0, 1.0, 0.0, 0.40]
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 0.0, -1.0, 1.30]
+    - [0.0, 0.0, 0.0, 1.0]
+
+detector:
+  hsv_lower: [20, 40, 40]
+  hsv_upper: [50, 255, 255]
+  hsv_lower_alt: null
+  hsv_upper_alt: null
+  morph_kernel_px: 5
+  min_area_px: 120.0
+  max_area_px: 500000.0
+  min_circularity: 0.45
+
+lifter:
+  # Pedestal top z=0.09; ball radius 0.043 → centre plane z=0.133.
+  table_z_m: 0.09
+  ball_radius_m: 0.043
+
+pipeline:
+  source: omy_portal_hsv_plane

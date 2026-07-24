@@ -1,0 +1,43 @@
+# OM-X portal overhead Cam-A (v1.4 T14-01).
+#
+# MJCF: vision_portal body in omx_pick_place / clutter / wall_maze.
+# Resolution locked at 1280×720 (see docs/vision/camera-layout.md).
+# Extrinsics match MuJoCo OpenCV optical frame via MujocoCameraAdapter.
+
+camera_id: overhead
+
+intrinsics:
+  camera_id: overhead
+  width: 1280
+  height: 720
+  fx: 869.1168824543142
+  fy: 869.1168824543142
+  cx: 639.5
+  cy: 359.5
+
+extrinsics:
+  camera_id: overhead
+  t_world_cam:
+    - [0.0, 1.0, 0.0, 0.273]
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 0.0, -1.0, 0.96]
+    - [0.0, 0.0, 0.0, 1.0]
+
+detector:
+  # MuJoCo pick_ball rgba ≈ yellow-green (0.85, 0.92, 0.20).
+  hsv_lower: [20, 40, 40]
+  hsv_upper: [50, 255, 255]
+  hsv_lower_alt: null
+  hsv_upper_alt: null
+  morph_kernel_px: 5
+  min_area_px: 80.0
+  max_area_px: 200000.0
+  min_circularity: 0.45
+
+lifter:
+  # Pedestal top z=0.098; ball radius 0.0125 → centre plane z=0.1105.
+  table_z_m: 0.098
+  ball_radius_m: 0.0125
+
+pipeline:
+  source: omx_portal_hsv_plane
