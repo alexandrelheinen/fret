@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.2.7** — dual-agent Dubins race (TB3 case study),
-**MuJoCo physics SITL**, OM-X / OMY tabletop showcases, PlotJuggler telemetry
-beside release videos on R2. Mobile showcase renders use `--physics-mode`.
+**Current release: v1.3.0** — `fret.vision` ball pipeline (OpenCV HSV blob +
+table-plane lift), unit tests, algorithm selection; plus v1.2.x MuJoCo physics
+SITL showcases (TB3 Dubins, OM-X / OMY) with PlotJuggler telemetry on R2.
 
 <br clear="left">
 
@@ -25,9 +25,8 @@ beside release videos on R2. Mobile showcase renders use `--physics-mode`.
 | Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
 | Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
 
-**Current release line:** v1.2.7 shipped showcases; **v1.3 CV pipeline** is
-implemented on `main` once PR #126 merges (tag `v1.3.0` next). Package on
-`main` is **1.3.0**. Next: **v1.4** CV↔manipulation. See
+**Current release line:** **v1.3.0** ships the CV algorithm layer. Next:
+**v1.4** CV↔manipulation (MuJoCo cameras, no hardcoded ball). See
 [docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
@@ -41,7 +40,7 @@ src/fret/
 ├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
 ├── telemetry/         # Opt-in PlotJuggler CSV logger + layouts (FR-SIM-12)
 ├── scene/             # Scene acquisition → occupancy adapter
-├── vision/            # Ball CV pipeline (scaffold from v1.3)
+├── vision/            # Ball CV pipeline (v1.3: HSV + table-plane)
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
 ├── hardware/          # HITL bridge stub (v2.x)
