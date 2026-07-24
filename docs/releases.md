@@ -306,7 +306,7 @@ planning and trajectory execution in a cluttered environment — the last
 
 ---
 
-## v1.3 — Computer vision pipeline
+## v1.3 — Computer vision pipeline ✅
 
 ### Goal
 
@@ -324,10 +324,11 @@ Selection ADR: [vision/algorithm-selection.md](vision/algorithm-selection.md).
 |---|---|
 | Package | `fret.vision` (algorithm layer; no ROS imports in core) |
 | Goal | Detect / track ball centre; lift to metric pose when calibration + geometry allow |
-| Cameras | API supports N≥1; selection must justify mono vs multi-view |
+| Cameras | API supports N≥1; MVP uses 1 overhead view |
+| Primary algo | OpenCV HSV blob + table-plane ray lift |
 | Consumers | Spec’d for manipulators; **TB3 out of scope** |
 | Place pose | Out of scope (known parameter later) |
-| Tests | Synthetic fixtures + recorded frames under `tests/vision/` |
+| Tests | Synthetic fixtures under `tests/vision/` (+ optional web gallery script) |
 
 ### Scenario IDs
 
@@ -337,22 +338,22 @@ Selection ADR: [vision/algorithm-selection.md](vision/algorithm-selection.md).
 
 ### Acceptance criteria
 
-| # | Criterion |
-|---|---|
-| V13-1 | `FR-VIS-*` requirements and `docs/modules/vision.md` API stubs published |
-| V13-2 | Algorithm selection document records candidates, metrics, and **chosen primary** |
-| V13-3 | Unit tests: ball centre error ≤ threshold on fixtures (see selection doc) |
-| V13-4 | Pipeline runs without ROS; optional thin ROS wrapper may exist but is not required |
-| V13-5 | Multi-camera interface is defined even if the primary algo starts monocular |
+| # | Criterion | Status |
+|---|---|---|
+| V13-1 | `FR-VIS-*` requirements and `docs/modules/vision.md` API stubs published | ✅ |
+| V13-2 | Algorithm selection document records candidates, metrics, and **chosen primary** | ✅ |
+| V13-3 | Unit tests: ball centre error ≤ threshold on fixtures (see selection doc) | ✅ |
+| V13-4 | Pipeline runs without ROS; optional thin ROS wrapper may exist but is not required | ✅ |
+| V13-5 | Multi-camera interface is defined even if the primary algo starts monocular | ✅ |
 
 ### Implementation tasks
 
-| ID | Task |
-|---|---|
-| T13-01 | Scaffold `fret.vision` + typed contracts (`BallObservation`, `CameraFrame`, …) |
-| T13-02 | Candidate implementations behind a common detector/tracker interface |
-| T13-03 | Fixture corpus + unit gates; record selection decision |
-| T13-04 | Module + interface docs; link from roadmap / scenarios |
+| ID | Task | Status |
+|---|---|---|
+| T13-01 | Scaffold `fret.vision` + typed contracts (`BallObservation`, `CameraFrame`, …) | ✅ |
+| T13-02 | Candidate implementations behind a common detector/tracker interface | ✅ HSV + plane |
+| T13-03 | Fixture corpus + unit gates; record selection decision | ✅ |
+| T13-04 | Module + interface docs; link from roadmap / scenarios | ✅ |
 
 ---
 

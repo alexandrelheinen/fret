@@ -25,11 +25,10 @@ beside release videos on R2. Mobile showcase renders use `--physics-mode`.
 | Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
 | Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
 
-**Coming next (still simulation):** **v1.3** computer-vision pipeline and
-algorithm selection → **v1.4** CV↔manipulation → **v1.5** dynamic ball /
-industrial place. **Hardware is v2.x**, not v1.3. Package on `main` is
-**1.3.0** for the open CV line. See [docs/roadmap.md](docs/roadmap.md) and
-[docs/releases.md](docs/releases.md).
+**Current release line:** v1.2.7 shipped showcases; **v1.3 CV pipeline** is
+implemented on `main` once PR #126 merges (tag `v1.3.0` next). Package on
+`main` is **1.3.0**. Next: **v1.4** CV↔manipulation. See
+[docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
 
