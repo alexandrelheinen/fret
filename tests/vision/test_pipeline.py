@@ -79,11 +79,9 @@ def test_pipeline_rejects_empty_source() -> None:
         BallVisionPipeline(_StubDetector(), _StubLifter(), source="")
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError)
-def test_pipeline_process_not_implemented() -> None:
-    """Level-3: orchestration raises until v1.3 implementation lands."""
+def test_pipeline_process_returns_none_when_no_detection() -> None:
     pipe = BallVisionPipeline(_StubDetector(), _StubLifter())
-    pipe.process([_frame()])
+    assert pipe.process([_frame()]) is None
 
 
 def test_pipeline_process_rejects_empty_frames() -> None:

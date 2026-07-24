@@ -36,7 +36,7 @@ case study (no graspable object interaction in the product scenarios).
 | Who uses CV | OM-X and OMY only | Only manipulators interact with graspable objects |
 | What CV must find | Ball centre (and pickability from v1.5) | Grasp entry needs object pose |
 | What stays parametric | Place / dispenser / container pose | Fixed industrial fixture |
-| Algorithm | **Open** — see [algorithm-selection.md](algorithm-selection.md) | Scaffold API is algo-agnostic |
+| Algorithm | **HSV blob + table-plane lift** (MVP) | See [algorithm-selection.md](algorithm-selection.md); contracts stay swappable |
 | Multi-camera | Interface supports `N ≥ 1` frames | Fusion is an implementation detail |
 | v1.5 cadence | One ball per cycle (provisional) | Clearer FSM and metrics; multi-ball stretch |
 

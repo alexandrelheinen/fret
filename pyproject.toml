@@ -20,10 +20,14 @@ dev = [
     "isort>=5.13",
     "mypy>=1.10",
 ]
+vision = [
+    "opencv-python-headless>=4.10,<5",
+]
 sim = [
     "mujoco>=3.10,<3.11",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
+    "opencv-python-headless>=4.10,<5",
 ]
 
 [project.scripts]

@@ -1,5 +1,5 @@
-"""Package markers for future detector / lifter / tracker implementations.
+"""Detector implementations."""
 
-No concrete algorithms live here yet. Selection is tracked in
-``docs/vision/algorithm-selection.md``.
-"""
+from fret.vision.detect.hsv_blob import HsvBlobBallDetector
+
+__all__ = ["HsvBlobBallDetector"]

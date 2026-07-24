@@ -1,0 +1,45 @@
+# Overhead HSV blob ball detector + table-plane pose lift (v1.3 MVP).
+#
+# Tunables only — no Python defaults for these keys. Camera optical frame is
+# OpenCV-style (X right, Y down, Z forward). Images are RGB uint8.
+
+camera_id: overhead
+
+intrinsics:
+  camera_id: overhead
+  width: 640
+  height: 480
+  fx: 600.0
+  fy: 600.0
+  cx: 320.0
+  cy: 240.0
+
+# Identity: camera at world origin looking along +Z_world (test / fixture default).
+# Scenario MJCF mounts override this in v1.4.
+extrinsics:
+  camera_id: overhead
+  t_world_cam:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+
+detector:
+  # OpenCV HSV: H in [0, 179], S/V in [0, 255]. Orange/tennis-like default.
+  hsv_lower: [5, 80, 80]
+  hsv_upper: [25, 255, 255]
+  # Optional second range (e.g. red wrap-around). Omit or null to disable.
+  hsv_lower_alt: null
+  hsv_upper_alt: null
+  morph_kernel_px: 5
+  min_area_px: 40.0
+  max_area_px: 200000.0
+  min_circularity: 0.55
+
+lifter:
+  # Horizontal plane for ball centres: z = table_z_m + ball_radius_m
+  table_z_m: 0.0
+  ball_radius_m: 0.025
+
+pipeline:
+  source: hsv_blob_table_plane
