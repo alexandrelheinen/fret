@@ -10,51 +10,54 @@ encode cameras in `showcase.yml`.
 
 ## Design goals
 
-1. Ball resting on table or floor is visible with high probability.
+1. Ball resting on the pick pedestal (any side of the cell, ±90° yaw) is visible
+   from at least one gate camera with high probability.
 2. Extrinsics are **stable and documented** (YAML), matching MJCF.
-3. Mount looks **realistic** for a lab / light-industrial cell (not a free-floating eye).
-4. Layout supports the **selected** algorithm once chosen (mono or multi-view).
+3. Mount looks **realistic** for a lab / light-industrial cell (structural gate,
+   not a free-floating eye).
+4. Place / dispenser sits **in front of the arm** (+X); the arm stretches forward
+   to drop. Pick is on the side so future “any-side pick” stays plausible.
 
 ---
 
-## Default mount: overhead portal
+## Default mount: rear structural gate (dual Cam-A/B)
 
-**Choice:** a rigid **portal / gantry** frame above the manipulation cell holding
-one downward-facing camera on the centreline of the workspace.
+**Choice:** a rigid **gate** behind the manipulator (negative X), with square
+tube posts, top/bottom beams, and an **X-brace**, holding two cameras at the
+**top corners**.
 
 ```
-        ____ portal beam ____
-       /                      \
-      Cam-A (down)             optional Cam-B (oblique)
-       |                        /
-       v                       /
-   +--------+  arm  +--------+
-   | ball?  |       | place  |
-   +--------+       +--------+
+          gate (behind base)
+     Cam-L *====X====* Cam-R     ← toed-in toward workspace
+           ||  / \  ||
+           || /   \ ||
+           ||/     \||
+   -Y ←─── base / arm ───→ +Y
+                  |
+                  v  +X forward
+            [ place cone ]
+         (pick pedestal on −Y)
 ```
 
-| Property | Guidance |
-| --- | --- |
-| Height | Above max EE / wall obstacles used in SC-v13/14 clutter |
-| FOV | Cover pick region + approach; place fixture may be partial |
-| Intrinsics | Fixed; stored in `config/vision/*_portal_overhead.yml` |
-| Extrinsics | `T_world_cam` from MJCF body pose; unit-tested vs model |
+| Property | OM-X | OMY |
+| --- | --- | --- |
+| Gate plane | `x = −0.16 m` | `x = −0.22 m` |
+| Half-width (post Y) | ±0.30 m | ±0.42 m |
+| Top height | 0.72 m | 1.00 m |
+| Tube half-size (MuJoCo) | 12 mm → **24 mm** bar | 16 mm → **32 mm** bar |
+| Cameras | `gate_cam_left`, `gate_cam_right` | same names |
+| `fovy` | 42° | 45° |
+| Look-at (shared) | ~(0.22, −0.08, 0.08) | ~(0.38, −0.10, 0.10) |
+| Pick (side) | `(0.22, −0.20)` | `(0.35, −0.30)` |
+| Place (front) | `(0.26, 0.0)` | `(0.48, 0.0)` |
 
-**Why portal over eye-in-hand (for v1.4):** simpler calibration, no motion blur
-during detection-before-grasp, matches “detect then pick” FSM. Wrist cameras
-may be studied later; they are not the v1.4 default.
+Gate geoms are visual-only (`contype=0`). The gate may clip a little rear
+workspace, but leaves margin for side picks at ±90° yaw and a forward place
+reach.
 
-### Shipped MJCF mounts (T14-01)
-
-| Cell | Portal body | Cam-A | Eye (world) | `fovy` |
-| --- | --- | --- | --- | --- |
-| OM-X pick / clutter / maze | `vision_portal` @ `(0.273, 0, 0)` | `overhead` | `(0.273, 0, 0.96)` | 45° |
-| OMY pick / clutter | `vision_portal` @ `(0.40, 0, 0)` | `overhead` | `(0.40, 0, 1.30)` | 50° |
-
-Posts + beam + camera plate are visual-only (`contype=0`). Release encode
-cameras `overview` / `follow` remain free-floating (not perception sensors).
-
-Adapter: `fret.simulation.MujocoCameraAdapter` (MuJoCo → OpenCV optical frame).
+Adapter: `fret.simulation.MujocoCameraAdapter` (per camera name).  
+Fusion: confidence-weighted mean of table-plane lifts; **one view is enough**
+if the other is obstructed.
 
 ---
 
@@ -62,48 +65,45 @@ Adapter: `fret.simulation.MujocoCameraAdapter` (MuJoCo → OpenCV optical frame)
 
 | Setting | Value | Rationale |
 | --- | --- | --- |
-| **Perception render** | **1280 × 720** | OM-X Ø25 mm ball ≈ 20–26 px diameter under portal FOV; 640×480 drops to ~13 px and is too fragile for HSV gates |
-| Showcase encode | 1280 × 720 (`offwidth`/`offheight`) | Unchanged; independent of perception YAML |
-| Fixture / web demos | may stay 640 × 480 | Synthetic / qualitative only |
+| **Perception render** | **1280 × 720** | Small OM-X ball still ≥ ~10 px under gate FOV |
+| Showcase encode | 1280 × 720 | Unchanged |
 
 Constants: `PERCEPTION_WIDTH_PX` / `PERCEPTION_HEIGHT_PX` in
 `fret.simulation.mujoco_camera`.
 
 ---
 
-## Benchmark gates (first PR — detect + lift only)
-
-Measured on seeded OM-X / OMY pick-place cells at rest (ball on pedestal).
-Oracle: MuJoCo `pick_box` body pose. Image GT: pinhole projection of that pose
-through live extrinsics/intrinsics.
+## Benchmark gates (detect + lift; no FSM feed)
 
 | Metric | Gate |
 | --- | --- |
-| Image centre error vs projection | ≤ **5 px** |
-| World XY error (OM-X) | ≤ **15 mm** |
-| World XY error (OMY) | ≤ **20 mm** |
-| World Z error (plane lift) | ≤ **5 mm** |
-| YAML ↔ live MJCF extrinsics / intrinsics | ≤ 1e-6 (m / rad-scale) |
+| Image centre error (per hitting view) | ≤ **5 px** |
+| World XY (fused or mono) OM-X / OMY | ≤ **15 mm** / **20 mm** |
+| World Z | ≤ **5 mm** |
+| YAML ↔ live MJCF calib | ≤ ~1e-5 |
 
-CI: `tests/simulation/test_mujoco_portal_vision.py`.  
-Local chart: `scripts/benchmark_mujoco_vision.py`.
-
-**Out of scope for this PR:** feeding `BallObservation` into the FSM / replacing
-`pick_xy` (T14-03).
+CI: `tests/simulation/test_mujoco_portal_vision.py`.
 
 ---
 
-## Optional second camera
+## Parallel vs oblique (toed-in) camera axes
 
-If multi-view lift is selected later:
+**Shipped choice: mildly oblique / toed-in** — both cameras share a look-at near
+the pick/place workspace rather than parallel optical axes.
 
-- Cam-B on the portal leg or a side post, ~30–45° toward the pick region.
-- Baseline and overlap documented in the camera YAML.
-- Fusion stays inside `PoseLifter` / detector implementations; scenarios only
-  list camera ids.
+| Option | Pros | Cons |
+| --- | --- | --- |
+| **Parallel axes** | Simple calib story; uniform ground sampling; easy stereo baseline math | Outer FOV wastes pixels on floor behind the gate; ball near side pick may leave one view |
+| **Toed-in (oblique)** | Both FOVs cover the working volume; better single-view fallback when one cam is blocked; matches “gate corner” industrial mounts | Baseline not purely lateral; stereo triangulation needs care (we use **plane lift + fuse**, not pure stereo) |
 
-Monocular HSV + plane remains the primary path; Cam-B is **not** required for
-the first portal PR.
+For **HSV + table-plane lift**, parallel vs toed-in barely changes precision when
+both see the ball (errors already ≪ 1 mm). The practical win of toed-in is
+**coverage and obstruction robustness**, not millimetres. Pure stereo depth
+without a plane would prefer a known baseline and limited toe-in; that is not
+the v1.4 primary path.
+
+**Recommendation:** keep toed-in for this gate; revisit parallel only if a
+future stereo lifter needs a calibrated rectified pair.
 
 ---
 
@@ -111,8 +111,7 @@ the first portal PR.
 
 Each SC-v16 cell must:
 
-1. Include portal geometry (simple boxes OK) + `<camera name="overhead">`.
-2. Reference calibration YAML from the scenario file (when SC-v16 lands).
-3. Keep **place / dispenser** pose as ros parameters (known).
-4. Expose a MuJoCo adapter that renders RGB for listed camera names
-   (`MujocoCameraAdapter` — done for Cam-A).
+1. Include `vision_gate` + `gate_cam_left` / `gate_cam_right`.
+2. Reference dual-camera YAML (`omx_portal_overhead.yml` / `omy_portal_overhead.yml`).
+3. Keep **place / dispenser** as known scenario parameters (front cone for now).
+4. Expose RGB via `MujocoCameraAdapter` per camera id.

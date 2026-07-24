@@ -1,43 +1,46 @@
-# OM-X portal overhead Cam-A (v1.4 T14-01).
-#
-# MJCF: vision_portal body in omx_pick_place / clutter / wall_maze.
-# Resolution locked at 1280×720 (see docs/vision/camera-layout.md).
-# Extrinsics match MuJoCo OpenCV optical frame via MujocoCameraAdapter.
-
-camera_id: overhead
-
+# Dual gate-corner cameras + HSV blob + fused table-plane lift (v1.4).
+camera_ids: [gate_cam_left, gate_cam_right]
 intrinsics:
-  camera_id: overhead
-  width: 1280
-  height: 720
-  fx: 869.1168824543142
-  fy: 869.1168824543142
-  cx: 639.5
-  cy: 359.5
-
+  - camera_id: gate_cam_left
+    width: 1280
+    height: 720
+    fx: 937.8320633
+    fy: 937.8320633
+    cx: 639.5
+    cy: 359.5
+  - camera_id: gate_cam_right
+    width: 1280
+    height: 720
+    fx: 937.8320633
+    fy: 937.8320633
+    cx: 639.5
+    cy: 359.5
 extrinsics:
-  camera_id: overhead
-  t_world_cam:
-    - [0.0, 1.0, 0.0, 0.273]
-    - [1.0, 0.0, 0.0, 0.0]
-    - [0.0, 0.0, -1.0, 0.96]
-    - [0.0, 0.0, 0.0, 1.0]
-
+  - camera_id: gate_cam_left
+    t_world_cam:
+    - [-0.7452411043, -0.5149988997, 0.4235467268, -0.12]
+    - [-0.6667950933, 0.5755866421, -0.4733754545, 0.3]
+    - [0, -0.6351977257, -0.7723495642, 0.7]
+    - [0, 0, 0, 1]
+  - camera_id: gate_cam_right
+    t_world_cam:
+    - [0.5432511538, -0.7029104271, 0.4591242919, -0.12]
+    - [-0.8395702376, -0.4548242463, 0.2970803277, -0.3]
+    - [-2.775557562e-17, -0.5468563216, -0.8372264709, 0.7]
+    - [0, 0, 0, 1]
 detector:
-  # MuJoCo pick_ball rgba ≈ yellow-green (0.85, 0.92, 0.20).
+  camera_ids: [gate_cam_left, gate_cam_right]
   hsv_lower: [20, 40, 40]
   hsv_upper: [50, 255, 255]
   hsv_lower_alt: null
   hsv_upper_alt: null
   morph_kernel_px: 5
   min_area_px: 80.0
-  max_area_px: 200000.0
+  max_area_px: 500000.0
   min_circularity: 0.45
-
 lifter:
-  # Pedestal top z=0.098; ball radius 0.0125 → centre plane z=0.1105.
+  camera_ids: [gate_cam_left, gate_cam_right]
   table_z_m: 0.098
   ball_radius_m: 0.0125
-
 pipeline:
-  source: omx_portal_hsv_plane
+  source: omx_gate_hsv_plane

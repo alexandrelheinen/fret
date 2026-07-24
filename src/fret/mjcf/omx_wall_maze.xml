@@ -47,11 +47,11 @@
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
 
-    <geom name="pedestal_pick" type="cylinder" pos="0.273 -0.160 0.049" size="0.018 0.049"
+    <geom name="pedestal_pick" type="cylinder" pos="0.27300 -0.16000 0.04900" size="0.018 0.049"
           material="pedestal" friction="1.2 0.1 0.01" contype="2" conaffinity="2"/>
 
     <!-- Visual funnel (mesh is convex-hulled by MuJoCo; collision uses funnel_w*). -->
-    <geom name="place_cone" type="mesh" mesh="place_cone" pos="0.273 0.160 0"
+    <geom name="place_cone" type="mesh" mesh="place_cone" pos="0.27300 0.16000 0.00000"
           material="place_cone" contype="0" conaffinity="0"/>
     <geom name="funnel_w0" type="box" size="0.0025 0.00757 0.05501" pos="0.30100 0.16000 0.04900" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w1" type="box" size="0.0025 0.00757 0.05501" pos="0.30030 0.16623 0.04900" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
@@ -81,17 +81,17 @@
     <geom name="funnel_w25" type="box" size="0.0025 0.00757 0.05501" pos="0.29489 0.14254 0.04900" quat="-0.917744 -0.077189 -0.220592 0.321133" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w26" type="box" size="0.0025 0.00757 0.05501" pos="0.29823 0.14785 0.04900" quat="-0.947929 -0.052005 -0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w27" type="box" size="0.0025 0.00757 0.05501" pos="0.30030 0.15377 0.04900" quat="-0.966193 -0.026167 -0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
-    <geom name="funnel_tip" type="sphere" size="0.004" pos="0.273 0.16 0.004" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
+    <geom name="funnel_tip" type="sphere" size="0.004" pos="0.27300 0.16000 0.00400" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
 
-    <geom name="place_plate" type="cylinder" pos="0.273 0.160 0.098" size="0.050 0.001"
+    <geom name="place_plate" type="cylinder" pos="0.27300 0.16000 0.09800" size="0.050 0.001"
           material="place_plate" contype="0" conaffinity="0"/>
     <!-- Opaque lip: same radius as red goal disk so the cone reads as its basis. -->
-    <geom name="place_cone_rim" type="cylinder" pos="0.273 0.16 0.098" size="0.050 0.0015"
+    <geom name="place_cone_rim" type="cylinder" pos="0.27300 0.16000 0.09800" size="0.050 0.0015"
           material="place_cone" contype="0" conaffinity="0"/>
 
-    <geom name="start_zone" type="cylinder" pos="0.273 -0.160 0.099" size="0.05 0.001"
+    <geom name="start_zone" type="cylinder" pos="0.27300 -0.16000 0.09900" size="0.05 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="cylinder" pos="0.273 0.160 0.099" size="0.05 0.001"
+    <geom name="goal_zone" type="cylinder" pos="0.27300 0.16000 0.09900" size="0.05 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
     <!-- Γ maze: stem (vertical) + roof overhang toward the pick ball (-Y). -->
@@ -103,7 +103,7 @@
           contype="1" conaffinity="1"/>
 
     <!-- Ø 25 mm tennis-like ball on the pick pedestal (grippy felt). -->
-    <body name="pick_box" pos="0.273 -0.160 0.1105">
+    <body name="pick_box" pos="0.27300 -0.16000 0.11050">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="sphere" size="0.0125"
             density="400" material="pick_ball"
@@ -112,25 +112,40 @@
     </body>
 
     <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
-    <body name="vision_portal" pos="0.273 0 0">
-      <geom name="portal_post_n" type="box" size="0.018 0.018 0.48"
-            pos="0 -0.34 0.48" material="vision_portal"
+    <!-- Structural rear vision gate + dual corner Cam-A/B (v1.4). -->
+    <body name="vision_gate" pos="-0.16000 0 0">
+      <geom name="gate_post_l" type="box" size="0.0120 0.0120 0.3600"
+            pos="0 0.30000 0.36000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_post_p" type="box" size="0.018 0.018 0.48"
-            pos="0 0.34 0.48" material="vision_portal"
+      <geom name="gate_post_r" type="box" size="0.0120 0.0120 0.3600"
+            pos="0 -0.30000 0.36000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_beam" type="box" size="0.022 0.36 0.018"
-            pos="0 0 0.98" material="vision_portal"
+      <geom name="gate_beam_top" type="box" size="0.0120 0.31200 0.0120"
+            pos="0 0 0.72000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_cam_plate" type="box" size="0.035 0.028 0.012"
-            pos="0 0 0.955" material="vision_portal"
+      <geom name="gate_beam_bot" type="box" size="0.0120 0.31200 0.0120"
+            pos="0 0 0.02400" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <camera name="overhead" pos="0 0 0.96"
-              xyaxes="0 1 0 -1 0 0" fovy="45"/>
+      <geom name="gate_brace_a" type="box" size="0.0084 0.45044 0.0084"
+            pos="0 0 0.36000" quat="0.912693 0.408647 0.000000 0.000000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_brace_b" type="box" size="0.0084 0.45044 0.0084"
+            pos="0 0 0.36000" quat="0.912693 -0.408647 0.000000 0.000000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_cam_plate_l" type="box" size="0.03 0.025 0.012"
+            pos="0.04 0.30000 0.70000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_cam_plate_r" type="box" size="0.03 0.025 0.012"
+            pos="0.04 -0.30000 0.70000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <camera name="gate_cam_left" pos="0.04 0.30000 0.70000"
+              xyaxes="-0.745241 -0.666795 0.000000 0.514999 -0.575587 0.635198" fovy="42.0"/>
+      <camera name="gate_cam_right" pos="0.04 -0.30000 0.70000"
+              xyaxes="0.543251 -0.839570 0.000000 0.702910 0.454824 0.546856" fovy="42.0"/>
     </body>
     <!-- Isometric overview: arm + Γ-wall maze + pick/place. -->
-    <camera name="overview" pos="0.85 -0.90 0.90"
-            xyaxes="0.82 0.57 0 -0.32 0.46 0.83" fovy="38"/>
+    <camera name="overview" pos="0.85 -0.55 0.75"
+            xyaxes="0.55 0.84 0 -0.40 0.26 0.88" fovy="40"/>
     <camera name="follow" pos="0.55 0.40 0.35"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>

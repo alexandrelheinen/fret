@@ -108,8 +108,9 @@ camera MJCF required to *select*; fixtures may use synthetic images.
 
 ### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
 
-- [x] MuJoCo cameras in OM-X / OMY cells (realistic portal / gantry mount)
-- [x] MuJoCo image adapter → `fret.vision` + detect/lift benchmarks (no FSM feed)
+- [x] MuJoCo cameras in OM-X / OMY cells (rear structural gate, dual corner cams)
+- [x] MuJoCo image adapter → `fret.vision` + dual-view detect/lift benchmarks (no FSM feed)
+- [x] Place cone moved in front of arm; pick on the side (±90° yaw margin)
 - [ ] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy`)
 - [ ] Keep **place / dispenser** as known YAML parameters
 - [ ] Equivalent behaviour to today’s physics smoke without pose cheats

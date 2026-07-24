@@ -121,24 +121,39 @@
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 
     <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
-    <body name="vision_portal" pos="0.40 0 0">
-      <geom name="portal_post_n" type="box" size="0.025 0.025 0.65"
-            pos="0 -0.48 0.65" material="vision_portal"
+    <!-- Structural rear vision gate + dual corner Cam-A/B (v1.4). -->
+    <body name="vision_gate" pos="-0.22000 0 0">
+      <geom name="gate_post_l" type="box" size="0.0160 0.0160 0.5000"
+            pos="0 0.42000 0.50000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_post_p" type="box" size="0.025 0.025 0.65"
-            pos="0 0.48 0.65" material="vision_portal"
+      <geom name="gate_post_r" type="box" size="0.0160 0.0160 0.5000"
+            pos="0 -0.42000 0.50000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_beam" type="box" size="0.030 0.50 0.025"
-            pos="0 0 1.32" material="vision_portal"
+      <geom name="gate_beam_top" type="box" size="0.0160 0.43600 0.0160"
+            pos="0 0 1.00000" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_cam_plate" type="box" size="0.045 0.035 0.015"
-            pos="0 0 1.285" material="vision_portal"
+      <geom name="gate_beam_bot" type="box" size="0.0160 0.43600 0.0160"
+            pos="0 0 0.03200" material="vision_portal"
             contype="0" conaffinity="0" group="1"/>
-      <camera name="overhead" pos="0 0 1.30"
-              xyaxes="0 1 0 -1 0 0" fovy="50"/>
+      <geom name="gate_brace_a" type="box" size="0.0112 0.62883 0.0112"
+            pos="0 0 0.50000" quat="0.913211 0.407486 0.000000 0.000000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_brace_b" type="box" size="0.0112 0.62883 0.0112"
+            pos="0 0 0.50000" quat="0.913211 -0.407486 0.000000 0.000000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_cam_plate_l" type="box" size="0.03 0.025 0.012"
+            pos="0.04 0.42000 0.98000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="gate_cam_plate_r" type="box" size="0.03 0.025 0.012"
+            pos="0.04 -0.42000 0.98000" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <camera name="gate_cam_left" pos="0.04 0.42000 0.98000"
+              xyaxes="-0.680451 -0.732793 0.000000 0.553287 -0.513766 0.655681" fovy="45.0"/>
+      <camera name="gate_cam_right" pos="0.04 -0.42000 0.98000"
+              xyaxes="0.496139 -0.868243 0.000000 0.700289 0.400165 0.591153" fovy="45.0"/>
     </body>
-    <camera name="overview" pos="0.95 -0.95 1.05"
-            xyaxes="0.82 0.57 0 -0.32 0.46 0.83" fovy="40"/>
+    <camera name="overview" pos="1.05 -0.70 1.00"
+            xyaxes="0.55 0.84 0 -0.40 0.26 0.88" fovy="40"/>
     <camera name="follow" pos="0.70 0.15 0.55"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>
