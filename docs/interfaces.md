@@ -337,4 +337,65 @@ print('ARCO API surface OK')
 **Version pinning:** ARCO is co-developed with FRET. No version pin is enforced.
 The CI checkout step is responsible for obtaining a compatible ARCO snapshot.
 The CI job that requires ARCO must check out `../arco/` before installing it.
+
+---
+
+## Vision → Manipulation Boundary (v1.3+)
+
+Typed contracts for `fret.vision`. Full architecture:
+[vision/architecture.md](vision/architecture.md).
+
+### `CameraFrame`
+
+```python
+@dataclass(frozen=True)
+class CameraFrame:
+    camera_id: str
+    image: np.ndarray          # HxWx3 uint8 RGB (or gray HxW)
+    timestamp: float           # POSIX seconds or sim time
+    intrinsics_id: str         # key into vision camera YAML
+```
+
+### `BallDetection`
+
+```python
+@dataclass(frozen=True)
+class BallDetection:
+    camera_id: str
+    centre_px: tuple[float, float]  # (u, v)
+    radius_px: float
+    confidence: float               # [0, 1]
+```
+
+### `BallObservation`
+
+```python
+@dataclass(frozen=True)
+class BallObservation:
+    position_world: np.ndarray  # shape (3,), metres
+    covariance: np.ndarray | None  # optional 3x3
+    radius_m: float
+    pickable: bool | None       # None until v1.5 classifier exists
+    timestamp: float
+    source: str                 # e.g. "hsv_plane", "stereo"
+```
+
+**Invariants:**
+
+- `position_world` is in the `world` frame (same policy as occupancy).
+- `pickable is False` ⇒ manipulators must not start GRASP (v1.5+).
+- Missing detection ⇒ pipeline returns `None` (no fabricated pose).
+
+### `PlaceTarget` (scenario parameter — not from CV)
+
+```python
+@dataclass(frozen=True)
+class PlaceTarget:
+    position_world: np.ndarray  # shape (3,)
+    frame_id: str               # must be "world"
+```
+
+Loaded from scenario YAML (dispenser / container). Vision shall not be required
+to detect this fixture for v1.4–v1.5 acceptance.
+
 The exact CI checkout configuration is tracked in `.github/workflows/tests.yml`.

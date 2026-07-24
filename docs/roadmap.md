@@ -1,123 +1,151 @@
 # FRET Project Roadmap
 
-> **Release targets:** [releases.md](releases.md) (v1.0 → v1.3)
+> **Authoritative release criteria:** [releases.md](releases.md)  
+> **Vision program (v1.3–v1.5):** [vision/README.md](vision/README.md)
+
+---
+
+## Versioning eras
+
+FRET is organized in three **eras**. Minor versions inside an era share the same
+kind of work; major bumps change the delivery surface.
+
+| Era | Versions | Focus | Hardware? |
+| --- | --- | --- | --- |
+| **Simulation & algorithms** | **v1.x** | Planners, controllers, MuJoCo SITL, CV in sim | No |
+| **Hardware integration** | **v2.x** | Modular HITL: bridge → real cameras → real arm → full stack | Yes |
+| **Product** | **v3.0+** | Definitive integrated system; then incremental features | Yes |
+
+**Rules:**
+
+1. **All of v1.x stays in simulation.** No Micro-ROS, Pi, or physical actuators
+   until the v2.x line.
+2. **TB3 / Dubins** is a **case study**: port ARCO kinematic SE(2) racing into
+   MuJoCo physics. It does **not** consume computer vision — only manipulators
+   interact with graspable scene objects.
+3. **Manipulators (OM-X, OMY)** are the CV consumers: detect / classify balls and
+   drive pick-and-place without hardcoded ball poses (from v1.4 onward).
+4. **v3.0** is a north-star (“everything that works, integrated”). This roadmap
+   only *mentions* it; no task breakdown for 3.0+ is maintained here.
+
+```
+v1.1–v1.2.x   ✅  Mobile + arm MuJoCo showcases (TB3, OM-X, OMY)
+     │
+     ▼
+v1.3   🔲  Computer-vision pipeline (algorithms, unit tests, selection)
+     │
+     ▼
+v1.4   🔲  CV ↔ manipulation integration (MuJoCo cameras, no hardcoded ball)
+     │
+     ▼
+v1.5   🔲  Dynamic ball delivery + industrial place geometry + pickability
+     │
+     ▼
+v2.0+  🔲  Hardware line (modular HITL)
+     │
+     ▼
+v3.0   ○   Definitive product (goal only — no detailed plan yet)
+```
 
 ---
 
 ## Project goals
 
-* **Product:** A ROS 2 full-stack robotics framework connecting **ARCO** planning to
-  simulation and hardware.
+* **Product (long-term):** ROS 2 full-stack framework: ARCO planning + control +
+  vision → simulation, then hardware.
 * **Middleware:** ROS 2 Jazzy.
-* **Planning:** ARCO (SST, KDTree occupancy, trajectory pruner).
-* **Simulation:** MuJoCo — physics, contacts, rendering, and SITL for all releases.
-* **Assets:** ROBOTIS MuJoCo Menagerie + AWS RoboMaker warehouse (git submodules).
-* **Hardware path:** Raspberry Pi 5 + Arduino Mega via Micro-ROS (**v1.3**, after debug).
+* **Planning / control:** ARCO (RRT*, SST, occupancy, path-following and
+  joint-space MPC).
+* **Simulation:** MuJoCo — physics, contacts, cameras, rendering, SITL.
+* **Assets:** ROBOTIS MuJoCo Menagerie + AWS RoboMaker warehouse (submodules).
+* **v1.x vision:** Track a graspable ball; place target / dispenser pose stays a
+  **known scenario parameter** (fixed industrial fixture).
+* **v2.x hardware:** Raspberry Pi 5 + Arduino Mega (Micro-ROS) and real cameras,
+  introduced **after** v1.5 is validated — modular milestones, not a big-bang cutover.
 
 ---
 
-## Release sequence
+## Phase map (v1.x complete → open)
 
-```
-v1.1   ✅  Dubins dual-robot race A→B through warehouse maze (Menagerie TB3)
-  │
-  ▼
-v1.2   ✅  MuJoCo physics SITL — actuators, contacts, controller tuning
-  │
-  ├─ v1.2.3  ✅  OpenMANIPULATOR-X tabletop (Menagerie OM-X)
-  │
-  └─ v1.2.4  🔲  6-DOF manipulator challenge (Menagerie OMY / equivalent)
-  │
-  ▼
-v1.3   🔲  Hardware HITL — Micro-ROS bridge (after debug)
-  │
-  ▼
-post v1.3     Vision, dynamic replanning
-```
+### Phase 0 — Specification ✅
 
-Full acceptance criteria and tasks: [releases.md](releases.md).
+- [x] C-space / SE(2) domains, interface contracts, QoS, CI
 
-Robot models come **only** from the Menagerie submodule (same pattern as TurtleBot3).
-Legacy SCARA/RRP bootstrap work is retired — validated historically, not a product target.
+### Phase 1 — Mobile race showcase ✅ *(v1.1)*
 
----
+**Robot:** TurtleBot3 Burger (Menagerie). **Role:** ARCO → MuJoCo case study.
 
-## Phase 0 — Specification ✅ *Complete*
+- [x] SE(2) planning, dual-agent race, AWS maze, path-following MPC, release MP4s
 
-- [x] C-space planning domain decided
-- [x] Interface contracts (`PlanningRequest`, `OccupancyUpdatePayload`, …)
-- [x] ROS 2 Action format (`PlanRequest.action`)
-- [x] QoS profiles and node FSMs
-- [x] CI workflows (formatting, tests, type check, integration)
+### Phase 2 — MuJoCo physics SITL ✅ *(v1.2)*
 
----
+- [x] `physics_mode`, wheel actuators, contact logging, physics-default showcase
 
-## Phase 1 — Mobile race showcase ✅ *Complete*
+### Phase 3 — OpenMANIPULATOR-X tabletop ✅ *(v1.2.3)*
 
-**Robot:** TurtleBot3 Burger × 3 (Menagerie). **Scenario:** SC-v11 warehouse race.
+- [x] SC-v13a–d: reach, pick-place FSM, desk clutter, Γ-wall maze
 
-- [x] SE(2) planning adapter (ARCO DubinsVehicle)
-- [x] Dual/triple-agent race orchestration
-- [x] AWS warehouse maze + submodule meshes
-- [x] Path-following MPC tracking + obstacle barriers (ARCO v0.3.2)
-- [x] Release workflow + showcase MP4s
-- [x] Tag `v1.1.0` … physics iterations through `v1.2.0`
+### Phase 4 — 6-DOF OpenMANIPULATOR-Y ✅ *(v1.2.4 + patches)*
 
----
+- [x] SC-v14a–c: reach, pedestal pick-place, clutter detour; showcase RRT*/SST
+- [x] Telemetry beside R2 videos *(v1.2.6)*; Dubins encode polish *(v1.2.7)*
 
-## Phase 2 — v1.2 MuJoCo physics SITL ✅ *Complete*
+Optional sim polish (non-blocking for the CV line): denser AWS desk props;
+explicit 6-D self-collision C-space checker.
 
-**Cross-cutting release.** Applies to the v1.1 Dubins showcase.
+### Phase 5 — Computer vision pipeline 🔲 *(v1.3)*
 
-- [x] `physics_mode` + wheel actuators + contact logging
-- [x] Physics integration tests
-- [x] Package version 1.2.0
+**Scope:** algorithms + unit tests + **algorithm selection** only. No MuJoCo
+camera MJCF required to *select*; fixtures may use synthetic images.
 
-Full specification: [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
-
----
-
-## Phase 3 — v1.2.3 OpenMANIPULATOR-X tabletop ✅ *Complete*
-
-**Robot:** OpenMANIPULATOR-X (4-DOF + gripper) from
-`third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x`.
-**Scenarios:** SC-v13a (empty A→B), SC-v13b (pick-and-place FSM),
-SC-v13c (desk clutter detour), SC-v13d (Γ-wall maze).
-
-- [x] Wire Menagerie OM-X MJCF into FRET cell (empty tabletop)
-- [x] Command chain: plan → track → MuJoCo actuators (A→B, no obstacles)
-- [x] Pick-and-place FSM: green → physical grasp → red → release (plain MuJoCo box)
-- [x] Desk-clutter wall: planned retract transfer (planner + controller)
-- [x] Γ-wall maze: retract → climb → place (SC-v13d)
-- [x] Showcase videos (Γ-maze overview: RRT* + SST)
-- [x] Tag `v1.2.3`
-
-Optional polish (non-blocking): AWS desk / clutter props; denser detour tuning.
-
----
-
-## Phase 4 — v1.2.4 6-DOF challenge 🔲
-
-**Robot:** Menagerie 6-DOF arm (OpenMANIPULATOR-Y preferred). **Scenario:** SC-v14.
-
-- [ ] Select Menagerie 6-DOF model (OMY)
-- [ ] Numerical IK + Jacobian controller
-- [ ] 6-D C-space checker with self-collision
-- [ ] Cluttered cell MJCF (AWS props)
-- [ ] Tag `v1.2.4`
-
----
-
-## Phase 5 — v1.3 Hardware HITL 🔲 *After debug*
-
-- [ ] Micro-ROS serial bridge (`hardware/bridge_node.py`)
-- [ ] Encoder feedback loop
-- [ ] Physical prototype integration
+- [ ] Spec `FR-VIS-*` + module package `fret.vision`
+- [ ] Evaluate candidates against [vision/algorithm-selection.md](vision/algorithm-selection.md)
+- [ ] Lock primary detector / tracker for ball centre in image + world lift
+- [ ] Unit tests on synthetic / recorded fixtures (no manipulation loop yet)
 - [ ] Tag `v1.3.0`
 
+### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
+
+- [ ] MuJoCo cameras in OM-X / OMY cells (realistic mount — portal / gantry)
+- [ ] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy`)
+- [ ] Keep **place / dispenser** as known YAML parameters
+- [ ] Equivalent behaviour to today’s physics smoke without pose cheats
+- [ ] Tag `v1.4.0`
+
+### Phase 7 — Dynamic scene + industrial place 🔲 *(v1.5)*
+
+- [ ] Ball rolls on floor to a **random** rest pose; CV detects it
+- [ ] **Pickability** classifier (in workspace / graspable vs reject)
+- [ ] Asset research + improved container / dispenser geometry
+- [ ] Decide single-ball vs multi-ball delivery for the release scenario
+- [ ] Tag `v1.5.0`
+
+### Phase 8 — Hardware line 🔲 *(v2.x)*
+
+Modular integration (order fixed; each may be its own minor tag):
+
+1. Low-level target bridge (Micro-ROS / serial)
+2. Real image pipeline (same `fret.vision` contracts)
+3. Real manipulator actuation + encoder feedback
+4. Full closed-loop pick-and-place on hardware
+
+See [releases.md § v2.x](releases.md#v2x--hardware-integration-line).
+
+### Phase 9 — Definitive product ○ *(v3.0)*
+
+Mention only: a release where simulation-proven algorithms and hardware modules
+are validated together as the default product. Detailed 3.0+ planning is
+**out of scope** for this document.
+
 ---
 
-## Phase 6 — Vision 🔲 *Post v1.3*
+## Robot roles (stable)
 
-- [ ] Camera-based perception
-- [ ] Dynamic replanning from visual feedback
+| Model | Era role | Uses CV? |
+| --- | --- | --- |
+| `dubins` (TB3) | Case study: ARCO kinematics → MuJoCo physics race | **No** |
+| `open_manipulator_x` | 4-DOF tabletop manipulation + CV from v1.4 | **Yes** |
+| `omy` / `six_dof` | 6-DOF manipulation + CV from v1.4 | **Yes** |
+
+Full acceptance criteria: [releases.md](releases.md).  
+Architecture for vision: [vision/architecture.md](vision/architecture.md).

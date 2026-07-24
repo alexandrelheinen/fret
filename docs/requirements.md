@@ -4,7 +4,7 @@ Requirements trace to [releases.md](releases.md) and [scenarios.md](scenarios.md
 
 Format: `FR-<LAYER>-<NN>`
 
-Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
+Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `VIS`, `HW`
 
 ---
 
@@ -14,14 +14,18 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `HW`
 
 **FR-SYS-02:** A scenario YAML fully specifies a reproducible run.
 
-**FR-SYS-03:** Simulation and SITL backends:
+**FR-SYS-03:** Simulation and deployment backends:
 
 | Backend | Role | From |
 |---|---|---|
-| MuJoCo | Physics, contacts, rendering, SITL | v1.1 |
-| HITL | Hardware | v1.3 |
+| MuJoCo | Physics, contacts, cameras, rendering, SITL | v1.1 |
+| HITL | Physical hardware | **v2.x** (not v1.3) |
 
 **FR-SYS-04:** All runtime-significant values in ROS parameters or YAML.
+
+**FR-SYS-05:** Computer vision applies only to **manipulator** models that
+interact with graspable objects. Dubins / TB3 scenarios shall not depend on
+ball vision.
 
 ---
 
@@ -112,13 +116,48 @@ series naming grammar `agent.quantity_frame.component` defined in
 [modules/telemetry.md](modules/telemetry.md). Contact JSONL (FR-SIM-08) remains
 a separate path.
 
+**FR-SIM-13:** (v1.4+) Manipulator CV scenarios shall expose calibrated MuJoCo
+`<camera>` sensors for the vision pipeline (distinct from showcase overview
+cameras).
+
 Full integration specification: [mujoco.md](mujoco.md).
 Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
 Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_benchmark.md).
 
 ---
 
-## Hardware (v1.3)
+## Computer vision (v1.3–v1.5)
+
+Program overview: [vision/README.md](vision/README.md).
+
+**FR-VIS-01:** A pure-Python package `fret.vision` shall detect a graspable ball
+in one or more camera frames without importing ROS.
+
+**FR-VIS-02:** The pipeline shall accept `N ≥ 1` frames and emit at most one
+primary `BallObservation` per call (plus diagnostics).
+
+**FR-VIS-03:** v1.3 shall record an algorithm selection (candidates + metrics +
+chosen primary) under `docs/vision/algorithm-selection.md`.
+
+**FR-VIS-04:** Unit tests shall gate fixture centre accuracy for the chosen
+primary algorithm (thresholds in the selection doc).
+
+**FR-VIS-05:** (v1.4+) Release manipulator pick-place paths shall use vision for
+**ball** pose; they shall not use hardcoded ball / `pick_xy` as the grasp
+target source of truth.
+
+**FR-VIS-06:** Place / dispenser / container pose shall be supplied as known
+scenario parameters (not required from CV).
+
+**FR-VIS-07:** (v1.5) The system shall classify detections as pickable or not
+before starting grasp.
+
+**FR-VIS-08:** (v1.5) Dynamic delivery: ball rest pose shall not be the scripted
+pick target; vision must observe the settled ball.
+
+---
+
+## Hardware (v2.x)
 
 **FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
 
@@ -137,8 +176,9 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 | State | (x, y, θ) SE(2) |
 | Agents | 2 |
 | Planner | ARCO SST per agent |
-| Control | ARCO Pure Pursuit |
-| Sim mode | Kinematic mirror |
+| Control | ARCO Pure Pursuit / path-following MPC |
+| Sim mode | Kinematic mirror (physics from v1.2) |
+| CV | None (case study only) |
 
 ### v1.2 — Physics SITL
 
@@ -150,16 +190,30 @@ Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_ben
 
 ### v1.2.3 — OpenMANIPULATOR-X
 
-Tabletop A→B, then pick-and-place FSM, then desk clutter and Γ-wall maze — Menagerie OM-X.
+Tabletop A→B, pick-and-place FSM, desk clutter, Γ-wall maze — Menagerie OM-X.
+Ball pose still hardcoded until v1.4.
 
-### v1.2.4 — 6-DOF
+### v1.2.4 — 6-DOF (OMY)
 
 | Parameter | Value |
 |---|---|
 | Joints | 6 revolute |
-| Planner | ARCO SST |
+| Planner | ARCO RRT* / SST |
 | Planning timeout | 60 s |
 | Sim mode | Physics SITL |
+| CV | None until v1.4 |
+
+### v1.3 — Vision pipeline
+
+Algorithms + unit tests + selection; no manipulation closed loop required.
+
+### v1.4 — CV integration
+
+Manipulator cells with MuJoCo cameras; ball from vision; place parametric.
+
+### v1.5 — Dynamic industrial cell
+
+Rolling ball, pickability, improved container; single-ball cadence provisional.
 
 ---
 
@@ -168,11 +222,16 @@ Tabletop A→B, then pick-and-place FSM, then desk clutter and Γ-wall maze — 
 | Requirement | Release | Validated by |
 |---|---|---|
 | FR-SYS-01–04 | all | Launch smoke tests |
+| FR-SYS-05 | v1.3+ | Vision / scenario review |
 | FR-SCN-01–04 | v1.1+ | `tests/scene/` |
 | FR-PLN-01–07 | v1.1+ | `tests/planning/`, SC-v11+ |
 | FR-CTL-01–06 | v1.1+ | `tests/control/` |
 | FR-SIM-01–06 | v1.1 | MuJoCo launch + MP4 artifact |
 | FR-SIM-07–09 | v1.2 | Physics SITL smoke + integration tests |
 | FR-SIM-11 | v1.2+ | `tests/simulation/test_*_robot_unit.py` |
-| FR-HW-01–03 | v1.3 | — |
-
+| FR-SIM-12 | v1.2.6+ | Telemetry tests / release upload |
+| FR-SIM-13 | v1.4+ | SC-v16 MJCF + adapter tests |
+| FR-VIS-01–04 | v1.3 | `tests/vision/`, selection doc |
+| FR-VIS-05–06 | v1.4 | SC-v16 physics smoke |
+| FR-VIS-07–08 | v1.5 | SC-v17 |
+| FR-HW-01–03 | v2.x | HITL smoke (future) |

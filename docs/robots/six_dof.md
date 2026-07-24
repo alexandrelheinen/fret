@@ -1,6 +1,7 @@
 # 6-DOF Manipulator — OpenMANIPULATOR-Y (v1.2.4)
 
-> **Release:** v1.2.4 · **Scenarios:** SC-v14a–c ·
+> **Release:** v1.2.4 ✅ · **Scenarios:** SC-v14a–c ·
+> **CV integration:** from v1.4 ([vision/README.md](../vision/README.md)) ·
 > [Release spec](../releases.md#v124--6-dof-manipulator-challenge)
 
 ---

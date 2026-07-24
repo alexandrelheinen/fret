@@ -1,12 +1,12 @@
-"""Serial / Micro-ROS bridge to Arduino for hardware-in-the-loop.
+"""Serial / Micro-ROS bridge to Arduino for hardware-in-the-loop (v2.x).
 
-Subscribes to ``/joint_commands`` (``trajectory_msgs/JointTrajectory``),
-serialises each setpoint, and forwards it over a serial link to the
-embedded firmware running on Arduino.  Also reads encoder feedback and
-re-publishes it as ``/joint_states`` (``sensor_msgs/JointState``).
+Subscribes to ``/joint_commands``, serialises each setpoint, and forwards it
+over a serial link to embedded firmware.  Also reads encoder feedback and
+re-publishes it as ``/joint_states``.
 
-This node is only active in the ``hardware.py`` launch configuration.
-Satisfies requirements FR-HW-01 through FR-HW-03.
+This node is only active in a future ``hardware.py`` launch configuration.
+It is **not** part of the v1.3–v1.5 simulation / CV line — see
+``docs/releases.md`` § v2.x. Satisfies requirements FR-HW-01 through FR-HW-03.
 """
 
 from __future__ import annotations

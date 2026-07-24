@@ -8,19 +8,21 @@
 
 ## Responsibility
 
-The hardware module provides the serial communication bridge between the ROS 2
-high-level controller (Raspberry Pi 5) and the low-level actuator controller
-(Arduino Mega). It is a **v1.3 deliverable** and is currently implemented as
-a stub.
+Serial / Micro-ROS bridge between the ROS 2 high-level stack (e.g. Raspberry Pi
+5) and low-level actuation (e.g. Arduino Mega). This is a **v2.x** deliverable.
 
 ---
 
 ## Status
 
-> **v1.3 — Not yet implemented.**
-> The `bridge_node.py` stub exists to define the interface and maintain the
-> architecture structure. Hardware integration begins after simulation milestones
-> (v1.2.4) are debugged and stable.
+> **v2.x — Not yet implemented.**  
+> The `bridge_node.py` stub defines the interface. Hardware integration starts
+> **after** the simulation CV line (**v1.5**) is validated.  
+> See [releases.md § v2.x](../releases.md#v2x--hardware-integration-line) and
+> [roadmap.md](../roadmap.md).
+
+**v1.3–v1.5 are simulation-only** (including computer vision). Do not schedule
+HITL work under those tags.
 
 ---
 
@@ -39,37 +41,40 @@ Future ROS 2 node that will:
 
 ---
 
-## Planned Serial Protocol
+## Target stack (indicative)
 
 ```
 RPi 5 (ROS 2)  ──[USB/UART]──  Arduino Mega (Micro-ROS)
-    │                                    │
-    │  /joint_commands ──► BridgeNode ──► serial frame ──► motor drivers
-    │                                    │
-    │  /joint_states  ◄── BridgeNode ◄── encoder data ◄── encoders
+                                      │
+                                 motor drivers / encoders
 ```
 
-The protocol will be finalized during v1.3. Micro-ROS is the preferred
-transport; a custom ASCII protocol is the fallback.
+Protocol details are finalized when **v2.0** planning opens. Micro-ROS is the
+preferred transport; a custom ASCII fallback may exist.
 
----
-
-## Hardware Targets
-
-| Component | Target |
-|---|---|
-| High-level controller | Raspberry Pi 5 (Ubuntu 24.04) |
-| Low-level controller | Arduino Mega |
+| Item | Guidance |
+| --- | --- |
 | Communication | USB serial or UART (Micro-ROS) |
-| Actuators | Nema 17 stepper class |
-| Drivers | TMC series (e.g., TMC2209) |
+| Command rate | Match control (≥ 50 Hz when closed-loop) |
+| Feedback | Encoders → `/joint_states` ≥ 50 Hz |
 
 ---
 
-## Satisfies Requirements (v1.3)
+## Modular v2.x steps
+
+| Tag | Focus |
+| --- | --- |
+| v2.0 | Bridge + encoder loop |
+| v2.1 | Real cameras → same `fret.vision` contracts |
+| v2.2 | Real arm actuation |
+| v2.3 | Full HITL pick-and-place |
+
+---
+
+## Satisfies Requirements (v2.x)
 
 | Requirement | Description |
 |---|---|
 | FR-HW-01 | Relay `/joint_commands` to Arduino via Micro-ROS |
-| FR-HW-02 | Publish encoder feedback to `/joint_states` at ≥ 50 Hz |
-| FR-HW-03 | Validate message integrity before forwarding commands |
+| FR-HW-02 | Publish encoder feedback on `/joint_states` ≥ 50 Hz |
+| FR-HW-03 | Validate message integrity before actuation |

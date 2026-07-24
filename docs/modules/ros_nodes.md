@@ -66,6 +66,7 @@ Supported obstacle types (configured in `perception.yaml`):
 - `cylinder` — samples lateral surface and top-cap points
 
 This node provides the obstacle cloud that feeds `SceneAcquisition`.
+It is **not** the ball computer-vision pipeline (`fret.vision` / v1.3+).
 
 **Configuration:** `src/fret/config/perception.yaml`
 
