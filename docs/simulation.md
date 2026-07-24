@@ -2,7 +2,8 @@
 
 > **MuJoCo integration spec:** [mujoco.md](mujoco.md)  
 > **Visual tutorial:** [tutorial.md](tutorial.md)  
-> **Release focus:** v1.1 Dubins · v1.2 physics SITL. See [releases.md](releases.md).
+> **Release focus:** v1.1 Dubins · v1.2 physics SITL · v1.3–v1.5 CV in sim.
+> Hardware HITL is **v2.x**. See [releases.md](releases.md).
 
 ---
 

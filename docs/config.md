@@ -8,8 +8,11 @@ simulation values must not be hardcoded in Python or MJCF (see
 | --- | --- |
 | `config/scenarios/` | Per-run definitions (start/goal, timeouts, physics flags) |
 | `config/controllers/` | Closed-loop gains (`ros__parameters` format) |
+| `config/planning/` | Trajectory / replanning tunables per model |
 | `config/worlds/` | Static obstacle layouts, Dubins vehicle/planner tuning |
 | `config/simulation/` | MuJoCo bridge and physics SITL (v1.2+) |
+| `config/vision/` | Ball CV thresholds + camera extrinsics (from v1.3) |
+| `config/release/` | Showcase matrix for release encode jobs |
 
 Scenario schema: [scenarios.md](scenarios.md#scenario-yaml-schema).
 

@@ -2,6 +2,7 @@
 
 > **Release:** v1.2.3 · **Scenarios:** SC-v13a (`omx_reach`), SC-v13b (`omx_pick_place`),
 > SC-v13c (`omx_desk_clutter`), SC-v13d (`omx_wall_maze`) ·
+> **CV integration:** from v1.4 ([vision/README.md](../vision/README.md)) ·
 > [Release spec](../releases.md#v123--openmanipulator-x-tabletop)
 
 ---

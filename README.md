@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.2.6** — dual-agent Dubins race, **MuJoCo physics SITL**,
-OM-X / OMY tabletop showcases, plus **PlotJuggler telemetry** CSV/JSON beside
-release videos on R2. Mobile showcase renders use `--physics-mode` by default.
+**Current release: v1.2.7** — dual-agent Dubins race (TB3 case study),
+**MuJoCo physics SITL**, OM-X / OMY tabletop showcases, PlotJuggler telemetry
+beside release videos on R2. Mobile showcase renders use `--physics-mode`.
 
 <br clear="left">
 
@@ -17,21 +17,18 @@ release videos on R2. Mobile showcase renders use `--physics-mode` by default.
 
 ## What FRET provides
 
-| Capability | v1.1 Dubins race | v1.2 physics SITL |
+| Capability | Mobile (TB3 / Dubins) | Manipulators (OM-X / OMY) |
 |---|---|---|
-| Robot model | Two SE(2) car-like agents (`dubins`) | Actuator-driven Dubins |
-| Scenario | Independent RRT* vs SST race A→B | SC-v11 under `physics_mode` |
-| Planning | ARCO RRT* + SST in 2-D with structure occupancy | Same planners; contacts during execution |
-| Control | ARCO Pure Pursuit + DubinsVehicle | Velocity actuators → `mj_step` |
-| Visual backend | MuJoCo MJCF (`dubins_race.xml`) | Physics-integrated motion in release MP4s |
-| Showcase output | Split-screen follow + overview MP4 | Real-time physics showcase (release CI) |
+| Role | ARCO SE(2) → MuJoCo physics case study | Tabletop pick-and-place (+ CV from v1.4) |
+| Planning | RRT* / SST in SE(2) | Joint-space RRT* / SST + FSM |
+| Control | Path-following MPC | JointSpaceMPC |
+| Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
+| Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
 
-The Dubins showcase ships with headless render scripts, pure-Python E2E tests (no ROS
-required for CI validation), and optional ROS 2 SITL launch files.
-
-**Coming next:** tag **v1.2.4** (6-DOF Menagerie OMY showcase), then **v1.3** hardware
-HITL — last milestone before computer vision. Python package on `main` is already
-**1.3.0** for that development line. See [docs/roadmap.md](docs/roadmap.md) and
+**Coming next (still simulation):** **v1.3** computer-vision pipeline and
+algorithm selection → **v1.4** CV↔manipulation → **v1.5** dynamic ball /
+industrial place. **Hardware is v2.x**, not v1.3. Package on `main` is
+**1.3.0** for the open CV line. See [docs/roadmap.md](docs/roadmap.md) and
 [docs/releases.md](docs/releases.md).
 
 ---
@@ -45,13 +42,16 @@ src/fret/
 ├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
 ├── telemetry/         # Opt-in PlotJuggler CSV logger + layouts (FR-SIM-12)
 ├── scene/             # Scene acquisition → occupancy adapter
+├── vision/            # Ball CV pipeline (scaffold from v1.3)
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
+├── hardware/          # HITL bridge stub (v2.x)
 ├── config/
 │   ├── scenarios/     # Run definitions (start/goal, duration, config refs)
 │   ├── planning/      # Algorithm tunables (clearance, trajectory, replanning)
 │   ├── controllers/   # Per-model gains (dubins.yml, …)
 │   ├── worlds/        # Obstacle layouts + Dubins vehicle/planner tuning
+│   ├── vision/        # CV thresholds + camera extrinsics (from v1.3)
 │   └── simulation/    # MuJoCo bridge settings
 ├── mjcf/              # MuJoCo scenes (primary visual backend)
 ├── launch/            # sitl.py, mujoco.py
@@ -59,8 +59,8 @@ src/fret/
 ```
 
 **Asset policy:** product robots and props load from git submodules (Menagerie + AWS).
-codebase and CI for shared planning/control primitives; it is not a product release
-target.
+Bootstrap planning primitives remain in the codebase for CI; they are not product
+showcase targets.
 
 ---
 
@@ -71,14 +71,18 @@ target.
 - **ROS 2** is the runtime middleware (topics, services, actions, parameters).
 - **ARCO** is a synchronous library inside planner nodes — not a separate ROS node.
 - **C-space** is the planning domain for manipulators; **SE(2)** for Dubins agents.
-- **MuJoCo** is the simulation engine for physics, contacts, rendering, and SITL.
-  v1.2 ships **physics SITL** by default (`mj_step`, velocity actuators, contact
-  dynamics). Kinematic mirroring remains for fast regression (`physics_mode:=false`
-  or `--kinematic-mode`).
+- **MuJoCo** is the simulation engine for physics, contacts, rendering, cameras,
+  and SITL. v1.2 ships **physics SITL** by default (`mj_step`, velocity
+  actuators, contact dynamics). Kinematic mirroring remains for fast regression
+  (`physics_mode:=false` or `--kinematic-mode`).
+- **Computer vision** (`fret.vision`, from v1.3) serves **manipulators only**;
+  TB3 / Dubins never consumes ball tracking. Place/dispenser poses stay known
+  scenario parameters. Architecture: [docs/vision/](docs/vision/).
+- **Hardware HITL** is a **v2.x** era — not part of v1.3–v1.5.
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
 - **Configuration over code:** every tunable algorithm parameter (planning clearance,
   controller gains, trajectory limits, replanning thresholds, Dubins vehicle
-  margins, and similar) **must live in YAML under `src/fret/config/`**.
+  margins, vision HSV ranges, and similar) **must live in YAML under `src/fret/config/`**.
   Python and MJCF must not embed numeric defaults for those values — missing keys
   fail at load time. Rendering-only constants (camera presets, mesh colours, UI
   layout) may stay hardcoded. Full reference: [docs/config.md](docs/config.md).
@@ -414,6 +418,7 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 | Topic | Document |
 |---|---|
 | Telemetry + PlotJuggler layouts | [docs/modules/telemetry.md](docs/modules/telemetry.md) §5.3 |
+| Computer vision (v1.3–v1.5) | [docs/vision/README.md](docs/vision/README.md) |
 | v1.2 physics implementation spec | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
@@ -430,8 +435,8 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 
 | Topic | Document |
 |---|---|
-| Release specification (v1.1–v1.3) | [docs/releases.md](docs/releases.md) |
-| Roadmap & milestones | [docs/roadmap.md](docs/roadmap.md) |
+| Release specification (v1.x / v2.x / v3.0) | [docs/releases.md](docs/releases.md) |
+| Roadmap & eras | [docs/roadmap.md](docs/roadmap.md) |
 | Contributing & V-cycle | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Coding guidelines | [docs/guidelines.md](docs/guidelines.md) |
 

@@ -323,7 +323,7 @@ down to the test that proves it, and from any test back to the criterion.
 | --- | --- | --- |
 | `FR-<LAYER>-<NN>` | [docs/requirements.md](docs/requirements.md) | `FR-CTL-02` |
 | `SC-<NN>` | [docs/scenarios.md](docs/scenarios.md) | `SC-01` |
-| Release | [docs/releases.md](docs/releases.md) | v1.0 |
+| Release | [docs/releases.md](docs/releases.md) | v1.x / v2.x / v3.0 |
 
 **Rules:**
 
@@ -528,7 +528,7 @@ When an external guide conflicts with this file or [docs/guidelines.md](docs/gui
 | [docs/interfaces.md](docs/interfaces.md) | Level 2 — typed contracts, QoS, FSMs |
 | [docs/mujoco.md](docs/mujoco.md) | Level 2 — MuJoCo simulation integration |
 | [docs/simulation.md](docs/simulation.md) | User guide — MuJoCo modes and quick start |
-| [docs/releases.md](docs/releases.md) | Release specification v1.0–v1.3 |
+| [docs/releases.md](docs/releases.md) | Release specification (v1.x sim/CV, v2.x hardware, v3.0 north-star) |
 | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) | v1.2 physics SITL engineering spec |
 | [docs/guidelines.md](docs/guidelines.md) | Coding standards and formatting |
 

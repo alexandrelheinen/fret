@@ -6,9 +6,10 @@ Scenarios are defined in `src/fret/config/scenarios/` and launched via:
 ros2 launch fret sitl.py scenario:=<name> model:=<model>
 ```
 
-**Release scenarios** (product targets): SC-v11 – SC-v14.
+**Release scenarios** (product targets): SC-v11 – SC-v14 (shipped);
+SC-v15 – SC-v17 (vision line, planned).
 
-Full release spec: [releases.md](releases.md).
+Full release spec: [releases.md](releases.md). Vision program: [vision/README.md](vision/README.md).
 
 ---
 
@@ -140,6 +141,34 @@ tip-down cone funnel at a loaded-reachable pose — 6-DOF analogue of SC-v13b.
 occupancy planner so the transfer must detour (6-DOF analogue of SC-v13c).
 
 **Pass criteria:** See [releases.md § v1.2.4](releases.md#v124--6-dof-manipulator-challenge).
+
+---
+
+## Vision line scenarios (planned)
+
+### SC-v15 — Vision pipeline fixtures (v1.3)
+
+**Purpose:** Unit / fixture gates for `fret.vision` (ball centre accuracy). Not a
+robot showcase. Algorithm selection is part of the release:
+[vision/algorithm-selection.md](vision/algorithm-selection.md).
+
+**Pass criteria:** [releases.md § v1.3](releases.md#v13--computer-vision-pipeline).
+
+### SC-v16 — CV-driven pick-and-place (v1.4)
+
+**Purpose:** OM-X / OMY pick-place (and optional clutter) with **MuJoCo cameras**
+and ball pose from vision. Place / dispenser remains a known YAML parameter.
+Camera mount: [vision/camera-layout.md](vision/camera-layout.md).
+
+**Pass criteria:** [releases.md § v1.4](releases.md#v14--cv--manipulation-integration).
+
+### SC-v17 — Dynamic ball + industrial place (v1.5)
+
+**Purpose:** Ball rolls to a random rest pose; vision detects and classifies
+pickability; pickable balls go into an improved container / dispenser.
+Provisional cadence: one ball per cycle.
+
+**Pass criteria:** [releases.md § v1.5](releases.md#v15--dynamic-ball--industrial-place).
 
 ---
 

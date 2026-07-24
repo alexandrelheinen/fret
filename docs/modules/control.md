@@ -4,9 +4,9 @@
 **Source:** `src/fret/control/`  
 **Tests:** `tests/control/`
 
-> **Release roadmap:** v1.1 uses ARCO Dubins path-following MPC; v1.2 enables
-> MuJoCo physics actuators; v1.2.3 OMX pick-and-place uses ``JointSpaceMPC``;
-> v1.2.4 adds 6-DOF numerical IK. See [releases.md](../releases.md).
+> **Release roadmap:** v1.1 ARCO Dubins path-following MPC; v1.2 MuJoCo physics;
+> v1.2.3 OMX `JointSpaceMPC` + FSM; v1.2.4 OMY 6-DOF; v1.4+ ball pose from
+> `fret.vision`. See [releases.md](../releases.md).
 
 ---
 

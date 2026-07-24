@@ -21,7 +21,8 @@ ARCO repository: `https://github.com/alexandrelheinen/arco`
 | **v1.1** Dubins | `SSTPlanner`, `DubinsVehicle`, path-following MPC (`DubinsPathFollowingMPC`) | `map/vehicle.yml` / `map/city.yml` |
 | **v1.2** | *(physics upgrade — no new ARCO scenario)* | — |
 | **v1.2.3** manipulator | `KDTreeOccupancy`, `SSTPlanner`, `JointSpaceMPC` | `map/rrp.yml`, `map/ppp.yml` |
-| **v1.2.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy` | *(new)* |
+| **v1.2.4** 6-DOF | `SSTPlanner`, `KDTreeOccupancy`, `JointSpaceMPC` | OMY clutter / pick-place |
+| **v1.3+** Vision | *(FRET `fret.vision` — not ARCO)* | Ball track for manipulators |
 
 Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
 `TrajectoryPruner` for regression CI.
