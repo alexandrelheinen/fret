@@ -32,7 +32,7 @@ kind of work; major bumps change the delivery surface.
 v1.1–v1.2.x   ✅  Mobile + arm MuJoCo showcases (TB3, OM-X, OMY)
      │
      ▼
-v1.3   🔲  Computer-vision pipeline (algorithms, unit tests, selection)
+v1.3   ✅  Computer-vision pipeline (algorithms, unit tests, selection)
      │
      ▼
 v1.4   🔲  CV ↔ manipulation integration (MuJoCo cameras, no hardcoded ball)
@@ -93,16 +93,18 @@ v3.0   ○   Definitive product (goal only — no detailed plan yet)
 Optional sim polish (non-blocking for the CV line): denser AWS desk props;
 explicit 6-D self-collision C-space checker.
 
-### Phase 5 — Computer vision pipeline 🔲 *(v1.3)*
+### Phase 5 — Computer vision pipeline ✅ *(v1.3)*
 
 **Scope:** algorithms + unit tests + **algorithm selection** only. No MuJoCo
 camera MJCF required to *select*; fixtures may use synthetic images.
 
-- [ ] Spec `FR-VIS-*` + module package `fret.vision`
-- [ ] Evaluate candidates against [vision/algorithm-selection.md](vision/algorithm-selection.md)
-- [ ] Lock primary detector / tracker for ball centre in image + world lift
-- [ ] Unit tests on synthetic / recorded fixtures (no manipulation loop yet)
-- [ ] Tag `v1.3.0`
+- [x] Spec `FR-VIS-*` + module package `fret.vision`
+- [x] Evaluate candidates against [vision/algorithm-selection.md](vision/algorithm-selection.md)
+- [x] Lock primary detector / tracker for ball centre in image + world lift
+  (HSV blob + table-plane lift; OpenCV)
+- [x] Unit tests on synthetic fixtures (`tests/vision/`; CI control shard)
+- [x] Web gallery script for qualitative photos (`scripts/vision_web_ball_gallery.py`)
+- [ ] Tag `v1.3.0` *(after this PR merges)*
 
 ### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
 
