@@ -129,6 +129,7 @@ def _scene_header(model_name: str, comment: str) -> str:
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
+    <material name="vision_portal" rgba="0.35 0.38 0.42 1"/>
     <mesh name="place_cone" file="assets/cone.obj" scale="{_SCALE_XY:.5f} {_SCALE_XY:.5f} {_SCALE_Z:.5f}"/>
   </asset>
 
@@ -201,8 +202,23 @@ def _scene_footer(*, clutter: bool) -> str:
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 {wall_block}
-    <camera name="topdown" pos="0.40 0.0 1.35"
-            xyaxes="0 1 0 -1 0 0" fovy="50"/>
+    <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
+    <body name="vision_portal" pos="0.40 0 0">
+      <geom name="portal_post_n" type="box" size="0.025 0.025 0.65"
+            pos="0 -0.48 0.65" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_post_p" type="box" size="0.025 0.025 0.65"
+            pos="0 0.48 0.65" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_beam" type="box" size="0.030 0.50 0.025"
+            pos="0 0 1.32" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_cam_plate" type="box" size="0.045 0.035 0.015"
+            pos="0 0 1.285" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <camera name="overhead" pos="0 0 1.30"
+              xyaxes="0 1 0 -1 0 0" fovy="50"/>
+    </body>
     <camera name="overview" pos="0.95 -0.95 1.05"
             xyaxes="0.82 0.57 0 -0.32 0.46 0.83" fovy="40"/>
     <camera name="follow" pos="0.70 0.15 0.55"

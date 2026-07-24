@@ -104,11 +104,12 @@ camera MJCF required to *select*; fixtures may use synthetic images.
   (HSV blob + table-plane lift; OpenCV)
 - [x] Unit tests on synthetic fixtures (`tests/vision/`; CI control shard)
 - [x] Web gallery script for qualitative photos (`scripts/vision_web_ball_gallery.py`)
-- [ ] Tag `v1.3.0` *(after this PR merges)*
+- [x] Tag `v1.3.0`
 
 ### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
 
-- [ ] MuJoCo cameras in OM-X / OMY cells (realistic mount — portal / gantry)
+- [x] MuJoCo cameras in OM-X / OMY cells (realistic portal / gantry mount)
+- [x] MuJoCo image adapter → `fret.vision` + detect/lift benchmarks (no FSM feed)
 - [ ] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy`)
 - [ ] Keep **place / dispenser** as known YAML parameters
 - [ ] Equivalent behaviour to today’s physics smoke without pose cheats

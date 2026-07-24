@@ -37,6 +37,7 @@
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
+    <material name="vision_portal" rgba="0.35 0.38 0.42 1"/>
     <mesh name="place_cone" file="assets/cone.obj"/>
   </asset>
 
@@ -106,9 +107,25 @@
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 
-    <camera name="topdown" pos="0.18 0 1.05"
-            xyaxes="0 1 0 -1 0 0" fovy="50"/>
-    <!-- Isometric overview: arm + pick ball + place cone. -->
+    <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
+    <body name="vision_portal" pos="0.273 0 0">
+      <geom name="portal_post_n" type="box" size="0.018 0.018 0.48"
+            pos="0 -0.34 0.48" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_post_p" type="box" size="0.018 0.018 0.48"
+            pos="0 0.34 0.48" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_beam" type="box" size="0.022 0.36 0.018"
+            pos="0 0 0.98" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <geom name="portal_cam_plate" type="box" size="0.035 0.028 0.012"
+            pos="0 0 0.955" material="vision_portal"
+            contype="0" conaffinity="0" group="1"/>
+      <!-- Downward Cam-A; OpenCV optical via MujocoCameraAdapter. -->
+      <camera name="overhead" pos="0 0 0.96"
+              xyaxes="0 1 0 -1 0 0" fovy="45"/>
+    </body>
+    <!-- Isometric overview: arm + pick ball + place cone (release encode). -->
     <camera name="overview" pos="0.78 -0.82 0.82"
             xyaxes="0.82 0.57 0 -0.32 0.46 0.83" fovy="40"/>
     <camera name="follow" pos="0.55 0.40 0.35"
