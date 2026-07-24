@@ -12,13 +12,21 @@
 
 ## Responsibility
 
-The control module implements kinematic computations and trajectory tracking
-controllers. The current implementation targets the **bootstrap arm (manipulator)**;
-v1.1+ adds per-model kinematics selected by `model:=` at launch.
+The control module implements kinematic computations, the **pick-and-place FSM**,
+and trajectory tracking controllers. Per-model kinematics are selected by
+`model:=` at launch; the manipulation FSM itself is robot-agnostic.
 
 ---
 
 ## Components
+
+### `pick_place_fsm.py` — Pick-and-place FSM
+
+Robot-agnostic pick → place → home cycle. Vision supplies the pick pose; the
+place / dispenser pose is a known scenario parameter. Every arm motion exposes
+a `plan_goal` / `needs_plan` hint so runners call the path-planning pipeline.
+
+Full state charts (Mermaid): **[pick_place_fsm.md](pick_place_fsm.md)**.
 
 ### `kinematics.py` — Kinematics
 
