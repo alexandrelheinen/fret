@@ -1,67 +1,76 @@
 # Vision Module
 
-**Package:** `fret.vision` *(target — scaffold in v1.3)*  
+**Package:** `fret.vision`  
 **Source:** `src/fret/vision/`  
 **Tests:** `tests/vision/`  
 **Program docs:** [vision/README.md](../vision/README.md)
 
-> **Release:** v1.3 pipeline · v1.4 MuJoCo integration · v1.5 pickability.  
-> See [releases.md](../releases.md).
+> **Release:** v1.3 pipeline scaffold · v1.4 MuJoCo integration · v1.5
+> pickability. See [releases.md](../releases.md).
 
 ---
 
 ## Responsibility
 
-Detect and track a graspable **ball** in camera images and lift detections to a
-world-frame `BallObservation` for manipulator pick-and-place. Does **not**
-detect the place dispenser (known scenario parameter). Does **not** serve TB3.
+Expose **algorithm-agnostic** contracts so manipulator pick-and-place can
+consume a world-frame ball observation. Does **not** detect the place
+dispenser (known scenario parameter). Does **not** serve TB3.
 
 This module is distinct from `PerceptionBridgeNode` (YAML obstacle clouds for
 occupancy).
 
+**No preferred detector / tracker / lifter is encoded in this package.**
+Algorithm selection is an open v1.3 work product
+([algorithm-selection.md](../vision/algorithm-selection.md)).
+
 ---
 
-## Components (Level 3 stubs — v1.3)
+## Components
 
-### `types` — contracts
+### `types` — I/O contracts
+
+`CameraFrame`, `BallDetection`, `BallObservation`, `PlaceTarget`,
+`CameraIntrinsics`, `CameraExtrinsics`, `VisionConfig`.
 
 See [interfaces.md § Vision](../interfaces.md#vision--manipulation-boundary-v13).
 
+### `protocols` — stage interfaces
+
+| Protocol | Role |
+| --- | --- |
+| `BallDetector` | `frames → list[BallDetection]` |
+| `BallTracker` | optional temporal filter on detections |
+| `PoseLifter` | `detections (+ frames) → BallObservation \| None` |
+
 ### `pipeline.BallVisionPipeline`
 
-```python
-class BallVisionPipeline:
-    def __init__(self, config: VisionConfig) -> None: ...
+Constructor accepts injected detector + lifter (+ optional tracker) and
+shared `VisionConfig` (calibration only). `process()` is a Level-3 stub
+(`NotImplementedError`) until orchestration is implemented.
 
-    def process(
-        self, frames: Sequence[CameraFrame]
-    ) -> BallObservation | None:
-        """Detect (+ optional track) and lift to world frame."""
-        ...
+```python
+pipe = BallVisionPipeline(detector, lifter, config=cfg)
+obs = pipe.process(frames)  # BallObservation | None
 ```
 
-### `detect` — algorithm plugins
+### `detect/` · `geometry/` · `track/`
 
-Common interface; **primary** implementation is HSV + circularity
-([algorithm-selection.md](../vision/algorithm-selection.md)).
-
-### `geometry` — pixel → world
-
-Table/floor plane intersection for monocular Z; optional stereo triangulation.
+Empty package markers for future implementations. No concrete algorithms yet.
 
 ---
 
 ## Configuration
 
-All thresholds and camera extrinsics live under `src/fret/config/vision/`
-(created with the v1.3 implementation). No magic numbers in Python for tunables.
+`src/fret/config/vision/` holds algorithm-agnostic camera / scenario wiring
+once scenarios need it. Method-specific tunables stay with the chosen
+implementation’s YAML after selection.
 
 ---
 
 ## ROS boundary (v1.4+)
 
-`fret.ros.vision_bridge` (name TBD) adapts sensor messages ↔ pipeline. Core
-vision code remains ROS-free.
+A thin `fret.ros` adapter may publish/subscribe images and observations.
+Core vision code remains ROS-free.
 
 ---
 
@@ -69,4 +78,6 @@ vision code remains ROS-free.
 
 | Requirement | Description |
 |---|---|
-| FR-VIS-01–… | See [requirements.md](../requirements.md#computer-vision-v13v15) |
+| FR-VIS-01 | Pure-Python package; no ROS in core |
+| FR-VIS-02 | Pipeline API accepts `N ≥ 1` frames |
+| FR-VIS-03–04 | Selection + fixture gates (later in v1.3) |

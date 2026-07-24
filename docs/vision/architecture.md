@@ -42,7 +42,8 @@ place / dispenser ← scenario YAML (known parameter)
                │ CameraFrame(s)
 ┌──────────────┴──────────────────────────────────────────────┐
 │  fret.vision  (pure Python)                                 │
-│  detect → (optional) track → geometry lift → BallObservation│
+│  BallDetector → (BallTracker) → PoseLifter                  │
+│  via BallVisionPipeline  →  BallObservation | None          │
 └──────────────▲──────────────────────────────────────────────┘
                │ RGB (+ optional depth later)
 ┌──────────────┴──────────────────────────────────────────────┐
