@@ -21,13 +21,15 @@ dev = [
     "mypy>=1.10",
 ]
 vision = [
-    "opencv-python-headless>=4.10,<5",
+    # <4.12 keeps NumPy 1.26 (ROS Jazzy / Debian) installable in CI.
+    # 4.12+ requires NumPy 2 and breaks apt-managed numpy uninstall.
+    "opencv-python-headless>=4.10,<4.12",
 ]
 sim = [
     "mujoco>=3.10,<3.11",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
-    "opencv-python-headless>=4.10,<5",
+    "opencv-python-headless>=4.10,<4.12",
 ]
 
 [project.scripts]

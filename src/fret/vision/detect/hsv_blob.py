@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -10,10 +10,13 @@ import numpy.typing as npt
 from fret.vision.config import HsvBlobDetectorConfig
 from fret.vision.types import BallDetection, CameraFrame
 
+cv2: Any
 try:
-    import cv2
+    import cv2 as _cv2
+
+    cv2 = _cv2
 except ImportError as exc:  # pragma: no cover - exercised via importorskip
-    cv2 = None  # type: ignore[assignment]
+    cv2 = None
     _CV2_IMPORT_ERROR: BaseException | None = exc
 else:
     _CV2_IMPORT_ERROR = None

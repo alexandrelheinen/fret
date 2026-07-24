@@ -5,7 +5,7 @@
 #   bash scripts/tests/unit_shard.sh <shard>
 #
 # Shards:
-#   control    — tests/control, tests/hardware
+#   control    — tests/control, tests/hardware, tests/vision
 #   planning   — tests/planning
 #   scene      — tests/scene and top-level tests/test_*.py
 #   simulation — tests/simulation, tests/scenario, tests/ros
@@ -36,6 +36,7 @@ case "${SHARD}" in
         PATHS=(
             tests/control
             tests/hardware
+            tests/vision
         )
         ;;
     planning)
