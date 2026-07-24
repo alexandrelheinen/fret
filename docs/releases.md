@@ -504,7 +504,7 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.2.5` | Patch: OMY clutter showcase detour | — ✅ |
 | `v1.2.6` | Patch: telemetry on R2 (FR-SIM-12) | — ✅ |
 | `v1.2.7` | Patch: Dubins showcase encode / clip length | — ✅ |
-| `v1.3.0` | **CV pipeline + algorithm selection** | T13-* |
+| `v1.3.0` | **CV pipeline + algorithm selection** | T13-* ✅ |
 | `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* |
 | `v1.5.0` | Dynamic ball + industrial place | T15-* |
 | `v2.0.0+` | Hardware line (modular) | T2x-* |

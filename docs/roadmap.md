@@ -104,7 +104,7 @@ camera MJCF required to *select*; fixtures may use synthetic images.
   (HSV blob + table-plane lift; OpenCV)
 - [x] Unit tests on synthetic fixtures (`tests/vision/`; CI control shard)
 - [x] Web gallery script for qualitative photos (`scripts/vision_web_ball_gallery.py`)
-- [ ] Tag `v1.3.0` *(after this PR merges)*
+- [x] Tag `v1.3.0`
 
 ### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
 
