@@ -510,8 +510,8 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v2.0.0+` | Hardware line (modular) | T2x-* |
 | `v3.0.0` | Definitive product (north-star) | — |
 
-Python package on `main` is **1.3.0** for the open CV development line
-(`pyproject.toml`). Product tags remain `v1.3.0`, `v1.4.0`, `v1.5.0`, then
+Python package on `main` is **1.3.0** (`pyproject.toml`). Product tag
+`v1.3.0` ships the CV pipeline; next product tags are `v1.4.0`, `v1.5.0`, then
 `v2.x` / `v3.0.0`.
 
 ### v1.1.x → v1.2.0 retrospective
