@@ -97,12 +97,21 @@ def simulate_pick_place(
     telemetry_enabled: bool | None = None,
     telemetry_output_dir: Path | None = None,
     telemetry_csv_basename: str | None = None,
+    use_vision: bool = True,
+    vision_config: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
-    """Run one SC-v13b cycle and optionally record trajectory samples."""
+    """Run one SC-v13b cycle and optionally record trajectory samples.
+
+    When ``use_vision`` is True (default), pick-side joints come from gate-camera
+    ``BallObservation`` + IK. Place / dispenser joints stay on scenario YAML.
+    ``pick_xy`` in YAML is an oracle for tests only — not a grasp command source.
+    """
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
         raise ImportError("mujoco is required for pick-place sim") from exc
+
+    from fret.control.pick_place_vision import apply_vision_pick_goals
 
     wp = waypoints_from_scenario()
     xml = mjcf_path("open_manipulator_x", "omx_pick_place")
@@ -133,15 +142,18 @@ def simulate_pick_place(
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
 
-    fsm = PickPlaceFSM(
-        wp,
-        joint_tol_rad=joint_tol_rad,
-        grasp_hold_s=1.4,
-        release_hold_s=0.8,
-        lift_height_m=0.14,
-        phase_timeout_s=20.0,
-    )
-    fsm.start()
+    # Sense the ball before folding to idle — idle posture can occlude a gate cam.
+    ball_detected = False
+    if use_vision:
+        mj.mj_forward(model, data)
+        wp, _ball_obs = apply_vision_pick_goals(
+            wp,
+            robot="omx",
+            model=model,
+            data=data,
+            vision_config=vision_config,
+        )
+        ball_detected = True
 
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
@@ -150,6 +162,18 @@ def simulate_pick_place(
     data.ctrl[act_ar] = 0.0
     for _ in range(400):
         mj.mj_step(model, data)
+
+    fsm = PickPlaceFSM(
+        wp,
+        joint_tol_rad=joint_tol_rad,
+        grasp_hold_s=1.4,
+        release_hold_s=0.8,
+        lift_height_m=0.14,
+        phase_timeout_s=20.0,
+        auto_start_on_ball=use_vision,
+    )
+    if not use_vision:
+        fsm.start()
 
     mpc = build_omx_joint_mpc()
     mpc.reset(_arm_q(mj, model, data))
@@ -168,6 +192,8 @@ def simulate_pick_place(
             q=q,
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
+            ball_detected=ball_detected
+            and fsm.state in {PickPlaceState.IDLE, PickPlaceState.DONE},
         )
         cmd = fsm.tick(obs, dt)
 
@@ -270,12 +296,14 @@ def run_pick_place(
     *,
     duration_s: float = 25.0,
     joint_tol_rad: float = 0.12,
+    use_vision: bool = True,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
     """Execute one SC-v13b cycle; return final FSM state and box position."""
     state, samples = simulate_pick_place(
         duration_s=duration_s,
         joint_tol_rad=joint_tol_rad,
         record_every_steps=1,
+        use_vision=use_vision,
     )
     if not samples:
         raise RuntimeError("pick-place produced no samples")

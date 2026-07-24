@@ -149,6 +149,21 @@ flowchart TB
 `DONE` holds the idle joint command (same as idle). Call `start()` or set
 `ball_detected` again to begin the next cycle. `reset()` clears FAULT → IDLE.
 
+### Vision entry (v1.4 T14-03)
+
+Runners call :func:`fret.control.pick_place_vision.apply_vision_pick_goals`
+after the idle settle:
+
+1. Gate cameras → ``BallVisionPipeline`` → ``BallObservation``
+   (captured **before** the idle fold — folded postures can occlude a cam).
+2. IK / pad-mid refresh of **pick_hover / pick_grasp / lift_hover** only.
+3. ``ball_detected=True`` while IDLE/DONE so the FSM starts the cycle.
+4. Place / dispenser joints remain scenario YAML (known fixture).
+5. Scenario ``pick_xy`` is an **oracle for tests**, not the grasp command source.
+
+Disable with ``use_vision=False`` on ``simulate_pick_place`` /
+``simulate_omy_pick_place`` for debugging.
+
 ---
 
 ## Robot independence

@@ -106,12 +106,20 @@ def simulate_omy_pick_place(
     telemetry_enabled: bool | None = None,
     telemetry_output_dir: Path | None = None,
     telemetry_csv_basename: str | None = None,
+    use_vision: bool = True,
+    vision_config: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
-    """Run one OMY pick-place cycle (FSM → MPC → joints + physics grasp)."""
+    """Run one OMY pick-place cycle (FSM → MPC → joints + physics grasp).
+
+    When ``use_vision`` is True (default), pick-side joints come from gate-camera
+    ``BallObservation`` + pad-mid IK. Place / dispenser stays on scenario YAML.
+    """
     try:
         import mujoco as mj
     except ImportError as exc:  # pragma: no cover
         raise ImportError("mujoco is required for OMY pick-place sim") from exc
+
+    from fret.control.pick_place_vision import apply_vision_pick_goals
 
     scenario = Path(scenario_path or _SCENARIO)
     params = load_scenario_parameters(scenario)
@@ -143,6 +151,28 @@ def simulate_omy_pick_place(
     act_al = _actuator_id(mj, model, "grip_left")
     act_ar = _actuator_id(mj, model, "grip_right")
 
+    # Sense before idle fold — folded OMY occludes a gate camera (~18 mm XY).
+    ball_detected = False
+    if use_vision:
+        mj.mj_forward(model, data)
+        wp, _ball_obs = apply_vision_pick_goals(
+            wp,
+            robot="omy",
+            model=model,
+            data=data,
+            vision_config=vision_config,
+        )
+        ball_detected = True
+
+    # OMX pattern: settle under ctrl only — no qpos teleports.
+    for i, aid in enumerate(act_arm):
+        data.ctrl[aid] = float(wp.idle[i])
+    data.ctrl[act_grip] = OMY_GRIPPER_OPEN
+    data.ctrl[act_al] = 0.0
+    data.ctrl[act_ar] = 0.0
+    for _ in range(400):
+        mj.mj_step(model, data)
+
     lift_z = float(params.get("lift_height_m", 0.19))
     phase_timeout = float(params.get("phase_timeout_s", 45.0))
     fsm = PickPlaceFSM(
@@ -158,17 +188,10 @@ def simulate_omy_pick_place(
         drop_fault_enabled=True,
         require_grasp_contact=True,
         transfer_joint_tol_rad=max(float(joint_tol_rad), 0.20),
+        auto_start_on_ball=use_vision,
     )
-    fsm.start()
-
-    # OMX pattern: settle under ctrl only — no qpos teleports.
-    for i, aid in enumerate(act_arm):
-        data.ctrl[aid] = float(wp.idle[i])
-    data.ctrl[act_grip] = OMY_GRIPPER_OPEN
-    data.ctrl[act_al] = 0.0
-    data.ctrl[act_ar] = 0.0
-    for _ in range(400):
-        mj.mj_step(model, data)
+    if not use_vision:
+        fsm.start()
 
     # High mid-cell via keeps the carried ball clear of the colliding funnel
     # during open-cell transfer (joint chord otherwise clips the rim).
@@ -227,6 +250,8 @@ def simulate_omy_pick_place(
             object_pos=np.asarray(data.xpos[box_id], dtype=np.float64).copy(),
             ee_pos=np.asarray(data.xpos[ee_id], dtype=np.float64).copy(),
             grasp_contact=grasp_ok,
+            ball_detected=ball_detected
+            and fsm.state in {PickPlaceState.IDLE, PickPlaceState.DONE},
         )
         cmd = fsm.tick(obs, dt)
 
@@ -331,12 +356,14 @@ def run_omy_pick_place(
     duration_s: float = 45.0,
     joint_tol_rad: float = 0.12,
     scenario_path: str | Path | None = None,
+    use_vision: bool = True,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
     """Execute one OMY pick-place cycle; return final state and ball position."""
     state, samples = simulate_omy_pick_place(
         duration_s=duration_s,
         joint_tol_rad=joint_tol_rad,
         scenario_path=scenario_path,
+        use_vision=use_vision,
     )
     if not samples:
         raise RuntimeError("OMY pick-place produced no samples")

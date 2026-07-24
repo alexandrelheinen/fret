@@ -26,6 +26,8 @@ place / dispenser ← scenario YAML (known parameter)
 **v1.3** implements the middle box (`BallVisionPipeline`) against fixtures.
 **v1.5** adds pickability and dynamic ball delivery upstream of the same pipe.
 
+FSM charts: [modules/pick_place_fsm.md](../modules/pick_place_fsm.md).
+
 ---
 
 ## Layering
