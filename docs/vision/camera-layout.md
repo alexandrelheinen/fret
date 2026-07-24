@@ -84,6 +84,19 @@ Constants: `PERCEPTION_WIDTH_PX` / `PERCEPTION_HEIGHT_PX` in
 
 CI: `tests/simulation/test_mujoco_portal_vision.py`.
 
+### Re-benchmark after gate redesign (9-pose XY sweep)
+
+Command: `MUJOCO_GL=egl python3 scripts/benchmark_mujoco_vision.py`.
+
+| Robot | Dual / mono / miss | XY mean / max | XY p95 | Centre mean / max | Z |
+| --- | --- | ---: | ---: | ---: | ---: |
+| OM-X | 9 / 0 / 0 | **0.22 / 0.67 mm** | 0.64 mm | 0.42 / 1.11 px | 0 |
+| OMY | 6 / 3 / 0 | **0.55 / 1.47 mm** | 1.24 mm | 0.51 / 1.23 px | 0 |
+
+OMY mono hits are on the +Y side (arm / brace occlusion of one corner cam);
+fused or mono XY stays ≪ gates. Artifacts:
+`/opt/cursor/artifacts/gate_vision_bench/`.
+
 ---
 
 ## Parallel vs oblique (toed-in) camera axes
