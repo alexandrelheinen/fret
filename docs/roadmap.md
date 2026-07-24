@@ -111,9 +111,9 @@ camera MJCF required to *select*; fixtures may use synthetic images.
 - [x] MuJoCo cameras in OM-X / OMY cells (rear structural gate, dual corner cams)
 - [x] MuJoCo image adapter → `fret.vision` + dual-view detect/lift benchmarks (no FSM feed)
 - [x] Place cone moved in front of arm; pick on the side (±90° yaw margin)
-- [ ] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy`)
-- [ ] Keep **place / dispenser** as known YAML parameters
-- [ ] Equivalent behaviour to today’s physics smoke without pose cheats
+- [x] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy` as grasp GT)
+- [x] Keep **place / dispenser** as known YAML parameters
+- [x] Equivalent behaviour to today’s physics smoke without pose cheats
 - [ ] Tag `v1.4.0`
 
 ### Phase 7 — Dynamic scene + industrial place 🔲 *(v1.5)*
