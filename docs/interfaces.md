@@ -337,13 +337,20 @@ print('ARCO API surface OK')
 **Version pinning:** ARCO is co-developed with FRET. No version pin is enforced.
 The CI checkout step is responsible for obtaining a compatible ARCO snapshot.
 The CI job that requires ARCO must check out `../arco/` before installing it.
+The exact CI checkout configuration is tracked in `.github/workflows/tests.yml`.
 
 ---
 
 ## Vision → Manipulation Boundary (v1.3+)
 
-Typed contracts for `fret.vision`. Full architecture:
-[vision/architecture.md](vision/architecture.md).
+Typed contracts implemented in `fret.vision.types`. Full architecture:
+[vision/architecture.md](vision/architecture.md). These types are
+**algorithm-agnostic** (no colour-space, feature, or network assumptions).
+
+### `CameraIntrinsics` / `CameraExtrinsics`
+
+Pinhole `fx, fy, cx, cy, width, height` and `T_world_cam` (4×4). Distortion
+models may be added later without breaking the frame / observation I/O.
 
 ### `CameraFrame`
 
@@ -351,9 +358,9 @@ Typed contracts for `fret.vision`. Full architecture:
 @dataclass(frozen=True)
 class CameraFrame:
     camera_id: str
-    image: np.ndarray          # HxWx3 uint8 RGB (or gray HxW)
+    image: np.ndarray          # HxWx3 uint8 RGB or HxW uint8 gray
     timestamp: float           # POSIX seconds or sim time
-    intrinsics_id: str         # key into vision camera YAML
+    intrinsics_id: str         # key into VisionConfig.intrinsics
 ```
 
 ### `BallDetection`
@@ -373,11 +380,11 @@ class BallDetection:
 @dataclass(frozen=True)
 class BallObservation:
     position_world: np.ndarray  # shape (3,), metres
-    covariance: np.ndarray | None  # optional 3x3
     radius_m: float
-    pickable: bool | None       # None until v1.5 classifier exists
     timestamp: float
-    source: str                 # e.g. "hsv_plane", "stereo"
+    source: str                 # opaque producer id (not an algo recipe)
+    covariance: np.ndarray | None = None  # optional 3x3
+    pickable: bool | None = None          # None until v1.5 classifier
 ```
 
 **Invariants:**
@@ -392,10 +399,17 @@ class BallObservation:
 @dataclass(frozen=True)
 class PlaceTarget:
     position_world: np.ndarray  # shape (3,)
-    frame_id: str               # must be "world"
+    frame_id: str = "world"     # must be "world"
 ```
 
-Loaded from scenario YAML (dispenser / container). Vision shall not be required
-to detect this fixture for v1.4–v1.5 acceptance.
+### `VisionConfig`
 
-The exact CI checkout configuration is tracked in `.github/workflows/tests.yml`.
+Shared calibration only (`intrinsics`, optional `extrinsics`). Detector /
+lifter / tracker knobs live with those implementations after algorithm
+selection.
+
+### Stage protocols
+
+`BallDetector`, `BallTracker`, `PoseLifter` — see `fret.vision.protocols`.
+`BallVisionPipeline.process(frames) -> BallObservation | None` orchestrates
+them (Level-3 stub until wired).

@@ -35,30 +35,30 @@ case study (no graspable object interaction in the product scenarios).
 | --- | --- | --- |
 | Who uses CV | OM-X and OMY only | Only manipulators interact with graspable objects |
 | What CV must find | Ball centre (and pickability from v1.5) | Grasp entry needs object pose |
-| What stays parametric | Place / dispenser / container pose | Fixed industrial fixture; no need to detect every cycle |
-| Primary algo (v1.3) | HSV blob + circularity + table-plane Z | Deterministic, unit-testable, no heavy ML deps in CI |
-| Multi-camera | Interface required in v1.3; dual overhead+side optional in v1.4 | Occlusion robustness without blocking mono baseline |
-| v1.5 cadence | One ball per cycle (provisional) | Clearer FSM and metrics; multi-ball is stretch |
+| What stays parametric | Place / dispenser / container pose | Fixed industrial fixture |
+| Algorithm | **Open** — see [algorithm-selection.md](algorithm-selection.md) | Scaffold API is algo-agnostic |
+| Multi-camera | Interface supports `N ≥ 1` frames | Fusion is an implementation detail |
+| v1.5 cadence | One ball per cycle (provisional) | Clearer FSM and metrics; multi-ball stretch |
 
 ---
 
-## Package layout (target)
+## Package layout
 
 ```
 src/fret/vision/          # pure Python — no rclpy
-  types.py                # CameraFrame, BallObservation, …
-  detect/                 # selected + candidate detectors
-  track/                  # temporal association (optional in v1.3)
-  geometry/               # pixel → world (plane / stereo)
-  pipeline.py             # BallVisionPipeline
+  types.py                # CameraFrame, BallObservation, VisionConfig, …
+  protocols.py            # BallDetector, BallTracker, PoseLifter
+  pipeline.py             # BallVisionPipeline (Level-3 stub on process)
+  detect/                 # future detector implementations
+  geometry/               # future pose-lift implementations
+  track/                  # future trackers
+
+src/fret/config/vision/   # calibration / scenario wiring (algo knobs later)
 
 src/fret/ros/             # thin adapters only (v1.4+)
-  vision_bridge.py        # images in → BallObservation out (topic)
-
-src/fret/config/vision/   # HSV ranges, camera extrinsics, thresholds
 ```
 
-Module API spec: [modules/vision.md](../modules/vision.md).
+Module API: [modules/vision.md](../modules/vision.md).
 
 ---
 

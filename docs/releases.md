@@ -60,7 +60,7 @@ OpenMANIPULATOR-X/Y, …). Legacy SCARA/RRP assets are retired.
 | CV consumers | Manipulators only (`open_manipulator_x`, `omy`) |
 | Ball pose | From vision (v1.4+); no hardcoded ball / `pick_xy` in release paths |
 | Place / dispenser | **Known scenario parameter** (fixed fixture) — not required from CV |
-| v1.3 primary algorithm | Colour (HSV) blob + circular contour; table-plane lift for Z; dual-cam optional — see [algorithm-selection.md](vision/algorithm-selection.md) |
+| v1.3 algorithm | **Open** — selection doc; scaffold API is algorithm-agnostic |
 | v1.5 ball cadence (provisional) | **One ball at a time** for the release scenario; multi-ball deferred |
 
 ---

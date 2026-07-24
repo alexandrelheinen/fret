@@ -13,7 +13,7 @@ encode cameras in `showcase.yml`.
 1. Ball resting on table or floor is visible with high probability.
 2. Extrinsics are **stable and documented** (YAML), matching MJCF.
 3. Mount looks **realistic** for a lab / light-industrial cell (not a free-floating eye).
-4. Layout supports the **selected** algorithm (HSV mono + optional stereo).
+4. Layout supports the **selected** algorithm once chosen (mono or multi-view).
 
 ---
 
@@ -48,11 +48,12 @@ may be studied later; they are not the v1.4 default.
 
 ## Optional second camera
 
-If stereo refinement (candidate C) is enabled:
+If multi-view lift is selected during algorithm discussion:
 
 - Cam-B on the portal leg or a side post, ~30–45° toward the pick region.
 - Baseline and overlap documented in the camera YAML.
-- Fusion stays inside `fret.vision`; scenarios only list camera ids.
+- Fusion stays inside `PoseLifter` / detector implementations; scenarios only
+  list camera ids.
 
 ---
 

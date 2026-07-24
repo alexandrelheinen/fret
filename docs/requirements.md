@@ -137,7 +137,8 @@ in one or more camera frames without importing ROS.
 primary `BallObservation` per call (plus diagnostics).
 
 **FR-VIS-03:** v1.3 shall record an algorithm selection (candidates + metrics +
-chosen primary) under `docs/vision/algorithm-selection.md`.
+chosen primary) under `docs/vision/algorithm-selection.md`. The `fret.vision`
+public API shall remain usable without committing to a specific algorithm.
 
 **FR-VIS-04:** Unit tests shall gate fixture centre accuracy for the chosen
 primary algorithm (thresholds in the selection doc).
