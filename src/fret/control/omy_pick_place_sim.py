@@ -8,8 +8,9 @@ Stack (shared with OpenMANIPULATOR-X):
 4. MuJoCo position actuators — low-level joint control
 
 Physics grasp only: Menagerie finger pads close on the free ball, then MuJoCo
-adhesion (modest assist) holds it through lift/transfer. No kinematic arm
-snaps, floor contact excludes, MPC-bypass setpoints, or ball teleports.
+adhesion (modest assist) holds it through lift/transfer. Distal collision bits
+are remapped for floor pinch (see ``fret.mjcf.omy``). No kinematic arm snaps,
+MPC-bypass setpoints, or ball teleports.
 """
 
 from __future__ import annotations

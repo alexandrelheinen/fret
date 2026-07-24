@@ -24,12 +24,12 @@ _DEFAULT_VISION_CFG: dict[RobotId, Path] = {
     "omy": Path("src/fret/config/vision/omy_portal_overhead.yml"),
 }
 
-# OM-X link5 IK targets a foreshortened XY (gripper hangs below EE); matches
-# the SC-v13b / gate-layout regen heuristic.
-_OMX_EE_XY_SCALE = 0.72
-_OMX_HOVER_Z_M = 0.20
-_OMX_GRASP_Z_M = 0.175
-_OMX_LIFT_Z_M = 0.22
+# Floor grasp: pad midpoint slightly above ball centre so pads clear the
+# table plane while still pinching the sphere.
+_FLOOR_GRASP_PAD_LIFT_M = 0.012
+_OMX_ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4")
+_OMX_GRIPPER_OPEN = 0.019
+_OMX_GRIPPER_PINCH = -0.01
 
 
 def observe_ball_mujoco(
@@ -63,114 +63,62 @@ def observe_ball_mujoco(
     return pipeline.process(frames)
 
 
-def _omx_ik_xyz(
-    xyz: npt.NDArray[np.float64],
-    *,
-    seeds: list[npt.NDArray[np.float64]],
-) -> npt.NDArray[np.float64]:
-    from fret.control.kinematics_open_manipulator_x import (
-        OpenManipulatorXKinematics,
-    )
-
-    kin = OpenManipulatorXKinematics()
-    best_q = seeds[0]
-    best_err = 1e9
-    target = np.asarray(xyz, dtype=np.float64).reshape(3)
-    for seed in seeds:
-        q = kin.inverse_kinematics(target, seed=seed)
-        err = float(np.linalg.norm(kin.forward_kinematics(q)[:3, 3] - target))
-        if err < best_err:
-            best_err = err
-            best_q = np.asarray(q, dtype=np.float64)
-    if best_err > 0.008:
-        raise RuntimeError(
-            f"OM-X pick IK poor at {target}: {best_err * 1000:.1f} mm"
-        )
-    return best_q
-
-
-def refresh_pick_waypoints_omx(
-    base: PickPlaceWaypoints,
-    ball_world: npt.NDArray[np.float64],
-    *,
-    xy_scale: float = _OMX_EE_XY_SCALE,
-    hover_z_m: float = _OMX_HOVER_Z_M,
-    grasp_z_m: float = _OMX_GRASP_Z_M,
-    lift_z_m: float = _OMX_LIFT_Z_M,
-) -> PickPlaceWaypoints:
-    """IK pick_hover / pick_grasp / lift_hover from ball XYZ; keep place side."""
-    ball = np.asarray(ball_world, dtype=np.float64).reshape(3)
-    xy = ball[:2] * float(xy_scale)
-    seeds = [
-        base.pick_grasp.copy(),
-        base.pick_hover.copy(),
-        base.idle.copy(),
-        np.array([0.0, 0.5, -0.5, 0.5], dtype=np.float64),
-    ]
-    hover = _omx_ik_xyz(
-        np.array([xy[0], xy[1], hover_z_m], dtype=np.float64), seeds=seeds
-    )
-    grasp = _omx_ik_xyz(
-        np.array([xy[0], xy[1], grasp_z_m], dtype=np.float64),
-        seeds=[hover, *seeds],
-    )
-    lift = _omx_ik_xyz(
-        np.array([xy[0], xy[1], lift_z_m], dtype=np.float64),
-        seeds=[hover, *seeds],
-    )
-    return base.with_pick(pick_hover=hover, pick_grasp=grasp, lift_hover=lift)
-
-
-def refresh_pick_waypoints_omy(
+def _pad_mid_pick_waypoints(
     base: PickPlaceWaypoints,
     ball_world: npt.NDArray[np.float64],
     model: Any,
     data: Any,
     *,
-    hover_clearance_m: float = 0.10,
-    lift_clearance_m: float = 0.14,
+    arm_joints: tuple[str, ...],
+    grip_joint: str,
+    grip_open: float,
+    grip_pinch: float,
+    hover_clearance_m: float,
+    lift_clearance_m: float,
+    grasp_pad_lift_m: float = _FLOOR_GRASP_PAD_LIFT_M,
+    extra_seeds: list[npt.NDArray[np.float64]] | None = None,
 ) -> PickPlaceWaypoints:
-    """Pad-mid IK for pick_hover / pick_grasp / lift_hover; keep place side."""
+    """Shared pad-mid IK for floor (or pedestal) pick poses."""
     import mujoco as mj
 
-    from fret.control.omy_pad_mid_ik import (
-        OMY_ARM_JOINTS,
-        OMY_GRIPPER_PINCH,
-        pad_mid_ik,
-    )
+    from fret.control.omy_pad_mid_ik import pad_mid_ik
 
     ball = np.asarray(ball_world, dtype=np.float64).reshape(3)
     pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
     pad_left = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
     grip_adr = int(
-        model.jnt_qposadr[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1")]
+        model.jnt_qposadr[
+            mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, grip_joint)
+        ]
     )
     limits = np.array(
         [
             model.jnt_range[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)]
-            for n in OMY_ARM_JOINTS
+            for n in arm_joints
         ],
         dtype=np.float64,
     )
+    grasp_target = ball + np.array([0.0, 0.0, grasp_pad_lift_m])
     specs = [
         (
             "pick_hover",
             ball + np.array([0.0, 0.0, hover_clearance_m]),
-            0.0,
+            grip_open,
         ),
-        ("pick_grasp", ball.copy(), OMY_GRIPPER_PINCH),
+        ("pick_grasp", grasp_target, grip_pinch),
         (
             "lift_hover",
             ball + np.array([0.0, 0.0, lift_clearance_m]),
-            OMY_GRIPPER_PINCH,
+            grip_pinch,
         ),
     ]
     seeds = [
         base.pick_hover.copy(),
         base.pick_grasp.copy(),
         base.idle.copy(),
-        np.array([-0.1001, 0.683, 2.0814, -0.1359, -0.7662, 0.0036]),
     ]
+    if extra_seeds:
+        seeds.extend(extra_seeds)
     out: dict[str, npt.NDArray[np.float64]] = {}
     seed = base.pick_hover.copy()
     for name, target, gv in specs:
@@ -188,13 +136,13 @@ def refresh_pick_waypoints_omy(
                 pad_right=pad_right,
                 pad_left=pad_left,
                 grip_adr=grip_adr,
+                arm_joints=arm_joints,
             )
             if err < best_err:
                 best_q, best_err = q, err
         if best_q is None or best_err > 0.008:
             raise RuntimeError(
-                f"OMY pad-mid pick IK poor at {name}: "
-                f"{best_err * 1000:.1f} mm"
+                f"pad-mid pick IK poor at {name}: {best_err * 1000:.1f} mm"
             )
         out[name] = best_q
         seed = best_q
@@ -202,6 +150,68 @@ def refresh_pick_waypoints_omy(
         pick_hover=out["pick_hover"],
         pick_grasp=out["pick_grasp"],
         lift_hover=out["lift_hover"],
+    )
+
+
+def refresh_pick_waypoints_omx(
+    base: PickPlaceWaypoints,
+    ball_world: npt.NDArray[np.float64],
+    model: Any,
+    data: Any,
+    *,
+    hover_clearance_m: float = 0.08,
+    lift_clearance_m: float = 0.12,
+    grasp_pad_lift_m: float = _FLOOR_GRASP_PAD_LIFT_M,
+) -> PickPlaceWaypoints:
+    """Pad-mid IK for OM-X pick poses (floor-safe); keep place side."""
+    return _pad_mid_pick_waypoints(
+        base,
+        ball_world,
+        model,
+        data,
+        arm_joints=_OMX_ARM_JOINTS,
+        grip_joint="Gripper",
+        grip_open=_OMX_GRIPPER_OPEN,
+        grip_pinch=_OMX_GRIPPER_PINCH,
+        hover_clearance_m=hover_clearance_m,
+        lift_clearance_m=lift_clearance_m,
+        grasp_pad_lift_m=grasp_pad_lift_m,
+        extra_seeds=[
+            np.array([-0.78, 0.50, -0.50, 0.65], dtype=np.float64),
+            np.array([-0.78, 0.70, -0.20, 0.65], dtype=np.float64),
+        ],
+    )
+
+
+def refresh_pick_waypoints_omy(
+    base: PickPlaceWaypoints,
+    ball_world: npt.NDArray[np.float64],
+    model: Any,
+    data: Any,
+    *,
+    hover_clearance_m: float = 0.10,
+    lift_clearance_m: float = 0.14,
+    grasp_pad_lift_m: float = _FLOOR_GRASP_PAD_LIFT_M,
+) -> PickPlaceWaypoints:
+    """Pad-mid IK for OMY pick poses (floor-safe); keep place side."""
+    from fret.control.omy_pad_mid_ik import OMY_ARM_JOINTS, OMY_GRIPPER_PINCH
+
+    return _pad_mid_pick_waypoints(
+        base,
+        ball_world,
+        model,
+        data,
+        arm_joints=OMY_ARM_JOINTS,
+        grip_joint="rh_r1",
+        grip_open=0.0,
+        grip_pinch=OMY_GRIPPER_PINCH,
+        hover_clearance_m=hover_clearance_m,
+        lift_clearance_m=lift_clearance_m,
+        grasp_pad_lift_m=grasp_pad_lift_m,
+        extra_seeds=[
+            np.array([-0.1001, 0.683, 2.0814, -0.1359, -0.7662, 0.0036]),
+            np.array([-0.15, 0.75, 2.05, -0.25, -0.70, 0.0]),
+        ],
     )
 
 
@@ -227,7 +237,7 @@ def apply_vision_pick_goals(
         )
     ball = np.asarray(observation.position_world, dtype=np.float64)
     if robot == "omx":
-        refreshed = refresh_pick_waypoints_omx(base, ball)
+        refreshed = refresh_pick_waypoints_omx(base, ball, model, data)
     else:
         refreshed = refresh_pick_waypoints_omy(base, ball, model, data)
     return refreshed, observation

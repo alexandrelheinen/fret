@@ -10,7 +10,7 @@ encode cameras in `showcase.yml`.
 
 ## Design goals
 
-1. Ball resting on the pick pedestal (any side of the cell, ±90° yaw) is visible
+1. Ball resting on the floor / table (any side of the cell, ±90° yaw) is visible
    from at least one gate camera with high probability.
 2. Extrinsics are **stable and documented** (YAML), matching MJCF.
 3. Mount looks **realistic** for a lab / light-industrial cell (structural gate,
@@ -36,7 +36,7 @@ tube posts, top/bottom beams, and an **X-brace**, holding two cameras at the
                   |
                   v  +X forward
             [ place cone ]
-         (pick pedestal on −Y)
+         (floor pick on −Y)
 ```
 
 | Property | OM-X | OMY |

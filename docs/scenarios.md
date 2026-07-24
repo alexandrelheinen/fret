@@ -88,7 +88,7 @@ no obstacles.
 **Model:** `open_manipulator_x`
 
 **Purpose:** Validate the manipulation FSM under full MuJoCo physics — stretch to
-pick a Ø 25 mm ball from the green cylinder pedestal and drop it into the red
+pick a Ø 25 mm ball from the floor (green start zone) and drop it into the red
 place cone (tip-down funnel under a transparent plate). No obstacles. AWS
 warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 
@@ -122,12 +122,12 @@ collision bitmasks stay active (`contype`/`conaffinity` = 1).
 **Purpose:** Empty tabletop joint-space A→B — validates kinematics, MJCF, and
 SITL wiring for the 6-DOF arm (same role as SC-v13a for OM-X).
 
-### SC-v14b — OpenMANIPULATOR-Y pedestal pick-and-place (v1.2.4)
+### SC-v14b — OpenMANIPULATOR-Y floor pick-and-place (v1.2.4 / v1.4)
 
 **File:** `config/scenarios/omy_pick_place.yml`  
 **Model:** `omy`
 
-**Purpose:** Pick a Ø 86 mm ball from a **short pedestal** at ~0.49 m forward
+**Purpose:** Pick a Ø 86 mm ball from the **floor** at ~0.46 m forward
 reach (same OMX SC-v13b pattern: pads pinch the equator) and place it in a
 tip-down cone funnel at a loaded-reachable pose — 6-DOF analogue of SC-v13b.
 

@@ -306,12 +306,11 @@ class PickPlaceFSM:
             )
 
         if self._state == PickPlaceState.DESCEND_PICK:
+            # Enter GRASP when the open-jaw descend pose is reached. Contact is
+            # gated on GRASP→LIFT so the jaw can close before pads must touch
+            # (floor pinch: open pads often clear the sphere until close).
             if self._reached(obs.q, self._wp.pick_grasp):
-                if (
-                    not self._require_grasp_contact
-                    or obs.grasp_contact is True
-                ):
-                    self._enter(PickPlaceState.GRASP)
+                self._enter(PickPlaceState.GRASP)
             return self._cmd(
                 self._wp.pick_grasp,
                 self._gripper_open,

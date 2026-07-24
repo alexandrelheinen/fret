@@ -22,7 +22,7 @@ v1.2.3 showcase:
 4. **SC-v13d** — Γ (inverted-L) wall maze: retract → climb → place
 
 **Pick object:** tennis-like MuJoCo ball (Ø 25 mm, grippy friction, density 400).
-Pick sits on the same cylinder pedestal; place is a transparent non-colliding
+Pick rests on the floor / table plane; place is a transparent non-colliding
 plate over a tip-down cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*`
 wall collision — MuJoCo convex-hulls meshes, so a solid mesh cone would not
 catch the ball). Cone mouth / rim match the red zone disk (r=0.05) so that disk is the funnel basis; mesh is double-sided for top-down visibility. AWS RoboMaker meshes stay for denser clutter later — too large

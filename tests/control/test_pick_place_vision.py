@@ -73,9 +73,14 @@ def test_apply_vision_pick_ignores_yaml_pick_xy_omx() -> None:
 
 
 def test_refresh_pick_waypoints_omx_shifts_with_ball() -> None:
+    model, data = _load(ensure_omx_mjcf("omx_pick_place"))
     base = omx_wp()
-    a = refresh_pick_waypoints_omx(base, np.array([0.22, -0.20, 0.11]))
-    b = refresh_pick_waypoints_omx(base, np.array([0.22, 0.20, 0.11]))
+    a = refresh_pick_waypoints_omx(
+        base, np.array([0.22, -0.20, 0.0125]), model, data
+    )
+    b = refresh_pick_waypoints_omx(
+        base, np.array([0.22, 0.20, 0.0125]), model, data
+    )
     assert not np.allclose(a.pick_grasp, b.pick_grasp)
     assert np.allclose(a.place_grasp, b.place_grasp)
 
