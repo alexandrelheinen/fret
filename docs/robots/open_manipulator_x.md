@@ -51,9 +51,15 @@ arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 **Pedestal height:** min clear pad_z ≈ 0.0275 m → min top ≈ 0.0175 m; with a
 25 mm ball, the pick pose sits ~0.04 m above the tabletop.
 
-**SC-v13b FSM:**
+**SC-v13b FSM** (robot-agnostic; shared with OMY):
 
-`IDLE → MOVE_PICK → GRASP → LIFT → MOVE_PLACE → RELEASE → DONE`
+Logical cycle — see [pick_place_fsm.md](../modules/pick_place_fsm.md) (Mermaid):
+
+`IDLE → (ball) PLAN/MOVE_PICK → GRASP → PLAN/MOVE_PLACE → RELEASE → PLAN/MOVE_HOME → IDLE`
+
+Implementation substates:
+
+`IDLE → APPROACH_PICK → DESCEND_PICK → GRASP → LIFT → MOVE_PLACE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
 
 **SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
 around the wall (not a straight joint-space line). Grasp / lift / release

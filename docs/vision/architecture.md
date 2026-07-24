@@ -10,7 +10,8 @@
 Pick-and-place today:
 
 ```
-scenario YAML (pick_xy / grasp joints) → PickPlaceFSM → JointSpaceMPC → MuJoCo
+scenario YAML (place / dispenser) + BallObservation (pick)
+        → PickPlaceFSM → path plan per motion → JointSpaceMPC → MuJoCo
 ```
 
 Target from **v1.4**:
