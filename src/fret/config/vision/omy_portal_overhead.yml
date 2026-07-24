@@ -1,28 +1,35 @@
-# OMY portal overhead Cam-A (v1.4 T14-01).
-#
-# MJCF: vision_portal body in omy_pick_place / omy_clutter.
-# Resolution locked at 1280×720 (see docs/vision/camera-layout.md).
-
-camera_id: overhead
-
+# Dual gate-corner cameras + HSV blob + fused table-plane lift (v1.4).
+camera_ids: [gate_cam_left, gate_cam_right]
 intrinsics:
-  camera_id: overhead
-  width: 1280
-  height: 720
-  fx: 772.0224913834411
-  fy: 772.0224913834411
-  cx: 639.5
-  cy: 359.5
-
+  - camera_id: gate_cam_left
+    width: 1280
+    height: 720
+    fx: 869.1168825
+    fy: 869.1168825
+    cx: 639.5
+    cy: 359.5
+  - camera_id: gate_cam_right
+    width: 1280
+    height: 720
+    fx: 869.1168825
+    fy: 869.1168825
+    cx: 639.5
+    cy: 359.5
 extrinsics:
-  camera_id: overhead
-  t_world_cam:
-    - [0.0, 1.0, 0.0, 0.40]
-    - [1.0, 0.0, 0.0, 0.0]
-    - [0.0, 0.0, -1.0, 1.30]
-    - [0.0, 0.0, 0.0, 1.0]
-
+  - camera_id: gate_cam_left
+    t_world_cam:
+    - [-0.6804512911, -0.5532867322, 0.4804787533, -0.18]
+    - [-0.7327933135, 0.513766521, -0.4461590765, 0.42]
+    - [-8.326672685e-17, -0.6556811374, -0.7550379103, 0.98]
+    - [0, 0, 0, 1]
+  - camera_id: gate_cam_right
+    t_world_cam:
+    - [0.496139046, -0.700289386, 0.5132648662, -0.18]
+    - [-0.8682430806, -0.4001654786, 0.2932942937, -0.42]
+    - [-5.551115123e-17, -0.5911534197, -0.8065591326, 0.98]
+    - [0, 0, 0, 1]
 detector:
+  camera_ids: [gate_cam_left, gate_cam_right]
   hsv_lower: [20, 40, 40]
   hsv_upper: [50, 255, 255]
   hsv_lower_alt: null
@@ -31,11 +38,9 @@ detector:
   min_area_px: 120.0
   max_area_px: 500000.0
   min_circularity: 0.45
-
 lifter:
-  # Pedestal top z=0.09; ball radius 0.043 → centre plane z=0.133.
+  camera_ids: [gate_cam_left, gate_cam_right]
   table_z_m: 0.09
   ball_radius_m: 0.043
-
 pipeline:
-  source: omy_portal_hsv_plane
+  source: omy_gate_hsv_plane

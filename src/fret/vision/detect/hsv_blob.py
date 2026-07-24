@@ -87,37 +87,41 @@ class HsvBlobBallDetector:
     def detect(self, frames: Sequence[CameraFrame]) -> list[BallDetection]:
         if not frames:
             return []
-        frame = next(
-            (f for f in frames if f.camera_id == self._cfg.camera_id), None
-        )
-        if frame is None:
-            return []
-
-        assert cv2 is not None
-        mask = self.mask_for_frame(frame)
-        contours, _hierarchy = cv2.findContours(
-            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-        best: BallDetection | None = None
-        best_score = -1.0
-        for contour in contours:
-            area = float(cv2.contourArea(contour))
-            if area < self._cfg.min_area_px or area > self._cfg.max_area_px:
+        allowed = set(self._cfg.camera_ids)
+        results: list[BallDetection] = []
+        for frame in frames:
+            if frame.camera_id not in allowed:
                 continue
-            perimeter = float(cv2.arcLength(contour, True))
-            circ = _circularity(area, perimeter)
-            if circ < self._cfg.min_circularity:
-                continue
-            (cx, cy), radius = cv2.minEnclosingCircle(contour)
-            score = circ + 0.05 * min(
-                1.0, area / max(self._cfg.max_area_px, 1.0)
+            assert cv2 is not None
+            mask = self.mask_for_frame(frame)
+            contours, _hierarchy = cv2.findContours(
+                mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
-            if score > best_score:
-                best_score = score
-                best = BallDetection(
-                    camera_id=frame.camera_id,
-                    centre_px=(float(cx), float(cy)),
-                    radius_px=float(radius),
-                    confidence=float(np.clip(circ, 0.0, 1.0)),
+            best: BallDetection | None = None
+            best_score = -1.0
+            for contour in contours:
+                area = float(cv2.contourArea(contour))
+                if (
+                    area < self._cfg.min_area_px
+                    or area > self._cfg.max_area_px
+                ):
+                    continue
+                perimeter = float(cv2.arcLength(contour, True))
+                circ = _circularity(area, perimeter)
+                if circ < self._cfg.min_circularity:
+                    continue
+                (cx, cy), radius = cv2.minEnclosingCircle(contour)
+                score = circ + 0.05 * min(
+                    1.0, area / max(self._cfg.max_area_px, 1.0)
                 )
-        return [best] if best is not None else []
+                if score > best_score:
+                    best_score = score
+                    best = BallDetection(
+                        camera_id=frame.camera_id,
+                        centre_px=(float(cx), float(cy)),
+                        radius_px=float(radius),
+                        confidence=float(np.clip(circ, 0.0, 1.0)),
+                    )
+            if best is not None:
+                results.append(best)
+        return results

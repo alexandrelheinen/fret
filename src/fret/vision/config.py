@@ -49,7 +49,7 @@ def _matrix4(
 class HsvBlobDetectorConfig:
     """Tunables for :class:`~fret.vision.detect.hsv_blob.HsvBlobBallDetector`."""
 
-    camera_id: str
+    camera_ids: tuple[str, ...]
     hsv_lower: tuple[int, int, int]
     hsv_upper: tuple[int, int, int]
     hsv_lower_alt: tuple[int, int, int] | None
@@ -60,6 +60,8 @@ class HsvBlobDetectorConfig:
     min_circularity: float
 
     def __post_init__(self) -> None:
+        if not self.camera_ids:
+            raise ValueError("camera_ids must be non-empty")
         if self.morph_kernel_px < 1:
             raise ValueError("morph_kernel_px must be >= 1")
         if self.min_area_px < 0.0 or self.max_area_px < self.min_area_px:
@@ -71,18 +73,29 @@ class HsvBlobDetectorConfig:
                 "hsv_lower_alt and hsv_upper_alt must both be set or both null"
             )
 
+    @property
+    def camera_id(self) -> str:
+        """Primary camera id (first entry; kept for single-view callers)."""
+        return self.camera_ids[0]
+
 
 @dataclass(frozen=True)
 class TablePlaneLifterConfig:
-    """Tunables for table-plane pose lift."""
+    """Tunables for table-plane pose lift (mono or multi-view fusion)."""
 
-    camera_id: str
+    camera_ids: tuple[str, ...]
     table_z_m: float
     ball_radius_m: float
 
     def __post_init__(self) -> None:
+        if not self.camera_ids:
+            raise ValueError("camera_ids must be non-empty")
         if self.ball_radius_m < 0.0:
             raise ValueError("ball_radius_m must be >= 0")
+
+    @property
+    def camera_id(self) -> str:
+        return self.camera_ids[0]
 
 
 @dataclass(frozen=True)
@@ -125,7 +138,7 @@ def _parse_extrinsics(raw: Mapping[str, Any]) -> CameraExtrinsics:
 def load_hsv_plane_pipeline_config(
     path: str | Path | None = None,
 ) -> HsvPlanePipelineConfig:
-    """Load ``hsv_blob_overhead.yml`` (or ``path``) into typed configs."""
+    """Load HSV + table-plane YAML (single- or multi-camera) into typed configs."""
     if path is None:
         file_path = resolve_package_file(
             "config", "vision", "hsv_blob_overhead.yml"
@@ -133,18 +146,38 @@ def load_hsv_plane_pipeline_config(
     else:
         file_path = Path(path)
     data = load_yaml_file(file_path)
-    camera_id = str(require_key(data, "camera_id", context=str(file_path)))
 
-    intr = _parse_intrinsics(
-        require_key(data, "intrinsics", context=str(file_path))
-    )
-    ext = _parse_extrinsics(
-        require_key(data, "extrinsics", context=str(file_path))
-    )
-    if intr.camera_id != camera_id or ext.camera_id != camera_id:
+    if "camera_ids" in data:
+        camera_ids = tuple(str(x) for x in data["camera_ids"])
+    else:
+        camera_ids = (
+            str(require_key(data, "camera_id", context=str(file_path))),
+        )
+    if not camera_ids:
+        raise ValueError(f"{file_path}: camera_ids must be non-empty")
+
+    raw_intr = require_key(data, "intrinsics", context=str(file_path))
+    raw_ext = require_key(data, "extrinsics", context=str(file_path))
+    if isinstance(raw_intr, list):
+        intrinsics = tuple(_parse_intrinsics(item) for item in raw_intr)
+    else:
+        intrinsics = (_parse_intrinsics(raw_intr),)
+    if isinstance(raw_ext, list):
+        extrinsics = tuple(_parse_extrinsics(item) for item in raw_ext)
+    else:
+        extrinsics = (_parse_extrinsics(raw_ext),)
+
+    intr_ids = {i.camera_id for i in intrinsics}
+    ext_ids = {e.camera_id for e in extrinsics}
+    missing = set(camera_ids) - intr_ids
+    if missing:
         raise ValueError(
-            f"camera_id mismatch in {file_path}: "
-            f"top={camera_id!r} intr={intr.camera_id!r} ext={ext.camera_id!r}"
+            f"{file_path}: missing intrinsics for {sorted(missing)}"
+        )
+    missing = set(camera_ids) - ext_ids
+    if missing:
+        raise ValueError(
+            f"{file_path}: missing extrinsics for {sorted(missing)}"
         )
 
     det_raw = require_key(data, "detector", context=str(file_path))
@@ -162,8 +195,12 @@ def load_hsv_plane_pipeline_config(
         ),
         context="detector",
     )
+    if "camera_ids" in det_raw:
+        det_ids = tuple(str(x) for x in det_raw["camera_ids"])
+    else:
+        det_ids = camera_ids
     detector = HsvBlobDetectorConfig(
-        camera_id=camera_id,
+        camera_ids=det_ids,
         hsv_lower=_require_hsv_bound(
             det_raw["hsv_lower"], context="hsv_lower"
         ),
@@ -186,8 +223,12 @@ def load_hsv_plane_pipeline_config(
     if not isinstance(lift_raw, dict):
         raise ValueError("lifter must be a mapping")
     require_keys(lift_raw, ("table_z_m", "ball_radius_m"), context="lifter")
+    if "camera_ids" in lift_raw:
+        lift_ids = tuple(str(x) for x in lift_raw["camera_ids"])
+    else:
+        lift_ids = camera_ids
     lifter = TablePlaneLifterConfig(
-        camera_id=camera_id,
+        camera_ids=lift_ids,
         table_z_m=float(lift_raw["table_z_m"]),
         ball_radius_m=float(lift_raw["ball_radius_m"]),
     )
@@ -200,7 +241,7 @@ def load_hsv_plane_pipeline_config(
         raise ValueError("pipeline.source must be non-empty")
 
     return HsvPlanePipelineConfig(
-        vision=VisionConfig(intrinsics=(intr,), extrinsics=(ext,)),
+        vision=VisionConfig(intrinsics=intrinsics, extrinsics=extrinsics),
         detector=detector,
         lifter=lifter,
         source=source,

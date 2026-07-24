@@ -21,9 +21,9 @@
     place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
-    pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
-    pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
-    place_hover_configuration: [0.55, 0.416, -0.55, 0.20]
-    place_grasp_configuration: [0.55, 0.60, -0.65, 0.65]
-    pick_xy: [0.273, -0.160]
-    place_xy: [0.273, 0.160]
+    pick_hover_configuration: [-0.7768, 0.5027, -0.6854, 0.6500]
+    pick_grasp_configuration: [-0.7771, 0.4971, -0.4787, 0.6500]
+    place_hover_configuration: [0.0000, 0.2129, -0.2377, 0.7000]
+    place_grasp_configuration: [0.0000, 0.2381, -0.0763, 0.5000]
+    pick_xy: [0.220, -0.200]
+    place_xy: [0.260, 0.000]
