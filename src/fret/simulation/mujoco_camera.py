@@ -142,7 +142,20 @@ class MujocoCameraAdapter:
         if cam_id < 0:
             raise ValueError(f"Camera not found in MJCF: {camera_name}")
         self._cam_id = int(cam_id)
-        self._renderer = self._mj.Renderer(model, height=height, width=width)
+        self._renderer: Any | None = None
+
+    def _ensure_renderer(self) -> Any:
+        if self._renderer is None:
+            try:
+                self._renderer = self._mj.Renderer(
+                    self._model, height=self._height, width=self._width
+                )
+            except Exception as exc:  # pragma: no cover - env-dependent
+                raise RuntimeError(
+                    "MuJoCo Renderer failed — set MUJOCO_GL=egl "
+                    "PYOPENGL_PLATFORM=egl before importing mujoco"
+                ) from exc
+        return self._renderer
 
     @property
     def camera_name(self) -> str:
@@ -157,9 +170,11 @@ class MujocoCameraAdapter:
         return self._height
 
     def close(self) -> None:
-        close = getattr(self._renderer, "close", None)
-        if callable(close):
-            close()
+        if self._renderer is not None:
+            close = getattr(self._renderer, "close", None)
+            if callable(close):
+                close()
+            self._renderer = None
 
     def __enter__(self) -> MujocoCameraAdapter:
         return self
@@ -188,8 +203,9 @@ class MujocoCameraAdapter:
         self._mj.mj_forward(self._model, self._data)
         intrinsics = self.live_intrinsics()
         extrinsics = self.live_extrinsics()
-        self._renderer.update_scene(self._data, camera=self._camera_name)
-        image = np.asarray(self._renderer.render(), dtype=np.uint8)
+        renderer = self._ensure_renderer()
+        renderer.update_scene(self._data, camera=self._camera_name)
+        image = np.asarray(renderer.render(), dtype=np.uint8)
         frame = CameraFrame(
             camera_id=self._camera_name,
             image=image,

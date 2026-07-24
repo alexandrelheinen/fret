@@ -90,6 +90,10 @@ require_command python3 "python3 is required."
 require_command pytest "pytest is required."
 
 export COVERAGE_FILE="${REPO_ROOT}/.coverage.${SHARD}"
+# MuJoCo offscreen render (portal vision, etc.) needs EGL selected before
+# the first ``import mujoco`` in the pytest process.
+export MUJOCO_GL="${MUJOCO_GL:-egl}"
+export PYOPENGL_PLATFORM="${PYOPENGL_PLATFORM:-egl}"
 
 info "Unit shard: ${SHARD}"
 if pytest "${PATHS[@]}" \

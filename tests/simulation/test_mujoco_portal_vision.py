@@ -108,7 +108,10 @@ def _run_portal_benchmark(
 
     with MujocoCameraAdapter(model, data) as adapter:
         _assert_yaml_matches_live(cfg_path, adapter)
-        capture = adapter.capture(timestamp=0.0)
+        try:
+            capture = adapter.capture(timestamp=0.0)
+        except RuntimeError as exc:
+            pytest.skip(f"MuJoCo offscreen render unavailable: {exc}")
         ball = _ball_world(model, data)
         u_gt, v_gt = project_world_point(
             ball, capture.intrinsics, capture.extrinsics
