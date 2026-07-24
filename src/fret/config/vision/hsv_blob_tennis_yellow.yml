@@ -1,0 +1,40 @@
+# HSV blob for classic yellow-green tennis / dog-fetch balls (web demo).
+# OpenCV HSV: H in [0, 179], S/V in [0, 255].
+
+camera_id: overhead
+
+intrinsics:
+  camera_id: overhead
+  width: 640
+  height: 480
+  fx: 600.0
+  fy: 600.0
+  cx: 320.0
+  cy: 240.0
+
+# Arbitrary overhead mount for demo lift numbers (not metric-ground-truth).
+extrinsics:
+  camera_id: overhead
+  t_world_cam:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, -1.0, 0.0, 0.0]
+    - [0.0, 0.0, -1.0, 1.2]
+    - [0.0, 0.0, 0.0, 1.0]
+
+detector:
+  # Yellow-green tennis felt (loose enough for web photos / outdoor light).
+  hsv_lower: [20, 60, 60]
+  hsv_upper: [45, 255, 255]
+  hsv_lower_alt: null
+  hsv_upper_alt: null
+  morph_kernel_px: 5
+  min_area_px: 80.0
+  max_area_px: 500000.0
+  min_circularity: 0.45
+
+lifter:
+  table_z_m: 0.0
+  ball_radius_m: 0.033
+
+pipeline:
+  source: hsv_blob_tennis_yellow

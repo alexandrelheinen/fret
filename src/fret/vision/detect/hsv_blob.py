@@ -60,15 +60,8 @@ class HsvBlobBallDetector:
     def config(self) -> HsvBlobDetectorConfig:
         return self._cfg
 
-    def detect(self, frames: Sequence[CameraFrame]) -> list[BallDetection]:
-        if not frames:
-            return []
-        frame = next(
-            (f for f in frames if f.camera_id == self._cfg.camera_id), None
-        )
-        if frame is None:
-            return []
-
+    def mask_for_frame(self, frame: CameraFrame) -> npt.NDArray[np.uint8]:
+        """Return the binary HSV+morphology mask for ``frame`` (H×W uint8)."""
         assert cv2 is not None
         bgr = _to_bgr(frame.image)
         hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
@@ -82,12 +75,23 @@ class HsvBlobBallDetector:
             lower_alt = np.asarray(self._cfg.hsv_lower_alt, dtype=np.uint8)
             upper_alt = np.asarray(self._cfg.hsv_upper_alt, dtype=np.uint8)
             mask = cv2.bitwise_or(mask, cv2.inRange(hsv, lower_alt, upper_alt))
-
         k = int(self._cfg.morph_kernel_px)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        return np.asarray(mask, dtype=np.uint8)
 
+    def detect(self, frames: Sequence[CameraFrame]) -> list[BallDetection]:
+        if not frames:
+            return []
+        frame = next(
+            (f for f in frames if f.camera_id == self._cfg.camera_id), None
+        )
+        if frame is None:
+            return []
+
+        assert cv2 is not None
+        mask = self.mask_for_frame(frame)
         contours, _hierarchy = cv2.findContours(
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
@@ -102,7 +106,6 @@ class HsvBlobBallDetector:
             if circ < self._cfg.min_circularity:
                 continue
             (cx, cy), radius = cv2.minEnclosingCircle(contour)
-            # Prefer high circularity; break ties with larger area.
             score = circ + 0.05 * min(
                 1.0, area / max(self._cfg.max_area_px, 1.0)
             )
