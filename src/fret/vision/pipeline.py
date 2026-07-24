@@ -59,12 +59,25 @@ class BallVisionPipeline:
             can be reported (never fabricates a pose).
 
         Raises:
-            NotImplementedError: Level-3 stub — orchestration not filled yet.
             ValueError: If ``frames`` is empty.
         """
         if not frames:
             raise ValueError("frames must be non-empty")
-        raise NotImplementedError(
-            "BallVisionPipeline.process is a Level-3 stub; "
-            "wire detector/tracker/lifter in the v1.3 implementation"
+        detections = self._detector.detect(frames)
+        if self._tracker is not None:
+            timestamp = float(frames[0].timestamp)
+            detections = self._tracker.update(detections, timestamp)
+        observation = self._lifter.lift(detections, frames)
+        if observation is None:
+            return None
+        if observation.source == self._source:
+            return observation
+        # Normalize producer id to the pipeline source when lifter used another.
+        return BallObservation(
+            position_world=observation.position_world,
+            radius_m=observation.radius_m,
+            timestamp=observation.timestamp,
+            source=self._source,
+            covariance=observation.covariance,
+            pickable=observation.pickable,
         )

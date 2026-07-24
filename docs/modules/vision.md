@@ -5,72 +5,57 @@
 **Tests:** `tests/vision/`  
 **Program docs:** [vision/README.md](../vision/README.md)
 
-> **Release:** v1.3 pipeline scaffold · v1.4 MuJoCo integration · v1.5
-> pickability. See [releases.md](../releases.md).
+> **Release:** v1.3 · See [releases.md](../releases.md).
 
 ---
 
 ## Responsibility
 
-Expose **algorithm-agnostic** contracts so manipulator pick-and-place can
-consume a world-frame ball observation. Does **not** detect the place
-dispenser (known scenario parameter). Does **not** serve TB3.
+Detect a graspable ball in camera images and lift to a world-frame
+`BallObservation` for manipulator pick-and-place. Does **not** detect the
+place dispenser. Does **not** use robot proprioception in the MVP. Does
+**not** serve TB3.
 
-This module is distinct from `PerceptionBridgeNode` (YAML obstacle clouds for
-occupancy).
-
-**No preferred detector / tracker / lifter is encoded in this package.**
-Algorithm selection is an open v1.3 work product
-([algorithm-selection.md](../vision/algorithm-selection.md)).
+Distinct from `PerceptionBridgeNode` (YAML obstacle clouds).
 
 ---
 
 ## Components
 
-### `types` — I/O contracts
+### Contracts (`types`, `protocols`)
 
-`CameraFrame`, `BallDetection`, `BallObservation`, `PlaceTarget`,
-`CameraIntrinsics`, `CameraExtrinsics`, `VisionConfig`.
+Algorithm-agnostic I/O: `CameraFrame` → `BallDetection` → `BallObservation`.
+Protocols: `BallDetector`, `BallTracker`, `PoseLifter`.
 
-See [interfaces.md § Vision](../interfaces.md#vision--manipulation-boundary-v13).
+### MVP implementation (OpenCV)
 
-### `protocols` — stage interfaces
-
-| Protocol | Role |
+| Piece | Module |
 | --- | --- |
-| `BallDetector` | `frames → list[BallDetection]` |
-| `BallTracker` | optional temporal filter on detections |
-| `PoseLifter` | `detections (+ frames) → BallObservation \| None` |
-
-### `pipeline.BallVisionPipeline`
-
-Constructor accepts injected detector + lifter (+ optional tracker) and
-shared `VisionConfig` (calibration only). `process()` is a Level-3 stub
-(`NotImplementedError`) until orchestration is implemented.
+| HSV blob detector | `detect.hsv_blob.HsvBlobBallDetector` |
+| Table-plane lifter | `geometry.plane_lifter.TablePlanePoseLifter` |
+| Factory | `factory.build_hsv_plane_pipeline()` |
+| YAML | `config/vision/hsv_blob_overhead.yml` |
 
 ```python
-pipe = BallVisionPipeline(detector, lifter, config=cfg)
-obs = pipe.process(frames)  # BallObservation | None
+from fret.vision import build_hsv_plane_pipeline
+
+pipe = build_hsv_plane_pipeline()
+obs = pipe.process([frame])  # BallObservation | None
 ```
 
-### `detect/` · `geometry/` · `track/`
+Dependency: optional extra `vision` / included in `sim`
+(`opencv-python-headless`).
 
-Empty package markers for future implementations. No concrete algorithms yet.
+### `BallVisionPipeline`
+
+Runs detect → optional track → lift. Missing ball → `None`.
 
 ---
 
 ## Configuration
 
-`src/fret/config/vision/` holds algorithm-agnostic camera / scenario wiring
-once scenarios need it. Method-specific tunables stay with the chosen
-implementation’s YAML after selection.
-
----
-
-## ROS boundary (v1.4+)
-
-A thin `fret.ros` adapter may publish/subscribe images and observations.
-Core vision code remains ROS-free.
+All HSV / area / circularity / plane / camera tunables live under
+`src/fret/config/vision/`. No method knobs hardcoded in Python.
 
 ---
 
@@ -78,6 +63,5 @@ Core vision code remains ROS-free.
 
 | Requirement | Description |
 |---|---|
-| FR-VIS-01 | Pure-Python package; no ROS in core |
-| FR-VIS-02 | Pipeline API accepts `N ≥ 1` frames |
-| FR-VIS-03–04 | Selection + fixture gates (later in v1.3) |
+| FR-VIS-01–02 | Pure-Python package; `N≥1` frames |
+| FR-VIS-03–04 | Selection + fixture gates (HSV MVP) |

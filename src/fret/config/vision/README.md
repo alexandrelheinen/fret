@@ -1,8 +1,10 @@
 # Vision configuration (v1.3+)
 #
-# Algorithm-agnostic camera calibration and scenario wiring will live here.
-# Detector / tracker / lifter tunables belong in per-implementation YAML once
-# an algorithm is selected — do not put method-specific knobs in a shared
-# "default" until that selection lands.
+# Algorithm-agnostic camera calibration and method-specific tunables live here.
+#
+# Current MVP bundle:
+#   hsv_blob_overhead.yml — HSV blob detector + horizontal table-plane lifter
+#   (single overhead camera). Built via
+#   fret.vision.factory.build_hsv_plane_pipeline().
 #
 # See docs/vision/README.md and docs/modules/vision.md.
