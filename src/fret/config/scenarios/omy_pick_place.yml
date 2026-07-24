@@ -22,13 +22,13 @@
     lift_height_m: 0.19
     phase_timeout_s: 45.0
     idle_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    pick_hover_configuration: [-0.4607, 0.5438, 1.3561, -0.0485, 1.4352, 0.0001]
-    pick_grasp_configuration: [-0.4607, 0.8456, 1.2034, 0.4756, -0.0000, 0.0000]
-    lift_hover_configuration: [-0.4608, 0.5008, 1.2849, -0.0286, 1.4352, 0.0001]
-    place_hover_configuration: [0.2380, 0.6056, 1.2598, -0.3731, -0.8000, 0.0000]
-    place_grasp_configuration: [0.2379, 0.7479, 1.3162, -0.0592, 1.4352, 0.0001]
+    pick_hover_configuration: [-0.1464, 0.3627, 2.0772, -0.0892, -0.7000, -0.0003]
+    pick_grasp_configuration: [-0.1549, 0.5978, 2.2293, -0.1627, -0.7409, -0.0127]
+    lift_hover_configuration: [-0.1723, 0.3509, 2.1828, -0.2917, -0.7862, -0.0334]
+    place_hover_configuration: [0.4304, 0.3638, 1.4970, -0.1607, -0.9983, 0.0291]
+    place_grasp_configuration: [0.4238, 0.3699, 1.8269, -0.2693, -1.0145, -0.0051]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
     # High mid-cell via: carry clears the colliding place funnel before drop.
-    transfer_via_configuration: [-0.0876, 0.3943, 1.3129, 0.0356, 1.4352, 0.0001]
+    transfer_via_configuration: [0.1466, 0.2300, 1.9708, -0.3719, -0.9482, -0.0312]
     pick_xy: [0.350, -0.300]
     place_xy: [0.480, 0.000]

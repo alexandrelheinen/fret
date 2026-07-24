@@ -120,7 +120,10 @@ def rewrite_pick_place_xml(
     out: list[str] = []
     skipping_portal = False
     for line in text.splitlines(True):
-        if '<body name="vision_portal"' in line or '<body name="vision_gate"' in line:
+        if (
+            '<body name="vision_portal"' in line
+            or '<body name="vision_gate"' in line
+        ):
             skipping_portal = True
             continue
         if skipping_portal:
@@ -187,7 +190,9 @@ def update_scenario_yaml(
     print(f"updated {path}")
 
 
-def ik_omx(pick_xy: list[float], place_xy: list[float]) -> dict[str, list[float]]:
+def ik_omx(
+    pick_xy: list[float], place_xy: list[float]
+) -> dict[str, list[float]]:
     from fret.control.kinematics_open_manipulator_x import (
         OpenManipulatorXKinematics,
     )
@@ -207,14 +212,14 @@ def ik_omx(pick_xy: list[float], place_xy: list[float]) -> dict[str, list[float]
         best_q = seeds[0]
         for seed in seeds:
             q = kin.inverse_kinematics(np.asarray(xyz), seed=seed)
-            err = float(
-                np.linalg.norm(kin.forward_kinematics(q)[:3, 3] - xyz)
-            )
+            err = float(np.linalg.norm(kin.forward_kinematics(q)[:3, 3] - xyz))
             if err < best_err:
                 best_err = err
                 best_q = q
         if best_err > 0.005:
-            raise RuntimeError(f"OM-X IK poor at {xyz}: {best_err*1000:.1f} mm")
+            raise RuntimeError(
+                f"OM-X IK poor at {xyz}: {best_err*1000:.1f} mm"
+            )
         return [float(v) for v in best_q]
 
     return {
@@ -233,44 +238,90 @@ def ik_omx(pick_xy: list[float], place_xy: list[float]) -> dict[str, list[float]
     }
 
 
-def ik_omy(pick_xy: list[float], place_xy: list[float]) -> dict[str, list[float]]:
-    from fret.control.kinematics_open_manipulator_y import (
-        OpenManipulatorYKinematics,
+def ik_omy(
+    pick_xy: list[float], place_xy: list[float]
+) -> dict[str, list[float]]:
+    """Pad-mid IK (not link6) — matches ``scripts/tune_omy_pad_mid_waypoints``."""
+    import mujoco as mj
+
+    from fret.control.omy_pad_mid_ik import (
+        OMY_ARM_JOINTS,
+        OMY_GRIPPER_PINCH,
+        pad_mid_ik,
     )
+    from fret.mjcf.omy import ensure_omy_pick_place_mjcf
 
-    kin = OpenManipulatorYKinematics()
-    seeds = [
-        np.array([0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]),
-        np.zeros(6),
-        np.array([-0.1, 0.6, 2.0, -0.2, -0.8, 0.0]),
-        np.array([0.2, 0.5, 1.5, 0.0, -1.0, 0.0]),
+    idle = np.array([0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001])
+    # Prefer pad-mid IK (not link6 FK). Multi-seed because side picks are
+    # farther from the folded idle and local minima are common.
+    xml = ensure_omy_pick_place_mjcf()
+    model = mj.MjModel.from_xml_path(str(xml))
+    data = mj.MjData(model)
+    mj.mj_forward(model, data)
+    pad_right = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_right"))
+    pad_left = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pad_left"))
+    grip_adr = int(
+        model.jnt_qposadr[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "rh_r1")]
+    )
+    limits = np.array(
+        [
+            model.jnt_range[mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, n)]
+            for n in OMY_ARM_JOINTS
+        ],
+        dtype=np.float64,
+    )
+    box = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "pick_box"))
+    pick_z = float(data.xpos[box][2])
+    ball = np.array([pick_xy[0], pick_xy[1], pick_z], dtype=np.float64)
+    drop = np.array(
+        [place_xy[0], place_xy[1], 0.280 + 0.120], dtype=np.float64
+    )
+    via = np.array(
+        [0.5 * (pick_xy[0] + place_xy[0]), 0.5 * pick_xy[1], 0.42],
+        dtype=np.float64,
+    )
+    specs = [
+        ("idle", np.array([0.20, 0.0, 0.35]), 0.0),
+        ("pick_hover", ball + np.array([0.0, 0.0, 0.10]), 0.0),
+        ("pick_grasp", ball.copy(), OMY_GRIPPER_PINCH),
+        ("lift_hover", ball + np.array([0.0, 0.0, 0.14]), OMY_GRIPPER_PINCH),
+        ("transfer_via", via, OMY_GRIPPER_PINCH),
+        ("place_hover", drop + np.array([0.0, 0.0, 0.10]), OMY_GRIPPER_PINCH),
+        ("place_grasp", drop.copy(), OMY_GRIPPER_PINCH),
     ]
-
-    def solve(xyz: list[float]) -> list[float]:
-        best_err = 1e9
-        best_q = seeds[0]
-        for seed in seeds:
-            q = kin.inverse_kinematics(np.asarray(xyz), seed=seed)
-            err = float(
-                np.linalg.norm(kin.forward_kinematics(q)[:3, 3] - xyz)
+    seeds = [
+        idle,
+        np.array([-0.1001, 0.683, 2.0814, -0.1359, -0.7662, 0.0036]),
+        np.array([-0.1096, 0.5268, 1.9468, -0.203, -0.7949, -0.0003]),
+    ]
+    out: dict[str, list[float]] = {}
+    seed = idle.copy()
+    for name, target, gv in specs:
+        best_q, best_err = None, 1e9
+        for cand in [seed, *seeds]:
+            q, err = pad_mid_ik(
+                model,
+                data,
+                mj,
+                target=target,
+                grip_val=float(gv),
+                seed=np.asarray(cand, dtype=np.float64),
+                limits=limits,
+                pad_right=pad_right,
+                pad_left=pad_left,
+                grip_adr=grip_adr,
             )
             if err < best_err:
-                best_err = err
-                best_q = q
-        if best_err > 0.01:
-            raise RuntimeError(f"OMY IK poor at {xyz}: {best_err*1000:.1f} mm")
-        return [float(v) for v in best_q]
-
-    return {
-        "pick_hover_configuration": solve([pick_xy[0], pick_xy[1], 0.28]),
-        "pick_grasp_configuration": solve([pick_xy[0], pick_xy[1], 0.14]),
-        "lift_hover_configuration": solve([pick_xy[0], pick_xy[1], 0.32]),
-        "place_hover_configuration": solve([place_xy[0], place_xy[1], 0.32]),
-        "place_grasp_configuration": solve([place_xy[0], place_xy[1], 0.20]),
-        "transfer_via_configuration": solve(
-            [0.5 * (pick_xy[0] + place_xy[0]), 0.5 * pick_xy[1], 0.35]
-        ),
-    }
+                best_q, best_err = q, err
+        assert best_q is not None
+        if best_err > 0.008:
+            raise RuntimeError(
+                f"OMY pad-mid IK poor at {name}: {best_err * 1000:.1f} mm"
+            )
+        out[f"{name}_configuration"] = [round(float(v), 4) for v in best_q]
+        seed = best_q
+    out["retreat_configuration"] = list(out["idle_configuration"])
+    return out
 
 
 def main() -> int:
