@@ -7,9 +7,9 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Current release: v1.3.0** — `fret.vision` ball pipeline (OpenCV HSV blob +
-table-plane lift), unit tests, algorithm selection; plus v1.2.x MuJoCo physics
-SITL showcases (TB3 Dubins, OM-X / OMY) with PlotJuggler telemetry on R2.
+**Package on `main`: 1.4.0** — CV↔manipulation ready (MuJoCo gate cameras →
+`BallObservation` → OM-X/OMY pick-place). Product tag **`v1.4.0`** is next
+after this line merges. Prior tag: **v1.3.0** (CV pipeline).
 
 <br clear="left">
 
@@ -25,9 +25,9 @@ SITL showcases (TB3 Dubins, OM-X / OMY) with PlotJuggler telemetry on R2.
 | Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
 | Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
 
-**Current release line:** **v1.3.0** ships the CV algorithm layer. Next:
-**v1.4** CV↔manipulation (MuJoCo cameras, no hardcoded ball). See
-[docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
+**Release line:** package **1.4.0** completes T14-* (SC-v16 CV pick-place).
+Tag **`v1.4.0`** next. See [docs/roadmap.md](docs/roadmap.md) and
+[docs/releases.md](docs/releases.md).
 
 ---
 

@@ -35,7 +35,7 @@ v1.1–v1.2.x   ✅  Mobile + arm MuJoCo showcases (TB3, OM-X, OMY)
 v1.3   ✅  Computer-vision pipeline (algorithms, unit tests, selection)
      │
      ▼
-v1.4   🔲  CV ↔ manipulation integration (MuJoCo cameras, no hardcoded ball)
+v1.4   ✅  CV ↔ manipulation integration (MuJoCo cameras, no hardcoded ball)
      │
      ▼
 v1.5   🔲  Dynamic ball delivery + industrial place geometry + pickability
@@ -106,15 +106,16 @@ camera MJCF required to *select*; fixtures may use synthetic images.
 - [x] Web gallery script for qualitative photos (`scripts/vision_web_ball_gallery.py`)
 - [x] Tag `v1.3.0`
 
-### Phase 6 — CV ↔ manipulation integration 🔲 *(v1.4)*
+### Phase 6 — CV ↔ manipulation integration ✅ *(v1.4)*
 
 - [x] MuJoCo cameras in OM-X / OMY cells (rear structural gate, dual corner cams)
-- [x] MuJoCo image adapter → `fret.vision` + dual-view detect/lift benchmarks (no FSM feed)
+- [x] MuJoCo image adapter → `fret.vision` + dual-view detect/lift benchmarks
 - [x] Place cone moved in front of arm; pick on the side (±90° yaw margin)
 - [x] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy` as grasp GT)
 - [x] Keep **place / dispenser** as known YAML parameters
 - [x] Equivalent behaviour to today’s physics smoke without pose cheats
-- [ ] Tag `v1.4.0`
+- [x] SC-v16a/b scenario YAML + tests (`*_pick_place_cv.yml`)
+- [ ] Tag `v1.4.0` *(after this prep PR merges)*
 
 ### Phase 7 — Dynamic scene + industrial place 🔲 *(v1.5)*
 
