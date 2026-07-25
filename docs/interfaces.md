@@ -419,5 +419,5 @@ them.
 `fret.simulation.MujocoCameraAdapter` renders a named MJCF camera
 (default `overhead`) at **1280×720**, converts MuJoCo `cam_xmat` to the
 OpenCV optical frame, and returns `CameraFrame` plus live
-intrinsics/extrinsics. It does **not** publish to ROS or drive the FSM; that
-wiring is T14-03.
+intrinsics/extrinsics. It does **not** publish to ROS. FSM feed lives in
+`fret.control.pick_place_vision` (T14-03, done in v1.4).

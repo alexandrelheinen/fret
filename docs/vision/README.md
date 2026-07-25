@@ -10,9 +10,9 @@ Hardware cameras and real images belong to **v2.x**.
 
 ## Why vision exists here
 
-Manipulators **grasp scene objects**. Today’s OM-X / OMY scenarios hardcode ball
-poses (`pick_xy`, joint grasp configs derived offline). The CV line replaces
-that cheat with a measured ball pose while keeping planning, FSM, and MPC.
+Manipulators **grasp scene objects**. From **v1.4**, OM-X / OMY pick-place
+takes the ball pose from gate-camera `BallObservation` (SC-v16). YAML
+`pick_xy` remains a **test oracle** only; place / dispenser stays parametric.
 
 **TurtleBot3 / Dubins does not use CV.** It remains an ARCO → MuJoCo mobility
 case study (no graspable object interaction in the product scenarios).

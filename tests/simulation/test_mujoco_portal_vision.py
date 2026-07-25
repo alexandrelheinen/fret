@@ -1,6 +1,6 @@
 """MuJoCo rear-gate dual-camera + HSV fusion validation (v1.4).
 
-Stops before wiring ``BallObservation`` into the pick-and-place FSM (T14-03).
+Adapter / detect / lift gates only. FSM wiring: ``test_pick_place_vision``.
 """
 
 from __future__ import annotations

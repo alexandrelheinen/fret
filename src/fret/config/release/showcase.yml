@@ -16,7 +16,11 @@
 #
 # Static release focus:
 #   * OM-X SC-v13d Γ-wall maze — RRT* vs SST (v1.2.3)
-#   * OMY SC-v14b pick-place + SC-v14c clutter RRT* vs SST (v1.2.4)
+#   * OMY pick-place (SC-v14b / SC-v16b CV path) + SC-v14c clutter RRT* vs SST
+#
+# v1.4: OMY pick-place runners default use_vision=True (gate cams → pick IK).
+# Showcase id stays omy_pick_place so R2 clip names remain stable; SC-v16b
+# alias is config/scenarios/omy_pick_place_cv.yml for tests / explicit CV runs.
 #
 # Regenerate clips via scripts/release/render_showcase.py or release.yml.
 
