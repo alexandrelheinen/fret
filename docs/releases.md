@@ -357,7 +357,7 @@ Selection ADR: [vision/algorithm-selection.md](vision/algorithm-selection.md).
 
 ---
 
-## v1.4 — CV ↔ manipulation integration
+## v1.4 — CV ↔ manipulation integration ✅
 
 ### Goal
 
@@ -371,28 +371,41 @@ positions**. Simulate cameras in MuJoCo with a **realistic mount**. The
 | Item | Detail |
 |---|---|
 | Robots | `open_manipulator_x`, `omy` |
-| Cameras | MJCF `<camera>` on a portal / gantry (or better mount from selection needs) |
-| Ball pose | From `BallObservation` → FSM / IK / planner entry |
+| Cameras | MJCF `<camera>` on rear structural gate (dual corner cams) |
+| Ball pose | From `BallObservation` → pad-mid IK → FSM |
 | Place pose | YAML known parameter (fixed industrial fixture) |
 | Equivalence | Same DONE / cone-place success as pre-CV scenarios on seeded runs |
 
 ### Scenario IDs
 
-| ID | File (planned) | Description |
+| ID | File | Description |
 |---|---|---|
-| SC-v16a | `omx_pick_place_cv.yml` (name TBD) | OM-X pick-place driven by CV ball pose |
-| SC-v16b | `omy_pick_place_cv.yml` (name TBD) | OMY analogue |
-| SC-v16c | clutter variants | Optional: clutter + CV ball (place still known) |
+| SC-v16a | `omx_pick_place_cv.yml` | OM-X CV pick-place (`scenario_id: omx_pick_place`) |
+| SC-v16b | `omy_pick_place_cv.yml` | OMY analogue (`scenario_id: omy_pick_place`) |
+| SC-v16c | clutter variants | Optional / deferred: clutter + CV ball |
+
+Base cells `omx_pick_place.yml` / `omy_pick_place.yml` already default
+`use_vision=True` in runners; SC-v16 YAML locks the CV contract explicitly.
 
 ### Acceptance criteria
 
-| # | Criterion |
+| # | Criterion | Status |
+|---|---|---|
+| V14-1 | Scenario MJCF includes calibrated sim cameras with documented extrinsics | ✅ |
+| V14-2 | Release pick-place paths do not read hardcoded ball / `pick_xy` as ground truth | ✅ |
+| V14-3 | Place / dispenser pose comes only from scenario parameters | ✅ |
+| V14-4 | Physics smoke: FSM reaches DONE and ball enters place volume (seeded) | ✅ |
+| V14-5 | Behaviour parity checklist vs SC-v13b / SC-v14b on shared seeds | ✅ see below |
+
+### V14-5 — parity checklist (SC-v13b / SC-v14b ↔ SC-v16)
+
+| Check | How verified |
 |---|---|
-| V14-1 | Scenario MJCF includes calibrated sim cameras with documented extrinsics |
-| V14-2 | Release pick-place paths do not read hardcoded ball / `pick_xy` as ground truth |
-| V14-3 | Place / dispenser pose comes only from scenario parameters |
-| V14-4 | Physics smoke: FSM reaches DONE and ball enters place volume (seeded) |
-| V14-5 | Behaviour parity checklist vs SC-v13b / SC-v14b on shared seeds |
+| Same MJCF cell + place cone | CV YAML keeps `scenario_id` / `mjcf` of base pick-place |
+| Place from YAML only | `place_xy` + place joint configs unchanged by vision path |
+| Pick not from `pick_xy` | `tests/control/test_pick_place_vision.py` + runners |
+| DONE + ball in place volume | `test_*_pick_place_cv_physics_done` / base physics smokes |
+| Vision XY ≪ gripper opening | Portal lift error ≪ open gap (OM-X ~60 mm / OMY ~115 mm) |
 
 ### Implementation tasks
 
@@ -401,7 +414,7 @@ positions**. Simulate cameras in MuJoCo with a **realistic mount**. The
 | T14-01 | Camera mount MJCF + calibration YAML for OM-X / OMY cells | ✅ rear gate + `*_portal_overhead.yml` |
 | T14-02 | MuJoCo image adapter → `fret.vision` | ✅ `MujocoCameraAdapter` + CI benchmarks |
 | T14-03 | Replace hardcoded ball pose in runners with vision output | ✅ `pick_place_vision` + OM-X/OMY runners |
-| T14-04 | SC-v16 scenarios + tests; update showcase matrix when clips are ready | 🔲 |
+| T14-04 | SC-v16 scenarios + tests; showcase matrix note (vision-on) | ✅ `*_pick_place_cv.yml` + tests |
 
 ---
 
@@ -505,14 +518,13 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.2.6` | Patch: telemetry on R2 (FR-SIM-12) | — ✅ |
 | `v1.2.7` | Patch: Dubins showcase encode / clip length | — ✅ |
 | `v1.3.0` | **CV pipeline + algorithm selection** | T13-* ✅ |
-| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* |
+| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* ✅ *(tag next)* |
 | `v1.5.0` | Dynamic ball + industrial place | T15-* |
 | `v2.0.0+` | Hardware line (modular) | T2x-* |
 | `v3.0.0` | Definitive product (north-star) | — |
 
-Python package on `main` is **1.3.0** (`pyproject.toml`). Product tag
-`v1.3.0` ships the CV pipeline; next product tags are `v1.4.0`, `v1.5.0`, then
-`v2.x` / `v3.0.0`.
+Python package on `main` is **1.4.0** (`pyproject.toml`). Product tag
+`v1.4.0` is next (T14-* complete); then `v1.5.0`, `v2.x` / `v3.0.0`.
 
 ### v1.1.x → v1.2.0 retrospective
 

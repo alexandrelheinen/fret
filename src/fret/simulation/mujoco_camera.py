@@ -3,7 +3,7 @@
 Converts MuJoCo camera poses to OpenCV optical frames, derives pinhole
 intrinsics from ``fovy``, and renders RGB into :class:`CameraFrame`.
 
-Does **not** feed detections into the pick-and-place FSM — that is T14-03.
+Frame capture only — FSM feed is ``fret.control.pick_place_vision`` (T14-03).
 """
 
 from __future__ import annotations

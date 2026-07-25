@@ -1,14 +1,15 @@
-# SC-v14b — OpenMANIPULATOR-Y floor pick-and-place.
+# SC-v16b — OpenMANIPULATOR-Y CV-driven floor pick-and-place (v1.4).
 #
-# Pick: Ø 86 mm sphere on the floor; pad pinch + mass-scaled adhesion
-# (OMX tennis-grip pattern). Place: tip-down cone at the loaded reachable pose.
-# Idle is a distinct fold; retreat returns to idle. Runners default
-# use_vision=True (v1.4); explicit CV contract: omy_pick_place_cv.yml (SC-v16b).
+# Same geometry / FSM / pad-mid waypoints as SC-v14b (`omy_pick_place.yml`).
+# Pick pose comes from gate-camera BallObservation; place stays YAML.
+# Internal scenario_id stays omy_pick_place so MJCF resolve stays stable.
+# pick_xy is a test oracle only — not grasp ground truth.
 
 /**:
   ros__parameters:
     model: omy
     scenario_id: omy_pick_place
+    showcase_id: omy_pick_place_cv
     simulation_dt: 0.02
     duration: 45.0
     planning_timeout: 60.0
@@ -19,6 +20,8 @@
     place_cone_height_m: 0.280
     place_cone_radius_m: 0.140
     grasp_mode: mujoco_adhesion
+    use_vision: true
+    vision_config: src/fret/config/vision/omy_portal_overhead.yml
     # Floor ball centre ~0.043 m; adhered lift settles near ~0.12 m pad mid.
     lift_height_m: 0.10
     phase_timeout_s: 45.0

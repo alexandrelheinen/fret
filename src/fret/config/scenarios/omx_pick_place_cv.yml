@@ -1,14 +1,15 @@
-# SC-v13b — OpenMANIPULATOR-X pick-and-place (FSM + physical transfer).
+# SC-v16a — OpenMANIPULATOR-X CV-driven floor pick-and-place (v1.4).
 #
-# Pick: ball (Ø 25 mm, tennis grip) on the floor / table plane.
-# Place: drop into tip-down cone under a transparent plate.
-# No obstacles (see SC-v13c). Runners default use_vision=True (v1.4);
-# explicit CV contract: omx_pick_place_cv.yml (SC-v16a).
+# Same geometry / FSM / pad-mid waypoints as SC-v13b (`omx_pick_place.yml`).
+# Pick pose comes from gate-camera BallObservation; place stays YAML.
+# Internal scenario_id stays omx_pick_place so MJCF resolve stays stable.
+# pick_xy is a test oracle only — not grasp ground truth.
 
 /**:
   ros__parameters:
     model: open_manipulator_x
     scenario_id: omx_pick_place
+    showcase_id: omx_pick_place_cv
     simulation_dt: 0.02
     duration: 25.0
     planning_timeout: 60.0
@@ -19,6 +20,8 @@
     place_cone_height_m: 0.098
     place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
+    use_vision: true
+    vision_config: src/fret/config/vision/omx_portal_overhead.yml
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     # Pad-mid IK for floor ball (centre z = ball_radius); grasp pads clear plane.
     pick_hover_configuration: [-0.7987, 0.4197, 0.0612, -0.1683]

@@ -97,10 +97,11 @@ def simulate_pick_place(
     telemetry_enabled: bool | None = None,
     telemetry_output_dir: Path | None = None,
     telemetry_csv_basename: str | None = None,
+    scenario_path: str | Path | None = None,
     use_vision: bool = True,
     vision_config: str | Path | None = None,
 ) -> tuple[PickPlaceState, list[PickPlaceSample]]:
-    """Run one SC-v13b cycle and optionally record trajectory samples.
+    """Run one SC-v13b / SC-v16a cycle and optionally record trajectory samples.
 
     When ``use_vision`` is True (default), pick-side joints come from gate-camera
     ``BallObservation`` + IK. Place / dispenser joints stay on scenario YAML.
@@ -113,16 +114,25 @@ def simulate_pick_place(
 
     from fret.control.pick_place_vision import apply_vision_pick_goals
 
-    wp = waypoints_from_scenario()
-    xml = mjcf_path("open_manipulator_x", "omx_pick_place")
+    scenario = Path(
+        scenario_path or "src/fret/config/scenarios/omx_pick_place.yml"
+    )
+    params = load_scenario_parameters(scenario)
+    if "use_vision" in params:
+        use_vision = bool(params["use_vision"])
+    if vision_config is None and params.get("vision_config"):
+        vision_config = str(params["vision_config"])
+    scenario_id = str(params.get("scenario_id", "omx_pick_place"))
+    wp = waypoints_from_scenario(scenario)
+    xml = mjcf_path("open_manipulator_x", scenario_id)
     model = mj.MjModel.from_xml_path(str(xml))
     data = mj.MjData(model)
     joint_names = ("Joint1", "Joint2", "Joint3", "Joint4")
     tele = open_scenario_telemetry(
-        "omx_pick_place",
+        scenario_id,
         enabled=telemetry_enabled,
         output_dir=telemetry_output_dir,
-        csv_basename=telemetry_csv_basename or "omx_pick_place_overview",
+        csv_basename=telemetry_csv_basename or f"{scenario_id}_overview",
         dt_nominal_s=float(model.opt.timestep),
     )
     joint_components: list[str] = []
@@ -296,13 +306,15 @@ def run_pick_place(
     *,
     duration_s: float = 25.0,
     joint_tol_rad: float = 0.12,
+    scenario_path: str | Path | None = None,
     use_vision: bool = True,
 ) -> tuple[PickPlaceState, npt.NDArray[np.float64]]:
-    """Execute one SC-v13b cycle; return final FSM state and box position."""
+    """Execute one SC-v13b / SC-v16a cycle; return final FSM state and box."""
     state, samples = simulate_pick_place(
         duration_s=duration_s,
         joint_tol_rad=joint_tol_rad,
         record_every_steps=1,
+        scenario_path=scenario_path,
         use_vision=use_vision,
     )
     if not samples:

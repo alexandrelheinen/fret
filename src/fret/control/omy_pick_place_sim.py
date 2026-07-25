@@ -124,6 +124,10 @@ def simulate_omy_pick_place(
 
     scenario = Path(scenario_path or _SCENARIO)
     params = load_scenario_parameters(scenario)
+    if "use_vision" in params:
+        use_vision = bool(params["use_vision"])
+    if vision_config is None and params.get("vision_config"):
+        vision_config = str(params["vision_config"])
     scenario_id = str(params.get("scenario_id", "omy_pick_place"))
     wp = waypoints_from_scenario(scenario)
     xml = mjcf_path(_MODEL, scenario_id)

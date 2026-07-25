@@ -154,13 +154,24 @@ robot showcase. Algorithm selection is part of the release:
 
 **Pass criteria:** [releases.md § v1.3](releases.md#v13--computer-vision-pipeline).
 
-### SC-v16 — CV-driven pick-and-place (v1.4)
+### SC-v16a — OpenMANIPULATOR-X CV pick-and-place (v1.4)
 
-**Purpose:** OM-X / OMY pick-place (and optional clutter) with **MuJoCo cameras**
-and ball pose from vision. Place / dispenser remains a known YAML parameter.
-Camera mount: [vision/camera-layout.md](vision/camera-layout.md).
+**File:** `config/scenarios/omx_pick_place_cv.yml`  
+**Model:** `open_manipulator_x` · **MJCF:** same as SC-v13b (`omx_pick_place`)
+
+**Purpose:** Floor ball pick-place with **gate-camera** `BallObservation` driving
+pick IK. Place / dispenser stays YAML. `pick_xy` is a test oracle only.
+
+### SC-v16b — OpenMANIPULATOR-Y CV pick-and-place (v1.4)
+
+**File:** `config/scenarios/omy_pick_place_cv.yml`  
+**Model:** `omy` · **MJCF:** same as SC-v14b (`omy_pick_place`)
+
+**Purpose:** OMY analogue of SC-v16a. Showcase matrix keeps id `omy_pick_place`
+(vision-on by default); this YAML is the explicit SC-v16 contract for tests.
 
 **Pass criteria:** [releases.md § v1.4](releases.md#v14--cv--manipulation-integration).
+Camera mount: [vision/camera-layout.md](vision/camera-layout.md).
 
 ### SC-v17 — Dynamic ball + industrial place (v1.5)
 
