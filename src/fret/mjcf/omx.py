@@ -96,12 +96,7 @@ def _scene_additions(template_text: str) -> str:
 
 
 def _inject_physical_gripper(robot_xml: str) -> str:
-    """Add finger pads + adhesion actuators for SC-v13b physics grasp.
-
-    Palm collision meshes are remapped to the pad contact bit (4) so a floor
-    ball grasp can close without the Menagerie finger STL fighting the plane
-    (pads already use contype 4; ball is 2|4|8).
-    """
+    """Add finger pads + adhesion actuators for SC-v13b physics grasp."""
     left_anchor = '<joint name="Gripper" class="Gripper"/>\n'
     right_anchor = '<joint name="Gripper_mimic" class="Gripper_mimic"/>\n'
     if left_anchor not in robot_xml or right_anchor not in robot_xml:
@@ -114,19 +109,6 @@ def _inject_physical_gripper(robot_xml: str) -> str:
         robot_xml = robot_xml.replace(
             right_anchor, right_anchor + _PAD_RIGHT, 1
         )
-    # Floor-safe palms: collide with the ball only (same bit as pads).
-    robot_xml = robot_xml.replace(
-        '<geom mesh="gripper_left_palm" class="collision"/>',
-        '<geom mesh="gripper_left_palm" class="collision" '
-        'contype="4" conaffinity="4"/>',
-        1,
-    )
-    robot_xml = robot_xml.replace(
-        '<geom mesh="gripper_right_palm" class="collision"/>',
-        '<geom mesh="gripper_right_palm" class="collision" '
-        'contype="4" conaffinity="4"/>',
-        1,
-    )
     grip_act = (
         '<position class="Gripper" name="Gripper" '
         'joint="Gripper" inheritrange="1"/>\n'
@@ -138,6 +120,28 @@ def _inject_physical_gripper(robot_xml: str) -> str:
     robot_xml = robot_xml.replace(
         'ctrl="0 0 0 0 0"',
         'ctrl="0 0 0 0 0 0 0"',
+        1,
+    )
+    return robot_xml
+
+
+def _enable_floor_pick_contacts(robot_xml: str) -> str:
+    """Remap palm collision bits for floor-ball grasp (SC-v13b / v1.4).
+
+    Pedestal scenes (desk clutter / wall maze) keep stock Menagerie palm
+    contype=1. Floor pick-place only: palms match pad bit 4 so the STL does
+    not fight the plane while closing on a table-resting ball.
+    """
+    robot_xml = robot_xml.replace(
+        '<geom mesh="gripper_left_palm" class="collision"/>',
+        '<geom mesh="gripper_left_palm" class="collision" '
+        'contype="4" conaffinity="4"/>',
+        1,
+    )
+    robot_xml = robot_xml.replace(
+        '<geom mesh="gripper_right_palm" class="collision"/>',
+        '<geom mesh="gripper_right_palm" class="collision" '
+        'contype="4" conaffinity="4"/>',
         1,
     )
     return robot_xml
@@ -175,6 +179,8 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
     )
     if scene in _PHYSICAL_GRIPPER_SCENES:
         robot = _inject_physical_gripper(robot)
+    if scene == "omx_pick_place":
+        robot = _enable_floor_pick_contacts(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")
     robot_body = robot.rstrip()[: -len("</mujoco>")].rstrip()
