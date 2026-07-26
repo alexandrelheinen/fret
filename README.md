@@ -7,9 +7,10 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Package on `main`: 1.4.0** — CV↔manipulation ready (MuJoCo gate cameras →
-`BallObservation` → OM-X/OMY pick-place). Product tag **`v1.4.0`** is next
-after this line merges. Prior tag: **v1.3.0** (CV pipeline).
+**Package on `main`: 1.4.1** — CV↔manipulation (MuJoCo gate cameras →
+`BallObservation` → OM-X/OMY pick-place) plus showcase honesty fixes (C-space
+MPC wall barriers, physical OM-X grasp, Ø40 mm ball). Prior product tag:
+**v1.4.0**; next patch tag: **v1.4.1**.
 
 <br clear="left">
 
@@ -25,9 +26,9 @@ after this line merges. Prior tag: **v1.3.0** (CV pipeline).
 | Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
 | Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
 
-**Release line:** package **1.4.0** completes T14-* (SC-v16 CV pick-place).
-Tag **`v1.4.0`** next. See [docs/roadmap.md](docs/roadmap.md) and
-[docs/releases.md](docs/releases.md).
+**Release line:** package **1.4.1** ships T14-* plus post-`v1.4.0` showcase
+honesty (wall MPC barriers, grasp polarity, Ø40 mm ball). See
+[docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
 
 ---
 

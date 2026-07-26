@@ -115,7 +115,8 @@ camera MJCF required to *select*; fixtures may use synthetic images.
 - [x] Keep **place / dispenser** as known YAML parameters
 - [x] Equivalent behaviour to today’s physics smoke without pose cheats
 - [x] SC-v16a/b scenario YAML + tests (`*_pick_place_cv.yml`)
-- [ ] Tag `v1.4.0` *(after this prep PR merges)*
+- [x] Tag `v1.4.0` *(CV↔manipulation product tag)*
+- [ ] Tag `v1.4.1` *(showcase honesty: C-space MPC barriers, OM-X grasp, Ø40 mm ball)*
 
 ### Phase 7 — Dynamic scene + industrial place 🔲 *(v1.5)*
 

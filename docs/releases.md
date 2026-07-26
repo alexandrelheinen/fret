@@ -366,6 +366,22 @@ release behaviours match today’s physics smoke **without hardcoded ball
 positions**. Simulate cameras in MuJoCo with a **realistic mount**. The
 **place / dispenser** pose remains a known scenario parameter.
 
+### v1.4.1 patch (showcase honesty)
+
+`v1.4.0` tagged the CV integration but release clips still showed OM-X arms
+clipping Γ roofs and a non-physical gripper–sphere glue. **`v1.4.1`** keeps
+the same SC-v16 / showcase matrix and adds:
+
+| Fix | Detail |
+|---|---|
+| JointSpaceMPC C-space barriers | Sample wall-contact joint configs → ARCO occupancy; `mpc_weight_obstacle` |
+| Wall-contact FAULT | Sustained `transfer_wall*` contact fails the FSM (showcase honesty) |
+| OM-X adhesion polarity | Distance-to-closed (open=`0.019` / closed=`0.006`); gain 5 |
+| OM-X pick ball | Ø **40 mm** (`ball_radius_m: 0.020`) for grasp + HSV |
+
+Release MP4s for `v1.4.1` must be regenerated from this line (do not reuse
+`v1.4.0` R2 clips for OM-X maze / OMY clutter).
+
 ### Scope
 
 | Item | Detail |
@@ -518,13 +534,16 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.2.6` | Patch: telemetry on R2 (FR-SIM-12) | — ✅ |
 | `v1.2.7` | Patch: Dubins showcase encode / clip length | — ✅ |
 | `v1.3.0` | **CV pipeline + algorithm selection** | T13-* ✅ |
-| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* ✅ *(tag next)* |
+| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* ✅ |
+| `v1.4.1` | Patch: showcase honesty (MPC C-space barriers, OM-X grasp, Ø40 mm ball) | — |
 | `v1.5.0` | Dynamic ball + industrial place | T15-* |
 | `v2.0.0+` | Hardware line (modular) | T2x-* |
 | `v3.0.0` | Definitive product (north-star) | — |
 
-Python package on `main` is **1.4.0** (`pyproject.toml`). Product tag
-`v1.4.0` is next (T14-* complete); then `v1.5.0`, `v2.x` / `v3.0.0`.
+Python package on this line is **1.4.1** (`pyproject.toml`). Product tag
+`v1.4.0` shipped T14-*; **`v1.4.1`** is the honesty patch for release videos
+(wall contact FAULT + barriers, direction-aware adhesion, Ø40 mm OM-X ball);
+then `v1.5.0`, `v2.x` / `v3.0.0`.
 
 ### v1.1.x → v1.2.0 retrospective
 
