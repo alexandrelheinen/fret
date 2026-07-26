@@ -33,7 +33,7 @@ _CAMS = ("gate_cam_left", "gate_cam_right")
 
 # Nominal ball-centre Z from MJCF body pos (pedestal rest).
 _BALL_Z = {
-    "omx_pick_place": 0.0125,
+    "omx_pick_place": 0.020,
     "omy_pick_place": 0.0430,
 }
 

@@ -23,7 +23,9 @@ import numpy.typing as npt
 
 # Menagerie Gripper slide (OM-X): more positive ⇒ wider fingers.
 GRIPPER_OPEN: float = 0.019
-GRIPPER_CLOSED: float = -0.01
+# Soft pinch for Ø40 mm ball (inner pad gap ≈ 37 mm); full Menagerie close
+# (−0.01 → ≈13 mm gap) over-penetrates the sphere and looks non-physical.
+GRIPPER_CLOSED: float = 0.006
 
 # Menagerie OMY revolute gripper (rh_r1): 0 ≈ open, ~1.05 pinches Ø 86 mm ball.
 OMY_GRIPPER_OPEN: float = 0.0

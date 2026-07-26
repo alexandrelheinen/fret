@@ -178,7 +178,7 @@ def simulate_pick_place(
         joint_tol_rad=joint_tol_rad,
         grasp_hold_s=1.4,
         release_hold_s=0.8,
-        lift_height_m=0.06,
+        lift_height_m=0.07,
         phase_timeout_s=20.0,
         auto_start_on_ball=use_vision,
     )
@@ -229,7 +229,13 @@ def simulate_pick_place(
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])
         data.ctrl[act_grip] = float(cmd.gripper)
-        adhere = adhesion_command(cmd.state, fsm.hold_t)
+        adhere = adhesion_command(
+            cmd.state,
+            fsm.hold_t,
+            gripper=float(cmd.gripper),
+            gripper_closed=GRIPPER_CLOSED,
+            gripper_open=GRIPPER_OPEN,
+        )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)

@@ -698,6 +698,7 @@ def simulate_pick_place_clutter(
     # Roof overhang leaves little vertical room on the pick side; accept a
     # slightly lower lift confirmation than the open-cell SC-v13b/c demos.
     from fret.control.pick_place_fsm import (
+        GRIPPER_CLOSED,
         GRIPPER_OPEN,
         OMY_GRIPPER_CLOSED,
         OMY_GRIPPER_OPEN,
@@ -707,7 +708,7 @@ def simulate_pick_place_clutter(
         OMY_GRIPPER_OPEN if robot_model in _OMY_MODELS else GRIPPER_OPEN
     )
     gripper_closed = (
-        OMY_GRIPPER_CLOSED if robot_model in _OMY_MODELS else -0.01
+        OMY_GRIPPER_CLOSED if robot_model in _OMY_MODELS else GRIPPER_CLOSED
     )
     fsm_dof = 6 if robot_model in _OMY_MODELS else 4
     lift_z = float(params.get("lift_height_m", 0.125))
@@ -725,7 +726,8 @@ def simulate_pick_place_clutter(
         lift_height_m=lift_z,
         phase_timeout_s=phase_timeout,
         drop_fault_enabled=True,
-        require_grasp_contact=bool(is_omy),
+        # Pad↔ball contact required before leaving GRASP (OM-X + OMY).
+        require_grasp_contact=True,
         transfer_joint_tol_rad=(
             max(float(joint_tol_rad), 0.20) if is_omy else None
         ),
@@ -764,7 +766,7 @@ def simulate_pick_place_clutter(
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data, arm_names)
         grasp_ok = None
-        if is_omy and pad_right >= 0 and pad_left >= 0:
+        if pad_right >= 0 and pad_left >= 0:
             grasp_ok = ball_grasp_contact(
                 mj,
                 model,
@@ -772,7 +774,10 @@ def simulate_pick_place_clutter(
                 box_body_id=box_id,
                 pad_right_id=pad_right,
                 pad_left_id=pad_left,
-                allow_pad_mid_fallback=False,
+                # OM-X soft pads: allow tight pad-mid fallback; OMY stays
+                # contact-only for showcase honesty.
+                allow_pad_mid_fallback=not is_omy,
+                max_pad_mid_dist_m=0.025 if not is_omy else 0.035,
             )
         obs = PickPlaceObservation(
             q=q,
@@ -824,6 +829,7 @@ def simulate_pick_place_clutter(
             fsm.hold_t,
             gripper=float(cmd.gripper),
             gripper_closed=float(gripper_closed),
+            gripper_open=float(gripper_open),
         )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere

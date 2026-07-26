@@ -30,7 +30,7 @@ _DEFAULT_VISION_CFG: dict[RobotId, Path] = {
 _FLOOR_GRASP_PAD_LIFT_M = 0.012
 _OMX_ARM_JOINTS = ("Joint1", "Joint2", "Joint3", "Joint4")
 _OMX_GRIPPER_OPEN = 0.019
-_OMX_GRIPPER_PINCH = -0.01
+_OMX_GRIPPER_PINCH = 0.006
 
 
 def observe_ball_mujoco(

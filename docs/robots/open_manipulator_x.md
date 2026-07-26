@@ -21,7 +21,7 @@ v1.2.3 showcase:
 3. **SC-v13c** — mid-chord wall + front place cone forces a retract detour
 4. **SC-v13d** — dual Γ wall maze (front place): retract → climb → place
 
-**Pick object:** tennis-like MuJoCo ball (Ø 25 mm, grippy friction, density 400).
+**Pick object:** tennis-like MuJoCo ball (Ø 40 mm, grippy friction, density 400).
 Pick rests on the floor / table plane; place is a transparent non-colliding
 plate over a tip-down cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*`
 wall collision — MuJoCo convex-hulls meshes, so a solid mesh cone would not
@@ -49,7 +49,7 @@ about **0.49 m** EE XY travel — leaving ~90° of unused yaw each side of the
 arc (and 10° to the hard stop) for later obstacle detours (SC-v13c).
 
 **Pedestal height:** min clear pad_z ≈ 0.0275 m → min top ≈ 0.0175 m; with a
-25 mm ball, the pick pose sits ~0.04 m above the tabletop.
+40 mm ball, the pick pose sits ~0.04 m above the tabletop.
 
 **SC-v13b FSM** (robot-agnostic; shared with OMY):
 

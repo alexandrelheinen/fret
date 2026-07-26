@@ -214,7 +214,7 @@ Physics validation runs against the shipped release scenario:
 
 A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs tabletop manipulation:
 empty-cell A→B (command chain), then **pick-and-place** (FSM + grasp physics on a
-Ø 25 mm ball → tip-down place cone), then **desk clutter** forcing a detour.
+Ø 40 mm ball → tip-down place cone), then **desk clutter** forcing a detour.
 Warehouse meshes stay for clutter only — they are far too large for the OM-X
 gripper (~3 cm aperture).
 
