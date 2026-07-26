@@ -1803,7 +1803,7 @@ def render_omy_clutter_showcase_videos(
     """Render OMY cluttered ground pick-and-place MP4s (SC-v14c)."""
     mujoco, _iio = _require_mujoco()
     _ensure_fret_importable()
-    from fret.control.omy_clutter_sim import simulate_omy_clutter_pick_place
+    from fret.control.omy_clutter_sim import run_omy_clutter_pick_place
     from fret.control.pick_place_fsm import PickPlaceState
 
     camera_names = (
@@ -1824,11 +1824,12 @@ def render_omy_clutter_showcase_videos(
     record_every = max(1, int(round((1.0 / fps) / dt)))
     scenario_yaml = _OMY_CLUTTER_SCENARIO_YAML.get(scenario, "omy_clutter.yml")
     scenario_path = Path("src/fret/config/scenarios") / scenario_yaml
-    result = simulate_omy_clutter_pick_place(
+    # Retries + wall-contact reject (same honesty contract as OM-X maze).
+    result = run_omy_clutter_pick_place(
         duration_s=clip_s,
         joint_tol_rad=0.22,
         scenario_path=scenario_path,
-        seed_offset=0,
+        max_attempts=8,
         telemetry_enabled=True,
         telemetry_output_dir=output_dir,
         telemetry_csv_basename=f"{scenario}_overview",
@@ -1837,7 +1838,7 @@ def render_omy_clutter_showcase_videos(
         raise RuntimeError(
             f"{scenario} showcase FSM ended in {result.state.name}, expected DONE"
         )
-    if int(getattr(result, "wall_contact_steps", 0)) > 0:
+    if int(result.wall_contact_steps) > 0:
         raise RuntimeError(
             f"{scenario} showcase had {result.wall_contact_steps} "
             "transfer_wall contact steps (honesty gate: must be 0)"

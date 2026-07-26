@@ -955,6 +955,8 @@ def run_pick_place_clutter(
     """Execute one SC-v13c/d cycle; retry on place-miss / fault (planner RNG)."""
     params = load_scenario_parameters(scenario_path or _SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
+    # Cone mouth is the place volume (OMY r=0.14); OM-X r=0.05 stays at 0.08.
+    place_tol = max(0.08, float(params.get("place_cone_radius_m", 0.05)))
     last: ClutterPickPlaceResult | None = None
     last_err: Exception | None = None
     for attempt in range(max(1, int(max_attempts))):
@@ -964,7 +966,8 @@ def run_pick_place_clutter(
                 joint_tol_rad=joint_tol_rad,
                 record_every_steps=record_every_steps,
                 scenario_path=scenario_path,
-                seed_offset=attempt * 17,
+                # Dense offsets so pinned YAML seeds remain reachable.
+                seed_offset=attempt,
                 telemetry_enabled=telemetry_enabled,
                 telemetry_output_dir=telemetry_output_dir,
                 telemetry_csv_basename=telemetry_csv_basename,
@@ -974,7 +977,9 @@ def run_pick_place_clutter(
             continue
         if last.state != PickPlaceState.DONE:
             continue
-        if float(np.linalg.norm(last.box_pos[:2] - place_xy)) < 0.08:
+        if int(last.wall_contact_steps) > 0:
+            continue
+        if float(np.linalg.norm(last.box_pos[:2] - place_xy)) < place_tol:
             return last
     if last is None and last_err is not None:
         raise last_err
