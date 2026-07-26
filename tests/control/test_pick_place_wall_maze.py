@@ -111,3 +111,60 @@ def test_omx_wall_maze_physics_places_ball() -> None:
             and wall.y_min <= ball[1] <= wall.y_max
             and wall.z_min <= ball[2] <= wall.z_max
         )
+
+
+def test_omx_wall_maze_mpc_transfer_avoids_wall_contacts() -> None:
+    """Joint MPC C-space barriers must keep wall-contact frames rare."""
+    result = run_pick_place_clutter(
+        duration_s=55.0, scenario_path=_SCENARIO, max_attempts=6
+    )
+    assert result.state == PickPlaceState.DONE, f"ended in {result.state.name}"
+    assert len(result.samples) >= 20
+
+    path = mjcf_path("open_manipulator_x", "omx_wall_maze")
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = mujoco.MjData(model)
+    names = ("Joint1", "Joint2", "Joint3", "Joint4")
+    qadrs = [
+        int(
+            model.jnt_qposadr[
+                mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)
+            ]
+        )
+        for n in names
+    ]
+    box_jid = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
+    )
+    qid = int(model.jnt_qposadr[box_jid])
+    contact_frames = 0
+    stride = max(1, len(result.samples) // 200)
+    checked = 0
+    for sample in result.samples[::stride]:
+        for i, adr in enumerate(qadrs):
+            data.qpos[adr] = float(sample.q_arm[i])
+        data.qpos[qid : qid + 3] = [0.5, 0.5, 0.5]
+        data.qvel[:] = 0.0
+        mujoco.mj_forward(model, data)
+        hit = False
+        for ci in range(data.ncon):
+            c = data.contact[ci]
+            g1 = (
+                mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, c.geom1)
+                or ""
+            )
+            g2 = (
+                mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, c.geom2)
+                or ""
+            )
+            if g1.startswith("transfer_wall") or g2.startswith(
+                "transfer_wall"
+            ):
+                hit = True
+                break
+        checked += 1
+        if hit:
+            contact_frames += 1
+    rate = contact_frames / max(checked, 1)
+    # v1.4.0 release clips were ~20% wall-contact; barriers should cut that.
+    assert rate < 0.08, f"wall-contact rate {rate:.1%} too high"
