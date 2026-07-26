@@ -20,6 +20,7 @@ import numpy.typing as npt
 from fret.control.joint_mpc import build_omx_joint_mpc
 from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
+    GRIPPER_CLOSED,
     GRIPPER_OPEN,
     PickPlaceFSM,
     PickPlaceObservation,

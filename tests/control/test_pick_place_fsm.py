@@ -174,4 +174,5 @@ def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
         float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
     ), "ball should leave the pick spot"
     # Settled in the tip-down cone (not still at plate height ~0.11).
-    assert float(ball[2]) < 0.08, "ball should settle down inside the cone"
+    # Ø40 mm ball rests a bit higher than the old Ø25 mm threshold.
+    assert float(ball[2]) < 0.10, "ball should settle down inside the cone"

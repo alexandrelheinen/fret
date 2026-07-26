@@ -66,7 +66,7 @@ def test_omx_desk_clutter_physics_places_ball_around_wall() -> None:
     ball = result.box_pos
     assert float(np.linalg.norm(ball[:2] - place_xy)) < 0.08
     assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
-    assert float(ball[2]) < 0.08, "ball should settle inside the place cone"
+    assert float(ball[2]) < 0.10, "ball should settle inside the place cone"
     assert not (
         wall.x_min <= ball[0] <= wall.x_max
         and wall.y_min <= ball[1] <= wall.y_max
