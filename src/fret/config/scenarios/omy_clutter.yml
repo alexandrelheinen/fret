@@ -1,4 +1,4 @@
-# SC-v14c — OpenMANIPULATOR-Y cluttered pedestal pick-and-place.
+# SC-v14c — OpenMANIPULATOR-Y cluttered floor pick-and-place.
 #
 # Mid-cell wall blocks the straight transfer; ARCO RRT* plans the detour.
 # Release planner variants (same geometry, RRT* vs SST transfer plan):
@@ -27,12 +27,13 @@
     occupancy_density: 800.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
-    lift_height_m: 0.19
+    # Floor ball centre ~0.043 m; adhered lift settles near ~0.12 m pad mid.
+    lift_height_m: 0.10
     phase_timeout_s: 45.0
     idle_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    pick_hover_configuration: [-0.1096, 0.5268, 1.9468, -0.203, -0.7949, -0.0003]
-    pick_grasp_configuration: [-0.1001, 0.683, 2.0814, -0.1359, -0.7662, 0.0036]
-    lift_hover_configuration: [-0.1111, 0.4469, 2.0318, -0.2439, -0.7968, -0.0141]
+    pick_hover_configuration: [-0.0915, 0.7380, 1.9571, -0.2570, -0.7303, -0.0000]
+    pick_grasp_configuration: [-0.0812, 0.9197, 2.0082, -0.1781, -0.7123, 0.0176]
+    lift_hover_configuration: [-0.1036, 0.5815, 2.0908, -0.1801, -0.7759, -0.0058]
     place_hover_configuration: [0.7531, 0.5627, 1.1481, 0.0721, -1.0225, 0.0859]
     place_grasp_configuration: [0.7544, 0.5336, 1.5044, -0.0415, -1.0184, 0.0374]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]

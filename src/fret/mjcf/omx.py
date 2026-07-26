@@ -125,12 +125,16 @@ def _inject_physical_gripper(robot_xml: str) -> str:
     return robot_xml
 
 
-def _enable_floor_pick_contacts(robot_xml: str) -> str:
-    """Remap palm collision bits for floor-ball grasp (SC-v13b / v1.4).
+_FLOOR_PICK_SCENES: frozenset[str] = frozenset(
+    {"omx_pick_place", "omx_desk_clutter", "omx_wall_maze"}
+)
 
-    Pedestal scenes (desk clutter / wall maze) keep stock Menagerie palm
-    contype=1. Floor pick-place only: palms match pad bit 4 so the STL does
-    not fight the plane while closing on a table-resting ball.
+
+def _enable_floor_pick_contacts(robot_xml: str) -> str:
+    """Remap palm collision bits for floor-ball grasp (all OM-X pick cells).
+
+    Palms match pad bit 4 so the STL does not fight the plane while closing
+    on a table-resting ball (pick-place, desk clutter, Γ maze).
     """
     robot_xml = robot_xml.replace(
         '<geom mesh="gripper_left_palm" class="collision"/>',
@@ -179,7 +183,7 @@ def ensure_omx_mjcf(scene: str = "omx_tabletop") -> Path:
     )
     if scene in _PHYSICAL_GRIPPER_SCENES:
         robot = _inject_physical_gripper(robot)
-    if scene == "omx_pick_place":
+    if scene in _FLOOR_PICK_SCENES:
         robot = _enable_floor_pick_contacts(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")

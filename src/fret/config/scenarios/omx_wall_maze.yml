@@ -1,9 +1,9 @@
 # SC-v13d — OpenMANIPULATOR-X Γ-wall maze (back out → climb → place).
 #
-# Same ball / pick pedestal / place cone as SC-v13b/c, plus an inverted-L
-# (letter Γ) obstacle: vertical stem + horizontal roof overhang toward the
-# pick ball (negative Y / "telhadinho"), so lift-and-fly over the stem is
-# blocked and the arm must back out first.
+# Same floor ball / place cone as SC-v13b/c, plus an inverted-L (letter Γ)
+# obstacle: vertical stem + horizontal roof overhang toward the pick ball
+# (negative Y / "telhadinho"), so lift-and-fly over the stem is blocked and
+# the arm must back out first.
 #
 # Release showcases use planner variants:
 #   omx_wall_maze_rrt.yml  (ARCO RRT*)
@@ -21,8 +21,6 @@
     mjcf: mjcf/omx_wall_maze.xml
     pick_object: ball
     ball_radius_m: 0.0125
-    pedestal_top_m: 0.098
-    pedestal_radius_m: 0.018
     place_cone_height_m: 0.098
     place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
@@ -46,16 +44,18 @@
     occupancy_density: 1200.0
     # Back-out under the pick-side roof (not a short hover chord).
     max_transfer_radius_m: 0.16
-    min_transfer_ee_z_m: 0.145
+    min_transfer_ee_z_m: 0.10
     min_transfer_peak_ee_z_m: 0.21
-    lift_height_m: 0.14
+    lift_height_m: 0.10
     phase_timeout_s: 60.0
     # Start folded at center (approach under the roof); retreat on place side
     # so Joint1 need not drive back through the stem after place.
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     retreat_configuration: [0.25, -1.05, 0.7, 0.7]
-    pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
-    pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
+    # Pad-mid IK for floor ball at pick_xy (centre z = ball_radius).
+    pick_hover_configuration: [-0.5810, 0.5663, -0.3587, 0.3026]
+    pick_grasp_configuration: [-0.5336, 0.8586, -0.5485, 0.5024]
+    lift_hover_configuration: [-0.5336, 0.5278, -0.5953, 0.5497]
     place_hover_configuration: [0.55, 0.416, -0.55, 0.20]
     place_grasp_configuration: [0.55, 0.60, -0.65, 0.65]
     pick_xy: [0.273, -0.160]

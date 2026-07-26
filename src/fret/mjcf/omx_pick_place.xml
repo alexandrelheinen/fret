@@ -100,6 +100,14 @@
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 
+
+    <!-- CV estimate ghost (visual only; updated by pick_place_vision). -->
+    <body name="cv_ball_ghost" pos="0 0 -1">
+      <geom name="cv_ball_ghost" type="sphere" size="0.0125"
+            contype="0" conaffinity="0" group="1"
+            rgba="0.90 0.10 0.10 0.0"/>
+    </body>
+
     <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
     <!-- Structural rear vision gate + dual corner Cam-A/B (v1.4). -->
     <body name="vision_gate" pos="-0.16000 0 0">

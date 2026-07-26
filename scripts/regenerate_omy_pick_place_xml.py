@@ -2,11 +2,15 @@
 """Regenerate OMY pick-place / clutter MJCF templates at Menagerie scale.
 
 Sizing rules (SC-v14b/c, matching docs/scenarios.md):
-  - Pick object: Ø 86 mm sphere on a short pedestal (OMX SC-v13b analogue)
+  - Pick object: Ø 86 mm sphere on the **floor** (no pedestal)
   - Cone diameter ≈ place funnel; cone height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
-  - Pedestal raises the ball so pads pinch at the equator (no floor spears)
   - Clutter wall perpendicular to pick→place LOS at the midpoint
+
+Note: committed templates also carry the v1.4 vision_gate + ``cv_ball_ghost``
+bodies (see ``regen_cell_layout_v14.py``). Re-running this script alone will
+not recreate those — prefer editing the committed XML when changing vision
+geometry.
 """
 
 from __future__ import annotations
@@ -17,20 +21,20 @@ from pathlib import Path
 _REPO = Path(__file__).resolve().parents[1]
 _MJCF = _REPO / "src/fret/mjcf"
 
-# SC-v14b: Ø 86 mm ball on a short pick pedestal (same pattern as OMX).
+# SC-v14b/c: Ø 86 mm ball resting on the floor / table plane.
 _BALL_RADIUS_M = 0.043
-_PEDESTAL_HALF_H_M = 0.045
-_PEDESTAL_RADIUS_M = 0.035
-_PEDESTAL_Z_M = _PEDESTAL_HALF_H_M
-_BALL_Z_M = 2.0 * _PEDESTAL_HALF_H_M + _BALL_RADIUS_M
+_BALL_Z_M = _BALL_RADIUS_M
 # Funnel wider than 1.5× ball diameter — physics place has centimetre slip.
 _CONE_RADIUS_M = 0.14
 _CONE_HEIGHT_M = 2.0 * _CONE_RADIUS_M
 _BALL_DENSITY = 150.0
 
-_PICK_XY = (0.40, -0.28)
+# Open pick-place cell (SC-v14b) pick XY; clutter overrides in footer.
+_PICK_XY = (0.350, -0.300)
 # Place sits where the loaded 6-DOF arm can deliver past the mid-cell wall.
-_PLACE_XY = (0.50, 0.20)
+_PLACE_XY = (0.480, 0.000)
+_CLUTTER_PICK_XY = (0.40, -0.28)
+_CLUTTER_PLACE_XY = (0.50, 0.20)
 
 # OMX reference cone (assets/cone.obj native size).
 _OMX_CONE_R = 0.05
@@ -97,7 +101,7 @@ def _scene_header(model_name: str, comment: str) -> str:
   <!--
     {comment}
 
-    Pick: Ø {ball_d_mm:.0f} mm sphere on a short pedestal.
+    Pick: Ø {ball_d_mm:.0f} mm sphere resting on the floor / table plane.
     Place: tip-down cone funnel — Ø {cone_d_mm:.0f} mm, height {cone_d_mm:.0f} mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -136,18 +140,33 @@ def _scene_header(model_name: str, comment: str) -> str:
   <worldbody>
     <light name="key" pos="0.95 0.0 1.6" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
-    <!-- Contact bits: arm=1, pedestal/cone=2, pads=4, floor=1|8.
-         Ball=2|4|8 hits floor/pads/pedestal/cone but not arm links. -->
+    <!-- Contact bits: arm=1, cone=2, pads=4, floor=1|8.
+         Ball=2|4|8 hits floor/pads/cone but not arm links. -->
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
 """
 
 
-def _scene_footer(*, clutter: bool) -> str:
+def _scene_footer(
+    *,
+    clutter: bool,
+    pick_xy: tuple[float, float],
+    place_xy: tuple[float, float],
+) -> str:
     zone_r = _CONE_RADIUS_M + 0.01
     plate_z = _CONE_HEIGHT_M
     goal_z = plate_z + 0.001
-    start_z = 2.0 * _PEDESTAL_HALF_H_M + 0.001
+    start_z = 0.001
+    # Funnel geoms are authored relative to the open pick-place place XY;
+    # for clutter, shift them from the open-cell place to the clutter place.
+    funnel_src = (_MJCF / "omx_pick_place.xml").read_text(encoding="utf-8")
+    global _PLACE_XY  # noqa: PLW0603 — temporary override for funnel map
+    saved_place = _PLACE_XY
+    _PLACE_XY = place_xy
+    try:
+        funnel_lines = _funnel_geoms_from_omx(funnel_src)
+    finally:
+        _PLACE_XY = saved_place
     wall_block = ""
     if clutter:
         # Mid-cell slab: blocks the straight lift→place chord but leaves a
@@ -163,37 +182,31 @@ def _scene_footer(*, clutter: bool) -> str:
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 """
     return f"""
-    <geom name="pedestal_pick" type="cylinder"
-          pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _PEDESTAL_Z_M)}"
-          size="{_PEDESTAL_RADIUS_M:.5f} {_PEDESTAL_HALF_H_M:.5f}"
-          material="start_zone" friction="1.2 0.1 0.01"
-          contype="2" conaffinity="2"/>
-
     <!-- Visual mesh only; funnel_w* / funnel_tip carry rigid collision. -->
     <geom name="place_cone" type="mesh" mesh="place_cone"
-          pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], 0.0)}"
+          pos="{_fmt_pos(place_xy[0], place_xy[1], 0.0)}"
           material="place_cone" contype="0" conaffinity="0"/>
-{chr(10).join(_funnel_geoms_from_omx((_MJCF / "omx_pick_place.xml").read_text()))}
+{chr(10).join(funnel_lines)}
 
     <geom name="place_plate" type="cylinder"
-          pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], plate_z)}"
+          pos="{_fmt_pos(place_xy[0], place_xy[1], plate_z)}"
           size="{_CONE_RADIUS_M:.5f} 0.001"
           material="place_plate" contype="0" conaffinity="0"/>
     <geom name="place_cone_rim" type="cylinder"
-          pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], plate_z)}"
+          pos="{_fmt_pos(place_xy[0], place_xy[1], plate_z)}"
           size="{_CONE_RADIUS_M:.5f} 0.0015"
           material="place_cone" contype="0" conaffinity="0"/>
 
     <geom name="start_zone" type="cylinder"
-          pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], start_z)}"
+          pos="{_fmt_pos(pick_xy[0], pick_xy[1], start_z)}"
           size="{zone_r:.5f} 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
     <geom name="goal_zone" type="cylinder"
-          pos="{_fmt_pos(_PLACE_XY[0], _PLACE_XY[1], goal_z)}"
+          pos="{_fmt_pos(place_xy[0], place_xy[1], goal_z)}"
           size="{zone_r:.5f} 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <body name="pick_box" pos="{_fmt_pos(_PICK_XY[0], _PICK_XY[1], _BALL_Z_M)}">
+    <body name="pick_box" pos="{_fmt_pos(pick_xy[0], pick_xy[1], _BALL_Z_M)}">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="sphere"
             size="{_BALL_RADIUS_M:.5f}"
@@ -202,25 +215,9 @@ def _scene_footer(*, clutter: bool) -> str:
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 {wall_block}
-    <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
-    <body name="vision_portal" pos="0.40 0 0">
-      <geom name="portal_post_n" type="box" size="0.025 0.025 0.65"
-            pos="0 -0.48 0.65" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_post_p" type="box" size="0.025 0.025 0.65"
-            pos="0 0.48 0.65" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_beam" type="box" size="0.030 0.50 0.025"
-            pos="0 0 1.32" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
-      <geom name="portal_cam_plate" type="box" size="0.045 0.035 0.015"
-            pos="0 0 1.285" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
-      <camera name="overhead" pos="0 0 1.30"
-              xyaxes="0 1 0 -1 0 0" fovy="50"/>
-    </body>
-    <camera name="overview" pos="0.95 -0.95 1.05"
-            xyaxes="0.82 0.57 0 -0.32 0.46 0.83" fovy="40"/>
+    <!-- Vision gate / CV ghost are maintained on committed XML (v1.4). -->
+    <camera name="overview" pos="1.05 -0.70 1.00"
+            xyaxes="0.55 0.84 0 -0.40 0.26 0.88" fovy="40"/>
     <camera name="follow" pos="0.70 0.15 0.55"
             xyaxes="-0.7 0.7 0 -0.3 -0.3 0.9" fovy="50"/>
   </worldbody>
@@ -235,27 +232,32 @@ def _write_clutter_template() -> str:
     )
     header = _scene_header(
         "omy_clutter",
-        "OpenMANIPULATOR-Y cluttered pedestal pick-and-place (SC-v14c).",
+        "OpenMANIPULATOR-Y cluttered floor pick-and-place (SC-v14c).",
     )
     header = header.replace(
         '    <material name="pick_ball"',
         extra_asset + '    <material name="pick_ball"',
     )
-    return header + _scene_footer(clutter=True)
+    return header + _scene_footer(
+        clutter=True,
+        pick_xy=_CLUTTER_PICK_XY,
+        place_xy=_CLUTTER_PLACE_XY,
+    )
 
 
 def main() -> None:
     pick = _scene_header(
         "omy_pick_place",
-        "OpenMANIPULATOR-Y pedestal pick-and-place (SC-v14b).",
-    ) + _scene_footer(clutter=False)
+        "OpenMANIPULATOR-Y floor pick-and-place (SC-v14b).",
+    ) + _scene_footer(
+        clutter=False, pick_xy=_PICK_XY, place_xy=_PLACE_XY
+    )
     clutter = _write_clutter_template()
     (_MJCF / "omy_pick_place.xml").write_text(pick, encoding="utf-8")
     (_MJCF / "omy_clutter.xml").write_text(clutter, encoding="utf-8")
     print(
         f"wrote pick_place ball_r={_BALL_RADIUS_M:.4f} "
-        f"cone_r={_CONE_RADIUS_M:.4f} ball_z={_BALL_Z_M:.4f} "
-        f"pedestal_h={2.0 * _PEDESTAL_HALF_H_M:.4f}"
+        f"cone_r={_CONE_RADIUS_M:.4f} ball_z={_BALL_Z_M:.4f} (floor)"
     )
     print(f"pick={_PICK_XY} place={_PLACE_XY}")
 
