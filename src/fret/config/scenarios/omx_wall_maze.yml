@@ -116,9 +116,9 @@
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     retreat_configuration: [0.25, -1.05, 0.7, 0.7]
     # Pad-mid IK for floor ball at pick_xy (centre z = ball_radius).
-    pick_hover_configuration: [-1.0278, 0.5722, -0.1199, -0.2974]
-    pick_grasp_configuration: [-1.0068, 0.8275, -0.4958, 0.3973]
-    lift_hover_configuration: [-1.0068, 0.6252, -0.5816, 0.5443]
+    pick_hover_configuration: [-1.0278, 0.6820, -0.5709, 0.5460]
+    pick_grasp_configuration: [-1.0068, 0.8305, -0.5068, 0.4127]
+    lift_hover_configuration: [-1.0068, 0.6306, -0.5976, 0.5636]
     place_hover_configuration: [0.0000, 0.2129, -0.2377, 0.7000]
     place_grasp_configuration: [0.0000, 0.2381, -0.0763, 0.5000]
     pick_xy: [0.180, -0.260]

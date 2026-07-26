@@ -21,8 +21,8 @@
     grasp_mode: mujoco_adhesion
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     # Pad-mid IK for floor ball (centre z = ball_radius); grasp pads clear plane.
-    pick_hover_configuration: [-0.7987, 0.5018, -0.4685, 0.6952]
-    pick_grasp_configuration: [-0.7762, 0.7379, -0.4494, 0.6390]
+    pick_hover_configuration: [-0.7987, 0.5018, -0.4684, 0.6950]
+    pick_grasp_configuration: [-0.7762, 0.6501, 0.0301, -0.1668]
     lift_hover_configuration: [-0.7762, 0.4068, -0.5212, 0.6792]
     lift_height_m: 0.07
     place_hover_configuration: [0.0000, 0.2129, -0.2377, 0.7000]
