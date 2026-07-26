@@ -338,6 +338,36 @@ down to the test that proves it, and from any test back to the criterion.
 
 ## Quality gates
 
+### Pre-push by blast radius
+
+Agents and humans must size the **local** pre-push gate to the files they
+changed. Formatting + types alone is only enough for pure docs/comments.
+Hand-picking “representative” pytest files is not a gate — run the **same**
+CI shard script(s) that cover the blast radius.
+
+| Change class | Required before `git push` |
+| --- | --- |
+| Docs / comments only (`*.md`, `docs/`, …) | `formatting.sh` (types optional) |
+| Pure typing / format-only | `formatting.sh` + `types.sh` |
+| `src/fret/control`, `mjcf`, `vision`, `hardware`, scenario/vision YAML, or `tests/control\|vision\|hardware` | format + types + **`unit_shard.sh control`** |
+| `src/fret/planning` or `tests/planning` | format + types + **`unit_shard.sh planning`** |
+| `src/fret/scene` or top-level `tests/test_*.py` | format + types + **`unit_shard.sh scene`** |
+| `simulation` / `scenario` / `ros` / release render scripts / `tests/{simulation,scenario,ros,release}` | format + types + **`unit_shard.sh simulation`** |
+| Cross-cutting / unsure (`pyproject.toml`, `.github/`, shared `src/fret/*`, …) | format + types + **all touched-risk shards** (or full `pre_push.sh`) |
+
+Helper (maps `git diff` paths → shards and runs them):
+
+```bash
+bash scripts/check/pre_push_touched.sh
+# optional: bash scripts/check/pre_push_touched.sh --base HEAD~1
+```
+
+**Sibling-assert sweep:** when changing a magic number or threshold, grep the
+old value across `tests/` and update every twin assert in the same commit.
+
+**Done means CI green:** after push, wait for the affected GitHub Actions jobs.
+Do not claim completion while required checks are pending or red.
+
 ### Local validation
 
 ```bash
@@ -345,7 +375,10 @@ down to the test that proves it, and from any test back to the criterion.
 ./scripts/build.sh
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-# Recommended: all gates
+# Path-aware (agents: default before push)
+bash scripts/check/pre_push_touched.sh
+
+# Recommended full gate
 bash scripts/check/pre_push.sh
 
 # Or step by step:
@@ -488,11 +521,12 @@ contributor.
 1. **SDD** — Confirm spec / acceptance criteria exist.
 2. **V-cycle** — Identify level; update `docs/` when Level 1–2 change.
 3. **Level 3** — Stubs + tests together when adding APIs.
-4. **Level 4** — Implement; run `scripts/check/pre_push.sh` (or `--skip-ros` when ROS unavailable).
-5. **PR** — Push only after **at minimum** `scripts/check/formatting.sh` and
-   `scripts/check/types.sh` pass locally; ensure CI green; do not claim done
-   while checks fail. Include a proportional **proof report** per the
-   `report-writing` skill (see Communication below).
+4. **Level 4** — Implement; run `scripts/check/pre_push_touched.sh` (or full
+   `scripts/check/pre_push.sh`). See [Pre-push by blast radius](#pre-push-by-blast-radius).
+5. **PR** — Push only after the **blast-radius gates** pass locally (not only
+   format/types when code/tests changed); wait for CI green on affected jobs;
+   do not claim done while checks fail. Include a proportional **proof report**
+   per the `report-writing` skill (see Communication below).
 
 ### Git safety
 

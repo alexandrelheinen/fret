@@ -22,12 +22,14 @@
 # Showcase id stays omy_pick_place so R2 clip names remain stable; SC-v16b
 # alias is config/scenarios/omy_pick_place_cv.yml for tests / explicit CV runs.
 #
-# Post-v1.4.0 showcase refresh:
-#   * All arm cells use floor balls (no pick pedestals).
+# Post-v1.4.0 / v1.4.1 showcase refresh:
+#   * All arm cells use floor balls (no pick pedestals); OM-X ball Ø40 mm.
+#   * OM-X/OMY clutter+maze: JointSpaceMPC C-space barriers + wall FAULT.
 #   * Overview may show a red transparent CV ghost at the vision pose.
 #   * Side clips ``*_gate_cam_{left,right}.mp4`` (low-FPS, circle+pose text)
 #     are written next to overview and uploaded to the same R2 folder.
 #     Not composited into overview (no subwindows).
+#   * Regenerate all clips for tag v1.4.1 — do not reuse v1.4.0 maze clips.
 #
 # Regenerate clips via scripts/release/render_showcase.py or release.yml.
 

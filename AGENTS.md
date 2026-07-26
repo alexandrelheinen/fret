@@ -20,22 +20,33 @@ described in [CONTRIBUTING.md](CONTRIBUTING.md), not code alone.
 
 ## Pre-push gates (mandatory)
 
-Before every `git push` on a PR branch, agents **must** run at minimum:
+Do **not** treat `formatting.sh` + `types.sh` as enough whenever code or tests
+change. That floor missed a sibling assert on this line of work and broke CI.
+
+**Canonical rule (path → CI shard):** see
+[CONTRIBUTING.md § Pre-push by blast radius](CONTRIBUTING.md#pre-push-by-blast-radius).
+Run the helper (preferred) or the equivalent shard commands it prints:
+
+```bash
+bash scripts/check/pre_push_touched.sh
+```
+
+Minimum always:
 
 ```bash
 bash scripts/check/formatting.sh
 bash scripts/check/types.sh
 ```
 
-Do not push or update a PR until both pass. When ROS is available, prefer the
-full local gate before push:
+When ROS is available and the change is broad, prefer the full gate:
 
 ```bash
-bash scripts/check/pre_push.sh --skip-ros
+bash scripts/check/pre_push.sh
 ```
 
-Pushing with formatting or type-check failures is unacceptable at this stage
-of the project.
+Pushing with formatting, type-check, or **required-shard** failures is
+unacceptable. After push, wait until CI is green for the affected jobs — local
+subset pass ≠ done.
 
 ## Proof reports (mandatory)
 
