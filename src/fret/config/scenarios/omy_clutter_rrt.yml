@@ -22,7 +22,8 @@
     planner_algorithm: rrt_star
     # seed_offset=0 → mesh-clear retract with wall FAULT honesty (v1.4.1).
     planner_rng_seed: 6
-    prefer_transfer_detour: true
+    # Release variants must exercise the named planner (not the YAML detour).
+    prefer_transfer_detour: false
     # AABB of transfer_wall_a — must match omy_clutter.yml / MJCF.
     walls:
       - x_min: 0.365
