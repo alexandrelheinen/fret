@@ -117,7 +117,7 @@
 
     <!-- CV estimate ghost (visual only; updated by pick_place_vision). -->
     <body name="cv_ball_ghost" pos="0 0 -1">
-      <geom name="cv_ball_ghost" type="sphere" size="0.04300"
+      <geom name="cv_ball_ghost" type="sphere" size="0.06500"
             contype="0" conaffinity="0" group="1"
             rgba="0.90 0.10 0.10 0.0"/>
     </body>
