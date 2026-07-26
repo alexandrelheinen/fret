@@ -17,7 +17,7 @@ import numpy.typing as npt
 try:
     from arco.mapping import KDTreeOccupancy
 except ImportError:  # pragma: no cover
-    KDTreeOccupancy = None  # type: ignore[misc, assignment]
+    KDTreeOccupancy = None
 
 
 def sample_colliding_configurations(
@@ -63,7 +63,7 @@ def sample_colliding_configurations(
 def build_cspace_barrier_occupancy(
     collision_configs: npt.NDArray[np.float64],
     *,
-    clearance: float = 0.20,
+    clearance: float = 0.28,
     joint_limits: (
         npt.NDArray[np.float64] | list[tuple[float, float]] | None
     ) = None,
@@ -142,7 +142,7 @@ def build_wall_cspace_barrier_occupancy(
     mjcf_path: str,
     joint_limits: npt.NDArray[np.float64] | list[tuple[float, float]],
     joint_names: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4"),
-    clearance: float = 0.20,
+    clearance: float = 0.28,
     n_samples: int = 12000,
     rng: np.random.Generator | None = None,
 ) -> Any:
