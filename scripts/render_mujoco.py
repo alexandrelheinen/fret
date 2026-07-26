@@ -995,6 +995,68 @@ def _assert_camera_exists(mujoco: object, model: object, camera: str) -> None:
         raise ValueError(f"Camera not found in MJCF: {camera}")
 
 
+def _place_cv_ghost_from_vision(
+    mujoco: object,
+    model: object,
+    data: object,
+    *,
+    robot: str,
+    sample: object,
+    apply_sample: object,
+) -> npt.NDArray[np.float64] | None:
+    """Sense once at the first replay sample and show the CV ghost sphere."""
+    _ensure_fret_importable()
+    from fret.control.pick_place_vision import (
+        observe_ball_mujoco,
+        set_cv_ball_ghost,
+    )
+
+    apply_sample(sample)  # type: ignore[operator]
+    observation = observe_ball_mujoco(model, data, robot=robot)  # type: ignore[arg-type]
+    if observation is None:
+        return None
+    pose = np.asarray(observation.position_world, dtype=np.float64)
+    set_cv_ball_ghost(model, data, pose)
+    return pose
+
+
+def _append_gate_cam_overlays(
+    *,
+    mujoco: object,
+    model: object,
+    data: object,
+    samples: list[object],
+    apply_sample: object,
+    box_qadr: int,
+    output_dir: Path,
+    scenario: str,
+    main_fps: int,
+    timing: ShowcaseTiming,
+    cv_pose: npt.NDArray[np.float64] | None = None,
+) -> list[RenderResult]:
+    """Write low-FPS annotated gate-cam side clips next to the overview."""
+    _ensure_fret_importable()
+    from fret.simulation.gate_overlay import write_gate_cam_overlay_videos
+
+    return write_gate_cam_overlay_videos(
+        mujoco=mujoco,
+        model=model,
+        data=data,
+        samples=samples,
+        apply_sample=apply_sample,  # type: ignore[arg-type]
+        box_qadr=box_qadr,
+        output_dir=output_dir,
+        scenario=scenario,
+        main_fps=main_fps,
+        cv_pose=cv_pose,
+        open_writer=_open_video_writer,
+        frame_mean=_frame_mean,
+        output_name=showcase_output_name,
+        result_cls=RenderResult,
+        timing=timing,
+    )
+
+
 def _load_omx_reach_configurations(
     scenario: str,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
@@ -1293,6 +1355,18 @@ def render_omx_desk_clutter_showcase_videos(
     if box_jid < 0:
         raise ValueError("pick_box_joint missing from OM-X desk-clutter MJCF")
     box_qadr = int(model.jnt_qposadr[box_jid])
+
+    def _apply(sample: object) -> None:
+        _apply_omx_pick_place_sample(
+            mujoco,
+            model,
+            data,
+            q_arm=sample.q_arm,  # type: ignore[attr-defined]
+            gripper=sample.gripper,  # type: ignore[attr-defined]
+            box_qpos=sample.box_qpos,  # type: ignore[attr-defined]
+            box_qadr=box_qadr,
+        )
+
     renderer = mujoco.Renderer(model, height=height, width=width)
     for camera in camera_names:
         _assert_camera_exists(mujoco, model, camera)
@@ -1311,15 +1385,7 @@ def render_omx_desk_clutter_showcase_videos(
 
     try:
         for sample in samples:
-            _apply_omx_pick_place_sample(
-                mujoco,
-                model,
-                data,
-                q_arm=sample.q_arm,
-                gripper=sample.gripper,
-                box_qpos=sample.box_qpos,
-                box_qadr=box_qadr,
-            )
+            _apply(sample)
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
                 frame = renderer.render()
@@ -1347,10 +1413,23 @@ def render_omx_desk_clutter_showcase_videos(
                 timing=timing,
             )
         )
-    return postprocess_showcase_results(
+    overview = postprocess_showcase_results(
         results,
         enabled=realtime_postprocess,
     )
+    overlays = _append_gate_cam_overlays(
+        mujoco=mujoco,
+        model=model,
+        data=data,
+        samples=list(samples),
+        apply_sample=_apply,
+        box_qadr=box_qadr,
+        output_dir=output_dir,
+        scenario=scenario,
+        main_fps=fps,
+        timing=timing,
+    )
+    return overview + overlays
 
 
 def render_omx_pick_place_showcase_videos(
@@ -1423,6 +1502,26 @@ def render_omx_pick_place_showcase_videos(
     if box_jid < 0:
         raise ValueError("pick_box_joint missing from OM-X pick-place MJCF")
     box_qadr = int(model.jnt_qposadr[box_jid])
+
+    def _apply(sample: object) -> None:
+        _apply_omx_pick_place_sample(
+            mujoco,
+            model,
+            data,
+            q_arm=sample.q_arm,  # type: ignore[attr-defined]
+            gripper=sample.gripper,  # type: ignore[attr-defined]
+            box_qpos=sample.box_qpos,  # type: ignore[attr-defined]
+            box_qadr=box_qadr,
+        )
+
+    cv_pose = _place_cv_ghost_from_vision(
+        mujoco,
+        model,
+        data,
+        robot="omx",
+        sample=samples[0],
+        apply_sample=_apply,
+    )
     renderer = mujoco.Renderer(model, height=height, width=width)
     for camera in camera_names:
         _assert_camera_exists(mujoco, model, camera)
@@ -1441,15 +1540,7 @@ def render_omx_pick_place_showcase_videos(
 
     try:
         for sample in samples:
-            _apply_omx_pick_place_sample(
-                mujoco,
-                model,
-                data,
-                q_arm=sample.q_arm,
-                gripper=sample.gripper,
-                box_qpos=sample.box_qpos,
-                box_qadr=box_qadr,
-            )
+            _apply(sample)
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
                 frame = renderer.render()
@@ -1477,10 +1568,24 @@ def render_omx_pick_place_showcase_videos(
                 timing=timing,
             )
         )
-    return postprocess_showcase_results(
+    overview = postprocess_showcase_results(
         results,
         enabled=realtime_postprocess,
     )
+    overlays = _append_gate_cam_overlays(
+        mujoco=mujoco,
+        model=model,
+        data=data,
+        samples=list(samples),
+        apply_sample=_apply,
+        box_qadr=box_qadr,
+        output_dir=output_dir,
+        scenario=scenario,
+        main_fps=fps,
+        timing=timing,
+        cv_pose=cv_pose,
+    )
+    return overview + overlays
 
 
 def _apply_omy_pick_place_sample(
@@ -1591,6 +1696,26 @@ def render_omy_pick_place_showcase_videos(
     if box_jid < 0:
         raise ValueError("pick_box_joint missing from OMY pick-place MJCF")
     box_qadr = int(model.jnt_qposadr[box_jid])
+
+    def _apply(sample: object) -> None:
+        _apply_omy_pick_place_sample(
+            mujoco,
+            model,
+            data,
+            q_arm=sample.q_arm,  # type: ignore[attr-defined]
+            gripper=sample.gripper,  # type: ignore[attr-defined]
+            box_qpos=sample.box_qpos,  # type: ignore[attr-defined]
+            box_qadr=box_qadr,
+        )
+
+    cv_pose = _place_cv_ghost_from_vision(
+        mujoco,
+        model,
+        data,
+        robot="omy",
+        sample=samples[0],
+        apply_sample=_apply,
+    )
     renderer = mujoco.Renderer(model, height=height, width=width)
     for camera in camera_names:
         _assert_camera_exists(mujoco, model, camera)
@@ -1609,15 +1734,7 @@ def render_omy_pick_place_showcase_videos(
 
     try:
         for sample in samples:
-            _apply_omy_pick_place_sample(
-                mujoco,
-                model,
-                data,
-                q_arm=sample.q_arm,
-                gripper=sample.gripper,
-                box_qpos=sample.box_qpos,
-                box_qadr=box_qadr,
-            )
+            _apply(sample)
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
                 frame = renderer.render()
@@ -1645,10 +1762,24 @@ def render_omy_pick_place_showcase_videos(
                 timing=timing,
             )
         )
-    return postprocess_showcase_results(
+    overview = postprocess_showcase_results(
         results,
         enabled=realtime_postprocess,
     )
+    overlays = _append_gate_cam_overlays(
+        mujoco=mujoco,
+        model=model,
+        data=data,
+        samples=list(samples),
+        apply_sample=_apply,
+        box_qadr=box_qadr,
+        output_dir=output_dir,
+        scenario=scenario,
+        main_fps=fps,
+        timing=timing,
+        cv_pose=cv_pose,
+    )
+    return overview + overlays
 
 
 def render_omy_clutter_showcase_videos(
@@ -1723,6 +1854,18 @@ def render_omy_clutter_showcase_videos(
     if box_jid < 0:
         raise ValueError("pick_box_joint missing from OMY clutter MJCF")
     box_qadr = int(model.jnt_qposadr[box_jid])
+
+    def _apply(sample: object) -> None:
+        _apply_omy_pick_place_sample(
+            mujoco,
+            model,
+            data,
+            q_arm=sample.q_arm,  # type: ignore[attr-defined]
+            gripper=sample.gripper,  # type: ignore[attr-defined]
+            box_qpos=sample.box_qpos,  # type: ignore[attr-defined]
+            box_qadr=box_qadr,
+        )
+
     renderer = mujoco.Renderer(model, height=height, width=width)
     for camera in camera_names:
         _assert_camera_exists(mujoco, model, camera)
@@ -1741,15 +1884,7 @@ def render_omy_clutter_showcase_videos(
 
     try:
         for sample in samples:
-            _apply_omy_pick_place_sample(
-                mujoco,
-                model,
-                data,
-                q_arm=sample.q_arm,
-                gripper=sample.gripper,
-                box_qpos=sample.box_qpos,
-                box_qadr=box_qadr,
-            )
+            _apply(sample)
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
                 frame = renderer.render()
@@ -1777,10 +1912,23 @@ def render_omy_clutter_showcase_videos(
                 timing=timing,
             )
         )
-    return postprocess_showcase_results(
+    overview = postprocess_showcase_results(
         results,
         enabled=realtime_postprocess,
     )
+    overlays = _append_gate_cam_overlays(
+        mujoco=mujoco,
+        model=model,
+        data=data,
+        samples=list(samples),
+        apply_sample=_apply,
+        box_qadr=box_qadr,
+        output_dir=output_dir,
+        scenario=scenario,
+        main_fps=fps,
+        timing=timing,
+    )
+    return overview + overlays
 
 
 def render_video(

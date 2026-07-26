@@ -16,8 +16,6 @@
     mjcf: mjcf/omx_wall_maze.xml
     pick_object: ball
     ball_radius_m: 0.0125
-    pedestal_top_m: 0.098
-    pedestal_radius_m: 0.018
     place_cone_height_m: 0.098
     place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
@@ -39,14 +37,15 @@
     wall_inflate_m: 0.025
     occupancy_density: 1200.0
     max_transfer_radius_m: 0.16
-    min_transfer_ee_z_m: 0.145
+    min_transfer_ee_z_m: 0.10
     min_transfer_peak_ee_z_m: 0.21
-    lift_height_m: 0.14
+    lift_height_m: 0.10
     phase_timeout_s: 60.0
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     retreat_configuration: [0.25, -1.05, 0.7, 0.7]
-    pick_hover_configuration: [-0.55, 0.416, -0.55, 0.20]
-    pick_grasp_configuration: [-0.55, 0.60, -0.65, 0.65]
+    pick_hover_configuration: [-0.5810, 0.5663, -0.3587, 0.3026]
+    pick_grasp_configuration: [-0.5336, 0.8586, -0.5485, 0.5024]
+    lift_hover_configuration: [-0.5336, 0.5278, -0.5953, 0.5497]
     place_hover_configuration: [0.55, 0.416, -0.55, 0.20]
     place_grasp_configuration: [0.55, 0.60, -0.65, 0.65]
     pick_xy: [0.273, -0.160]

@@ -1,8 +1,8 @@
 <mujoco model="omy_clutter">
   <!--
-    OpenMANIPULATOR-Y cluttered pedestal pick-and-place (SC-v14c).
+    OpenMANIPULATOR-Y cluttered floor pick-and-place (SC-v14c).
 
-    Pick: Ø 86 mm sphere on a short pedestal.
+    Pick: Ø 86 mm sphere resting on the floor / table plane.
     Place: tip-down cone funnel — Ø 280 mm, height 280 mm.
     Cone mesh: assets/cone.obj (scaled in geom).
 
@@ -42,16 +42,10 @@
   <worldbody>
     <light name="key" pos="0.95 0.0 1.6" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
-    <!-- Contact bits: arm=1, pedestal/cone=2, pads=4, floor=1|8.
-         Ball=2|4|8 hits floor/pads/pedestal/cone but not arm links. -->
+    <!-- Contact bits: arm=1, cone=2, pads=4, floor=1|8.
+         Ball=2|4|8 hits floor/pads/cone but not arm links. -->
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
-
-    <geom name="pedestal_pick" type="cylinder"
-          pos="0.40000 -0.28000 0.04500"
-          size="0.03500 0.04500"
-          material="start_zone" friction="1.2 0.1 0.01"
-          contype="2" conaffinity="2"/>
 
     <!-- Visual mesh only; funnel_w* / funnel_tip carry rigid collision. -->
     <geom name="place_cone" type="mesh" mesh="place_cone"
@@ -97,7 +91,7 @@
           material="place_cone" contype="0" conaffinity="0"/>
 
     <geom name="start_zone" type="cylinder"
-          pos="0.40000 -0.28000 0.09100"
+          pos="0.40000 -0.28000 0.00100"
           size="0.15000 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
     <geom name="goal_zone" type="cylinder"
@@ -105,7 +99,7 @@
           size="0.15000 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <body name="pick_box" pos="0.40000 -0.28000 0.13300">
+    <body name="pick_box" pos="0.40000 -0.28000 0.04300">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="sphere"
             size="0.04300"
@@ -119,6 +113,14 @@
           size="0.07000 0.04000 0.15000"
           material="transfer_wall"
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
+
+
+    <!-- CV estimate ghost (visual only; updated by pick_place_vision). -->
+    <body name="cv_ball_ghost" pos="0 0 -1">
+      <geom name="cv_ball_ghost" type="sphere" size="0.04300"
+            contype="0" conaffinity="0" group="1"
+            rgba="0.90 0.10 0.10 0.0"/>
+    </body>
 
     <!-- Perception portal / gantry (v1.4): rigid posts + beam holding Cam-A. -->
     <!-- Structural rear vision gate + dual corner Cam-A/B (v1.4). -->

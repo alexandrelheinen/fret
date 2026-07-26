@@ -145,8 +145,13 @@ def _inject_physical_gripper(robot_xml: str) -> str:
     return robot_xml
 
 
+_FLOOR_PICK_SCENES: frozenset[str] = frozenset(
+    {"omy_pick_place", "omy_clutter"}
+)
+
+
 def _enable_floor_pick_contacts(robot_xml: str) -> str:
-    """Remap distal collision bits for floor-ball grasp (SC-v14b).
+    """Remap distal collision bits for floor-ball grasp (SC-v14b/c).
 
     Menagerie wrist/finger STLs penetrate the plane at a true floor pinch.
     Distal meshes use pad bit 4 (ball only): no floor fight on pinch, and no
@@ -201,7 +206,7 @@ def ensure_omy_mjcf(scene: str = "omy_tabletop") -> Path:
     )
     if scene in _PHYSICAL_GRIPPER_SCENES:
         robot = _inject_physical_gripper(robot)
-    if scene == "omy_pick_place":
+    if scene in _FLOOR_PICK_SCENES:
         robot = _enable_floor_pick_contacts(robot)
     if not robot.rstrip().endswith("</mujoco>"):
         raise ValueError(f"Unexpected Menagerie MJCF footer: {robot_path}")

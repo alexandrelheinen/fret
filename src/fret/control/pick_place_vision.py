@@ -7,6 +7,7 @@ joints stay on the scenario YAML (known fixture).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal
 
@@ -215,6 +216,32 @@ def refresh_pick_waypoints_omy(
     )
 
 
+def set_cv_ball_ghost(
+    model: Any,
+    data: Any,
+    position_world: npt.NDArray[np.float64] | Sequence[float],
+    *,
+    rgba: tuple[float, float, float, float] = (0.90, 0.10, 0.10, 0.35),
+) -> bool:
+    """Move the non-colliding red CV ghost sphere to ``position_world``.
+
+    The geom is visual-only (``contype=0``). Missing body/geom is a no-op so
+    older MJCF templates without the ghost still load.
+    """
+    import mujoco as mj
+
+    body_id = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "cv_ball_ghost"))
+    if body_id < 0:
+        return False
+    pos = np.asarray(position_world, dtype=np.float64).reshape(3)
+    model.body_pos[body_id] = pos
+    geom_id = int(mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "cv_ball_ghost"))
+    if geom_id >= 0:
+        model.geom_rgba[geom_id] = np.asarray(rgba, dtype=np.float64)
+    mj.mj_forward(model, data)
+    return True
+
+
 def apply_vision_pick_goals(
     base: PickPlaceWaypoints,
     *,
@@ -224,6 +251,9 @@ def apply_vision_pick_goals(
     vision_config: str | Path | None = None,
 ) -> tuple[PickPlaceWaypoints, BallObservation]:
     """Observe the ball and return updated waypoints + the observation.
+
+    Also places the transparent red ``cv_ball_ghost`` at the CV estimate for
+    overview proof renders.
 
     Raises:
         RuntimeError: if the vision pipeline returns no ball.
@@ -236,6 +266,7 @@ def apply_vision_pick_goals(
             f"{robot} vision pipeline returned no BallObservation"
         )
     ball = np.asarray(observation.position_world, dtype=np.float64)
+    set_cv_ball_ghost(model, data, ball)
     if robot == "omx":
         refreshed = refresh_pick_waypoints_omx(base, ball, model, data)
     else:

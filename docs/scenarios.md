@@ -131,12 +131,12 @@ SITL wiring for the 6-DOF arm (same role as SC-v13a for OM-X).
 reach (same OMX SC-v13b pattern: pads pinch the equator) and place it in a
 tip-down cone funnel at a loaded-reachable pose — 6-DOF analogue of SC-v13b.
 
-### SC-v14c — OpenMANIPULATOR-Y cluttered pedestal pick-and-place (v1.2.4)
+### SC-v14c — OpenMANIPULATOR-Y cluttered floor pick-and-place (v1.2.4 / v1.4)
 
 **File:** `config/scenarios/omy_clutter.yml`  
 **Model:** `omy`
 
-**Purpose:** Same scaled pedestal ball + cone as SC-v14b, plus a mid-cell wall
+**Purpose:** Same floor ball + cone as SC-v14b, plus a mid-cell wall
 (perpendicular to the pick→place line of sight, centred between them) and
 occupancy planner so the transfer must detour (6-DOF analogue of SC-v13c).
 

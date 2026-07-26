@@ -17,7 +17,7 @@ without intermediate maze steps:
 |---|---|---|
 | SC-v14a | `omy_reach.yml` | Empty tabletop joint-space reach |
 | SC-v14b | `omy_pick_place.yml` | Floor ball → cone pick-and-place (+ CV in v1.4) |
-| SC-v14c | `omy_clutter.yml` | Cluttered pedestal pick-and-place with detour |
+| SC-v14c | `omy_clutter.yml` | Cluttered floor pick-and-place with detour |
 
 Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
 
