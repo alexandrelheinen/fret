@@ -23,19 +23,20 @@
     # seed_offset=0 → mesh-clear retract with wall FAULT honesty (v1.4.1).
     planner_rng_seed: 8
     prefer_transfer_detour: true
+    # AABB of transfer_wall_a — must match omy_clutter.yml / MJCF.
     walls:
-      - x_min: 0.355
-        x_max: 0.475
-        y_min: -0.155
-        y_max: -0.085
-        z_max: 0.30
+      - x_min: 0.365
+        x_max: 0.465
+        y_min: -0.145
+        y_max: -0.095
+        z_max: 0.18
     wall_inflate_m: 0.01
     # Must match omy_clutter.yml — release variants are full YAML copies.
     mpc_cspace_clearance_rad: 0.28
     mpc_cspace_samples: 14000
-    mpc_weight_obstacle: 120.0
+    mpc_weight_obstacle: 180.0
     fault_on_wall_contact: true
-    wall_contact_fault_steps: 5
+    wall_contact_fault_steps: 20
     occupancy_density: 800.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15

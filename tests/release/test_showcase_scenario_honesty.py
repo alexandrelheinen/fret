@@ -42,3 +42,4 @@ def test_release_variant_yamls_enable_mpc_wall_honesty() -> None:
             assert key in params, f"{name} missing {key}"
         assert bool(params["fault_on_wall_contact"]) is True
         assert float(params["mpc_weight_obstacle"]) >= 120.0
+        assert int(params["wall_contact_fault_steps"]) >= 5

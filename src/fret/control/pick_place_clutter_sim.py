@@ -984,4 +984,14 @@ def run_pick_place_clutter(
     if last is None and last_err is not None:
         raise last_err
     assert last is not None
+    if (
+        last.state != PickPlaceState.DONE
+        or int(last.wall_contact_steps) > 0
+        or float(np.linalg.norm(last.box_pos[:2] - place_xy)) >= place_tol
+    ):
+        raise RuntimeError(
+            f"{_scenario_id(params)} clutter cycle failed after "
+            f"{max_attempts} attempts (last={last.state.name}, "
+            f"wall_contact_steps={last.wall_contact_steps})"
+        )
     return last
