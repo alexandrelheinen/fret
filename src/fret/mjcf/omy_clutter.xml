@@ -110,9 +110,11 @@
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 
+    <!-- Shorter/thinner mid-chord stub: still blocks the lift→place LOS
+         but leaves a reliable 6-DOF corridor for RRT* and SST (v1.4.1). -->
     <geom name="transfer_wall_a" type="box"
-          pos="0.41500 -0.12000 0.15000"
-          size="0.06000 0.03500 0.15000"
+          pos="0.41500 -0.12000 0.09000"
+          size="0.05000 0.02500 0.09000"
           material="transfer_wall"
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 

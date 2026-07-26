@@ -169,11 +169,11 @@ def _scene_footer(
         _PLACE_XY = saved_place
     wall_block = ""
     if clutter:
-        # Mid-cell slab: blocks the straight lift→place chord but leaves a
-        # planner-feasible corridor for 6-DOF RRT* (validated sample counts).
-        wall_x = 0.45
-        wall_y = 0.0
-        wall_half = (0.07, 0.04, 0.15)  # x,y,z half-sizes → ~0.30 m tall
+        # Committed SC-v14c stub (v1.4.1): blocks the lift→place LOS but stays
+        # short/thin enough for RRT* and SST under MPC wall honesty.
+        # Keep AABB in sync with omy_clutter*.yml ``walls:``.
+        wall_x, wall_y = 0.415, -0.120
+        wall_half = (0.05, 0.025, 0.09)  # → 18 cm tall
         wall_block = f"""
     <geom name="transfer_wall_a" type="box"
           pos="{wall_x:.5f} {wall_y:.5f} {wall_half[2]:.5f}"

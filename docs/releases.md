@@ -378,6 +378,7 @@ the same SC-v16 / showcase matrix and adds:
 | Wall-contact FAULT | Sustained `transfer_wall*` contact fails the FSM (showcase honesty) |
 | OM-X adhesion polarity | Distance-to-closed (open=`0.019` / closed=`0.006`); gain 5 |
 | OM-X pick ball | Ø **40 mm** (`ball_radius_m: 0.020`) for grasp + HSV |
+| OMY clutter wall | Shorter/thinner mid-chord stub (18 cm) so RRT* **and** SST place under honesty |
 
 Release MP4s for `v1.4.1` must be regenerated from this line (do not reuse
 `v1.4.0` R2 clips for OM-X maze / OMY clutter).
