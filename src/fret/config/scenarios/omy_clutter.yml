@@ -21,7 +21,8 @@
     place_cone_radius_m: 0.140
     grasp_mode: mujoco_adhesion
     planner_algorithm: rrt_star
-    planner_rng_seed: 3
+    # seed_offset=0 → mesh-clear retract with wall FAULT honesty (v1.4.1).
+    planner_rng_seed: 6
     prefer_transfer_detour: true
     walls:
       - x_min: 0.355

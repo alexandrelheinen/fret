@@ -33,6 +33,8 @@ class OmyClutterResult:
     transfer_path: list[npt.NDArray[np.float64]]
     straight_line_collides: bool
     samples: list[PickPlaceSample]
+    wall_contact_steps: int = 0
+    faulted_on_wall_contact: bool = False
 
 
 def _as_omy(result: ClutterPickPlaceResult) -> OmyClutterResult:
@@ -42,6 +44,8 @@ def _as_omy(result: ClutterPickPlaceResult) -> OmyClutterResult:
         transfer_path=result.transfer_path,
         straight_line_collides=result.straight_line_collides,
         samples=result.samples,
+        wall_contact_steps=int(result.wall_contact_steps),
+        faulted_on_wall_contact=bool(result.faulted_on_wall_contact),
     )
 
 
