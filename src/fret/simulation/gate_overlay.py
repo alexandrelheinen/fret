@@ -23,7 +23,7 @@ _HSV_UPPER = (50, 255, 255)
 
 def annotate_gate_frame(
     rgb: npt.NDArray[np.uint8],
-    pose_xyz: Sequence[float] | None,
+    pose_xyz: Sequence[float] | npt.NDArray[np.floating[Any]] | None,
     *,
     label: str = "pose",
 ) -> npt.NDArray[np.uint8]:
@@ -75,7 +75,8 @@ def annotate_gate_frame(
                 1,
                 cv2.LINE_AA,
             )
-    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    annotated = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    return np.asarray(annotated, dtype=np.uint8)
 
 
 def present_gate_cameras(mujoco: Any, model: Any) -> list[str]:
@@ -117,9 +118,7 @@ def write_gate_cam_overlay_videos(
     stride = max(1, int(round(float(main_fps) / float(overlay_fps))))
     renderer = mujoco.Renderer(model, height=height, width=width)
     output_dir.mkdir(parents=True, exist_ok=True)
-    paths = {
-        cam: output_dir / output_name(scenario, cam) for cam in cameras
-    }
+    paths = {cam: output_dir / output_name(scenario, cam) for cam in cameras}
     writers = {cam: open_writer(paths[cam], overlay_fps) for cam in cameras}
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
     try:
