@@ -274,6 +274,10 @@ class PickPlaceFSM:
         """Jump to ``state`` (simulation harness hook for physics grasp)."""
         self._enter(state)
 
+    def fault(self) -> None:
+        """Latch ``FAULT`` (collision monitor / external safety stop)."""
+        self._enter(PickPlaceState.FAULT)
+
     def tick(self, obs: PickPlaceObservation, dt: float) -> PickPlaceCommand:
         """Advance the FSM and return the active setpoints + plan hint."""
         dt = float(dt)
