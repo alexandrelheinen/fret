@@ -48,7 +48,7 @@ tube posts, top/bottom beams, and an **X-brace**, holding two cameras at the
 | Cameras | `gate_cam_left`, `gate_cam_right` | same names |
 | `fovy` | 42° | 45° |
 | Look-at (shared) | ~(0.22, −0.08, 0.08) | ~(0.38, −0.10, 0.10) |
-| Pick (side) | `(0.22, −0.20)` | `(0.35, −0.30)` |
+| Pick (side) | `(0.22, −0.20)` open; clutter/maze `(0.18, −0.26)` | `(0.35, −0.30)` |
 | Place (front) | `(0.26, 0.0)` | `(0.48, 0.0)` |
 
 Gate geoms are visual-only (`contype=0`). The gate may clip a little rear

@@ -18,8 +18,8 @@ v1.2.3 showcase:
 
 1. **SC-v13a** — empty tabletop, end-effector pose A → B (validate command chain)
 2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
-3. **SC-v13c** — mid-cell wall forces a joint-space retract detour
-4. **SC-v13d** — Γ (inverted-L) wall maze: retract → climb → place
+3. **SC-v13c** — mid-chord wall + front place cone forces a retract detour
+4. **SC-v13d** — dual Γ wall maze (front place): retract → climb → place
 
 **Pick object:** tennis-like MuJoCo ball (Ø 25 mm, grippy friction, density 400).
 Pick rests on the floor / table plane; place is a transparent non-colliding
@@ -61,11 +61,11 @@ Implementation substates:
 
 `IDLE → APPROACH_PICK → DESCEND_PICK → GRASP → LIFT → MOVE_PLACE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
 
-**SC-v13c:** same grasp cell plus a mid-cell wall. ``MOVE_PLACE`` is planned
+**SC-v13c:** floor pick + front place cone plus a mid-chord wall. ``MOVE_PLACE`` is planned
 around the wall (not a straight joint-space line). Grasp / lift / release
 SC-v13b phase targets use the same joint-space MPC.
 
-**SC-v13d:** Γ maze (vertical stem + horizontal roof overhang toward the
+**SC-v13d:** dual Γ maze (stems flank the front place corridor; caps overhang ±Y toward the
 pick ball) — forces back-out from under the roof, climb, then place.
 
 ---

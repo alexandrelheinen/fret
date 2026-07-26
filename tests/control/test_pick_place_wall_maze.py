@@ -1,4 +1,4 @@
-"""SC-v13d Γ-wall maze: back out under pick-side roof → climb → place."""
+"""SC-v13d dual Γ-wall maze: back out under roofs → climb → front place."""
 
 from __future__ import annotations
 
@@ -24,19 +24,16 @@ _SCENARIO = Path("src/fret/config/scenarios/omx_wall_maze.yml")
 def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
     path = mjcf_path("open_manipulator_x", "omx_wall_maze")
     model = mujoco.MjModel.from_xml_path(str(path))
-    assert (
-        mujoco.mj_name2id(
-            model, mujoco.mjtObj.mjOBJ_GEOM, "transfer_wall_stem"
-        )
-        >= 0
-    )
-    assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "transfer_wall_cap")
-        >= 0
-    )
-    assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_cone") >= 0
-    )
+    for name in (
+        "transfer_wall_stem",
+        "transfer_wall_cap",
+        "transfer_wall_stem_p",
+        "transfer_wall_cap_p",
+        "place_cone",
+    ):
+        assert (
+            mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name) >= 0
+        ), name
     stem = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "transfer_wall_stem"
     )
@@ -44,13 +41,17 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
     assert int(model.geom_contype[stem]) == 1
     assert int(model.geom_conaffinity[stem]) == 1
     walls = walls_from_scenario(_SCENARIO)
-    assert len(walls) == 2
-    roof = walls[1]
-    pick_y = float(load_scenario_parameters(_SCENARIO)["pick_xy"][1])
-    # Roof overhangs toward the pick ball (negative Y), not the place side.
-    assert roof.y_min < -0.05
-    assert roof.y_min < pick_y + 0.05
-    assert roof.y_max <= 0.02
+    assert len(walls) == 4
+    params = load_scenario_parameters(_SCENARIO)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
+    pick_y = float(params["pick_xy"][1])
+    # Front place cone on +X (y ≈ 0).
+    assert abs(float(place_xy[1])) < 1e-6
+    # Dual roofs: one toward pick (−Y), one mirrored (+Y).
+    roofs = [w for w in walls if w.z_min >= 0.2]
+    assert len(roofs) == 2
+    assert any(r.y_min < pick_y + 0.05 and r.y_max < 0.0 for r in roofs)
+    assert any(r.y_min > 0.0 and r.y_max > 0.05 for r in roofs)
 
 
 def test_wall_maze_transfer_plan_backs_out_and_climbs() -> None:

@@ -160,9 +160,11 @@ def test_omy_clutter_transfer_plan_detours_wall() -> None:
         seed_offset=0,
     )
     assert straight_collides, "wall should block the straight lift→place chord"
+    # Front-cone layout prefers the YAML transfer_detour (lift→via→place);
+    # RRT densification is optional when that detour is enabled.
     assert (
-        len(path) >= 4
-    ), f"expected densified plan, got {len(path)} waypoints"
+        len(path) >= 3
+    ), f"expected detour/plan path, got {len(path)} waypoints"
 
 
 @pytest.mark.slow
@@ -194,7 +196,9 @@ def test_omy_clutter_pick_place_smoke() -> None:
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     result = run_omy_clutter_pick_place(
         duration_s=180.0,
-        joint_tol_rad=0.45,
+        # Front-cone place needs a tighter tol than the old +Y cone (0.45
+        # advanced RELEASE before place_grasp and flung the ball past rim).
+        joint_tol_rad=0.16,
         scenario_path=_CLUTTER,
         seed_offset=0,
     )
