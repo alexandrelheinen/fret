@@ -11,7 +11,7 @@ SC-v13c uses a single mid-cell slab; SC-v13d uses a Γ (inverted-L) stem+cap.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +24,11 @@ from fret.control.cspace_mpc_occupancy import (
 )
 from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
 from fret.control.kinematics import Kinematics
+
+try:
+    from arco.control.mpc import JointSpaceMPCConfig
+except ImportError:  # pragma: no cover
+    JointSpaceMPCConfig = None
 from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
     GRIPPER_OPEN,
@@ -75,11 +80,41 @@ def _ee_body_name(model: str) -> str:
     return "link6" if model in _OMY_MODELS else "link5"
 
 
-def _joint_mpc_for_model(model: str, *, occupancy: Any | None = None) -> Any:
+def _joint_mpc_config(params: dict[str, Any] | None = None) -> Any | None:
+    """Optional JointSpaceMPCConfig with scenario obstacle-weight overrides."""
+    if JointSpaceMPCConfig is None:  # pragma: no cover
+        return None
+    cfg = JointSpaceMPCConfig.create_from_config()
+    if not params:
+        return cfg
+    w_obs = params.get("mpc_weight_obstacle")
+    if w_obs is not None:
+        cfg = replace(cfg, weight_obstacle=float(w_obs))
+    return cfg
+
+
+def _joint_mpc_for_model(
+    model: str,
+    *,
+    occupancy: Any | None = None,
+    params: dict[str, Any] | None = None,
+) -> Any:
     """Build joint-space MPC, optionally with C-space obstacle barriers."""
     return build_joint_mpc(
-        6 if model in _OMY_MODELS else 4, occupancy=occupancy
+        6 if model in _OMY_MODELS else 4,
+        occupancy=occupancy,
+        mpc_cfg=_joint_mpc_config(params),
     )
+
+
+def _require_mpc_occupancy(mpc: Any, *, context: str) -> None:
+    """Fail loud if a wall-scenario MPC was built without barriers."""
+    occ = getattr(mpc, "_occ", None)
+    if occ is None:
+        raise RuntimeError(
+            f"{context}: JointSpaceMPC has occupancy=None; "
+            "C-space obstacle barriers are required for wall scenarios"
+        )
 
 
 def _barrier_occupancy_for_scenario(
@@ -285,6 +320,7 @@ def _dry_run_transfer(
     scenario_id: str,
     robot_model: str = "open_manipulator_x",
     occupancy: Any | None = None,
+    params: dict[str, Any] | None = None,
 ) -> bool:
     """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
     try:
@@ -325,9 +361,12 @@ def _dry_run_transfer(
     settle(idle, 300)
     settle(start, 700)
 
+    mpc = _joint_mpc_for_model(robot_model, occupancy=occupancy, params=params)
+    if occupancy is not None:
+        _require_mpc_occupancy(mpc, context="_dry_run_transfer")
     tracker = JointPathMPCTracker(
         dense,
-        _joint_mpc_for_model(robot_model, occupancy=occupancy),
+        mpc,
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
@@ -511,6 +550,7 @@ def plan_transfer_path(
             scenario_id=scenario_id,
             robot_model=robot_model,
             occupancy=mpc_occ,
+            params=params,
         ):
             last_err = "mujoco dry-run rejected"
             continue
@@ -631,10 +671,25 @@ def simulate_pick_place_clutter(
         scenario_id=scenario_id,
         seed=mpc_seed,
     )
-    phase_mpc = _joint_mpc_for_model(robot_model, occupancy=mpc_occ)
+    if mpc_occ is None and bool(params.get("fault_on_wall_contact", False)):
+        raise RuntimeError(
+            f"{scenario_id}: fault_on_wall_contact requires a C-space "
+            "MPC occupancy map (missing transfer_wall* geoms?)"
+        )
+    phase_mpc = _joint_mpc_for_model(
+        robot_model, occupancy=mpc_occ, params=params
+    )
+    transfer_mpc = _joint_mpc_for_model(
+        robot_model, occupancy=mpc_occ, params=params
+    )
+    if mpc_occ is not None:
+        _require_mpc_occupancy(phase_mpc, context=f"{scenario_id}.phase_mpc")
+        _require_mpc_occupancy(
+            transfer_mpc, context=f"{scenario_id}.transfer_mpc"
+        )
     transfer_tracker = JointPathMPCTracker(
         transfer_path,
-        _joint_mpc_for_model(robot_model, occupancy=mpc_occ),
+        transfer_mpc,
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
