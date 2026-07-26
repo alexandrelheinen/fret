@@ -296,6 +296,7 @@ def simulate_omy_pick_place(
             fsm.hold_t,
             gripper=float(cmd.gripper),
             gripper_closed=OMY_GRIPPER_CLOSED,
+            gripper_open=OMY_GRIPPER_OPEN,
         )
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere

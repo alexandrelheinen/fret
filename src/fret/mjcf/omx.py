@@ -33,7 +33,8 @@ _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
 _CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
 
 # Pad contype=4: collide with the ball (14) but not with arm meshes (1).
-# Soft, high-friction pads (tennis-ball felt grip). Half-Y 0.007 pinches Ø25 mm.
+# Soft, high-friction pads (tennis-ball felt grip). Half-Y 0.007 pinches Ø40 mm
+# at Gripper ctrl ≈ 0.006 (inner gap ≈ 37 mm).
 _PAD_LEFT = (
     '                <geom name="pad_left" type="box" '
     'size="0.016 0.007 0.012" pos="0.028 0.0 0"\n'
@@ -50,12 +51,12 @@ _PAD_RIGHT = (
     '                      condim="6" contype="4" conaffinity="4" '
     'rgba="0.15 0.15 0.15 1" group="3"/>\n'
 )
-# Modest gain + delayed enable (see adhesion_command): tennis grip without eject.
+# Modest gain + delayed enable (see adhesion_command): assist pinch, not glue.
 _ADHESION = (
     '    <adhesion name="grip_left" body="gripper_left" '
-    'ctrlrange="0 1" gain="12"/>\n'
+    'ctrlrange="0 1" gain="5"/>\n'
     '    <adhesion name="grip_right" body="gripper_right" '
-    'ctrlrange="0 1" gain="12"/>\n'
+    'ctrlrange="0 1" gain="5"/>\n'
 )
 
 

@@ -2,7 +2,7 @@
   <!--
     OpenMANIPULATOR-X pick-and-place cell (SC-v13b / T13-04).
 
-    Pick: free ball (Ø 25 mm, tennis grip) resting on the floor / table plane.
+    Pick: free ball (Ø 40 mm, tennis grip) resting on the floor / table plane.
     Place: transparent non-colliding plate over a tip-down cone funnel
     (visual mesh + wall collision) that catches the dropped ball.
     Cone mesh: assets/cone.obj.
@@ -91,19 +91,19 @@
     <geom name="goal_zone" type="cylinder" pos="0.26000 0.00000 0.09900" size="0.05 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
-    <!-- Ø 25 mm tennis-like ball on the floor (grippy felt). -->
-    <body name="pick_box" pos="0.22000 -0.20000 0.01250">
+    <!-- Ø 40 mm tennis-like ball on the floor (grippy felt). -->
+    <body name="pick_box" pos="0.22000 -0.20000 0.02000">
       <freejoint name="pick_box_joint"/>
-      <geom name="pick_box_geom" type="sphere" size="0.0125"
+      <geom name="pick_box_geom" type="sphere" size="0.020"
             density="400" material="pick_ball"
-            friction="2.8 1.2 0.15" solref="0.015 1" solimp="0.9 0.95 0.001"
+            friction="2.8 1.2 0.15" solref="0.012 1" solimp="0.9 0.95 0.001"
             condim="6" contype="14" conaffinity="14" priority="1"/>
     </body>
 
 
     <!-- CV estimate ghost (visual only; updated by pick_place_vision). -->
     <body name="cv_ball_ghost" pos="0 0 -1">
-      <geom name="cv_ball_ghost" type="sphere" size="0.0180"
+      <geom name="cv_ball_ghost" type="sphere" size="0.0280"
             contype="0" conaffinity="0" group="1"
             rgba="0.90 0.10 0.10 0.0"/>
     </body>

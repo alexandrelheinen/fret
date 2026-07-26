@@ -22,28 +22,53 @@ _ADHERE_STATES = frozenset(
 _GRASP_ADHERE_AFTER_S = 0.15
 
 
+def _gripper_near_closed(
+    gripper: float,
+    *,
+    gripper_closed: float,
+    gripper_open: float | None,
+    closed_tolerance: float,
+) -> tuple[bool, float, float]:
+    """Return ``(near, dist, thresh)`` using absolute distance to closed.
+
+    OM-X closes toward more negative/smaller values (open=0.019 → closed≈0.006);
+    OMY closes toward larger values (open=0 → closed≈1.05). The legacy
+    ``gripper >= closed - tol`` test assumed the OMY polarity and kept OM-X
+    adhesion stuck on even while fully open.
+    """
+    dist = abs(float(gripper) - float(gripper_closed))
+    if gripper_open is not None:
+        span = abs(float(gripper_open) - float(gripper_closed))
+        thresh = min(float(closed_tolerance), max(0.35 * span, 1e-4))
+    else:
+        thresh = float(closed_tolerance)
+    return dist <= thresh, dist, thresh
+
+
 def adhesion_command(
     state: PickPlaceState,
     grasp_hold_t: float,
     *,
     gripper: float | None = None,
     gripper_closed: float = 0.85,
+    gripper_open: float | None = None,
+    closed_tolerance: float = 0.05,
 ) -> float:
     """Return adhesion ctrl in ``[0, 1]`` for the current FSM phase."""
     if state == PickPlaceState.GRASP:
-        if (
-            gripper is not None
-            and float(gripper) >= float(gripper_closed) - 0.05
-        ):
-            return 1.0
-        if float(grasp_hold_t) < _GRASP_ADHERE_AFTER_S:
-            if (
-                gripper is not None
-                and float(gripper) >= float(gripper_closed) - 0.08
-            ):
-                return 0.8
+        if gripper is not None:
+            near, dist, thresh = _gripper_near_closed(
+                float(gripper),
+                gripper_closed=float(gripper_closed),
+                gripper_open=gripper_open,
+                closed_tolerance=float(closed_tolerance),
+            )
+            if near:
+                return 1.0
+            if float(grasp_hold_t) < _GRASP_ADHERE_AFTER_S:
+                return 0.8 if dist <= 1.6 * thresh else 0.0
             return 0.0
-        if gripper is not None and float(gripper) < float(gripper_closed):
+        if float(grasp_hold_t) < _GRASP_ADHERE_AFTER_S:
             return 0.0
         return 1.0
     return 1.0 if state in _ADHERE_STATES else 0.0

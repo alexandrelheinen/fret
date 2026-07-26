@@ -1,6 +1,6 @@
 # SC-v13b — OpenMANIPULATOR-X pick-and-place (FSM + physical transfer).
 #
-# Pick: ball (Ø 25 mm, tennis grip) on the floor / table plane.
+# Pick: ball (Ø 40 mm, tennis grip) on the floor / table plane.
 # Place: drop into tip-down cone under a transparent plate.
 # No obstacles (see SC-v13c). Runners default use_vision=True (v1.4);
 # explicit CV contract: omx_pick_place_cv.yml (SC-v16a).
@@ -15,16 +15,16 @@
     goal_tolerance: 0.05
     mjcf: mjcf/omx_pick_place.xml
     pick_object: ball
-    ball_radius_m: 0.0125
+    ball_radius_m: 0.020
     place_cone_height_m: 0.098
     place_cone_radius_m: 0.050
     grasp_mode: mujoco_adhesion
     idle_configuration: [0.0, -1.05, 0.7, 0.7]
     # Pad-mid IK for floor ball (centre z = ball_radius); grasp pads clear plane.
-    pick_hover_configuration: [-0.7987, 0.4197, 0.0612, -0.1683]
-    pick_grasp_configuration: [-0.7485, 0.6842, 0.0191, -0.1694]
-    lift_hover_configuration: [-0.7485, 0.3158, -0.0102, -0.1138]
-    lift_height_m: 0.06
+    pick_hover_configuration: [-0.7987, 0.5018, -0.4685, 0.6952]
+    pick_grasp_configuration: [-0.7762, 0.7379, -0.4494, 0.6390]
+    lift_hover_configuration: [-0.7762, 0.4068, -0.5212, 0.6792]
+    lift_height_m: 0.07
     place_hover_configuration: [0.0000, 0.2129, -0.2377, 0.7000]
     place_grasp_configuration: [0.0000, 0.2381, -0.0763, 0.5000]
     pick_xy: [0.220, -0.200]

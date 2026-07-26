@@ -41,6 +41,6 @@ detector:
 lifter:
   camera_ids: [gate_cam_left, gate_cam_right]
   table_z_m: 0.0
-  ball_radius_m: 0.0125
+  ball_radius_m: 0.020
 pipeline:
   source: omx_gate_hsv_plane
