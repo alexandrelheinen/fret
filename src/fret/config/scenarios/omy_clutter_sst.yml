@@ -21,7 +21,13 @@
     grasp_mode: mujoco_adhesion
     planner_algorithm: sst
     planner_rng_seed: 7
-    prefer_transfer_detour: false
+    prefer_transfer_detour: true
+    walls:
+      - x_min: 0.355
+        x_max: 0.475
+        y_min: -0.155
+        y_max: -0.085
+        z_max: 0.30
     wall_inflate_m: 0.01
     occupancy_density: 800.0
     max_transfer_radius_m: 0.65
@@ -29,18 +35,12 @@
     lift_height_m: 0.10
     phase_timeout_s: 45.0
     idle_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    pick_hover_configuration: [-0.0915, 0.7380, 1.9571, -0.2570, -0.7303, -0.0000]
-    pick_grasp_configuration: [-0.0812, 0.9197, 2.0082, -0.1781, -0.7123, 0.0176]
-    lift_hover_configuration: [-0.1036, 0.5815, 2.0908, -0.1801, -0.7759, -0.0058]
-    place_hover_configuration: [0.7531, 0.5627, 1.1481, 0.0721, -1.0225, 0.0859]
-    place_grasp_configuration: [0.7544, 0.5336, 1.5044, -0.0415, -1.0184, 0.0374]
+    pick_hover_configuration: [-0.2011, 0.6388, 2.1264, -0.2088, -0.8766, -0.0005]
+    pick_grasp_configuration: [-0.1518, 0.8030, 2.1535, -0.0835, -0.7328, 0.0094]
+    lift_hover_configuration: [-0.1588, 0.4894, 2.2404, -0.2132, -0.7513, -0.0234]
+    place_hover_configuration: [0.4304, 0.3638, 1.4970, -0.1607, -0.9983, 0.0291]
+    place_grasp_configuration: [0.4238, 0.3699, 1.8269, -0.2693, -1.0145, -0.0051]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    transfer_detour_configuration: [0.1844, 0.8985, 2.1993, -0.4577, -0.5335, -0.1493]
-    pick_xy: [0.40, -0.28]
-    place_xy: [0.50, 0.20]
-    walls:
-      - x_min: 0.38
-        x_max: 0.52
-        y_min: -0.04
-        y_max: 0.04
-        z_max: 0.30
+    transfer_detour_configuration: [0.1568, 0.2551, 2.2177, -0.3336, -0.9252, -0.0427]
+    pick_xy: [0.350, -0.300]
+    place_xy: [0.480, 0.000]

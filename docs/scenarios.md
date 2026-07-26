@@ -94,23 +94,24 @@ warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 
 **Pass criteria:** See [releases.md § v1.2.3](releases.md#v123--openmanipulator-x-tabletop).
 
-### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.2.3)
+### SC-v13c — OpenMANIPULATOR-X desk clutter (v1.2.3 / v1.4)
 
 **File:** `config/scenarios/omx_desk_clutter.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Mid-cell wall blocks the straight green→red transfer; planner +
-controller must retract around it under full MuJoCo physics (AWS meshes later).
+**Purpose:** Floor pick on −Y and **front** place cone on +X; a mid-chord wall
+blocks the straight transfer so the planner + controller must retract around
+it under full MuJoCo physics (AWS meshes later).
 
-### SC-v13d — OpenMANIPULATOR-X Γ-wall maze (v1.2.3)
+### SC-v13d — OpenMANIPULATOR-X dual Γ-wall maze (v1.2.3 / v1.4)
 
 **File:** `config/scenarios/omx_wall_maze.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Inverted-L (letter Γ) obstacle — vertical stem plus a horizontal
-roof overhang toward the pick ball — forces grasp → back out from under the
-roof → climb → place (not a simple lift-and-fly over the stem). Arm↔wall
-collision bitmasks stay active (`contype`/`conaffinity` = 1).
+**Purpose:** Front place cone on +X with a **dual Γ** obstacle — stems flank
+the place corridor and caps overhang ±Y — so the arm cannot swing either side
+and must back out → climb → place. Arm↔wall collision bitmasks stay active
+(`contype`/`conaffinity` = 1).
 
 ---
 
@@ -136,9 +137,9 @@ tip-down cone funnel at a loaded-reachable pose — 6-DOF analogue of SC-v13b.
 **File:** `config/scenarios/omy_clutter.yml`  
 **Model:** `omy`
 
-**Purpose:** Same floor ball + cone as SC-v14b, plus a mid-cell wall
-(perpendicular to the pick→place line of sight, centred between them) and
-occupancy planner so the transfer must detour (6-DOF analogue of SC-v13c).
+**Purpose:** Same floor ball + **front** place cone as SC-v14b, plus a
+mid-chord wall between pick (−Y) and place (+X) so the transfer must detour
+(6-DOF analogue of SC-v13c).
 
 **Pass criteria:** See [releases.md § v1.2.4](releases.md#v124--6-dof-manipulator-challenge).
 
