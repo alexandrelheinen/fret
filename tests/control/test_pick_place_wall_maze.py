@@ -119,16 +119,27 @@ def test_omx_wall_maze_physics_places_ball() -> None:
         )
 
 
-def test_omx_wall_maze_mpc_transfer_avoids_wall_contacts() -> None:
+@pytest.mark.parametrize(
+    "scenario_name",
+    (
+        "omx_wall_maze.yml",
+        "omx_wall_maze_rrt.yml",
+        "omx_wall_maze_sst.yml",
+    ),
+)
+def test_omx_wall_maze_mpc_transfer_avoids_wall_contacts(
+    scenario_name: str,
+) -> None:
     """Joint MPC C-space barriers + contact FAULT must keep walls clear."""
+    scenario_path = Path("src/fret/config/scenarios") / scenario_name
     result = run_pick_place_clutter(
-        duration_s=55.0, scenario_path=_SCENARIO, max_attempts=6
+        duration_s=55.0, scenario_path=scenario_path, max_attempts=6
     )
     assert result.state == PickPlaceState.DONE, f"ended in {result.state.name}"
     assert not result.faulted_on_wall_contact
     assert (
         result.wall_contact_steps == 0
-    ), f"unexpected wall contacts: {result.wall_contact_steps}"
+    ), f"{scenario_name}: unexpected wall contacts: {result.wall_contact_steps}"
     assert len(result.samples) >= 20
 
     path = mjcf_path("open_manipulator_x", "omx_wall_maze")

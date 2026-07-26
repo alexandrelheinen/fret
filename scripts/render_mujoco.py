@@ -1329,6 +1329,11 @@ def render_omx_desk_clutter_showcase_videos(
         raise RuntimeError(
             f"{scenario} showcase FSM ended in {result.state.name}, expected DONE"
         )
+    if int(result.wall_contact_steps) > 0:
+        raise RuntimeError(
+            f"{scenario} showcase had {result.wall_contact_steps} "
+            "transfer_wall contact steps (honesty gate: must be 0)"
+        )
     samples = result.samples
     if len(samples) < 2:
         raise RuntimeError(f"{scenario} showcase recorded too few frames")
@@ -1831,6 +1836,11 @@ def render_omy_clutter_showcase_videos(
     if result.state != PickPlaceState.DONE:
         raise RuntimeError(
             f"{scenario} showcase FSM ended in {result.state.name}, expected DONE"
+        )
+    if int(getattr(result, "wall_contact_steps", 0)) > 0:
+        raise RuntimeError(
+            f"{scenario} showcase had {result.wall_contact_steps} "
+            "transfer_wall contact steps (honesty gate: must be 0)"
         )
     raw_samples = result.samples[::record_every]
     samples = _prepare_pick_place_showcase_samples(
