@@ -19,11 +19,10 @@ import numpy as np
 import numpy.typing as npt
 
 from fret.config_loader import load_algorithm_config, planning_config_for_model
-from fret.control.joint_mpc import (
-    JointPathMPCTracker,
-    build_joint_mpc,
-    build_omx_joint_mpc,
+from fret.control.cspace_mpc_occupancy import (
+    build_wall_cspace_barrier_occupancy,
 )
+from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
 from fret.control.kinematics import Kinematics
 from fret.control.pick_place_common import PickPlaceSample, adhesion_command
 from fret.control.pick_place_fsm import (
@@ -76,8 +75,51 @@ def _ee_body_name(model: str) -> str:
     return "link6" if model in _OMY_MODELS else "link5"
 
 
-def _joint_mpc_for_model(model: str) -> Any:
-    return build_joint_mpc(6 if model in _OMY_MODELS else 4)
+def _joint_mpc_for_model(model: str, *, occupancy: Any | None = None) -> Any:
+    """Build joint-space MPC, optionally with C-space obstacle barriers."""
+    return build_joint_mpc(
+        6 if model in _OMY_MODELS else 4, occupancy=occupancy
+    )
+
+
+def _barrier_occupancy_for_scenario(
+    params: dict[str, Any],
+    *,
+    robot_model: str,
+    scenario_id: str,
+    seed: int,
+) -> Any | None:
+    """Build C-space KDTree barriers from MuJoCo wall contacts when present.
+
+    Returns ``None`` when the scenario MJCF has no ``transfer_wall*`` geoms
+    (open pick-place cells) so MPC keeps the occupancy-free path.
+    """
+    try:
+        import mujoco as mj
+    except ImportError:  # pragma: no cover
+        return None
+    xml = mjcf_path(robot_model, scenario_id)
+    model = mj.MjModel.from_xml_path(str(xml))
+    has_wall = any(
+        (mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, i) or "").startswith(
+            "transfer_wall"
+        )
+        for i in range(model.ngeom)
+    )
+    if not has_wall:
+        return None
+    kin = Kinematics(robot_model)
+    names = _arm_joint_names(robot_model)
+    clearance = float(params.get("mpc_cspace_clearance_rad", 0.20))
+    n_samples = int(params.get("mpc_cspace_samples", 12000))
+    return build_wall_cspace_barrier_occupancy(
+        mjcf_path=str(xml),
+        joint_limits=kin.joint_limits,
+        joint_names=names,
+        clearance=clearance,
+        n_samples=n_samples,
+        rng=np.random.default_rng(int(seed) + 91),
+    )
 
 
 @dataclass(frozen=True)
@@ -229,6 +271,7 @@ def _dry_run_transfer(
     joint_tol_rad: float,
     scenario_id: str,
     robot_model: str = "open_manipulator_x",
+    occupancy: Any | None = None,
 ) -> bool:
     """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
     try:
@@ -271,7 +314,7 @@ def _dry_run_transfer(
 
     tracker = JointPathMPCTracker(
         dense,
-        _joint_mpc_for_model(robot_model),
+        _joint_mpc_for_model(robot_model, occupancy=occupancy),
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
@@ -333,7 +376,9 @@ def _dry_run_transfer(
         ],
         dtype=np.float64,
     )
-    return float(np.linalg.norm(q - goal)) < 0.15 and hits < 200
+    # Soft contacts while brushing inflated padding are tolerated; sustained
+    # wall jams (MPC cutting the chord through a slab) are not.
+    return float(np.linalg.norm(q - goal)) < 0.15 and hits < 40
 
 
 def plan_transfer_path(
@@ -381,6 +426,13 @@ def plan_transfer_path(
     straight_collides = not all(
         phys_checker.is_collision_free((1.0 - a) * start + a * goal)
         for a in alphas
+    )
+
+    mpc_occ = _barrier_occupancy_for_scenario(
+        params,
+        robot_model=robot_model,
+        scenario_id=scenario_id,
+        seed=seed0,
     )
 
     from fret.scenario.planner_rng import deterministic_planner_rng
@@ -445,6 +497,7 @@ def plan_transfer_path(
             joint_tol_rad=0.12,
             scenario_id=scenario_id,
             robot_model=robot_model,
+            occupancy=mpc_occ,
         ):
             last_err = "mujoco dry-run rejected"
             continue
@@ -558,10 +611,17 @@ def simulate_pick_place_clutter(
             seed_offset=seed_offset,
         )
 
-    phase_mpc = _joint_mpc_for_model(robot_model)
+    mpc_seed = int(params.get("planner_rng_seed", 7)) + int(seed_offset)
+    mpc_occ = _barrier_occupancy_for_scenario(
+        params,
+        robot_model=robot_model,
+        scenario_id=scenario_id,
+        seed=mpc_seed,
+    )
+    phase_mpc = _joint_mpc_for_model(robot_model, occupancy=mpc_occ)
     transfer_tracker = JointPathMPCTracker(
         transfer_path,
-        _joint_mpc_for_model(robot_model),
+        _joint_mpc_for_model(robot_model, occupancy=mpc_occ),
         race_speed=1.2,
         max_carrot_lag=0.40,
         goal_tol=max(0.12, float(joint_tol_rad)),
@@ -668,19 +728,10 @@ def simulate_pick_place_clutter(
                     q_cmd = wp.place_hover.copy()
                 else:
                     q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
-            elif scenario_id == "omx_wall_maze":
-                # Rate-limited joint slew (not JointSpaceMPC): MPC arcs dive
-                # into the pick-side roof, while an instantaneous jump from
-                # idle also jams the telhadinho. A slow chord stays clear.
-                target = np.asarray(cmd.q_des, dtype=np.float64)
-                delta = target - q_cmd
-                step_n = float(np.linalg.norm(delta))
-                max_step = 0.035  # rad per control tick (~1.75 rad/s)
-                if step_n <= max_step:
-                    q_cmd = target.copy()
-                else:
-                    q_cmd = q_cmd + delta * (max_step / step_n)
             else:
+                # JointSpaceMPC soft C-space barriers (when ``mpc_occ`` is
+                # set) keep carrot arcs off the Γ roofs; open cells leave
+                # occupancy=None and behave as before.
                 q_cmd = np.asarray(
                     phase_mpc.step(cmd.q_des, _CTRL_PERIOD_S),
                     dtype=np.float64,
