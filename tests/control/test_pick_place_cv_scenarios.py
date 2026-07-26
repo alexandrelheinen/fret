@@ -70,7 +70,8 @@ def test_omx_pick_place_cv_physics_done() -> None:
     assert state == PickPlaceState.DONE, f"ended in {state.name}"
     assert float(np.linalg.norm(ball[:2] - place_xy)) < 0.08
     assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
-    assert float(ball[2]) < 0.08
+    # Ø40 mm ball rests a bit higher in the tip-down cone than Ø25 mm.
+    assert float(ball[2]) < 0.10
 
 
 @pytest.mark.slow
