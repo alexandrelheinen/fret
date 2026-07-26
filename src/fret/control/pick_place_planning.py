@@ -119,10 +119,10 @@ def _omy_rrt_star_path(
         except ImportError:
             return None
     from fret.planning.planner_node import _CSpaceOccupancy
+    from fret.planning.planner_rng import deterministic_planner_rng
 
     kin = Kinematics("omy")
     bounds = [(float(lo), float(hi)) for lo, hi in kin.joint_limits]
-    rng = np.random.default_rng(int(seed))
     # ARCO RRT* has no cooperative timeout; keep sample count modest.
     planner = RRTPlanner(
         occupancy=_CSpaceOccupancy(checker),
@@ -133,11 +133,51 @@ def _omy_rrt_star_path(
         collision_check_count=5,
         goal_bias=0.35,
     )
-    _ = rng  # seed reserved for future stochastic wrappers
-    path = planner.plan(
-        np.asarray(start, dtype=np.float64),
-        np.asarray(goal, dtype=np.float64),
+    with deterministic_planner_rng(int(seed)):
+        path = planner.plan(
+            np.asarray(start, dtype=np.float64),
+            np.asarray(goal, dtype=np.float64),
+        )
+    if path is None or len(path) < 2:
+        return None
+    return [np.asarray(q, dtype=np.float64) for q in path]
+
+
+def _omy_sst_path(
+    start: npt.NDArray[np.float64],
+    goal: npt.NDArray[np.float64],
+    *,
+    checker: Any,
+    seed: int,
+) -> list[npt.NDArray[np.float64]] | None:
+    """Run ARCO SST with 6-DOF-friendly parameters; return coarse path or None."""
+    try:
+        from arco.planning.continuous.sst import SSTPlanner
+    except ImportError:  # pragma: no cover
+        try:
+            from arco.planning import SSTPlanner
+        except ImportError:
+            return None
+    from fret.planning.planner_node import _CSpaceOccupancy
+    from fret.planning.planner_rng import deterministic_planner_rng
+
+    kin = Kinematics("omy")
+    bounds = [(float(lo), float(hi)) for lo, hi in kin.joint_limits]
+    planner = SSTPlanner(
+        occupancy=_CSpaceOccupancy(checker),
+        bounds=bounds,
+        max_sample_count=2500,
+        step_size=0.50,
+        goal_tolerance=0.20,
+        witness_radius=0.35,
+        collision_check_count=5,
+        goal_bias=0.35,
     )
+    with deterministic_planner_rng(int(seed)):
+        path = planner.plan(
+            np.asarray(start, dtype=np.float64),
+            np.asarray(goal, dtype=np.float64),
+        )
     if path is None or len(path) < 2:
         return None
     return [np.asarray(q, dtype=np.float64) for q in path]
@@ -290,10 +330,14 @@ def plan_arm_transfer_path(
         )
         coarse: list[npt.NDArray[np.float64]] | None = None
         if robot_model == "omy":
-            # 6-DOF: try ARCO RRT*/SST-friendly RRT, then IK corridor vias.
+            # 6-DOF: ARCO RRT* or SST, then IK corridor vias as fallback.
             omy_checker = make_cspace_checker(kin, adapter.get_occupancy())
             if algo == "rrt_star":
                 coarse = _omy_rrt_star_path(
+                    start, goal, checker=omy_checker, seed=seed
+                )
+            elif algo == "sst":
+                coarse = _omy_sst_path(
                     start, goal, checker=omy_checker, seed=seed
                 )
             if coarse is None:
