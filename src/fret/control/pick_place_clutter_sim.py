@@ -110,8 +110,8 @@ def _barrier_occupancy_for_scenario(
         return None
     kin = Kinematics(robot_model)
     names = _arm_joint_names(robot_model)
-    clearance = float(params.get("mpc_cspace_clearance_rad", 0.20))
-    n_samples = int(params.get("mpc_cspace_samples", 12000))
+    clearance = float(params.get("mpc_cspace_clearance_rad", 0.28))
+    n_samples = int(params.get("mpc_cspace_samples", 14000))
     return build_wall_cspace_barrier_occupancy(
         mjcf_path=str(xml),
         joint_limits=kin.joint_limits,
@@ -133,6 +133,8 @@ class ClutterPickPlaceResult:
     samples: list[PickPlaceSample]
     telemetry_csv_path: Path | None = None
     telemetry_manifest_path: Path | None = None
+    wall_contact_steps: int = 0
+    faulted_on_wall_contact: bool = False
 
 
 def _scenario_id(params: dict[str, Any]) -> str:
@@ -221,6 +223,17 @@ def _path_metrics(
 def _is_wall_geom(name: str | None) -> bool:
     """True for transfer-wall geoms (``transfer_wall`` or ``transfer_wall_*``)."""
     return name is not None and name.startswith("transfer_wall")
+
+
+def arm_contacts_transfer_wall(mj: Any, model: Any, data: Any) -> bool:
+    """True when any MuJoCo contact involves a ``transfer_wall*`` geom."""
+    for ci in range(data.ncon):
+        c = data.contact[ci]
+        g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1)
+        g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
+        if _is_wall_geom(g1) or _is_wall_geom(g2):
+            return True
+    return False
 
 
 def _path_clear_of_wall_meshes(
@@ -686,6 +699,12 @@ def simulate_pick_place_clutter(
     # rate-limited slews actually traverse idle → hover under the roof.
     q_cmd = _arm_q(mj, model, data, arm_names)
     last_phase_target = wp.idle.copy()
+    fault_on_wall = bool(params.get("fault_on_wall_contact", False))
+    # Debounce single-tick numerical flicker (~10 ms at 2 ms timestep).
+    wall_hold_needed = max(1, int(params.get("wall_contact_fault_steps", 5)))
+    wall_streak = 0
+    wall_contact_steps = 0
+    faulted_on_wall = False
 
     for step_i in range(max_steps):
         q = _arm_q(mj, model, data, arm_names)
@@ -754,6 +773,21 @@ def simulate_pick_place_clutter(
         data.ctrl[act_al] = adhere
         data.ctrl[act_ar] = adhere
         mj.mj_step(model, data)
+
+        if arm_contacts_transfer_wall(mj, model, data):
+            wall_contact_steps += 1
+            wall_streak += 1
+            if (
+                fault_on_wall
+                and not faulted_on_wall
+                and wall_streak >= wall_hold_needed
+                and fsm.state
+                not in {PickPlaceState.DONE, PickPlaceState.FAULT}
+            ):
+                fsm.fault()
+                faulted_on_wall = True
+        else:
+            wall_streak = 0
 
         if tele is not None:
             q_now = _arm_q(mj, model, data, arm_names)
@@ -841,6 +875,8 @@ def simulate_pick_place_clutter(
         samples=samples,
         telemetry_csv_path=tele_csv,
         telemetry_manifest_path=tele_manifest,
+        wall_contact_steps=wall_contact_steps,
+        faulted_on_wall_contact=faulted_on_wall,
     )
 
 

@@ -7,7 +7,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from fret.control.cspace_mpc_occupancy import (
+    mujoco_wall_occupied_predicate,
+    sample_colliding_configurations,
+)
+from fret.control.kinematics import Kinematics
 from fret.control.pick_place_clutter_sim import (
+    arm_contacts_transfer_wall,
     plan_transfer_path,
     run_pick_place_clutter,
     walls_from_scenario,
@@ -114,11 +120,15 @@ def test_omx_wall_maze_physics_places_ball() -> None:
 
 
 def test_omx_wall_maze_mpc_transfer_avoids_wall_contacts() -> None:
-    """Joint MPC C-space barriers must keep wall-contact frames rare."""
+    """Joint MPC C-space barriers + contact FAULT must keep walls clear."""
     result = run_pick_place_clutter(
         duration_s=55.0, scenario_path=_SCENARIO, max_attempts=6
     )
     assert result.state == PickPlaceState.DONE, f"ended in {result.state.name}"
+    assert not result.faulted_on_wall_contact
+    assert (
+        result.wall_contact_steps == 0
+    ), f"unexpected wall contacts: {result.wall_contact_steps}"
     assert len(result.samples) >= 20
 
     path = mjcf_path("open_manipulator_x", "omx_wall_maze")
@@ -168,3 +178,50 @@ def test_omx_wall_maze_mpc_transfer_avoids_wall_contacts() -> None:
     rate = contact_frames / max(checked, 1)
     # v1.4.0 release clips were ~20% wall-contact; barriers should cut that.
     assert rate < 0.08, f"wall-contact rate {rate:.1%} too high"
+
+
+def test_arm_contacts_transfer_wall_detects_collision_pose() -> None:
+    """Contact predicate must fire on a MuJoCo wall-colliding joint pose."""
+    kin = Kinematics("open_manipulator_x")
+    xml = mjcf_path("open_manipulator_x", "omx_wall_maze")
+    pred = mujoco_wall_occupied_predicate(str(xml))
+    hits = sample_colliding_configurations(
+        pred,
+        kin.joint_limits,
+        n_samples=6000,
+        rng=np.random.default_rng(11),
+    )
+    assert hits.shape[0] >= 5
+    model = mujoco.MjModel.from_xml_path(str(xml))
+    data = mujoco.MjData(model)
+    names = ("Joint1", "Joint2", "Joint3", "Joint4")
+    for i, n in enumerate(names):
+        jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)
+        data.qpos[model.jnt_qposadr[jid]] = float(hits[0][i])
+    box_jid = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
+    )
+    data.qpos[int(model.jnt_qposadr[box_jid]) : int(model.jnt_qposadr[box_jid]) + 3] = [
+        0.5,
+        0.5,
+        0.5,
+    ]
+    mujoco.mj_forward(model, data)
+    assert arm_contacts_transfer_wall(mujoco, model, data)
+
+
+def test_fsm_fault_helper_latches_fault() -> None:
+    from fret.control.pick_place_fsm import PickPlaceFSM, PickPlaceWaypoints
+
+    z = np.zeros(4, dtype=np.float64)
+    wp = PickPlaceWaypoints(
+        idle=z,
+        pick_hover=z,
+        pick_grasp=z,
+        place_hover=z,
+        place_grasp=z,
+    )
+    fsm = PickPlaceFSM(wp, dof=4)
+    fsm.start()
+    fsm.fault()
+    assert fsm.state == PickPlaceState.FAULT

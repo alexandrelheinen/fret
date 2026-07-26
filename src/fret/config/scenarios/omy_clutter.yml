@@ -30,6 +30,10 @@
         y_max: -0.085
         z_max: 0.30
     wall_inflate_m: 0.01
+    mpc_cspace_clearance_rad: 0.28
+    mpc_cspace_samples: 14000
+    fault_on_wall_contact: true
+    wall_contact_fault_steps: 5
     occupancy_density: 800.0
     max_transfer_radius_m: 0.65
     min_transfer_ee_z_m: -0.15
