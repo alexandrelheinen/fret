@@ -35,7 +35,7 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
         "transfer_wall_cap",
         "transfer_wall_stem_p",
         "transfer_wall_cap_p",
-        "place_cone",
+        "place_bucket",
     ):
         assert (
             mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name) >= 0

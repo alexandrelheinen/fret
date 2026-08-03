@@ -6,9 +6,9 @@ a loadable scene under ``src/fret/mjcf/.generated/`` with an absolute meshdir.
 
 SC-v13b/c also inject finger-pad geoms and MuJoCo adhesion actuators so the
 parallel gripper can lift the free ball under full physics (stock Menagerie
-finger meshes alone do not pinch reliably). Place-cone meshes in the scene
+finger meshes alone do not pinch reliably). Place-bucket meshes in the scene
 templates are rewritten to absolute paths (Menagerie ``meshdir`` would not
-find ``src/fret/mjcf/assets/cone.obj``).
+find ``src/fret/mjcf/assets/place_bucket.obj``).
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ _SUPPORTED_SCENES: frozenset[str] = frozenset(
 _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
     {"omx_pick_place", "omx_desk_clutter", "omx_wall_maze"}
 )
-_CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
+_BUCKET_MESH_PLACEHOLDER = 'file="assets/place_bucket.obj"'
 
 # Pad contype=4: collide with the ball (14) but not with arm meshes (1).
 # Soft, high-friction pads (tennis-ball felt grip). Half-Y 0.007 pinches Ø40 mm
@@ -73,7 +73,7 @@ def omx_scene_template(scene: str) -> Path:
 
 
 def fret_mjcf_assets_dir() -> Path:
-    """Return ``src/fret/mjcf/assets`` (cone primitive, …)."""
+    """Return ``src/fret/mjcf/assets`` (place bucket, …)."""
     return Path(__file__).resolve().parent / "assets"
 
 
@@ -88,11 +88,11 @@ def _scene_additions(template_text: str) -> str:
     text = re.sub(r"^<mujoco\b[^>]*>\s*", "", text.strip())
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
-    cone = (fret_mjcf_assets_dir() / "cone.obj").resolve()
-    if _CONE_MESH_PLACEHOLDER in text:
-        if not cone.is_file():
-            raise FileNotFoundError(f"Place-cone mesh missing: {cone}")
-        text = text.replace(_CONE_MESH_PLACEHOLDER, f'file="{cone}"')
+    bucket = (fret_mjcf_assets_dir() / "place_bucket.obj").resolve()
+    if _BUCKET_MESH_PLACEHOLDER in text:
+        if not bucket.is_file():
+            raise FileNotFoundError(f"Place-bucket mesh missing: {bucket}")
+        text = text.replace(_BUCKET_MESH_PLACEHOLDER, f'file="{bucket}"')
     return text.strip()
 
 
