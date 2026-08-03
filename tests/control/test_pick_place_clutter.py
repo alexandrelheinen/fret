@@ -29,7 +29,8 @@ def test_omx_desk_clutter_mjcf_has_wall_and_cone() -> None:
         >= 0
     )
     assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_cone") >= 0
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bucket")
+        >= 0
     )
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pick_box") >= 0
     assert model.nu >= 7

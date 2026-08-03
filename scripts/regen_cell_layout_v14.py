@@ -138,6 +138,7 @@ def rewrite_pick_place_xml(
         if any(
             k in line
             for k in (
+                "place_bucket",
                 "place_cone",
                 "place_plate",
                 "place_cone_rim",

@@ -18,15 +18,14 @@ v1.2.3 showcase:
 
 1. **SC-v13a** — empty tabletop, end-effector pose A → B (validate command chain)
 2. **SC-v13b** — pick-and-place FSM: green → grasp plain box → red (no obstacles)
-3. **SC-v13c** — mid-chord wall + front place cone forces a retract detour
+3. **SC-v13c** — mid-chord wall + front place bucket forces a retract detour
 4. **SC-v13d** — dual Γ wall maze (front place): retract → climb → place
 
 **Pick object:** tennis-like MuJoCo ball (Ø 40 mm, grippy friction, density 400).
-Pick rests on the floor / table plane; place is a transparent non-colliding
-plate over a tip-down cone funnel (`mjcf/assets/cone.obj` visual + `funnel_w*`
-wall collision — MuJoCo convex-hulls meshes, so a solid mesh cone would not
-catch the ball). Cone mouth / rim match the red zone disk (r=0.05) so that disk is the funnel basis; mesh is double-sided for top-down visibility. AWS RoboMaker meshes stay for denser clutter later — too large
-to grasp.
+Pick rests on the floor / table plane; place is a scaled AWS warehouse bucket
+visual (`mjcf/assets/place_bucket.obj`) with analytic `funnel_w*` wall collision
+(MuJoCo convex-hulls meshes, so a solid mesh container would not catch the
+ball). Mouth radius matches the red zone disk (r=0.05).
 
 ---
 
@@ -61,7 +60,7 @@ Implementation substates:
 
 `IDLE → APPROACH_PICK → DESCEND_PICK → GRASP → LIFT → MOVE_PLACE → DESCEND_PLACE → RELEASE → RETREAT → DONE`
 
-**SC-v13c:** floor pick + front place cone plus a mid-chord wall. ``MOVE_PLACE`` is planned
+**SC-v13c:** floor pick + front place bucket plus a mid-chord wall. ``MOVE_PLACE`` is planned
 around the wall (not a straight joint-space line). Grasp / lift / release
 SC-v13b phase targets use the same joint-space MPC.
 
@@ -75,7 +74,7 @@ pick ball) — forces back-out from under the roof, climb, then place.
 | File | Status |
 |---|---|
 | `src/fret/mjcf/omx_tabletop.xml` | ✅ Empty cell (SC-v13a) |
-| `src/fret/mjcf/omx_pick_place.xml` | ✅ Ball + cone (SC-v13b) |
+| `src/fret/mjcf/omx_pick_place.xml` | ✅ Ball + place bucket (SC-v13b) |
 | `src/fret/mjcf/omx_desk_clutter.xml` | ✅ Mid-cell wall (SC-v13c) |
 | `src/fret/mjcf/omx_wall_maze.xml` | ✅ Γ stem+cap maze (SC-v13d) |
 | `src/fret/control/kinematics_open_manipulator_x.py` | ✅ Menagerie FK |

@@ -26,7 +26,7 @@ _SUPPORTED_SCENES: frozenset[str] = frozenset(
 _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
     {"omy_pick_place", "omy_clutter"}
 )
-_CONE_MESH_PLACEHOLDER = 'file="assets/cone.obj"'
+_BUCKET_MESH_PLACEHOLDER = 'file="assets/place_bucket.obj"'
 
 # Pad contype=4: collide with the ball (14) but not with arm meshes (1).
 # Soft, high-friction pads (tennis-ball felt grip). Half-Y ~0.012 pinches Ø86 mm.
@@ -86,7 +86,7 @@ def omy_scene_template(scene: str) -> Path:
 
 
 def fret_mjcf_assets_dir() -> Path:
-    """Return ``src/fret/mjcf/assets`` (cone primitive, …)."""
+    """Return ``src/fret/mjcf/assets`` (place bucket, …)."""
     return Path(__file__).resolve().parent / "assets"
 
 
@@ -101,11 +101,11 @@ def _scene_additions(template_text: str) -> str:
     text = re.sub(r"^<mujoco\b[^>]*>\s*", "", text.strip())
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
-    cone = (fret_mjcf_assets_dir() / "cone.obj").resolve()
-    if _CONE_MESH_PLACEHOLDER in text:
-        if not cone.is_file():
-            raise FileNotFoundError(f"Place-cone mesh missing: {cone}")
-        text = text.replace(_CONE_MESH_PLACEHOLDER, f'file="{cone}"')
+    bucket = (fret_mjcf_assets_dir() / "place_bucket.obj").resolve()
+    if _BUCKET_MESH_PLACEHOLDER in text:
+        if not bucket.is_file():
+            raise FileNotFoundError(f"Place-bucket mesh missing: {bucket}")
+        text = text.replace(_BUCKET_MESH_PLACEHOLDER, f'file="{bucket}"')
     return text.strip()
 
 

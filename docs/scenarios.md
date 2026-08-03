@@ -88,9 +88,9 @@ no obstacles.
 **Model:** `open_manipulator_x`
 
 **Purpose:** Validate the manipulation FSM under full MuJoCo physics — stretch to
-pick a Ø 40 mm ball from the floor (green start zone) and drop it into the red
-place cone (tip-down funnel under a transparent plate). No obstacles. AWS
-warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
+pick a Ø 40 mm ball from the floor (green start zone) and drop it into a scaled
+AWS warehouse **bucket** (visual) with analytic funnel walls that catch the ball.
+No obstacles.
 
 **Pass criteria:** See [releases.md § v1.2.3](releases.md#v123--openmanipulator-x-tabletop).
 
@@ -99,16 +99,16 @@ warehouse meshes stay for denser clutter later — too large for the OM-X jaw.
 **File:** `config/scenarios/omx_desk_clutter.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Floor pick on −Y and **front** place cone on +X; a mid-chord wall
+**Purpose:** Floor pick on −Y and **front** place bucket on +X; a mid-chord wall
 blocks the straight transfer so the planner + controller must retract around
-it under full MuJoCo physics (AWS meshes later).
+it under full MuJoCo physics.
 
 ### SC-v13d — OpenMANIPULATOR-X dual Γ-wall maze (v1.2.3 / v1.4)
 
 **File:** `config/scenarios/omx_wall_maze.yml`  
 **Model:** `open_manipulator_x`
 
-**Purpose:** Front place cone on +X with a **dual Γ** obstacle — stems flank
+**Purpose:** Front place bucket on +X with a **dual Γ** obstacle — stems flank
 the place corridor and caps overhang ±Y — so the arm cannot swing either side
 and must back out → climb → place. Arm↔wall collision bitmasks stay active
 (`contype`/`conaffinity` = 1).
@@ -130,14 +130,15 @@ SITL wiring for the 6-DOF arm (same role as SC-v13a for OM-X).
 
 **Purpose:** Pick a Ø 86 mm ball from the **floor** at ~0.46 m forward
 reach (same OMX SC-v13b pattern: pads pinch the equator) and place it in a
-tip-down cone funnel at a loaded-reachable pose — 6-DOF analogue of SC-v13b.
+scaled AWS warehouse **bucket** at a loaded-reachable pose — 6-DOF analogue of
+SC-v13b.
 
 ### SC-v14c — OpenMANIPULATOR-Y cluttered floor pick-and-place (v1.2.4 / v1.4)
 
 **File:** `config/scenarios/omy_clutter.yml`  
 **Model:** `omy`
 
-**Purpose:** Same floor ball + **front** place cone as SC-v14b, plus a
+**Purpose:** Same floor ball + **front** place bucket as SC-v14b, plus a
 mid-chord wall between pick (−Y) and place (+X) so the transfer must detour
 (6-DOF analogue of SC-v13c).
 

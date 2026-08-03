@@ -3,7 +3,7 @@
 
 Sizing rules (SC-v14b/c, matching docs/scenarios.md):
   - Pick object: Ø 86 mm sphere on the **floor** (no pedestal)
-  - Cone diameter ≈ place funnel; cone height = diameter
+  - Place bucket mouth diameter ≈ place funnel; height = diameter
   - Pick / place radial reach ~0.49 m (forward stretch, not full extension)
   - Clutter wall perpendicular to pick→place LOS at the midpoint
 
@@ -36,12 +36,21 @@ _PLACE_XY = (0.480, 0.000)
 _CLUTTER_PICK_XY = (0.40, -0.28)
 _CLUTTER_PLACE_XY = (0.50, 0.20)
 
-# OMX reference cone (assets/cone.obj native size).
+# OMX reference place envelope (funnel mouth / height).
 _OMX_CONE_R = 0.05
 _OMX_CONE_H = 0.098
 _OMX_PLACE = (0.273, 0.160)
 _SCALE_XY = _CONE_RADIUS_M / _OMX_CONE_R
 _SCALE_Z = _CONE_HEIGHT_M / _OMX_CONE_H
+# Native place_bucket.obj extents (bottom-centered AWS Bucket_01).
+_BUCKET_SX = 0.94106129
+_BUCKET_SY = 1.21770874
+_BUCKET_SZ = 1.40414841
+_BUCKET_SCALE = (
+    (2.0 * _CONE_RADIUS_M) / _BUCKET_SX,
+    (2.0 * _CONE_RADIUS_M) / _BUCKET_SY,
+    _CONE_HEIGHT_M / _BUCKET_SZ,
+)
 
 # Funnel walls: rigid ball catcher (OMX SC-v13b: contype=2 pedestal class).
 # Visual mesh non-colliding; funnel_w*/tip collide with the ball (not ghost).
@@ -102,8 +111,8 @@ def _scene_header(model_name: str, comment: str) -> str:
     {comment}
 
     Pick: Ø {ball_d_mm:.0f} mm sphere resting on the floor / table plane.
-    Place: tip-down cone funnel — Ø {cone_d_mm:.0f} mm, height {cone_d_mm:.0f} mm.
-    Cone mesh: assets/cone.obj (scaled in geom).
+    Place: AWS warehouse bucket visual (scaled) + funnel_w* collision.
+    Bucket mesh: assets/place_bucket.obj (mouth Ø {cone_d_mm:.0f} mm).
 
   -->
   <include file="omy.xml"/>
@@ -128,20 +137,19 @@ def _scene_header(model_name: str, comment: str) -> str:
              markrgb="0.55 0.56 0.58" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true"
               texrepeat="4 4" reflectance="0.05"/>
-    <material name="place_cone" rgba="0.55 0.42 0.35 1"/>
-    <material name="place_plate" rgba="0.85 0.35 0.28 0.45"/>
+    <material name="place_bucket" rgba="0.58 0.60 0.63 1"/>
     <material name="start_zone" rgba="0.20 0.75 0.35 0.35"/>
     <material name="goal_zone" rgba="0.85 0.25 0.20 0.35"/>
     <material name="pick_ball" rgba="0.85 0.92 0.20 1" reflectance="0.05"/>
     <material name="vision_portal" rgba="0.35 0.38 0.42 1"/>
-    <mesh name="place_cone" file="assets/cone.obj" scale="{_SCALE_XY:.5f} {_SCALE_XY:.5f} {_SCALE_Z:.5f}"/>
+    <mesh name="place_bucket" file="assets/place_bucket.obj" scale="{_BUCKET_SCALE[0]:.5f} {_BUCKET_SCALE[1]:.5f} {_BUCKET_SCALE[2]:.5f}"/>
   </asset>
 
   <worldbody>
     <light name="key" pos="0.95 0.0 1.6" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
-    <!-- Contact bits: arm=1, cone=2, pads=4, floor=1|8.
-         Ball=2|4|8 hits floor/pads/cone but not arm links. -->
+    <!-- Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.
+         Ball=2|4|8 hits floor/pads/catcher but not arm links. -->
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
 """
@@ -182,20 +190,11 @@ def _scene_footer(
           friction="1.0 0.1 0.01" contype="1" conaffinity="1"/>
 """
     return f"""
-    <!-- Visual mesh only; funnel_w* / funnel_tip carry rigid collision. -->
-    <geom name="place_cone" type="mesh" mesh="place_cone"
+    <!-- Bucket visual only; funnel_w* / funnel_tip carry rigid collision. -->
+    <geom name="place_bucket" type="mesh" mesh="place_bucket"
           pos="{_fmt_pos(place_xy[0], place_xy[1], 0.0)}"
-          material="place_cone" contype="0" conaffinity="0"/>
+          material="place_bucket" contype="0" conaffinity="0"/>
 {chr(10).join(funnel_lines)}
-
-    <geom name="place_plate" type="cylinder"
-          pos="{_fmt_pos(place_xy[0], place_xy[1], plate_z)}"
-          size="{_CONE_RADIUS_M:.5f} 0.001"
-          material="place_plate" contype="0" conaffinity="0"/>
-    <geom name="place_cone_rim" type="cylinder"
-          pos="{_fmt_pos(place_xy[0], place_xy[1], plate_z)}"
-          size="{_CONE_RADIUS_M:.5f} 0.0015"
-          material="place_cone" contype="0" conaffinity="0"/>
 
     <geom name="start_zone" type="cylinder"
           pos="{_fmt_pos(pick_xy[0], pick_xy[1], start_z)}"

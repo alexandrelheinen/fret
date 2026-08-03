@@ -145,10 +145,8 @@ def test_omx_pick_place_mjcf_loads() -> None:
     assert model.nu >= 7
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pick_box") >= 0
     assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_cone") >= 0
-    )
-    assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_plate") >= 0
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bucket")
+        >= 0
     )
     ball = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "pick_box_geom")
     assert ball >= 0
@@ -173,6 +171,6 @@ def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
     assert (
         float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
     ), "ball should leave the pick spot"
-    # Settled in the tip-down cone (not still at plate height ~0.11).
+    # Settled in the place receptacle (not still near rim height ~0.11).
     # Ø40 mm ball rests a bit higher than the old Ø25 mm threshold.
-    assert float(ball[2]) < 0.10, "ball should settle down inside the cone"
+    assert float(ball[2]) < 0.10, "ball should settle inside the place bucket"
