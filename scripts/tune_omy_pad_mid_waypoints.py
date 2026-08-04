@@ -81,7 +81,9 @@ def compute_waypoints(
     cone_height_m: float = 0.280,
     # Pad-mid above the rim for the drop. Must clear the held ball against the
     # catcher and keep forearm/wrist out of the bin side walls (link4/5).
-    place_drop_clearance_m: float = 0.260,
+    # Keep drop close to the proven settle height (~rim + 0.095 m); raising
+    # further often lands the ball on the rim instead of in the funnel.
+    place_drop_clearance_m: float = 0.095,
     ball_pick_z_m: float | None = None,
     gripper_pinch: float = _GRIPPER_PINCH,
     idle: np.ndarray | None = None,
