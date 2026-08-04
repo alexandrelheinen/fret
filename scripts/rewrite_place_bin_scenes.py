@@ -227,7 +227,7 @@ def _replace_place_block(
     new_text = new_text.replace(anchor, bin_xml + anchor, 1)
     new_text = re.sub(
         r'(<geom name="goal_zone"[^>]*?pos=")([0-9.eE+-]+) ([0-9.eE+-]+) ([0-9.eE+-]+)',
-        rf"\g<1>{cx:.5f} {cy:.5f} {height + 0.001:.5f}",
+        rf"\g<1>{cx:.5f} {cy:.5f} 0.00200",
         new_text,
         count=1,
     )
