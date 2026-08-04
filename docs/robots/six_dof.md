@@ -16,7 +16,7 @@ without intermediate maze steps:
 | Scenario | File | Purpose |
 |---|---|---|
 | SC-v14a | `omy_reach.yml` | Empty tabletop joint-space reach |
-| SC-v14b | `omy_pick_place.yml` | Floor ball → bucket pick-and-place (+ CV in v1.4) |
+| SC-v14b | `omy_pick_place.yml` | Floor ball → place-bin pick-and-place (+ CV in v1.4) |
 | SC-v14c | `omy_clutter.yml` | Cluttered floor pick-and-place with detour |
 
 Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
@@ -40,7 +40,7 @@ Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
 | File | Purpose |
 |---|---|
 | `src/fret/mjcf/omy_tabletop.xml` | Empty reach cell |
-| `src/fret/mjcf/omy_pick_place.xml` | Floor ball + place bucket |
+| `src/fret/mjcf/omy_pick_place.xml` | Floor ball + place bin |
 | `src/fret/mjcf/omy_clutter.xml` | Pick-place + transfer wall |
 | `src/fret/mjcf/omy.py` | Menagerie inject + fingertip adhesion pads |
 | `src/fret/config/scenarios/omy_*.yml` | SC-v14a–c parameters |

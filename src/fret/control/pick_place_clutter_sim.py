@@ -36,6 +36,9 @@ from fret.control.pick_place_fsm import (
     PickPlaceObservation,
     PickPlaceState,
 )
+from fret.control.pick_place_planning import (
+    walls_from_scenario as _walls_from_scenario_shared,
+)
 from fret.control.pick_place_sim import waypoints_from_scenario
 from fret.interfaces import (
     OccupancyUpdatePayload,
@@ -182,43 +185,12 @@ def walls_from_scenario(
     *,
     inflate: bool = False,
 ) -> list[BoxObstacle]:
-    """Build wall boxes from scenario YAML (single slab or ``walls`` list)."""
-    p = load_scenario_parameters(scenario_path or _SCENARIO)
-    pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
-    raw = p.get("walls")
-    if isinstance(raw, list) and raw:
-        boxes: list[BoxObstacle] = []
-        for entry in raw:
-            if not isinstance(entry, dict):
-                raise ValueError("walls entries must be mappings")
-            if "y_min" in entry and "y_max" in entry:
-                y_min = float(entry["y_min"]) - pad
-                y_max = float(entry["y_max"]) + pad
-            else:
-                y_half = float(entry["y_half"])
-                y_min = -y_half - pad
-                y_max = y_half + pad
-            boxes.append(
-                BoxObstacle(
-                    x_min=float(entry["x_min"]) - pad,
-                    y_min=y_min,
-                    z_min=float(entry.get("z_min", 0.0)),
-                    x_max=float(entry["x_max"]) + pad,
-                    y_max=y_max,
-                    z_max=float(entry["z_max"]),
-                )
-            )
-        return boxes
-    return [
-        BoxObstacle(
-            x_min=float(p["wall_x_min"]) - pad,
-            y_min=-float(p["wall_y_half"]) - pad,
-            z_min=0.0,
-            x_max=float(p["wall_x_max"]) + pad,
-            y_max=float(p["wall_y_half"]) + pad,
-            z_max=float(p["wall_z_max"]),
-        )
-    ]
+    """Build wall boxes from scenario YAML, including the place-bin shell."""
+    return _walls_from_scenario_shared(
+        scenario_path or _SCENARIO,
+        inflate=inflate,
+        include_place_shell=True,
+    )
 
 
 def wall_from_scenario(

@@ -35,7 +35,7 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
         "transfer_wall_cap",
         "transfer_wall_stem_p",
         "transfer_wall_cap_p",
-        "place_bucket",
+        "place_bin_bottom",
     ):
         assert (
             mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name) >= 0
@@ -47,7 +47,8 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
     assert int(model.geom_contype[stem]) == 1
     assert int(model.geom_conaffinity[stem]) == 1
     walls = walls_from_scenario(_SCENARIO)
-    assert len(walls) == 4
+    # 4 Γ slabs + 4 place-bin side shells.
+    assert len(walls) == 8
     params = load_scenario_parameters(_SCENARIO)
     place_xy = np.asarray(params["place_xy"], dtype=np.float64)
     pick_y = float(params["pick_xy"][1])

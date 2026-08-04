@@ -104,11 +104,14 @@ def mujoco_wall_occupied_predicate(
     mjcf_path: str,
     *,
     joint_names: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4"),
-    wall_prefix: str = "transfer_wall",
+    wall_prefix: str | tuple[str, ...] = "transfer_wall",
 ) -> Callable[[npt.NDArray[np.float64]], bool]:
     """Return ``is_occupied(q)`` using MuJoCo contacts with wall geoms."""
     import mujoco as mj
 
+    prefixes = (
+        (wall_prefix,) if isinstance(wall_prefix, str) else tuple(wall_prefix)
+    )
     model = mj.MjModel.from_xml_path(str(mjcf_path))
     data = mj.MjData(model)
     qadrs = [
@@ -130,7 +133,10 @@ def mujoco_wall_occupied_predicate(
             c = data.contact[ci]
             g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1) or ""
             g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2) or ""
-            if g1.startswith(wall_prefix) or g2.startswith(wall_prefix):
+            if any(
+                g1.startswith(prefix) or g2.startswith(prefix)
+                for prefix in prefixes
+            ):
                 return True
         return False
 

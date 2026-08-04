@@ -26,7 +26,6 @@ _SUPPORTED_SCENES: frozenset[str] = frozenset(
 _PHYSICAL_GRIPPER_SCENES: frozenset[str] = frozenset(
     {"omy_pick_place", "omy_clutter"}
 )
-_BUCKET_MESH_PLACEHOLDER = 'file="assets/place_bucket.obj"'
 
 # Pad contype=4: collide with the ball (14) but not with arm meshes (1).
 # Soft, high-friction pads (tennis-ball felt grip). Half-Y ~0.012 pinches Ø86 mm.
@@ -86,7 +85,7 @@ def omy_scene_template(scene: str) -> Path:
 
 
 def fret_mjcf_assets_dir() -> Path:
-    """Return ``src/fret/mjcf/assets`` (place bucket, …)."""
+    """Return ``src/fret/mjcf/assets``."""
     return Path(__file__).resolve().parent / "assets"
 
 
@@ -101,11 +100,6 @@ def _scene_additions(template_text: str) -> str:
     text = re.sub(r"^<mujoco\b[^>]*>\s*", "", text.strip())
     text = re.sub(r"</mujoco>\s*$", "", text.strip())
     text = re.sub(r"<!--.*?-->\s*", "", text, count=1, flags=re.DOTALL)
-    bucket = (fret_mjcf_assets_dir() / "place_bucket.obj").resolve()
-    if _BUCKET_MESH_PLACEHOLDER in text:
-        if not bucket.is_file():
-            raise FileNotFoundError(f"Place-bucket mesh missing: {bucket}")
-        text = text.replace(_BUCKET_MESH_PLACEHOLDER, f'file="{bucket}"')
     return text.strip()
 
 
@@ -155,7 +149,7 @@ def _enable_floor_pick_contacts(robot_xml: str) -> str:
 
     Menagerie wrist/finger STLs penetrate the plane at a true floor pinch.
     Distal meshes use pad bit 4 (ball only): no floor fight on pinch, and no
-    funnel-wall jam on transfer (cone is bit 2). Proximal links keep bit 1.
+    place-funnel jam on transfer (funnel is bit 2). Proximal links keep bit 1.
     """
     # Wrist / flange / fingers: ball only (same bit as pads).
     for mesh in ("link5", "link6", "r1", "r2", "l1", "l2"):

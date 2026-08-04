@@ -22,17 +22,77 @@ from fret.scene.occupancy_adapter import OccupancyAdapter
 from fret.sitl_config import load_scenario_parameters
 
 
+def place_shell_from_params(params: dict[str, Any]) -> list[BoxObstacle]:
+    """Return four thin side slabs around the place bin (hollow, not solid).
+
+    A filled AABB over the place volume would poison ``place_hover`` /
+    ``place_grasp``. Side shells block lateral swings through the receptacle
+    while leaving the top-down drop corridor free.
+    """
+    if "place_xy" not in params or "place_cone_radius_m" not in params:
+        return []
+    cx, cy = (float(v) for v in params["place_xy"][:2])
+    radius = float(params["place_cone_radius_m"])
+    height = float(params.get("place_cone_height_m", 2.0 * radius))
+    # Match MJCF wall thickness (~10% of radius, clamped). Walls sit outside
+    # the place radius so the opening contains the YAML place disk.
+    thickness = min(max(0.004, 0.10 * radius), 0.012)
+    inner = radius
+    outer = radius + thickness
+    z_max = height
+    return [
+        BoxObstacle(
+            x_min=cx + inner,
+            x_max=cx + outer,
+            y_min=cy - outer,
+            y_max=cy + outer,
+            z_min=0.0,
+            z_max=z_max,
+        ),
+        BoxObstacle(
+            x_min=cx - outer,
+            x_max=cx - inner,
+            y_min=cy - outer,
+            y_max=cy + outer,
+            z_min=0.0,
+            z_max=z_max,
+        ),
+        BoxObstacle(
+            x_min=cx - inner,
+            x_max=cx + inner,
+            y_min=cy + inner,
+            y_max=cy + outer,
+            z_min=0.0,
+            z_max=z_max,
+        ),
+        BoxObstacle(
+            x_min=cx - inner,
+            x_max=cx + inner,
+            y_min=cy - outer,
+            y_max=cy - inner,
+            z_min=0.0,
+            z_max=z_max,
+        ),
+    ]
+
+
 def walls_from_scenario(
     scenario_path: str | Path,
     *,
     inflate: bool = False,
+    include_place_shell: bool = True,
 ) -> list[BoxObstacle]:
-    """Build wall boxes from scenario YAML (single slab or ``walls`` list)."""
+    """Build wall boxes from scenario YAML (single slab or ``walls`` list).
+
+    When ``include_place_shell`` is true (default), appends four thin place-bin
+    side slabs from ``place_xy`` / ``place_cone_*`` so planners treat the
+    receptacle as an obstacle.
+    """
     p = load_scenario_parameters(scenario_path)
     pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
     raw = p.get("walls")
+    boxes: list[BoxObstacle] = []
     if isinstance(raw, list) and raw:
-        boxes: list[BoxObstacle] = []
         for entry in raw:
             if not isinstance(entry, dict):
                 raise ValueError("walls entries must be mappings")
@@ -53,17 +113,30 @@ def walls_from_scenario(
                     z_max=float(entry["z_max"]),
                 )
             )
-        return boxes
-    return [
-        BoxObstacle(
-            x_min=float(p["wall_x_min"]) - pad,
-            y_min=-float(p["wall_y_half"]) - pad,
-            z_min=0.0,
-            x_max=float(p["wall_x_max"]) + pad,
-            y_max=float(p["wall_y_half"]) + pad,
-            z_max=float(p["wall_z_max"]),
+    elif "wall_x_min" in p:
+        boxes.append(
+            BoxObstacle(
+                x_min=float(p["wall_x_min"]) - pad,
+                y_min=-float(p["wall_y_half"]) - pad,
+                z_min=0.0,
+                x_max=float(p["wall_x_max"]) + pad,
+                y_max=float(p["wall_y_half"]) + pad,
+                z_max=float(p["wall_z_max"]),
+            )
         )
-    ]
+    if include_place_shell:
+        for shell in place_shell_from_params(p):
+            boxes.append(
+                BoxObstacle(
+                    x_min=shell.x_min - pad,
+                    y_min=shell.y_min - pad,
+                    z_min=shell.z_min,
+                    x_max=shell.x_max + pad,
+                    y_max=shell.y_max + pad,
+                    z_max=shell.z_max,
+                )
+            )
+    return boxes
 
 
 def _sample_walls(
