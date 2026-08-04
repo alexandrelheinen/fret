@@ -48,9 +48,11 @@
     pick_hover_configuration: [-0.2011, 0.6388, 2.1264, -0.2088, -0.8766, -0.0005]
     pick_grasp_configuration: [-0.1518, 0.8030, 2.1535, -0.0835, -0.7328, 0.0094]
     lift_hover_configuration: [-0.1588, 0.4894, 2.2404, -0.2132, -0.7513, -0.0234]
-    place_hover_configuration: [0.4304, 0.3638, 1.4970, -0.1607, -0.9983, 0.0291]
-    place_grasp_configuration: [0.4238, 0.3699, 1.8269, -0.2693, -1.0145, -0.0051]
+    # Wrist-up place family: clears link4 vs colliding place-bin walls.
+    place_hover_configuration: [0.6553, 0.0952, 1.2659, -0.5150, 0.5410, 0.1035]
+    place_grasp_configuration: [0.6416, 0.0835, 1.4870, -0.4121, 0.6016, 0.0771]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    transfer_detour_configuration: [0.1568, 0.2551, 2.2177, -0.3336, -0.9252, -0.0427]
+    # Retracted high via clears place-bin shell (old mid-cell via collides).
+    transfer_detour_configuration: [-0.4055, -0.1107, 1.6389, -0.3941, -0.8320, -0.0193]
     pick_xy: [0.350, -0.300]
     place_xy: [0.480, 0.000]
