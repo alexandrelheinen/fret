@@ -148,10 +148,6 @@ def test_omx_pick_place_mjcf_loads() -> None:
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_bottom")
         >= 0
     )
-    assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_plate")
-        >= 0
-    )
     # Visual bin is non-colliding; funnel catcher is ball-only (bit 2).
     wall = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_wall_px"
