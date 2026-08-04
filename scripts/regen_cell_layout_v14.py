@@ -275,10 +275,10 @@ def ik_omy(
     pick_z = float(data.xpos[box][2])
     ball = np.array([pick_xy[0], pick_xy[1], pick_z], dtype=np.float64)
     drop = np.array(
-        [place_xy[0], place_xy[1], 0.280 + 0.120], dtype=np.float64
+        [place_xy[0], place_xy[1], 0.280 + 0.260], dtype=np.float64
     )
     via = np.array(
-        [0.5 * (pick_xy[0] + place_xy[0]), 0.5 * pick_xy[1], 0.42],
+        [0.42, 0.5 * pick_xy[1], 0.58],
         dtype=np.float64,
     )
     specs = [

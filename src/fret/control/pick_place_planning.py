@@ -34,9 +34,11 @@ def place_shell_from_params(params: dict[str, Any]) -> list[BoxObstacle]:
     cx, cy = (float(v) for v in params["place_xy"][:2])
     radius = float(params["place_cone_radius_m"])
     height = float(params.get("place_cone_height_m", 2.0 * radius))
-    # Match MJCF wall thickness (~10% of radius, clamped). Walls sit outside
-    # the place radius so the opening contains the YAML place disk.
-    thickness = min(max(0.004, 0.10 * radius), 0.012)
+    # Match MJCF wall thickness (~10% of radius, clamped), plus an outer
+    # planner margin so transfers clear the visible bin / wrist package.
+    wall_t = min(max(0.004, 0.10 * radius), 0.012)
+    margin = float(params.get("place_shell_margin_m", 0.02))
+    thickness = wall_t + max(0.0, margin)
     inner = radius
     outer = radius + thickness
     z_max = height

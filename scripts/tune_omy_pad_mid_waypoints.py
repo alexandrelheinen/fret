@@ -79,9 +79,9 @@ def compute_waypoints(
     place_xy: tuple[float, float] = (0.50, 0.20),
     ball_radius_m: float = 0.043,
     cone_height_m: float = 0.280,
-    # Half end-effector package (~pads+fingers) above the rim for the drop.
-    # Target slightly high so residual IK error still clears the rim.
-    place_drop_clearance_m: float = 0.120,
+    # Pad-mid above the rim for the drop. Must clear the held ball against the
+    # catcher and keep forearm/wrist out of the bin side walls (link4/5).
+    place_drop_clearance_m: float = 0.260,
     ball_pick_z_m: float | None = None,
     gripper_pinch: float = _GRIPPER_PINCH,
     idle: np.ndarray | None = None,
