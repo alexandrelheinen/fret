@@ -29,10 +29,10 @@
     pick_hover_configuration: [-0.2011, 0.6388, 2.1264, -0.2088, -0.8766, -0.0005]
     pick_grasp_configuration: [-0.1518, 0.8030, 2.1535, -0.0835, -0.7328, 0.0094]
     lift_hover_configuration: [-0.1588, 0.4894, 2.2404, -0.2132, -0.7513, -0.0234]
-    place_hover_configuration: [0.6541, 0.3044, 0.7999, -0.8427, 0.5453, 0.1840]
-    place_grasp_configuration: [0.4337, 0.3828, 1.3267, -0.0853, -0.9902, 0.0530]
+    place_hover_configuration: [0.4304, 0.3638, 1.4970, -0.1607, -0.9983, 0.0291]
+    place_grasp_configuration: [0.4298, 0.3654, 1.8952, -0.2575, -0.9997, -0.0128]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
     # High mid-cell via: carry clears the colliding place funnel before drop.
-    transfer_via_configuration: [0.3958, 0.0749, 1.0969, -0.6971, 0.4318, 0.1210]
+    transfer_via_configuration: [0.1568, 0.2551, 2.2177, -0.3336, -0.9252, -0.0427]
     pick_xy: [0.350, -0.300]
     place_xy: [0.480, 0.000]
