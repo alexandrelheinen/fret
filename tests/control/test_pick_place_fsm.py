@@ -148,12 +148,14 @@ def test_omx_pick_place_mjcf_loads() -> None:
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_bottom")
         >= 0
     )
-    # Visual bin is non-colliding; funnel catcher is ball-only (bit 2).
+    # Bin walls collide with proximal arm (bit 1); funnel catcher is ball-only
+    # (bit 2). Distal pads stay on bit 4 so top-down drops are still free.
     wall = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_wall_px"
     )
     assert wall >= 0
-    assert int(model.geom_contype[wall]) == 0
+    assert int(model.geom_contype[wall]) == 1
+    assert int(model.geom_conaffinity[wall]) == 1
     funnel = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "funnel_w0")
     assert funnel >= 0
     assert int(model.geom_contype[funnel]) == 2
@@ -165,6 +167,42 @@ def test_omx_pick_place_mjcf_loads() -> None:
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "grip_left")
         >= 0
     )
+
+
+def test_omy_place_bin_blocks_proximal_arm() -> None:
+    """Elbow-down dunk into the bin must contact place_bin walls (not clip)."""
+    from fret.mjcf.omy import ensure_omy_pick_place_mjcf
+
+    model = mujoco.MjModel.from_xml_path(str(ensure_omy_pick_place_mjcf()))
+    data = mujoco.MjData(model)
+    names = [model.geom(i).name for i in range(model.ngeom)]
+    joints = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
+    # Historical elbow-down place_grasp that penetrates wall_nx when walls
+    # collide (contype=1). Must produce a place_bin contact.
+    dunk = [0.4298, 0.3654, 1.8952, -0.2575, -0.9997, -0.0128]
+    for name, val in zip(joints, dunk, strict=True):
+        adr = int(
+            model.jnt_qposadr[
+                mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+            ]
+        )
+        data.qpos[adr] = float(val)
+    data.qvel[:] = 0.0
+    mujoco.mj_forward(model, data)
+    for _ in range(8):
+        for name, val in zip(joints, dunk, strict=True):
+            aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
+            data.ctrl[aid] = float(val)
+        mujoco.mj_step(model, data)
+    bin_hits = []
+    for k in range(int(data.ncon)):
+        c = data.contact[k]
+        g1, g2 = names[c.geom1], names[c.geom2]
+        if (g1 and g1.startswith("place_bin")) or (
+            g2 and g2.startswith("place_bin")
+        ):
+            bin_hits.append((g1, g2))
+    assert bin_hits, "expected proximal arm ↔ place_bin contact on dunk pose"
 
 
 def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
