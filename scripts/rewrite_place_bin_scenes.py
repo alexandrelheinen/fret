@@ -130,10 +130,6 @@ def _bin_block(
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
         f'material="place_bin" contype="0" conaffinity="0"/>',
         *funnel_lines,
-        f'    <geom name="place_plate" type="cylinder" '
-        f'pos="{cx:.5f} {cy:.5f} {height:.5f}" '
-        f'size="{outer:.5f} 0.001" '
-        f'material="place_plate" contype="0" conaffinity="0"/>',
         f'    <geom name="place_bin_rim" type="cylinder" '
         f'pos="{cx:.5f} {cy:.5f} {height:.5f}" '
         f'size="{outer:.5f} 0.0015" '
