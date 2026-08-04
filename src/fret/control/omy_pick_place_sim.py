@@ -21,9 +21,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from fret.config_loader import load_algorithm_config, planning_config_for_model
 from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
-from fret.control.kinematics import Kinematics
 from fret.control.pick_place_common import (
     PickPlaceSample,
     adhesion_command,
@@ -37,7 +35,7 @@ from fret.control.pick_place_fsm import (
     PickPlaceState,
     PickPlaceWaypoints,
 )
-from fret.planning.trajectory_generator import TrajectoryGenerator
+from fret.control.pick_place_planning import plan_arm_transfer_path
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 from fret.telemetry.scenario_hooks import (
     arm_sample_values,
@@ -198,27 +196,14 @@ def simulate_omy_pick_place(
     if not use_vision:
         fsm.start()
 
-    # High mid-cell via keeps the carried ball clear of the colliding funnel
-    # during open-cell transfer (joint chord otherwise clips the rim).
-    via = params.get("transfer_via_configuration")
+    # Plan around the place-bin shell (same occupancy as clutter). A joint
+    # chord through lift→via→place drives link4 into the colliding wall.
     lift = wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
-    if via is not None:
-        coarse = [
-            np.asarray(lift, dtype=np.float64),
-            np.asarray(via, dtype=np.float64),
-            np.asarray(wp.place_hover, dtype=np.float64),
-        ]
-        kin = Kinematics(_MODEL)
-        cfg = load_algorithm_config(planning_config_for_model(_MODEL))
-        traj = TrajectoryGenerator(kin, cfg).process(coarse)
-        transfer_path = [
-            np.asarray(pt.positions, dtype=np.float64) for pt in traj.points
-        ]
-    else:
-        transfer_path = [
-            np.asarray(lift, dtype=np.float64),
-            np.asarray(wp.place_hover, dtype=np.float64),
-        ]
+    transfer_path, _straight_collides = plan_arm_transfer_path(
+        np.asarray(lift, dtype=np.float64),
+        np.asarray(wp.place_hover, dtype=np.float64),
+        scenario_path=scenario,
+    )
     transfer_tracker = JointPathMPCTracker(
         transfer_path,
         build_joint_mpc(6),

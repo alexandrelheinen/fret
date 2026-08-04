@@ -11,7 +11,8 @@
     scenario_id: omy_pick_place
     simulation_dt: 0.02
     duration: 45.0
-    planning_timeout: 60.0
+    planning_timeout: 30.0
+    max_planner_attempts: 12
     goal_tolerance: 0.16
     mjcf: mjcf/omy_pick_place.xml
     pick_object: ball
@@ -19,6 +20,13 @@
     place_cone_height_m: 0.280
     place_cone_radius_m: 0.140
     grasp_mode: mujoco_adhesion
+    # Transfer plans around place-bin side shells (proximal arm collides in MJCF).
+    planner_algorithm: rrt_star
+    planner_rng_seed: 7
+    prefer_transfer_detour: true
+    occupancy_density: 800.0
+    max_transfer_radius_m: 0.65
+    min_transfer_ee_z_m: -0.15
     # Floor ball centre ~0.043 m; adhered lift settles near ~0.12 m pad mid.
     lift_height_m: 0.10
     phase_timeout_s: 45.0
@@ -26,10 +34,12 @@
     pick_hover_configuration: [-0.2011, 0.6388, 2.1264, -0.2088, -0.8766, -0.0005]
     pick_grasp_configuration: [-0.1518, 0.8030, 2.1535, -0.0835, -0.7328, 0.0094]
     lift_hover_configuration: [-0.1588, 0.4894, 2.2404, -0.2132, -0.7513, -0.0234]
-    place_hover_configuration: [0.6551, 0.0951, 1.2655, -0.5150, 0.5420, 0.1038]
-    place_grasp_configuration: [0.6551, 0.0951, 1.2655, -0.5150, 0.5420, 0.1038]
+    # Wrist-up place family: clears link4 vs colliding bin (elbow-down jams).
+    place_hover_configuration: [0.6553, 0.0952, 1.2659, -0.5150, 0.5410, 0.1035]
+    place_grasp_configuration: [0.6416, 0.0835, 1.4870, -0.4121, 0.6016, 0.0771]
     retreat_configuration: [0.7506, -0.8762, 1.7473, 0.3442, 1.4352, 0.0001]
-    # High mid-cell via: carry clears the colliding place funnel before drop.
-    transfer_via_configuration: [0.1568, 0.2551, 2.2177, -0.3336, -0.9252, -0.0427]
+    # Retracted high via: lift→via→place chords clear the place-bin shell.
+    transfer_detour_configuration: [-0.4055, -0.1107, 1.6389, -0.3941, -0.8320, -0.0193]
+    transfer_via_configuration: [-0.4055, -0.1107, 1.6389, -0.3941, -0.8320, -0.0193]
     pick_xy: [0.350, -0.300]
     place_xy: [0.480, 0.000]
