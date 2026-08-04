@@ -91,7 +91,7 @@
     <geom name="place_bin_rim" type="cylinder" pos="0.26000 0.00000 0.09800" size="0.05500 0.0015" material="place_bin" contype="0" conaffinity="0"/>
     <geom name="start_zone" type="cylinder" pos="0.18000 -0.26000 0.00100" size="0.05 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
-    <geom name="goal_zone" type="cylinder" pos="0.26000 0.00000 0.09900" size="0.05000 0.001"
+    <geom name="goal_zone" type="cylinder" pos="0.26000 0.00000 0.00200" size="0.05000 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
     <!-- Dual Γ flanking front place; outer stems + ±Y roofs. -->
