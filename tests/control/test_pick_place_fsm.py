@@ -145,9 +145,22 @@ def test_omx_pick_place_mjcf_loads() -> None:
     assert model.nu >= 7
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pick_box") >= 0
     assert (
-        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bucket")
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_bottom")
         >= 0
     )
+    assert (
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_plate")
+        >= 0
+    )
+    # Visual bin is non-colliding; funnel catcher is ball-only (bit 2).
+    wall = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_wall_px"
+    )
+    assert wall >= 0
+    assert int(model.geom_contype[wall]) == 0
+    funnel = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "funnel_w0")
+    assert funnel >= 0
+    assert int(model.geom_contype[funnel]) == 2
     ball = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "pick_box_geom")
     assert ball >= 0
     assert int(model.geom_type[ball]) == int(mujoco.mjtGeom.mjGEOM_SPHERE)
@@ -173,4 +186,4 @@ def test_omx_pick_place_physics_moves_ball_into_place_cone() -> None:
     ), "ball should leave the pick spot"
     # Settled in the place receptacle (not still near rim height ~0.11).
     # Ø40 mm ball rests a bit higher than the old Ø25 mm threshold.
-    assert float(ball[2]) < 0.10, "ball should settle inside the place bucket"
+    assert float(ball[2]) < 0.10, "ball should settle inside the place bin"
