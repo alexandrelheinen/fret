@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Replace AWS mop-bucket place mesh with a single open square bin.
 
-Visual: four wall boxes + bottom + mouth plate/rim (``contype=0``).
-Ball catch: restored analytic tip-down ``funnel_w*`` (bit 2, ball only).
-Arm avoidance: planner place-shell occupancy from ``place_xy`` / radius
-(see ``pick_place_planning.place_shell_from_params``). Distal place drop must
-enter the bin, so wall geoms are not bit-matched to proximal arm links.
+Walls/bottom use ``contype=1`` (proximal arm bit only): the arm cannot
+clip through the receptacle, while distal pads/wrist (bit 4) stay free for
+a top-down drop. The ball does **not** hit the visual walls (avoids rim
+perching); catch is the invisible tip-down ``funnel_w*`` (bit 2). Planner
+place-shell occupancy remains for transfer detours.
 """
 
 from __future__ import annotations
@@ -106,29 +106,30 @@ def _bin_block(
     z_c = hz
     bot_h = min(0.004, 0.25 * t)
     lines = [
-        "    <!-- Place bin: single open square receptacle (visual).",
-        "         Ball catch = invisible funnel_w* (bit 2).",
-        "         Arm avoidance = planner place-shell occupancy. -->",
+        "    <!-- Place bin: open square receptacle.",
+        "         Walls/bottom contype=1: proximal arm only (no ball rim perch).",
+        "         Distal pads/wrist (bit 4) free for top-down drop.",
+        "         Ball catch = invisible funnel_w* (bit 2). -->",
         f'    <geom name="place_bin_bottom" type="box" '
         f'pos="{cx:.5f} {cy:.5f} {0.5 * bot_h:.5f}" '
         f'size="{inner:.5f} {inner:.5f} {0.5 * bot_h:.5f}" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
+        f'material="place_bin" contype="1" conaffinity="1"/>',
         f'    <geom name="place_bin_wall_px" type="box" '
         f'pos="{cx + inner + 0.5 * t:.5f} {cy:.5f} {z_c:.5f}" '
         f'size="{0.5 * t:.5f} {outer:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
+        f'material="place_bin" contype="1" conaffinity="1"/>',
         f'    <geom name="place_bin_wall_nx" type="box" '
         f'pos="{cx - inner - 0.5 * t:.5f} {cy:.5f} {z_c:.5f}" '
         f'size="{0.5 * t:.5f} {outer:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
+        f'material="place_bin" contype="1" conaffinity="1"/>',
         f'    <geom name="place_bin_wall_py" type="box" '
         f'pos="{cx:.5f} {cy + inner + 0.5 * t:.5f} {z_c:.5f}" '
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
+        f'material="place_bin" contype="1" conaffinity="1"/>',
         f'    <geom name="place_bin_wall_ny" type="box" '
         f'pos="{cx:.5f} {cy - inner - 0.5 * t:.5f} {z_c:.5f}" '
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
+        f'material="place_bin" contype="1" conaffinity="1"/>',
         *funnel_lines,
     ]
     return "\n".join(lines) + "\n"
@@ -175,18 +176,21 @@ def _patch_header(text: str, radius: float, height: float) -> str:
         "retracts around the wall. Bucket: assets/place_bucket.obj + funnel_w*.",
         "retracts around the wall. Place: open square bin + funnel catcher.",
     )
-    text = text.replace(
+    _BITS_NEW = (
+        "Contact bits: arm=1, catcher=2, pads/distal=4, floor=1|8.\n"
+        "         Ball=2|4|8; place_bin contype=1 hits proximal arm only."
+    )
+    for old in (
         "Contact bits: arm=1, place-bin=3 (arm|catcher), pads=4, floor=1|8.\n"
         "         Ball=2|4|8 hits floor/pads/bin; proximal arm hits bin walls.",
-        "Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.\n"
-        "         Ball=2|4|8 hits floor/pads/funnel; planner owns bin avoidance.",
-    )
-    text = text.replace(
         "Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.\n"
         "         Ball=2|4|8 hits floor/pads/catcher but not arm links.",
         "Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.\n"
         "         Ball=2|4|8 hits floor/pads/funnel; planner owns bin avoidance.",
-    )
+        "Contact bits: arm=1, catcher=2, pads/distal=4, floor|bin=1|8.\n"
+        "         Ball=2|4|8; place_bin contype=9 hits proximal arm + ball.",
+    ):
+        text = text.replace(old, _BITS_NEW)
     return text
 
 
@@ -200,8 +204,9 @@ def _replace_place_block(
     funnel_lines: list[str],
 ) -> str:
     bin_xml = _bin_block(cx, cy, radius, height, friction, funnel_lines)
+    # Drop prior place-bin comments (single- or multi-line) and geoms.
     new_text = re.sub(
-        r"\n[ \t]*<!-- (?:Place|Bucket|Visual)[^\n]*-->",
+        r"\n[ \t]*<!-- (?:Place|Bucket|Visual)\b[\s\S]*?-->",
         "",
         text,
     )
