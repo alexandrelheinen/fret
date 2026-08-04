@@ -93,7 +93,7 @@
           size="0.15000 0.001"
           material="start_zone" contype="0" conaffinity="0"/>
     <geom name="goal_zone" type="cylinder"
-          pos="0.48000 0.00000 0.28100"
+          pos="0.48000 0.00000 0.00200"
           size="0.14000 0.001"
           material="goal_zone" contype="0" conaffinity="0"/>
 
