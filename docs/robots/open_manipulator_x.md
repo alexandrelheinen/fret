@@ -23,8 +23,8 @@ v1.2.3 showcase:
 
 **Pick object:** tennis-like MuJoCo ball (Ø 40 mm, grippy friction, density 400).
 Pick rests on the floor / table plane; place is a single open square bin
-(visual walls + mouth plate/rim) with an analytic tip-down funnel catcher
-(ball contact bit 2). Mouth radius matches the red zone disk (r=0.05).
+(visual walls + bottom) with an analytic tip-down funnel catcher (ball
+contact bit 2). Mouth half-width is ``place_cone_radius_m`` (0.05 m on OMX).
 Planner occupancy includes the place-bin side shell so transfer plans avoid
 swinging through the receptacle.
 

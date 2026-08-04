@@ -88,9 +88,8 @@ no obstacles.
 **Model:** `open_manipulator_x`
 
 **Purpose:** Validate the manipulation FSM under full MuJoCo physics — stretch to
-pick a Ø 40 mm ball from the floor (green start zone) and drop it into an open
-square **place bin** whose walls collide with the proximal arm and the ball.
-No transfer-wall obstacles.
+pick a Ø 40 mm ball from the floor and drop it into an open square **place
+bin**. No transfer-wall obstacles.
 
 **Pass criteria:** See [releases.md § v1.2.3](releases.md#v123--openmanipulator-x-tabletop).
 
