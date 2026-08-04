@@ -35,26 +35,23 @@
   <worldbody>
     <light name="key" pos="0.95 0.0 1.6" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
-    <!-- Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.
-         Ball=2|4|8 hits floor/pads/funnel; planner owns bin avoidance. -->
+    <!-- Contact bits: arm=1, catcher=2, pads/distal=4, floor=1|8.
+         Ball=2|4|8; place_bin contype=1 hits proximal arm only. -->
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
 
 
-    <!-- Place bin: single open square receptacle.
-         Walls/bottom collide with arm + ball (bit 3); pads (bit 4)
-         do not, so the gripper can hover and drop from above. -->
-    <!-- Place bin: single open square receptacle.
-         Walls/bottom collide with arm + ball (bit 3); pads (bit 4)
-         do not, so the gripper can hover and drop from above. -->
-    <!-- Place bin: single open square receptacle (visual).
-         Ball catch = invisible funnel_w* (bit 2).
-         Arm avoidance = planner place-shell occupancy. -->
-    <geom name="place_bin_bottom" type="box" pos="0.48000 0.00000 0.00150" size="0.14000 0.14000 0.00150" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_px" type="box" pos="0.62600 0.00000 0.14000" size="0.00600 0.15200 0.14000" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_nx" type="box" pos="0.33400 0.00000 0.14000" size="0.00600 0.15200 0.14000" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_py" type="box" pos="0.48000 0.14600 0.14000" size="0.14000 0.00600 0.14000" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_ny" type="box" pos="0.48000 -0.14600 0.14000" size="0.14000 0.00600 0.14000" material="place_bin" contype="0" conaffinity="0"/>
+
+
+    <!-- Place bin: open square receptacle.
+         Walls/bottom contype=1: proximal arm only (no ball rim perch).
+         Distal pads/wrist (bit 4) free for top-down drop.
+         Ball catch = invisible funnel_w* (bit 2). -->
+    <geom name="place_bin_bottom" type="box" pos="0.48000 0.00000 0.00150" size="0.14000 0.14000 0.00150" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_px" type="box" pos="0.62600 0.00000 0.14000" size="0.00600 0.15200 0.14000" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_nx" type="box" pos="0.33400 0.00000 0.14000" size="0.00600 0.15200 0.14000" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_py" type="box" pos="0.48000 0.14600 0.14000" size="0.14000 0.00600 0.14000" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_ny" type="box" pos="0.48000 -0.14600 0.14000" size="0.14000 0.00600 0.14000" material="place_bin" contype="1" conaffinity="1"/>
     <geom name="funnel_w0" type="box" size="0.00700 0.02120 0.15717" pos="0.55840 0.00000 0.14000" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="0.45 0.05 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w1" type="box" size="0.00700 0.02120 0.15717" pos="0.55644 0.01744 0.14000" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="0.45 0.05 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w2" type="box" size="0.00700 0.02120 0.15717" pos="0.55064 0.03402 0.14000" quat="0.947929 -0.052005 0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="0.45 0.05 0.01" contype="2" conaffinity="2"/>

@@ -35,26 +35,24 @@
   <worldbody>
     <light name="key" pos="0.8 0.5 1.4" dir="0 0 -1" directional="true"
            diffuse="0.45 0.46 0.48" specular="0.05 0.05 0.05"/>
-    <!-- Contact bits: arm=1, place-catcher=2, pads=4, floor=1|8.
-         Ball=2|4|8 hits floor/pads/funnel; planner owns bin avoidance. -->
+    <!-- Contact bits: arm=1, catcher=2, pads/distal=4, floor=1|8.
+         Ball=2|4|8; place_bin contype=1 hits proximal arm only. -->
     <geom name="floor" type="plane" size="0 0 0.05" material="groundplane"
           friction="1.0 0.1 0.01" contype="9" conaffinity="9"/>
 
 
-    <!-- Place bin: single open square receptacle.
-         Walls/bottom collide with arm + ball (bit 3); pads (bit 4)
-         do not, so the gripper can hover and drop from above. -->
-    <!-- Place bin: single open square receptacle.
-         Walls/bottom collide with arm + ball (bit 3); pads (bit 4)
-         do not, so the gripper can hover and drop from above. -->
-    <!-- Place bin: single open square receptacle (visual).
-         Ball catch = invisible funnel_w* (bit 2).
-         Arm avoidance = planner place-shell occupancy. -->
-    <geom name="place_bin_bottom" type="box" pos="0.26000 0.00000 0.00063" size="0.05000 0.05000 0.00063" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_px" type="box" pos="0.31250 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_nx" type="box" pos="0.20750 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_py" type="box" pos="0.26000 0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="0" conaffinity="0"/>
-    <geom name="place_bin_wall_ny" type="box" pos="0.26000 -0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="0" conaffinity="0"/>
+
+    <!-- Ø 40 mm tennis-like ball on the floor (grippy felt). -->
+
+    <!-- Place bin: open square receptacle.
+         Walls/bottom contype=1: proximal arm only (no ball rim perch).
+         Distal pads/wrist (bit 4) free for top-down drop.
+         Ball catch = invisible funnel_w* (bit 2). -->
+    <geom name="place_bin_bottom" type="box" pos="0.26000 0.00000 0.00063" size="0.05000 0.05000 0.00063" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_px" type="box" pos="0.31250 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_nx" type="box" pos="0.20750 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_py" type="box" pos="0.26000 0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="1" conaffinity="1"/>
+    <geom name="place_bin_wall_ny" type="box" pos="0.26000 -0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="1" conaffinity="1"/>
     <geom name="funnel_w0" type="box" size="0.00250 0.00757 0.05501" pos="0.28800 0.00000 0.04900" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w1" type="box" size="0.00250 0.00757 0.05501" pos="0.28730 0.00623 0.04900" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w2" type="box" size="0.00250 0.00757 0.05501" pos="0.28523 0.01215 0.04900" quat="0.947929 -0.052005 0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
@@ -85,7 +83,6 @@
     <geom name="funnel_w27" type="box" size="0.00250 0.00757 0.05501" pos="0.28730 -0.00623 0.04900" quat="-0.966193 -0.026167 -0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_tip" type="sphere" size="0.00400" pos="0.26000 0.00000 0.00400" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
 
-    <!-- Ø 40 mm tennis-like ball on the floor (grippy felt). -->
     <body name="pick_box" pos="0.22000 -0.20000 0.02000">
       <freejoint name="pick_box_joint"/>
       <geom name="pick_box_geom" type="sphere" size="0.020"
