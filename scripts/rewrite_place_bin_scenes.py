@@ -130,10 +130,6 @@ def _bin_block(
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
         f'material="place_bin" contype="0" conaffinity="0"/>',
         *funnel_lines,
-        f'    <geom name="place_bin_rim" type="cylinder" '
-        f'pos="{cx:.5f} {cy:.5f} {height:.5f}" '
-        f'size="{outer:.5f} 0.0015" '
-        f'material="place_bin" contype="0" conaffinity="0"/>',
     ]
     return "\n".join(lines) + "\n"
 
@@ -141,18 +137,13 @@ def _bin_block(
 def _patch_assets(text: str) -> str:
     text = re.sub(r'[ \t]*<material name="place_bucket".*?/>\n?', "", text)
     text = re.sub(r'[ \t]*<mesh name="place_bucket".*?/>\n?', "", text)
+    for mat in ("place_plate", "start_zone", "goal_zone"):
+        text = re.sub(rf'[ \t]*<material name="{mat}".*?/>\n?', "", text)
     if 'name="place_bin"' not in text:
         text = text.replace(
-            '<material name="start_zone"',
+            '<material name="pick_ball"',
             '<material name="place_bin" rgba="0.55 0.58 0.62 1"/>\n'
-            '    <material name="place_plate" rgba="0.85 0.35 0.28 0.45"/>\n'
-            '    <material name="start_zone"',
-        )
-    elif 'name="place_plate"' not in text:
-        text = text.replace(
-            '<material name="place_bin" rgba="0.55 0.58 0.62 1"/>\n',
-            '<material name="place_bin" rgba="0.55 0.58 0.62 1"/>\n'
-            '    <material name="place_plate" rgba="0.85 0.35 0.28 0.45"/>\n',
+            '    <material name="pick_ball"',
         )
     return text
 
@@ -216,27 +207,17 @@ def _replace_place_block(
     )
     new_text = re.sub(
         r"\n[ \t]*<geom name=\"(?:place_bucket|place_bin(?:_bottom|_wall_px|_wall_nx|"
-        r"_wall_py|_wall_ny|_rim)?|place_plate|place_cone_rim|funnel_[^\"]+)\""
+        r"_wall_py|_wall_ny|_rim)?|place_plate|place_cone_rim|start_zone|"
+        r"goal_zone|funnel_[^\"]+)\""
         r"[\s\S]*?/>",
         "",
         new_text,
     )
-    anchor = '    <geom name="start_zone"'
+    # Insert before the pick ball body (zone disks are intentionally absent).
+    anchor = '    <body name="pick_box"'
     if anchor not in new_text:
-        raise RuntimeError("start_zone geom missing; cannot insert place bin")
-    new_text = new_text.replace(anchor, bin_xml + anchor, 1)
-    new_text = re.sub(
-        r'(<geom name="goal_zone"[^>]*?pos=")([0-9.eE+-]+) ([0-9.eE+-]+) ([0-9.eE+-]+)',
-        rf"\g<1>{cx:.5f} {cy:.5f} 0.00200",
-        new_text,
-        count=1,
-    )
-    new_text = re.sub(
-        r'(<geom name="goal_zone"[^>]*?size=")([0-9.eE+-]+)',
-        rf"\g<1>{radius:.5f}",
-        new_text,
-        count=1,
-    )
+        raise RuntimeError("pick_box body missing; cannot insert place bin")
+    new_text = new_text.replace(anchor, bin_xml + "\n" + anchor, 1)
     return new_text
 
 
@@ -265,8 +246,9 @@ def patch_file(
         raise RuntimeError(f"bin/funnel missing in {path}")
     if "place_bucket" in text or "cone.obj" in text:
         raise RuntimeError(f"stale place_bucket references remain in {path}")
-    if 'name="place_plate"' not in text:
-        raise RuntimeError(f"place_plate missing in {path}")
+    for disk in ("start_zone", "goal_zone", "place_bin_rim", "place_plate"):
+        if disk in text:
+            raise RuntimeError(f"disk marker {disk!r} still present in {path}")
     path.write_text(text, encoding="utf-8")
     print(f"rewrote {path.name}")
 
