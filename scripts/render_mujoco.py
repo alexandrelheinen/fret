@@ -1471,7 +1471,9 @@ def render_omx_pick_place_showcase_videos(
     )
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
     dt = float(model_probe.opt.timestep)
-    record_every = max(1, int(round((1.0 / fps) / dt)))
+    realtime = duration_s is None
+    eff_fps = int(round(1.0 / dt)) if realtime else int(fps)
+    record_every = 1 if realtime else max(1, int(round((1.0 / fps) / dt)))
     state, samples = simulate_pick_place(
         duration_s=clip_s,
         joint_tol_rad=0.22,
@@ -1484,18 +1486,21 @@ def render_omx_pick_place_showcase_videos(
     if len(samples) < 2:
         raise RuntimeError("SC-v13b showcase recorded too few frames")
 
-    # Pad idle at both ends and time-stretch so the clip is watchable.
-    pad = max(1, int(round(0.6 * fps)))
-    samples = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
-    target_frames = max(len(samples), int(round(8.0 * fps)))
-    if len(samples) < target_frames:
-        idx = np.linspace(0, len(samples) - 1, target_frames)
-        samples = [samples[int(round(i))] for i in idx]
+    if realtime:
+        stretched = list(samples)
+    else:
+        pad = max(1, int(round(0.6 * fps)))
+        stretched = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
+        target_frames = max(len(stretched), int(round(8.0 * fps)))
+        if len(stretched) < target_frames:
+            idx = np.linspace(0, len(stretched) - 1, target_frames)
+            stretched = [stretched[int(round(i))] for i in idx]
+    samples = stretched
 
-    sim_time_s = float(len(samples)) / float(fps)
-    render_duration_s = float(len(samples)) / float(fps)
+    wall_sim_time_s = float(max(0, len(samples) - 1) * record_every * dt)
+    render_duration_s = float(len(samples)) / float(eff_fps)
     timing = showcase_playback_timing(
-        wall_sim_time_s=sim_time_s,
+        wall_sim_time_s=wall_sim_time_s,
         render_duration_s=render_duration_s,
     )
 
@@ -1538,7 +1543,7 @@ def render_omx_pick_place_showcase_videos(
     }
     paths = {camera: output_dir / names[camera] for camera in camera_names}
     writers = {
-        camera: _open_video_writer(paths[camera], fps)
+        camera: _open_video_writer(paths[camera], eff_fps)
         for camera in camera_names
     }
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
@@ -1602,9 +1607,24 @@ def _apply_omy_pick_place_sample(
     gripper: float,
     box_qpos: npt.NDArray[np.float64],
     box_qadr: int,
+    physics_replay: bool = False,
 ) -> None:
-    """Teleport OMY arm joints, gripper, and free ball to a recorded sample."""
-    for name, value in zip(_OMY_ARM_JOINTS, q_arm, strict=True):
+    """Apply OMY arm joints, gripper, and ball for showcase rendering."""
+    joints = _OMY_ARM_JOINTS
+    if physics_replay:
+        for name, value in zip(joints, q_arm, strict=True):
+            aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
+            if aid < 0:
+                raise ValueError(f"OMY actuator not found in MJCF: {name}")
+            data.ctrl[aid] = float(value)
+        grip_act = mujoco.mj_name2id(
+            model, mujoco.mjtObj.mjOBJ_ACTUATOR, "Gripper"
+        )
+        if grip_act >= 0:
+            data.ctrl[grip_act] = float(gripper)
+        mujoco.mj_step(model, data)
+        return
+    for name, value in zip(joints, q_arm, strict=True):
         jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
         if jid < 0:
             raise ValueError(f"OMY joint not found in MJCF: {name}")
@@ -1621,11 +1641,17 @@ def _prepare_pick_place_showcase_samples(
     samples: list[object],
     *,
     fps: int,
-    min_clip_s: float = 8.0,
+    min_clip_s: float | None = 8.0,
 ) -> list[object]:
-    """Pad and time-stretch recorded pick-place samples for watchable clips."""
+    """Pad and time-stretch recorded pick-place samples for watchable clips.
+
+    When ``min_clip_s`` is ``None`` (``--full-duration``), return samples as-is
+    for 1:1 sim-time playback.
+    """
     if len(samples) < 2:
         raise RuntimeError("pick-place showcase recorded too few frames")
+    if min_clip_s is None:
+        return list(samples)
     pad = max(1, int(round(0.6 * fps)))
     stretched = [samples[0]] * pad + list(samples) + [samples[-1]] * pad
     target_frames = max(len(stretched), int(round(min_clip_s * fps)))
@@ -1669,7 +1695,9 @@ def render_omy_pick_place_showcase_videos(
     )
     model_probe = mujoco.MjModel.from_xml_path(str(mjcf_path))
     dt = float(model_probe.opt.timestep)
-    record_every = max(1, int(round((1.0 / fps) / dt)))
+    realtime = duration_s is None
+    eff_fps = int(round(1.0 / dt)) if realtime else int(fps)
+    record_every = 1 if realtime else max(1, int(round((1.0 / fps) / dt)))
     scenario_path = Path("src/fret/config/scenarios") / f"{scenario}.yml"
     state, raw_samples = simulate_omy_pick_place(
         duration_s=clip_s,
@@ -1684,12 +1712,17 @@ def render_omy_pick_place_showcase_videos(
         raise RuntimeError(
             f"{scenario} showcase FSM ended in {state.name}, expected DONE"
         )
-    samples = _prepare_pick_place_showcase_samples(raw_samples, fps=fps)
+    min_clip_s = None if realtime else 8.0
+    samples = _prepare_pick_place_showcase_samples(
+        raw_samples,
+        fps=eff_fps,
+        min_clip_s=min_clip_s,
+    )
 
-    sim_time_s = float(len(samples)) / float(fps)
-    render_duration_s = float(len(samples)) / float(fps)
+    wall_sim_time_s = float(max(0, len(raw_samples) - 1) * record_every * dt)
+    render_duration_s = float(len(samples)) / float(eff_fps)
     timing = showcase_playback_timing(
-        wall_sim_time_s=sim_time_s,
+        wall_sim_time_s=wall_sim_time_s,
         render_duration_s=render_duration_s,
     )
 
@@ -1711,6 +1744,20 @@ def render_omy_pick_place_showcase_videos(
             gripper=sample.gripper,  # type: ignore[attr-defined]
             box_qpos=sample.box_qpos,  # type: ignore[attr-defined]
             box_qadr=box_qadr,
+            physics_replay=realtime,
+        )
+
+    if realtime:
+        first = samples[0]
+        _apply_omy_pick_place_sample(
+            mujoco,
+            model,
+            data,
+            q_arm=first.q_arm,  # type: ignore[attr-defined]
+            gripper=first.gripper,  # type: ignore[attr-defined]
+            box_qpos=first.box_qpos,  # type: ignore[attr-defined]
+            box_qadr=box_qadr,
+            physics_replay=False,
         )
 
     cv_pose = _place_cv_ghost_from_vision(
@@ -1732,20 +1779,33 @@ def render_omy_pick_place_showcase_videos(
     }
     paths = {camera: output_dir / names[camera] for camera in camera_names}
     writers = {
-        camera: _open_video_writer(paths[camera], fps)
+        camera: _open_video_writer(paths[camera], eff_fps)
         for camera in camera_names
     }
     first_frames: dict[str, npt.NDArray[np.uint8]] = {}
 
     try:
-        for sample in samples:
-            _apply(sample)
+        if realtime:
             for camera in camera_names:
                 renderer.update_scene(data, camera=camera)
                 frame = renderer.render()
                 writers[camera].append_data(frame)
-                if camera not in first_frames:
-                    first_frames[camera] = frame.copy()
+                first_frames[camera] = frame.copy()
+            for sample in samples[1:]:
+                _apply(sample)
+                for camera in camera_names:
+                    renderer.update_scene(data, camera=camera)
+                    frame = renderer.render()
+                    writers[camera].append_data(frame)
+        else:
+            for sample in samples:
+                _apply(sample)
+                for camera in camera_names:
+                    renderer.update_scene(data, camera=camera)
+                    frame = renderer.render()
+                    writers[camera].append_data(frame)
+                    if camera not in first_frames:
+                        first_frames[camera] = frame.copy()
     finally:
         for writer in writers.values():
             writer.close()
@@ -1780,7 +1840,7 @@ def render_omy_pick_place_showcase_videos(
         box_qadr=box_qadr,
         output_dir=output_dir,
         scenario=scenario,
-        main_fps=fps,
+        main_fps=eff_fps,
         timing=timing,
         cv_pose=cv_pose,
     )
