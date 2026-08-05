@@ -77,12 +77,15 @@ def test_joint_mpc_barrier_keeps_clearance_from_wall_cspace() -> None:
             break
     assert start is not None
 
+    # ARCO ≥ v0.3.7: step dt must equal config.dt (FRET default 0.02 s).
+    ctrl_dt = 0.02
+    n_steps = 113  # ≈ 2.25 s — same horizon as the former 45 × 0.05 s loop
     mpc_open = build_omx_joint_mpc()
     mpc_open.reset(start)
     q_open = start.copy()
     min_open = 1.0e9
-    for _ in range(45):
-        q_open = np.asarray(mpc_open.step(target, 0.05), dtype=np.float64)
+    for _ in range(n_steps):
+        q_open = np.asarray(mpc_open.step(target, ctrl_dt), dtype=np.float64)
         d, _ = occ.nearest_obstacle(q_open)
         min_open = min(min_open, float(d))
 
@@ -90,8 +93,8 @@ def test_joint_mpc_barrier_keeps_clearance_from_wall_cspace() -> None:
     mpc_safe.reset(start)
     q_safe = start.copy()
     min_safe = 1.0e9
-    for _ in range(45):
-        q_safe = np.asarray(mpc_safe.step(target, 0.05), dtype=np.float64)
+    for _ in range(n_steps):
+        q_safe = np.asarray(mpc_safe.step(target, ctrl_dt), dtype=np.float64)
         d, _ = occ.nearest_obstacle(q_safe)
         min_safe = min(min_safe, float(d))
 

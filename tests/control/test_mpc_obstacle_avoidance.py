@@ -99,6 +99,9 @@ def test_path_tracker_with_occupancy_avoids_wall_target() -> None:
         target,
     ]
 
+    # ARCO ≥ v0.3.7: step dt must equal config.dt (FRET default 0.02 s).
+    ctrl_dt = 0.02
+    n_steps = 175  # ≈ 3.5 s — same horizon as the former 70 × 0.05 s loop
     open_tracker = JointPathMPCTracker(
         path,
         build_omx_joint_mpc(),
@@ -108,8 +111,8 @@ def test_path_tracker_with_occupancy_avoids_wall_target() -> None:
     )
     open_tracker.reset(start)
     min_open = 1.0e9
-    for _ in range(70):
-        q = open_tracker.step(0.05)
+    for _ in range(n_steps):
+        q = open_tracker.step(ctrl_dt)
         d, _ = occ.nearest_obstacle(q)
         min_open = min(min_open, float(d))
 
@@ -127,8 +130,8 @@ def test_path_tracker_with_occupancy_avoids_wall_target() -> None:
     )
     safe_tracker.reset(start)
     min_safe = 1.0e9
-    for _ in range(70):
-        q = safe_tracker.step(0.05)
+    for _ in range(n_steps):
+        q = safe_tracker.step(ctrl_dt)
         d, _ = occ.nearest_obstacle(q)
         min_safe = min(min_safe, float(d))
 
