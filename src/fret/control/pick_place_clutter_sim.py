@@ -298,8 +298,15 @@ def _dry_run_transfer(
     robot_model: str = "open_manipulator_x",
     occupancy: Any | None = None,
     params: dict[str, Any] | None = None,
+    mpc: Any | None = None,
+    max_wall_hits: int | None = None,
 ) -> bool:
-    """Return True if joint-space MPC tracking reaches ``goal`` without wall jams."""
+    """Return True if joint-space MPC tracking reaches ``goal`` without wall jams.
+
+    ``max_wall_hits`` defaults to 0 for Γ-maze scenarios (``peak`` transfer)
+    and 40 for open clutter cells (legacy soft brush tolerance). Pass a
+    pre-built ``mpc`` to avoid rebuilding CasADi on every planner attempt.
+    """
     try:
         import mujoco as mj
     except ImportError:  # pragma: no cover
@@ -320,6 +327,16 @@ def _dry_run_transfer(
 
     is_omy = robot_model in _OMY_MODELS
     grip_settle = OMY_GRIPPER_CLOSED if is_omy else GRIPPER_CLOSED
+    hit_budget = (
+        int(max_wall_hits)
+        if max_wall_hits is not None
+        else (
+            0
+            if params is not None
+            and float(params.get("min_transfer_peak_ee_z_m", 0.0)) > 0.0
+            else 40
+        )
+    )
 
     def settle(cmd: npt.NDArray[np.float64], steps: int) -> None:
         for _ in range(steps):
@@ -335,10 +352,13 @@ def _dry_run_transfer(
         if is_omy
         else np.array([0.0, -1.05, 0.7, 0.7], dtype=np.float64)
     )
-    settle(idle, 300)
-    settle(start, 700)
+    settle(idle, 200)
+    settle(start, 400)
 
-    mpc = _joint_mpc_for_model(robot_model, occupancy=occupancy, params=params)
+    if mpc is None:
+        mpc = _joint_mpc_for_model(
+            robot_model, occupancy=occupancy, params=params
+        )
     if occupancy is not None:
         _require_mpc_occupancy(mpc, context="_dry_run_transfer")
     tracker = JointPathMPCTracker(
@@ -375,6 +395,8 @@ def _dry_run_transfer(
             g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
             if _is_wall_geom(g1) or _is_wall_geom(g2):
                 hits += 1
+                if hits > hit_budget:
+                    return False
         if tracker.complete:
             settle_after_complete += 1
             q = np.array(
@@ -405,9 +427,7 @@ def _dry_run_transfer(
         ],
         dtype=np.float64,
     )
-    # Soft contacts while brushing inflated padding are tolerated; sustained
-    # wall jams (MPC cutting the chord through a slab) are not.
-    return float(np.linalg.norm(q - goal)) < 0.15 and hits < 40
+    return float(np.linalg.norm(q - goal)) < 0.15 and hits <= hit_budget
 
 
 def plan_transfer_path(
@@ -463,6 +483,12 @@ def plan_transfer_path(
         scenario_id=scenario_id,
         seed=seed0,
     )
+    # Reuse one CasADi MPC across dry-run attempts (rebuild is multi-second).
+    dry_run_mpc = (
+        _joint_mpc_for_model(robot_model, occupancy=mpc_occ, params=params)
+        if validate_mujoco
+        else None
+    )
 
     from fret.scenario.planner_rng import deterministic_planner_rng
 
@@ -516,8 +542,23 @@ def plan_transfer_path(
             )
             continue
         if validate_mujoco and peak_z > 0.0:
+            # Γ maze: static mesh clear is necessary but not sufficient —
+            # also dry-run JointSpaceMPC tracking from ``start`` (lift pose).
             if not _path_clear_of_wall_meshes(dense, scenario_id=scenario_id):
                 last_err = "mujoco wall-mesh contact on path"
+                continue
+            if not _dry_run_transfer(
+                dense,
+                start,
+                goal,
+                joint_tol_rad=0.12,
+                scenario_id=scenario_id,
+                robot_model=robot_model,
+                occupancy=mpc_occ,
+                params=params,
+                mpc=dry_run_mpc,
+            ):
+                last_err = "mujoco dry-run rejected"
                 continue
         elif validate_mujoco and not _dry_run_transfer(
             dense,
@@ -528,6 +569,7 @@ def plan_transfer_path(
             robot_model=robot_model,
             occupancy=mpc_occ,
             params=params,
+            mpc=dry_run_mpc,
         ):
             last_err = "mujoco dry-run rejected"
             continue
@@ -616,11 +658,10 @@ def simulate_pick_place_clutter(
     act_ar = _actuator_id(mj, model, "grip_right")
     is_omy = robot_model in _OMY_MODELS
 
-    # OMY transfers from the post-grasp lift pose (pad-mid carry above floor ball).
+    # Transfer starts after LIFT: plan from lift_hover so the tracked path
+    # matches the FSM's MOVE_PLACE entry pose (palms clear of the pick-side Γ).
     transfer_start = (
-        wp.lift_hover
-        if is_omy and wp.lift_hover is not None
-        else wp.pick_hover
+        wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
     )
     if is_omy:
         # Shared arm planner (detour YAML + RRT*/SST) — same module OMX clutter

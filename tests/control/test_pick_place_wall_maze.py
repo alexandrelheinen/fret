@@ -65,13 +65,17 @@ def test_wall_maze_transfer_plan_backs_out_and_climbs() -> None:
     wp = waypoints_from_scenario(_SCENARIO)
     params = load_scenario_parameters(_SCENARIO)
     peak_req = float(params["min_transfer_peak_ee_z_m"])
+    # Plan from lift_hover — matches FSM MOVE_PLACE entry after grasp/lift.
+    transfer_start = (
+        wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
+    )
     path = None
     straight_collides = False
     last_err: Exception | None = None
     for seed_offset in range(0, 85, 17):
         try:
             path, straight_collides = plan_transfer_path(
-                wp.pick_hover,
+                transfer_start,
                 wp.place_hover,
                 scenario_path=_SCENARIO,
                 seed_offset=seed_offset,
@@ -213,7 +217,9 @@ def test_arm_contacts_transfer_wall_detects_collision_pose() -> None:
     box_jid = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
     )
-    data.qpos[int(model.jnt_qposadr[box_jid]) : int(model.jnt_qposadr[box_jid]) + 3] = [
+    data.qpos[
+        int(model.jnt_qposadr[box_jid]) : int(model.jnt_qposadr[box_jid]) + 3
+    ] = [
         0.5,
         0.5,
         0.5,
