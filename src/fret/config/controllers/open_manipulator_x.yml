@@ -10,7 +10,8 @@
     update_rate: 50.0
     fault_threshold: 0.020
     ticks_per_waypoint: 5
-    # Carrot-on-path JointSpaceMPC (ARCO v0.3.2) for pick-and-place.
+    # Carrot-on-path JointSpaceMPC (ARCO ≥ v0.3.7) for pick-and-place.
+    # Horizon dt is forced to 1/update_rate (0.02 s) in build_joint_mpc.
     joint_mpc:
       race_speed: 0.9
       max_carrot_lag: 0.30

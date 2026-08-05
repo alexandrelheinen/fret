@@ -35,8 +35,8 @@ Bootstrap arm (MS-1–5) also uses `KDTreeOccupancy`, `SSTPlanner`, and
 |---|---|
 | Occupancy (`KDTreeOccupancy`) | ARCO |
 | Planner (SST, RRT*) | ARCO |
-| Dubins vehicle + path-following MPC | ARCO (≥ v0.3.2; progress-first contouring via arco#147 on main) |
-| Joint-space MPC (OMX pick-and-place) | ARCO (≥ v0.3.2) |
+| Dubins vehicle + path-following MPCC | ARCO (≥ v0.3.7 classical MPCC) |
+| Joint-space MPC (OMX pick-and-place) | ARCO (≥ v0.3.7; step dt must equal config.dt) |
 | Scene acquisition, TF | FRET |
 | Per-robot kinematics | FRET |
 | ROS 2 I/O, MuJoCo simulation | FRET |
@@ -88,28 +88,33 @@ Reuse ARCO race infrastructure:
   (grey foil retains Pure Pursuit)
 - Extend environment with 3-D columns (MuJoCo visual)
 
-### Progress-first contouring (arco#147)
+### Classical MPCC (ARCO ≥ v0.3.7)
 
-Global planners ignore vehicle dynamics, so forcing the online MPC to
-zero-fit their polylines stalls / orbits at sharp kinks. FRET’s Dubins
-race trackers therefore consume ARCO’s progress-first fields:
+Global planners ignore vehicle dynamics, so a stiff zero-fit of their
+polylines stalls / orbits at sharp kinks. ARCO v0.3.7 reworks
+`DubinsPathFollowingMPC` as classical contouring MPCC (Lam / Liniger):
+free virtual progress speed \(v_s\), **linear** progress reward, and a
+**structural** lag error that couples path parameter \(s\) to the
+vehicle. FRET’s Dubins race trackers consume:
 
 | YAML key (`dubins.yml` → `mpc`) | ARCO config field | Role |
 |---|---|---|
-| `weight_lag` | `weight_lag` | Penalty on lagging `s0 + v_cruise·t` |
-| `contour_deadzone` | `contour_deadzone` | Free lateral band (m); contour cost on `(|e_lat| − deadzone)_+²` |
+| `weight_lag` | `weight_lag` | Lag-error weight (**must be > 0**; construction rejects ≤ 0) |
+| `weight_progress` | `weight_progress` | Linear reward per meter of arc-length advancement |
+| `contour_deadzone` | `contour_deadzone` | Optional free lateral band (m); **keep 0** (flats chatter) |
+| `weight_heading` | `weight_heading` | Keep small (~1/10 of contour); tracking emerges from contour + lag |
 
 Wired in `fret.scenario.dubins_race_runner._mpc_config` via
 `PathFollowingMPCConfig.with_weight_overrides(...)`. Race agents keep
-`occupancy=None` (planner owns avoidance).
+`occupancy=None` (planner owns avoidance). `weight_slack` was removed
+upstream and is no longer forwarded.
 
-**Lab scale, not city scale.** ARCO city demos use ~8 m deadzone / 14 m/s
-cruise; FRET’s warehouse aisles are ≈1.6 m with TurtleBot half-size
-≈0.09 m and cruise ≈0.36 m/s, so `dubins.yml` uses
-`contour_deadzone: 0.10` m and softer contour/heading weights. Setting
-`contour_deadzone: 0` restores classic contouring. Always-on ARCO
-behavior even at zero lag/deadzone: no reverse progress
-(`ṡ = v · max(cos e_ψ, 0)`) and geometric projection never rewinds `s`.
+**Lab scale, not city scale.** ARCO city demos use ~14 m/s cruise and a
+5 s horizon; FRET’s warehouse aisles are ≈1.6 m with TurtleBot half-size
+≈0.09 m and cruise ≈0.36 m/s, so `dubins.yml` keeps a 1.2 s horizon
+(`24 × 0.05 s`) matching `update_rate: 20`. Model `dt` must equal the
+control period. Projection never rewinds `s`; curve-limited \(v_s\) caps
+handle corner braking.
 
 ---
 

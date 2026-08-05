@@ -124,13 +124,13 @@ rate_hz: 50.0
 ```
 
 Dubins MPC / vehicle limits live in `src/fret/config/controllers/dubins.yml`.
-RRT*/SST agents use ARCO `DubinsPathFollowingMPC` with progress-first
-weights (`weight_lag`, `contour_deadzone`) loaded by
-`fret.scenario.dubins_race_runner._mpc_config`. The free lateral band is
-lab-scaled (~chassis half-width), not ARCO city meters — see
-[arco.md](../arco.md#progress-first-contouring-arco147).
-OMX joint-space MPC helpers live in `src/fret/control/joint_mpc.py`
-(unaffected by progress-first contouring).
+RRT*/SST agents use ARCO `DubinsPathFollowingMPC` classical MPCC weights
+(`weight_lag` > 0, linear `weight_progress`, `contour_deadzone: 0`)
+loaded by `fret.scenario.dubins_race_runner._mpc_config`. Lab-scale
+horizon / cruise, not ARCO city meters — see
+[arco.md](../arco.md#classical-mpcc-arco--v037).
+OMX / OMY joint-space MPC helpers live in `src/fret/control/joint_mpc.py`
+and force horizon `dt` to the 50 Hz control period (ARCO ≥ v0.3.7).
 
 ---
 

@@ -84,10 +84,16 @@ def _ee_body_name(model: str) -> str:
 
 
 def _joint_mpc_config(params: dict[str, Any] | None = None) -> Any | None:
-    """Optional JointSpaceMPCConfig with scenario obstacle-weight overrides."""
+    """Optional JointSpaceMPCConfig with scenario obstacle-weight overrides.
+
+    Horizon ``dt`` is aligned to :data:`_CTRL_PERIOD_S` so ARCO ≥ v0.3.7
+    accepts ``mpc.step(target, _CTRL_PERIOD_S)``.
+    """
     if JointSpaceMPCConfig is None:  # pragma: no cover
         return None
     cfg = JointSpaceMPCConfig.create_from_config()
+    if abs(cfg.dt - _CTRL_PERIOD_S) > 1e-9:
+        cfg = cfg.with_horizon_overrides(dt=_CTRL_PERIOD_S)
     if not params:
         return cfg
     w_obs = params.get("mpc_weight_obstacle")

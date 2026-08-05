@@ -631,12 +631,15 @@ def _build_vehicle_mpc_sim(
     *,
     occupancy: Any = None,
 ) -> tuple[Any, MPCTrackingLoop]:
-    """Build Dubins + path-following MPC without dropping progress-first fields.
+    """Build Dubins + classical path-following MPCC for race agents.
 
-    ARCO's ``build_vehicle_mpc_sim`` rebuilds :class:`PathFollowingMPCConfig`
-    and omits ``weight_lag`` / ``contour_deadzone`` (silently → 0). FRET keeps
-    the caller's full config and only overrides ``cruise_speed`` from
-    :class:`VehicleConfig`.
+    Uses ``dataclasses.replace`` so every :class:`PathFollowingMPCConfig`
+    field (including structural ``weight_lag`` / optional
+    ``contour_deadzone``) reaches the live NLP; only ``cruise_speed`` is
+    overridden from :class:`VehicleConfig`. ARCO ≥ v0.3.7's
+    ``build_vehicle_mpc_sim`` does the same, but FRET keeps this local
+    factory so race agents can force ``occupancy=None`` without pulling
+    ARCO city defaults.
     """
     x0, y0 = waypoints[0]
     theta0 = initial_heading(waypoints)
@@ -669,10 +672,11 @@ def _build_vehicle_mpc_sim(
 
 
 def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
-    """Load path-following MPC weights; cruise comes from vehicle config.
+    """Load classical MPCC weights; cruise comes from vehicle config.
 
-    Forwards progress-first fields (``weight_lag``, ``contour_deadzone``)
-    from ``ctrl["mpc"]``. Race trackers still pass ``occupancy=None`` at
+    Forwards ARCO v0.3.7 contouring fields (``weight_lag`` must be > 0,
+    optional ``contour_deadzone``) from ``ctrl["mpc"]``. ``weight_slack``
+    was removed upstream. Race trackers still pass ``occupancy=None`` at
     construction — avoidance remains a planner responsibility.
     """
     base = PathFollowingMPCConfig.create_from_config(
@@ -699,7 +703,6 @@ def _mpc_config(ctrl: dict[str, Any]) -> PathFollowingMPCConfig:
         control=_opt_float("weight_control"),
         obstacle=_opt_float("weight_obstacle"),
         terminal=_opt_float("weight_terminal"),
-        slack=_opt_float("weight_slack"),
         contour_deadzone=_opt_float("contour_deadzone"),
     )
     barrier = _opt_float("obstacle_barrier_power")

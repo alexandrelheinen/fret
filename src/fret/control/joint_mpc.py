@@ -1,7 +1,12 @@
 """ARCO JointSpaceMPC helpers for OpenMANIPULATOR-X pick-and-place.
 
 Replaces proportional / Jacobian waypoint tracking with the CasADi carrot
-NMPC from ARCO v0.3.2 (``build_joint_tracker(..., tracker="mpc")``).
+NMPC from ARCO (≥ v0.3.2; ``build_joint_tracker(..., tracker="mpc")``).
+
+ARCO ≥ v0.3.7 requires ``JointSpaceMPC.step(dt)`` to equal
+``config.dt`` (same structural zigzag fix as path-following MPCC). FRET
+SITL arm loops run at 50 Hz (``_CTRL_PERIOD_S = 0.02``), so builders
+default the horizon ``dt`` to that control period.
 """
 
 from __future__ import annotations
@@ -19,6 +24,25 @@ if TYPE_CHECKING:
 _OMX_DOF = 4
 _DEFAULT_MAX_VEL_RAD_S = 1.57
 _DEFAULT_MAX_ACC_RAD_S2 = 3.0
+# Must match fret.control.pick_place_* _CTRL_PERIOD_S (50 Hz).
+_DEFAULT_CTRL_DT_S = 0.02
+
+
+def _config_with_control_dt(
+    mpc_cfg: JointSpaceMPCConfig | None,
+    *,
+    dt: float,
+) -> JointSpaceMPCConfig:
+    """Return a joint MPC config whose horizon dt matches the control period."""
+    cfg = (
+        mpc_cfg
+        if mpc_cfg is not None
+        else JointSpaceMPCConfig.create_from_config()
+    )
+    ctrl_dt = float(dt)
+    if abs(cfg.dt - ctrl_dt) > 1e-9:
+        return cfg.with_horizon_overrides(dt=ctrl_dt)
+    return cfg
 
 
 def build_joint_mpc(
@@ -28,16 +52,28 @@ def build_joint_mpc(
     max_vel: float = _DEFAULT_MAX_VEL_RAD_S,
     max_acc: float = _DEFAULT_MAX_ACC_RAD_S2,
     mpc_cfg: JointSpaceMPCConfig | None = None,
+    dt: float = _DEFAULT_CTRL_DT_S,
 ) -> JointSpaceMPC:
-    """Build a joint-space MPC tracker for ``dof`` arm joints."""
+    """Build a joint-space MPC tracker for ``dof`` arm joints.
+
+    Args:
+        dof: Number of actuated arm joints.
+        occupancy: Optional C-space occupancy for soft barriers.
+        max_vel: Per-joint velocity limit (rad/s).
+        max_acc: Per-joint acceleration limit (rad/s²).
+        mpc_cfg: Optional base config; horizon ``dt`` is forced to *dt*.
+        dt: Control period passed to ``mpc.step`` (s). Must match the
+            caller's step interval (ARCO ≥ v0.3.7 rejects mismatches).
+    """
     max_vel_vec = np.full(int(dof), float(max_vel), dtype=np.float64)
     max_acc_vec = np.full(int(dof), float(max_acc), dtype=np.float64)
+    effective_cfg = _config_with_control_dt(mpc_cfg, dt=dt)
     tracker = build_joint_tracker(
         max_vel=max_vel_vec,
         max_acc=max_acc_vec,
         occupancy=occupancy,
         tracker="mpc",
-        mpc_cfg=mpc_cfg,
+        mpc_cfg=effective_cfg,
     )
     assert isinstance(tracker, JointSpaceMPC)
     return tracker
@@ -49,6 +85,7 @@ def build_omx_joint_mpc(
     max_vel: float = _DEFAULT_MAX_VEL_RAD_S,
     max_acc: float = _DEFAULT_MAX_ACC_RAD_S2,
     mpc_cfg: JointSpaceMPCConfig | None = None,
+    dt: float = _DEFAULT_CTRL_DT_S,
 ) -> JointSpaceMPC:
     """Build a 4-DOF joint-space MPC tracker for OMX."""
     return build_joint_mpc(
@@ -57,6 +94,7 @@ def build_omx_joint_mpc(
         max_vel=max_vel,
         max_acc=max_acc,
         mpc_cfg=mpc_cfg,
+        dt=dt,
     )
 
 
