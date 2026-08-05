@@ -126,8 +126,9 @@ _FLOOR_PICK_SCENES: frozenset[str] = frozenset(
 def _enable_floor_pick_contacts(robot_xml: str) -> str:
     """Remap palm collision bits for floor-ball grasp (all OM-X pick cells).
 
-    Palms match pad bit 4 so the STL does not fight the plane while closing
-    on a table-resting ball (pick-place, desk clutter, Γ maze).
+    Palms match pad bit 4 so the STL does not fight the floor (bit 1|8) while
+    closing on a table-resting ball. Scene obstacles use contype=5 (1|4) so
+    palms still collide with Γ walls / place bin / vision gate.
     """
     robot_xml = robot_xml.replace(
         '<geom mesh="gripper_left_palm" class="collision"/>',

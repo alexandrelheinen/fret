@@ -7,7 +7,8 @@ Same materialization pattern as :mod:`fret.mjcf.omx` — resolve Menagerie
 Pads sit on the inner fingertip faces (toward the grasp volume) and are the
 gripping surfaces. No arm ``qpos`` snaps. Floor pick-place remaps distal
 collision bits so wrist/finger STLs can close on a floor ball without fighting
-the plane (and without jamming the place funnel on transfer).
+the plane. Scene obstacles (walls, place bin, vision gate) use contype=5
+(bits 1|4) so distal links still collide with them — no silent clipping.
 """
 
 from __future__ import annotations
@@ -148,8 +149,10 @@ def _enable_floor_pick_contacts(robot_xml: str) -> str:
     """Remap distal collision bits for floor-ball grasp (SC-v14b/c).
 
     Menagerie wrist/finger STLs penetrate the plane at a true floor pinch.
-    Distal meshes use pad bit 4 (ball only): no floor fight on pinch, and no
-    place-funnel jam on transfer (funnel is bit 2). Proximal links keep bit 1.
+    Distal meshes use pad bit 4: collide with the ball (14) but not the floor
+    (9). Scene obstacles use contype=5 (1|4) so distal links still hit walls /
+    bin / gate. Funnel catcher stays bit 2 (ball only). Proximal links keep
+    bit 1.
     """
     # Wrist / flange / fingers: ball only (same bit as pads).
     for mesh in ("link5", "link6", "r1", "r2", "l1", "l2"):

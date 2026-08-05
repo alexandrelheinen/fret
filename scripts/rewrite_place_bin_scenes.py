@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Replace AWS mop-bucket place mesh with a single open square bin.
 
-Walls/bottom use ``contype=1`` (proximal arm bit only): the arm cannot
-clip through the receptacle, while distal pads/wrist (bit 4) stay free for
-a top-down drop. The ball does **not** hit the visual walls (avoids rim
-perching); catch is the invisible tip-down ``funnel_w*`` (bit 2). Planner
-place-shell occupancy remains for transfer detours.
+Walls/bottom use ``contype=5`` (bits 1|4): proximal arm **and** distal
+pads/wrist collide with the receptacle — no silent gripper clipping.
+The ball (bits 2|4|8) also contacts the shell. Catch assist remains the
+invisible tip-down ``funnel_w*`` (bit 2). Planner place-shell occupancy
+remains for transfer detours. Drop from above the rim.
 """
 
 from __future__ import annotations
@@ -107,29 +107,29 @@ def _bin_block(
     bot_h = min(0.004, 0.25 * t)
     lines = [
         "    <!-- Place bin: open square receptacle.",
-        "         Walls/bottom contype=1: proximal arm only (no ball rim perch).",
-        "         Distal pads/wrist (bit 4) free for top-down drop.",
-        "         Ball catch = invisible funnel_w* (bit 2). -->",
+        "         Walls/bottom contype=5: proximal (1) + distal/pads (4);",
+        "         ball also contacts the shell (no clipping). Drop from",
+        "         above the rim. Ball catch assist = funnel_w* (bit 2). -->",
         f'    <geom name="place_bin_bottom" type="box" '
         f'pos="{cx:.5f} {cy:.5f} {0.5 * bot_h:.5f}" '
         f'size="{inner:.5f} {inner:.5f} {0.5 * bot_h:.5f}" '
-        f'material="place_bin" contype="1" conaffinity="1"/>',
+        f'material="place_bin" contype="5" conaffinity="5"/>',
         f'    <geom name="place_bin_wall_px" type="box" '
         f'pos="{cx + inner + 0.5 * t:.5f} {cy:.5f} {z_c:.5f}" '
         f'size="{0.5 * t:.5f} {outer:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="1" conaffinity="1"/>',
+        f'material="place_bin" contype="5" conaffinity="5"/>',
         f'    <geom name="place_bin_wall_nx" type="box" '
         f'pos="{cx - inner - 0.5 * t:.5f} {cy:.5f} {z_c:.5f}" '
         f'size="{0.5 * t:.5f} {outer:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="1" conaffinity="1"/>',
+        f'material="place_bin" contype="5" conaffinity="5"/>',
         f'    <geom name="place_bin_wall_py" type="box" '
         f'pos="{cx:.5f} {cy + inner + 0.5 * t:.5f} {z_c:.5f}" '
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="1" conaffinity="1"/>',
+        f'material="place_bin" contype="5" conaffinity="5"/>',
         f'    <geom name="place_bin_wall_ny" type="box" '
         f'pos="{cx:.5f} {cy - inner - 0.5 * t:.5f} {z_c:.5f}" '
         f'size="{inner:.5f} {0.5 * t:.5f} {hz:.5f}" '
-        f'material="place_bin" contype="1" conaffinity="1"/>',
+        f'material="place_bin" contype="5" conaffinity="5"/>',
         *funnel_lines,
     ]
     return "\n".join(lines) + "\n"
@@ -178,7 +178,8 @@ def _patch_header(text: str, radius: float, height: float) -> str:
     )
     _BITS_NEW = (
         "Contact bits: arm=1, catcher=2, pads/distal=4, floor=1|8.\n"
-        "         Ball=2|4|8; place_bin contype=1 hits proximal arm only."
+        "         Ball=2|4|8; place_bin/walls/gate contype=5 "
+        "(bits 1|4) hit full arm."
     )
     for old in (
         "Contact bits: arm=1, place-bin=3 (arm|catcher), pads=4, floor=1|8.\n"

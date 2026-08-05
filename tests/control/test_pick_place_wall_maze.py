@@ -43,9 +43,9 @@ def test_omx_wall_maze_mjcf_has_gamma_walls() -> None:
     stem = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "transfer_wall_stem"
     )
-    # Arm (contype/affinity 1) must collide with the Γ walls.
-    assert int(model.geom_contype[stem]) == 1
-    assert int(model.geom_conaffinity[stem]) == 1
+    # Full arm (bits 1|4 = 5) must collide with the Γ walls — including pads.
+    assert int(model.geom_contype[stem]) == 5
+    assert int(model.geom_conaffinity[stem]) == 5
     walls = walls_from_scenario(_SCENARIO)
     # 4 Γ slabs + 4 place-bin side shells.
     assert len(walls) == 8
