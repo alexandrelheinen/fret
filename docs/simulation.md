@@ -2,8 +2,7 @@
 
 > **MuJoCo integration spec:** [mujoco.md](mujoco.md)  
 > **Visual tutorial:** [tutorial.md](tutorial.md)  
-> **Release focus:** v1.1 Dubins · v1.2 physics SITL · v1.3–v1.5 CV in sim.
-> Hardware HITL is **v2.x**. See [releases.md](releases.md).
+> **Release criteria:** [releases.md](releases.md)
 
 ---
 
@@ -15,7 +14,7 @@
 | **MuJoCo viewer** | `mujoco` | **Live 3D window** — `./scripts/view.sh` (all flags required) |
 | **MuJoCo MP4** | `mujoco`, `imageio` | Headless showcase video |
 | **MuJoCo SITL** | `mujoco`, ROS 2 Jazzy | Full ROS pipeline via `sitl.py` |
-| **MuJoCo physics SITL** | `mujoco`, ROS 2 Jazzy | Actuator-driven `mj_step` (v1.2+) |
+| **MuJoCo physics SITL** | `mujoco`, ROS 2 Jazzy | Actuator-driven `mj_step` (default) |
 
 MuJoCo is FRET's sole simulation engine — physics, contacts, rendering, and SITL.
 
@@ -55,7 +54,7 @@ source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
 ---
 
-## v1.1 — Dubins race
+## Dubins race
 
 ```bash
 ./scripts/view.sh --model dubins --scenario dubins_race \
@@ -79,9 +78,9 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 ---
 
-## v1.2 — Physics SITL (shipped)
+## Physics SITL
 
-Actuator-driven simulation with contact dynamics is the default from v1.2:
+Actuator-driven simulation with contact dynamics is the default:
 
 ```bash
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
@@ -100,8 +99,8 @@ and tuning workflow. Implementation spec: [mujoco_physics_v1.2.md](mujoco_physic
 
 ## Manipulation SITL
 
-OpenMANIPULATOR-X tabletop scenarios (v1.2.3) use MuJoCo physics SITL with
-Menagerie meshes. See [robots/open_manipulator_x.md](robots/open_manipulator_x.md).
+OpenMANIPULATOR-X / OMY tabletop scenarios use MuJoCo physics SITL with
+Menagerie meshes. See [robots/](robots/README.md).
 
 
 ## Recording
@@ -132,6 +131,6 @@ ros2 bag record /joint_states /joint_commands /joint_trajectory
 
 - Interactive viewer requires a desktop display (or X11 forwarding). On WSL2,
   see [wsl.md](wsl.md).
-- v1.2+ SITL and release showcases default to MuJoCo physics (`physics_mode:=true`).
+- SITL and release showcases default to MuJoCo physics (`physics_mode:=true`).
   Kinematic mirroring remains via `physics_mode:=false` or `--kinematic-mode`.
 - Full acceptance criteria: see [releases.md](releases.md).

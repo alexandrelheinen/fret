@@ -1,6 +1,6 @@
-# Dubins Mobile Robot (v1.1)
+# Dubins Mobile Robot
 
-> **Release:** v1.1–v1.2 · **Scenario:** SC-v11 (`dubins_race`) ·
+> **Scenario:** SC-v11 (`dubins_race`) ·
 > **Role:** ARCO SE(2) → MuJoCo physics **case study** — **no computer vision** ·
 > [Release spec](../releases.md#v11--dubins-dual-robot-race)
 

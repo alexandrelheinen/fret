@@ -21,18 +21,19 @@ grouped by era:
 | **Hardware integration** | **v2.x** | Modular HITL (bridge → real cameras → real arm → full loop) |
 | **Product** | **v3.0+** | Definitive integrated system (north-star only in this doc) |
 
-### Release matrix (simulation line)
+### Release matrix
 
-| Release | Robot / focus | Scenario theme | Backend |
-|---|---|---|---|
-| **v1.0** | *(superseded)* | Bootstrap — not a product showcase | — |
-| **v1.1** | Dubins / TB3 × 2 | Dual-robot race A→B (ARCO → MuJoCo case study) | MuJoCo |
-| **v1.2** | Dubins physics | Actuator-driven SITL with contacts | MuJoCo |
-| **v1.2.3** | OpenMANIPULATOR-X | Tabletop reach → pick-place → Γ-wall maze | MuJoCo |
-| **v1.2.4** | OpenMANIPULATOR-Y | 6-DOF reach → pick-place → clutter | MuJoCo |
-| **v1.3** | Vision algorithms | Ball track pipeline + **algorithm selection** | Fixtures (+ optional MuJoCo frames) |
-| **v1.4** | OM-X / OMY + CV | MuJoCo cameras → replace hardcoded ball pose | MuJoCo + CV |
-| **v1.5** | Dynamic manipulation | Rolling ball, pickability, industrial place | MuJoCo + CV |
+| Release | Robot / focus | Scenario theme | Backend | Status |
+|---|---|---|---|---|
+| **v1.1** | Dubins / TB3 × 2 | Dual-robot race A→B | MuJoCo | ✅ |
+| **v1.2** | Dubins physics | Actuator-driven SITL with contacts | MuJoCo | ✅ |
+| **v1.2.3** | OpenMANIPULATOR-X | Tabletop reach → pick-place → Γ-wall maze | MuJoCo | ✅ |
+| **v1.2.4** | OpenMANIPULATOR-Y | 6-DOF reach → pick-place → clutter | MuJoCo | ✅ |
+| **v1.3** | Vision algorithms | Ball track pipeline + algorithm selection | Fixtures (+ optional MuJoCo frames) | ✅ |
+| **v1.4** | OM-X / OMY + CV | MuJoCo cameras → replace hardcoded ball pose | MuJoCo + CV | ✅ |
+| **v1.5** | Dynamic manipulation | Rolling ball, pickability, industrial place | MuJoCo + CV | 🔲 |
+| **v2.x** | Hardware HITL | Modular bridge → cameras → arm → full loop | Hardware | 🔲 |
+| **v3.0** | Product | Definitive integrated system | Sim + HW | ○ |
 
 **TB3 / Dubins** never consumes CV — it exists to prove ARCO SE(2) racing under
 MuJoCo. **Only manipulators** use vision (they interact with graspable objects).
@@ -42,396 +43,140 @@ MuJoCo. **Only manipulators** use vision (they interact with graspable objects).
 - **Planning / control:** ARCO (RRT*, SST, occupancy, path-following + joint MPC)
 - **Middleware:** ROS 2 Jazzy
 - **Simulation:** MuJoCo (physics, contacts, cameras, rendering, SITL)
-- **Vision (from v1.3):** `fret.vision` — pure-Python pipeline; ROS I/O thin
+- **Vision:** `fret.vision` — pure-Python pipeline; ROS I/O thin
 
 ---
 
 ## Engineering foundation
 
-Early bootstrap work validated the planning/control pipeline. Product robots are
-drawn from the **ROBOTIS MuJoCo Menagerie** submodule (TurtleBot3,
-OpenMANIPULATOR-X/Y, …). Legacy SCARA/RRP assets are retired.
+Product robots are drawn from the **ROBOTIS MuJoCo Menagerie** submodule
+(TurtleBot3, OpenMANIPULATOR-X/Y, …).
 
-**Decisions already locked for the CV line** (detail in
-[vision/](vision/README.md)):
+**Decisions locked for the CV line** (detail in [vision/](vision/README.md)):
 
 | Topic | Decision |
 | --- | --- |
 | CV consumers | Manipulators only (`open_manipulator_x`, `omy`) |
-| Ball pose | From vision (v1.4+); no hardcoded ball / `pick_xy` in release paths |
+| Ball pose | From vision; no hardcoded ball / `pick_xy` in release paths |
 | Place / dispenser | **Known scenario parameter** (fixed fixture) — not required from CV |
-| v1.3 algorithm | **HSV blob + table-plane lift** (OpenCV); contracts remain swappable |
+| Primary algorithm | **HSV blob + table-plane lift** (OpenCV); contracts remain swappable |
 | v1.5 ball cadence (provisional) | **One ball at a time** for the release scenario; multi-ball deferred |
 
 ---
 
-## v1.0 — superseded
+## Shipped releases
 
-Tag `v1.0.0` was a bootstrap iteration. **Dubins race (v1.1) is the first product
-showcase.** No v1.0 acceptance criteria or tasks remain in this specification.
+Acceptance criteria below remain the regression contract. Implementation task
+lists for closed lines are not maintained here — see git history and
+[roadmap.md](roadmap.md) for the shipped summary.
 
----
+### v1.1 — Dubins dual-robot race ✅
 
-## v1.1 — Dubins dual-robot race
+Two **Dubins vehicles** race A→B through rectangular structures (posts, walls,
+alcoves), reproducing the ARCO `vehicle` race format (RRT* vs SST).
 
-### Goal
-
-Two **Dubins vehicles** race from **A → B** through a world of **rectangular
-structures** (posts, walls, and dead-end alcoves), reproducing the ARCO `vehicle`
-race format (RRT* vs SST).
-
-### Environment
-
-| Element | Description |
+| | |
 |---|---|
-| Floor | 10 m × 10 m lab plane (AWS ground texture) |
-| Structures | Narrow aisles + alcoves sized for real TurtleBot3 Burger |
-| Start A | (1.2, 1.2) |
-| Goal B | (8.8, 8.8) |
-| Visual | AWS clutter meshes on analytic boxes; real-scale TB3 |
-
-### Robots
-
-| Property | Value |
-|---|---|
-| Model name | `dubins` |
-| DOF | 3 (x, y, θ) — SE(2) |
-| Kinematics | ARCO `DubinsVehicle` |
-| Control | ARCO Pure Pursuit |
-| Planning | ARCO SST (per robot) |
-| ARCO reference | `map/vehicle.yml`, `scenes/vehicle.py` |
-
-### Scenario ID
-
-**SC-v11** — `config/scenarios/dubins_race.yml`
-
-### Acceptance criteria
+| Model | `dubins` (SE(2); ARCO Pure Pursuit + DubinsVehicle) |
+| Scenario | **SC-v11** — `config/scenarios/dubins_race.yml` |
+| Environment | 10 m × 10 m lab; start (1.2, 1.2); goal (8.8, 8.8) |
 
 | # | Criterion |
 |---|---|
-| V11-1 | Two robots plan independently; both reach B without collision with columns |
-| V11-2 | Race video shows simultaneous motion (split-screen **follow** + shared-world **overview**) |
-| V11-3 | Dubins curvature constraint respected (min turning radius) |
-| V11-4 | MP4 artifacts uploaded on release tag (overview + follow) |
+| V11-1 | Two robots plan independently; both reach B without collision |
+| V11-2 | Race video shows simultaneous motion (follow + overview) |
+| V11-3 | Dubins curvature constraint respected |
+| V11-4 | MP4 artifacts uploaded on release tag |
 
-### Implementation tasks
+### v1.2 — MuJoCo physics SITL ✅
 
-| ID | Task |
-|---|---|
-| T11-01 | SE(2) kinematics + Dubins validity adapter |
-| T11-02 | Column forest world (MJCF) |
-| T11-03 | Dual-agent launch + race orchestration |
-| T11-04 | Integrate ARCO Pure Pursuit tracking loop |
-| T11-05 | Race metrics (time-to-goal, path length) |
-
----
-
-## v1.2 — MuJoCo physics SITL ✅
-
-### Goal
-
-Upgrade FRET from **kinematic mirroring** to **full MuJoCo physics** for the
-shipped Dubins showcase (v1.1). Controller commands drive actuators; the
-simulation integrates dynamics and resolves contacts. Robots follow physical
-laws — no open-loop pose teleportation.
-
-This release does not add a new robot or showcase scenario. It hardens the
-simulation foundation required for v1.2.x arm releases.
-
-### Previous limitation (v1.1, superseded)
-
-| Aspect | Behaviour before v1.2 |
-|---|---|
-| Motion integration | Pure Python (Dubins vehicle) |
-| MuJoCo role | Visual mirror: `qpos` write + `mj_forward` |
-| Contacts | Not applied as forces during execution |
-| `/joint_states` | Derived from integrated commands, not `mj_step` |
-
-### Shipped behaviour (v1.2)
-
-| Aspect | Target behaviour |
-|---|---|
-| Motion integration | `mj_step` at control rate (50 Hz) |
-| Actuators | `<actuator>` elements per joint / agent |
-| Contacts | Columns, floor, optional inter-agent blocking |
-| `/joint_states` | Read from simulated `qpos` / `qvel` |
-| Tuning | Documented workflow: kinematic baseline → physics gains |
-
-### Scope by robot
-
-#### Dubins race
-
-- Map Pure Pursuit outputs to agent body actuators (velocity + steering)
-- Column and floor contact response
-- Optional inter-agent contact / blocking
-- Both agents reach goal B without penetration through structures
-
-#### Shared infrastructure
-
-- `physics_mode` ROS parameter on `MuJoCoBridgeNode`
-- Contact force logging and sim-time metrics
-- Regression clips when physics path diverges from kinematic baseline
-- CI smoke tests with `physics_mode:=true` for Dubins
-
-Full integration spec: [mujoco.md](mujoco.md) ·
-[v1.2 implementation spec](mujoco_physics_v1.2.md).
-
-### Scenario IDs
-
-Physics validation runs against the shipped release scenario:
-
-| ID | Scenario | Model |
-|---|---|---|
-| SC-v11 | `dubins_race.yml` | `dubins` |
-
-### Acceptance criteria
+Upgrade from kinematic mirroring to actuator-driven MuJoCo physics for the
+Dubins showcase. Spec: [mujoco.md](mujoco.md) ·
+[physics SITL](mujoco_physics_v1.2.md).
 
 | # | Criterion |
 |---|---|
 | V12-1 | `physics_mode:=true` SITL launches for Dubins without error |
-| V12-2 | Dubins agents reach B with column contact response; no ghosting through walls |
-| V12-3 | `/joint_states` timestamps match sim clock; no open-loop pose injection |
+| V12-2 | Agents reach B with column contact response; no ghosting through walls |
+| V12-3 | `/joint_states` from sim clock; no open-loop pose injection |
 | V12-4 | Contact log artifact produced in CI |
 | V12-5 | Controller tuning guide in [mujoco.md](mujoco.md) |
 | V12-6 | Physics regression tests in `tests/integration/` |
 
-### Implementation tasks
+### v1.2.3 — OpenMANIPULATOR-X tabletop ✅
 
-| ID | Task |
-|---|---|
-| T12-01 | `step_physics()` in `MuJoCoBridgeCore` — `ctrl` → `mj_step` |
-| T12-02 | Dubins MJCF actuators + steering model |
-| T12-03 | Contact logging harness + metrics |
-| T12-04 | Physics integration tests (Dubins) |
-| T12-05 | Update showcase scripts to support physics mode (optional flag) |
-| T12-06 | Document tuning workflow in [mujoco.md](mujoco.md) and [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) |
-
----
-
-## v1.2.3 — OpenMANIPULATOR-X tabletop ✅
-
-### Goal
-
-A **Menagerie OpenMANIPULATOR-X** (4-DOF + gripper) performs tabletop manipulation:
-empty-cell A→B (command chain), then **pick-and-place** (FSM + grasp physics on a
-Ø 40 mm ball → tip-down place cone), then **desk clutter** forcing a detour.
-Warehouse meshes stay for clutter only — they are far too large for the OM-X
-gripper (~3 cm aperture).
-
-### Robot
-
-| Model | DOF | Source |
-|---|---|---|
-| `open_manipulator_x` | 4 + gripper | `third_party/robotis_mujoco_menagerie/robotis_open_manipulator_x` |
-
-### Scenario IDs
+Menagerie OM-X (4-DOF + gripper): empty-cell A→B, pick-and-place (Ø 40 mm ball →
+place cone), desk clutter, Γ-wall maze.
 
 | ID | File | Description |
 |---|---|---|
 | SC-v13a | `omx_reach.yml` | Empty tabletop, EE pose A → B |
 | SC-v13b | `omx_pick_place.yml` | Stretch pick green→red (FSM + MuJoCo physics) |
 | SC-v13c | `omx_desk_clutter.yml` | Mid-cell wall forces planned retract detour |
-| SC-v13d | `omx_wall_maze.yml` | Γ (inverted-L) wall forces retract → climb → place |
-
-### Acceptance criteria
+| SC-v13d | `omx_wall_maze.yml` | Γ wall forces retract → climb → place |
 
 | # | Criterion |
 |---|---|
-| V123-1 | Empty-cell A→B reaches goal under MuJoCo physics SITL (EE error ≤ 5 mm) |
-| V123-2 | Pick-and-place FSM moves a free ball from green pedestal into the red place cone without drop mid-transfer |
-| V123-3 | Cluttered cell plans a collision-free detour (not a straight joint-space line) |
-| V123-4 | Showcase videos: Γ-maze isometric **overview** for RRT* and SST (same MPC tracking; no follow) |
-| V123-5 | Robot from Menagerie; pick object is a plain MuJoCo ball; place is a cone funnel |
-| V123-6 | Γ-wall maze path retracts and climbs over the cap before placing |
+| V123-1 | Empty-cell A→B under physics (EE error ≤ 5 mm) |
+| V123-2 | Pick-and-place FSM places ball without drop mid-transfer |
+| V123-3 | Cluttered cell plans a collision-free detour |
+| V123-4 | Showcase videos: Γ-maze overview for RRT* and SST |
+| V123-5 | Robot from Menagerie; plain MuJoCo ball; place cone |
+| V123-6 | Γ-wall path retracts and climbs before placing |
 
-### Implementation tasks
+### v1.2.4 — 6-DOF OpenMANIPULATOR-Y ✅
 
-| ID | Task |
-|---|---|
-| T123-01 | MJCF cell wrapping Menagerie OM-X (empty tabletop) |
-| T123-02 | Kinematics + controller + bridge wiring for OM-X joints |
-| T123-03 | SC-v13a scenario + unit/physics smoke |
-| T123-04 | PickPlace FSM + ball/cone MJCF + SC-v13b physics smoke |
-| T123-05 | Mid-cell wall + planner/controller SC-v13c detour (AWS later) |
-| T123-06 | Showcase render pipeline + metrics |
-| T123-07 | Γ-wall maze SC-v13d (stem+cap occupancy + climb filter) |
-
----
-
-## v1.2.4 — 6-DOF manipulator challenge
-
-### Goal
-
-A **6-DOF revolute manipulator** (Menagerie OpenMANIPULATOR-Y) performs C-space
-planning and trajectory execution in a cluttered environment — the last
-**pre-vision** manipulator showcase on the v1.2.x line. *(Shipped.)*
-
-### Scope (high level)
-
-| Item | Detail |
-|---|---|
-| Model | 6 revolute joints; MJCF from Menagerie submodule (OMY) |
-| IK | Numerical IK (Jacobian pseudoinverse or analytic where available) |
-| Planning | ARCO SST in 6-D C-space |
-| Collision | Per-link FK + KDTree clearance; self-collision in MJCF |
-| Environment | Configurable obstacle field (tabletop or cell) |
-| Simulation | MuJoCo physics SITL from day one |
-
-### Scenario IDs
+Menagerie OMY (6 revolute joints): reach, floor pick-place, clutter detour.
 
 | ID | File | Description |
 |---|---|---|
 | SC-v14a | `omy_reach.yml` | Empty tabletop joint-space A→B |
-| SC-v14b | `omy_pick_place.yml` | Floor ball pick → cone place (FSM + MuJoCo physics) |
+| SC-v14b | `omy_pick_place.yml` | Floor ball pick → cone place |
 | SC-v14c | `omy_clutter.yml` | Mid-cell wall forces planned transfer detour |
-
-### Acceptance criteria
 
 | # | Criterion |
 |---|---|
-| V124-1 | Empty-cell A→B reaches goal joint configuration under MuJoCo physics |
-| V124-2 | Ground pick-and-place FSM places ball in cone (physics smoke in CI) |
-| V124-3 | Cluttered cell plans a detour (straight joint line collides; path length ≥ 2) |
-| V124-4 | Robot from Menagerie OMY; floor ball + tip-down place cone at Menagerie scale |
+| V124-1 | Empty-cell A→B under MuJoCo physics |
+| V124-2 | Ground pick-and-place places ball in cone |
+| V124-3 | Cluttered cell plans a detour (path length ≥ 2) |
+| V124-4 | Robot from Menagerie OMY; floor ball + place cone |
 
-### Implementation tasks
+### v1.3 — Computer vision pipeline ✅
 
-| ID | Task |
+Pure-Python ball-tracking pipeline with unit tests and algorithm selection.
+No manipulation closed loop in this tag. Architecture:
+[vision/architecture.md](vision/architecture.md). Selection ADR:
+[vision/algorithm-selection.md](vision/algorithm-selection.md).
+
+| # | Criterion |
 |---|---|
-| T124-01 | MJCF cells wrapping Menagerie OMY (tabletop, pick-place, clutter) |
-| T124-02 | Kinematics + controller + bridge wiring for OMY joints |
-| T124-03 | SC-v14a scenario + unit/physics smoke |
-| T124-04 | Ground pick-place FSM + ball/cone MJCF + SC-v14b physics smoke |
-| T124-05 | Mid-cell wall + planner/controller SC-v14c detour |
+| V13-1 | `FR-VIS-*` and `docs/modules/vision.md` published |
+| V13-2 | Algorithm selection records candidates and chosen primary |
+| V13-3 | Unit tests: ball centre error ≤ threshold on fixtures |
+| V13-4 | Pipeline runs without ROS |
+| V13-5 | Multi-camera interface defined (primary algo may be monocular) |
 
----
+### v1.4 — CV ↔ manipulation integration ✅
 
-## v1.3 — Computer vision pipeline ✅
-
-### Goal
-
-Ship a **pure-Python computer-vision pipeline** that can track a graspable ball
-in images from **one or more cameras**, with unit tests, written specs, and an
-**explicit algorithm selection** for that goal. No manipulation closed loop and
-no requirement for production MJCF camera mounts in this tag — those are v1.4.
-
-Architecture: [vision/architecture.md](vision/architecture.md).  
-Selection ADR: [vision/algorithm-selection.md](vision/algorithm-selection.md).
-
-### Scope
-
-| Item | Detail |
-|---|---|
-| Package | `fret.vision` (algorithm layer; no ROS imports in core) |
-| Goal | Detect / track ball centre; lift to metric pose when calibration + geometry allow |
-| Cameras | API supports N≥1; MVP uses 1 overhead view |
-| Primary algo | OpenCV HSV blob + table-plane ray lift |
-| Consumers | Spec’d for manipulators; **TB3 out of scope** |
-| Place pose | Out of scope (known parameter later) |
-| Tests | Synthetic fixtures under `tests/vision/` (+ optional web gallery script) |
-
-### Scenario IDs
-
-| ID | Description |
-|---|---|
-| SC-v15 | Vision unit / fixture scenarios (algorithm gates; not a robot showcase) |
-
-### Acceptance criteria
-
-| # | Criterion | Status |
-|---|---|---|
-| V13-1 | `FR-VIS-*` requirements and `docs/modules/vision.md` API stubs published | ✅ |
-| V13-2 | Algorithm selection document records candidates, metrics, and **chosen primary** | ✅ |
-| V13-3 | Unit tests: ball centre error ≤ threshold on fixtures (see selection doc) | ✅ |
-| V13-4 | Pipeline runs without ROS; optional thin ROS wrapper may exist but is not required | ✅ |
-| V13-5 | Multi-camera interface is defined even if the primary algo starts monocular | ✅ |
-
-### Implementation tasks
-
-| ID | Task | Status |
-|---|---|---|
-| T13-01 | Scaffold `fret.vision` + typed contracts (`BallObservation`, `CameraFrame`, …) | ✅ |
-| T13-02 | Candidate implementations behind a common detector/tracker interface | ✅ HSV + plane |
-| T13-03 | Fixture corpus + unit gates; record selection decision | ✅ |
-| T13-04 | Module + interface docs; link from roadmap / scenarios | ✅ |
-
----
-
-## v1.4 — CV ↔ manipulation integration ✅
-
-### Goal
-
-Connect the v1.3 vision pipeline to **existing OM-X / OMY pick-and-place** so
-release behaviours match today’s physics smoke **without hardcoded ball
-positions**. Simulate cameras in MuJoCo with a **realistic mount**. The
-**place / dispenser** pose remains a known scenario parameter.
-
-### v1.4.1 patch (showcase honesty)
-
-`v1.4.0` tagged the CV integration but release clips still showed OM-X arms
-clipping Γ roofs and a non-physical gripper–sphere glue. **`v1.4.1`** keeps
-the same SC-v16 / showcase matrix and adds:
-
-| Fix | Detail |
-|---|---|
-| JointSpaceMPC C-space barriers | Sample wall-contact joint configs → ARCO occupancy; `mpc_weight_obstacle` |
-| Wall-contact FAULT | Sustained `transfer_wall*` contact fails the FSM (showcase honesty) |
-| OM-X adhesion polarity | Distance-to-closed (open=`0.019` / closed=`0.006`); gain 5 |
-| OM-X pick ball | Ø **40 mm** (`ball_radius_m: 0.020`) for grasp + HSV |
-| OMY clutter wall | Shorter/thinner mid-chord stub (18 cm) so RRT* **and** SST place under honesty |
-
-Release MP4s for `v1.4.1` must be regenerated from this line (do not reuse
-`v1.4.0` R2 clips for OM-X maze / OMY clutter).
-
-### Scope
-
-| Item | Detail |
-|---|---|
-| Robots | `open_manipulator_x`, `omy` |
-| Cameras | MJCF `<camera>` on rear structural gate (dual corner cams) |
-| Ball pose | From `BallObservation` → pad-mid IK → FSM |
-| Place pose | YAML known parameter (fixed industrial fixture) |
-| Equivalence | Same DONE / cone-place success as pre-CV scenarios on seeded runs |
-
-### Scenario IDs
+Connect vision to OM-X / OMY pick-and-place so release behaviours match physics
+smoke **without hardcoded ball positions**. Place / dispenser pose remains a
+known scenario parameter. Cameras: rear structural gate (dual corner cams).
 
 | ID | File | Description |
 |---|---|---|
-| SC-v16a | `omx_pick_place_cv.yml` | OM-X CV pick-place (`scenario_id: omx_pick_place`) |
-| SC-v16b | `omy_pick_place_cv.yml` | OMY analogue (`scenario_id: omy_pick_place`) |
-| SC-v16c | clutter variants | Optional / deferred: clutter + CV ball |
+| SC-v16a | `omx_pick_place_cv.yml` | OM-X CV pick-place |
+| SC-v16b | `omy_pick_place_cv.yml` | OMY CV pick-place |
 
-Base cells `omx_pick_place.yml` / `omy_pick_place.yml` already default
-`use_vision=True` in runners; SC-v16 YAML locks the CV contract explicitly.
-
-### Acceptance criteria
-
-| # | Criterion | Status |
-|---|---|---|
-| V14-1 | Scenario MJCF includes calibrated sim cameras with documented extrinsics | ✅ |
-| V14-2 | Release pick-place paths do not read hardcoded ball / `pick_xy` as ground truth | ✅ |
-| V14-3 | Place / dispenser pose comes only from scenario parameters | ✅ |
-| V14-4 | Physics smoke: FSM reaches DONE and ball enters place volume (seeded) | ✅ |
-| V14-5 | Behaviour parity checklist vs SC-v13b / SC-v14b on shared seeds | ✅ see below |
-
-### V14-5 — parity checklist (SC-v13b / SC-v14b ↔ SC-v16)
-
-| Check | How verified |
+| # | Criterion |
 |---|---|
-| Same MJCF cell + place cone | CV YAML keeps `scenario_id` / `mjcf` of base pick-place |
-| Place from YAML only | `place_xy` + place joint configs unchanged by vision path |
-| Pick not from `pick_xy` | `tests/control/test_pick_place_vision.py` + runners |
-| DONE + ball in place volume | `test_*_pick_place_cv_physics_done` / base physics smokes |
-| Vision XY ≪ gripper opening | Portal lift error ≪ open gap (OM-X ~60 mm / OMY ~115 mm) |
+| V14-1 | Scenario MJCF includes calibrated sim cameras |
+| V14-2 | Release pick-place paths do not use hardcoded ball / `pick_xy` as GT |
+| V14-3 | Place / dispenser pose comes only from scenario parameters |
+| V14-4 | Physics smoke: FSM reaches DONE; ball enters place volume (seeded) |
+| V14-5 | Behaviour parity vs SC-v13b / SC-v14b on shared seeds |
 
-### Implementation tasks
-
-| ID | Task | Status |
-|---|---|---|
-| T14-01 | Camera mount MJCF + calibration YAML for OM-X / OMY cells | ✅ rear gate + `*_portal_overhead.yml` |
-| T14-02 | MuJoCo image adapter → `fret.vision` | ✅ `MujocoCameraAdapter` + CI benchmarks |
-| T14-03 | Replace hardcoded ball pose in runners with vision output | ✅ `pick_place_vision` + OM-X/OMY runners |
-| T14-04 | SC-v16 scenarios + tests; showcase matrix note (vision-on) | ✅ `*_pick_place_cv.yml` + tests |
+Showcase honesty on this line also covers JointSpaceMPC C-space wall barriers,
+wall-contact FAULT, physical OM-X grasp adhesion, and Ø 40 mm pick ball.
 
 ---
 
@@ -498,7 +243,7 @@ After **v1.5** is validated in simulation, bring the same contracts onto
 Targets (indicative): Raspberry Pi 5 + Arduino Mega + Nema-class actuators;
 exact BOM frozen when v2.0 planning opens.
 
-Module stub today: [modules/hardware.md](modules/hardware.md) (retargeted to v2.x).
+Module stub today: [modules/hardware.md](modules/hardware.md).
 
 ### Acceptance criteria (era-level)
 
@@ -523,85 +268,41 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 
 ## Version tagging
 
-| Tag | Content | Prerequisite |
+| Tag | Content | Status |
 |---|---|---|
-| `v1.0.0` | Superseded bootstrap tag | — |
-| `v1.1.0` | Dubins dual race — first product showcase | T11-* ✅ |
-| `v1.1.x` | Physics-bridge iterations | See [§ retrospective](#v11x--v12-retrospective) |
-| `v1.2.0` | MuJoCo physics SITL (Dubins) | T12-* ✅ |
-| `v1.2.3` | OpenMANIPULATOR-X tabletop | T123-* ✅ |
-| `v1.2.4` | OMY 6-DOF challenge | T124-* ✅ |
-| `v1.2.5` | Patch: OMY clutter showcase detour | — ✅ |
-| `v1.2.6` | Patch: telemetry on R2 (FR-SIM-12) | — ✅ |
-| `v1.2.7` | Patch: Dubins showcase encode / clip length | — ✅ |
-| `v1.3.0` | **CV pipeline + algorithm selection** | T13-* ✅ |
-| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | T14-* ✅ |
-| `v1.4.1` | Patch: showcase honesty (MPC C-space barriers, OM-X grasp, Ø40 mm ball) | — |
-| `v1.5.0` | Dynamic ball + industrial place | T15-* |
-| `v2.0.0+` | Hardware line (modular) | T2x-* |
-| `v3.0.0` | Definitive product (north-star) | — |
+| `v1.1.0` | Dubins dual race — first product showcase | ✅ |
+| `v1.2.0` | MuJoCo physics SITL (Dubins) | ✅ |
+| `v1.2.3` | OpenMANIPULATOR-X tabletop | ✅ |
+| `v1.2.4` | OMY 6-DOF challenge | ✅ |
+| `v1.2.5`–`v1.2.7` | Patches (OMY clutter, telemetry R2, Dubins encode) | ✅ |
+| `v1.3.0` | CV pipeline + algorithm selection | ✅ |
+| `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | ✅ |
+| `v1.4.1` | Showcase honesty (MPC barriers, OM-X grasp, Ø40 mm ball) | — |
+| `v1.5.0` | Dynamic ball + industrial place | 🔲 |
+| `v2.0.0+` | Hardware line (modular) | 🔲 |
+| `v3.0.0` | Definitive product (north-star) | ○ |
 
-Python package on this line is **1.4.1** (`pyproject.toml`). Product tag
-`v1.4.0` shipped T14-*; **`v1.4.1`** is the honesty patch for release videos
-(wall contact FAULT + barriers, direction-aware adhesion, Ø40 mm OM-X ball);
-then `v1.5.0`, `v2.x` / `v3.0.0`.
+---
 
-### v1.1.x → v1.2.0 retrospective
-
-Intermediate tags between v1.1.0 and v1.2.0 landed physics SITL incrementally
-without new showcase scenarios. Kinematic release MP4s were default until
-v1.2.0; physics clips used `--physics-mode` during development.
-
-| Tag | Focus | Status |
-|---|---|---|
-| `v1.1.1` | Physics bridge checkpoint (#88) | Superseded |
-| `v1.1.2` | MJCF collision policy + physics tracking baseline | ✅ |
-| `v1.1.3` | Floor-contact / contact-log handoff | ✅ |
-| `v1.1.4` | Dubins RTF + tracking gates | ✅ |
-| `v1.1.5` | Regression harness + CI hardening | ✅ |
-| `v1.2.0` | Product release — physics-default showcase | ✅ |
-
-**v1.1.x rules (historical):** no new robots or scenarios; each tag CI-green;
-kinematic behaviour must not regress.
-
-**Resolved physics gaps at v1.2.0:**
-
-- **Dubins (SC-v11):** both agents reach goal under physics; race duration
-  ~1.73× kinematic on CI.
-- **Release pipeline:** `release.yml` uses `--physics-mode`.
-
-**Historical “deferred” items (status today):**
-
-| Item | Status |
-|---|---|
-| OMY 6-DOF (was “deferred to v1.2.4+”) | ✅ Shipped |
-| Hardware HITL (was “deferred to v1.3+”) | **Moved to v2.x** — v1.3 is CV |
-| Optional TB3 race finish-time polish | Non-blocking; TB3 accepted as case study |
-
-### Release showcase videos (v1.2.3+)
+## Release showcase videos
 
 Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/release/showcase.yml).
 
 | Robot class | Scenarios (today) | Required cameras |
 |---|---|---|
-| **mobile** | `dubins_race` (TB3); future mobile robots | `overview` (isometric); `follow` optional / local |
-| **static** | OM-X Γ-maze: `omx_wall_maze_rrt` + `omx_wall_maze_sst`; OMY pick-place `omy_pick_place` + clutter `omy_clutter_rrt` + `omy_clutter_sst` | `overview` only |
+| **mobile** | `dubins_race` (TB3) | `overview` (isometric); `follow` optional / local |
+| **static** | OM-X Γ-maze (`omx_wall_maze_rrt` / `_sst`); OMY pick-place + clutter RRT*/SST | `overview` only |
 
 OM-X and OMY clutter release clips share the same wall geometry and joint
 tracking; they differ only in the transfer planner (**RRT\*** vs **SST**).
-Simpler OM-X / OMY demos (`omx_reach`, `omy_reach`, desk clutter) stay in the
-repo for development but are not release artifacts.
+Simpler demos stay in the repo for development but are not release artifacts.
 
 **Rules:**
 
-- **Overview** must frame the robots and ideally start + goal (tune zoom /
-  azimuth per scenario MJCF / runtime camera constants).
+- **Overview** must frame the robots and ideally start + goal.
 - **Follow** is optional for mobile and **not** on the blocking release path.
   Dubins ships overview-only at `fps: 20`, `960×540`, `clip_duration_s: 40`
-  (full ~38 s race + short hold → 40 s video; 800 frames) so the encode job
-  stays under ~10 min. A separate non-blocking follow job was considered and
-  **deferred**: a second camera roughly doubles encode wall time. Render
-  follow locally when needed:
+  so the encode job stays under ~10 min. Render follow locally when needed:
 
   ```bash
   ./scripts/video.sh --model dubins --scenario dubins_race \
@@ -612,29 +313,24 @@ repo for development but are not release artifacts.
   ```
 
   Static / tabletop arms must **not** export follow on release.
-- Dubins release uses `clip_duration_s` as the **video** length (full race +
-  hold/trim). Optional `clip_scale` remains for scale×sim_time clips.
-  Full-race acceptance stays in pytest.
+- Dubins release uses `clip_duration_s` as the **video** length. Full-race
+  acceptance stays in pytest.
 - Dubins race uses `--physics-mode`; OM-X clips step MuJoCo actuators.
-- Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags
-  (`-dev`, probes, …) upload under `releases/<tag>/` only.
+- Only clean semver tags (`vX.Y.Z`) update `latest/`. Suffixed tags upload under
+  `releases/<tag>/` only.
 - Showcase renders also write matching telemetry
-  (`<scenario>_overview.csv` + `.json`) next to the overview MP4; the
-  R2 uploader publishes them beside the videos (FR-SIM-12). Download with
-  `./scripts/download_showcase.sh --tag v1.2.6 --with-telemetry`.
+  (`<scenario>_overview.csv` + `.json`) next to the overview MP4 (FR-SIM-12).
+  Download with `./scripts/download_showcase.sh --tag <tag> --with-telemetry`.
 
 Orchestration: `scripts/release/render_showcase.py` +
 `.github/workflows/release.yml`.
 
 Every release-tag MP4 **must** play back at **real-time simulation speed**.
-This is a hard product requirement, independent of kinematic vs physics render
-mode.
 
 Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 `.github/workflows/release.yml`):
 
-1. Record frames at fixed `fps`; capture `sim_time_s` (simulated motion
-   duration) and `render_duration_s` (`frame_count / fps`).
+1. Record frames at fixed `fps`; capture `sim_time_s` and `render_duration_s`.
 2. Compute `real_time_factor = render_duration_s / sim_time_s`.
 3. Post-process with **ffmpeg** (`setpts=PTS/rtf`) so on-screen motion matches
    `sim_time_s`. Skip only when `rtf ≈ 1`.
@@ -642,28 +338,11 @@ Pipeline (`scripts/render_mujoco.py`, invoked by `scripts/video.sh` and
 **RTF rules:**
 
 - Release CI must **not** pass `--no-realtime-postprocess`.
-- `--timing-json` is required on release renders (persists RTF per clip in
-  `meta.json`).
+- `--timing-json` is required on release renders.
 - Development/debug renders may use `--no-realtime-postprocess`, but uploaded
   R2 showcase assets must always be real-time adjusted.
 
-Until v1.2.0, release CI used `--kinematic-mode`; from v1.2.0 onward Dubins
-uses `--physics-mode`. The real-time post-process step applies in both cases.
-
 See [mujoco.md § Showcase rendering](mujoco.md#showcase-rendering-real-time-playback).
 
-**v1.4+ note:** showcase / SITL **perception cameras** (ball tracking) are
-distinct from release **overview** encode cameras. Perception mounts are
-specified under [vision/camera-layout.md](vision/camera-layout.md).
-
----
-
-## Deprecated / removed
-
-The following documents and goals are **superseded** by this release spec:
-
-- MS-6 / MS-7 milestone framing (MuJoCo + TBD showcase)
-- SC-01 – SC-05 bootstrap scenarios (retired with SCARA/RRP purge)
-- Platform study 2026 Q3 dual-demo proposal
-- **v1.3 as Hardware HITL** — hardware moved to **v2.x**; v1.3 is the CV pipeline
-- “Vision post-v1.3” framing in older roadmap copies
+Perception cameras (ball tracking) are distinct from release **overview** encode
+cameras. Perception mounts: [vision/camera-layout.md](vision/camera-layout.md).

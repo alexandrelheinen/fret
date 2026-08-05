@@ -1,6 +1,6 @@
-# Algorithm selection (v1.3)
+# Algorithm selection
 
-> **Release:** v1.3 · Acceptance: V13-2 / V13-3 in [releases.md](../releases.md)
+> Acceptance: V13-2 / V13-3 in [releases.md](../releases.md)
 
 ---
 

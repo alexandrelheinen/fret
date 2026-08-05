@@ -122,7 +122,7 @@ cameras).
 
 Full integration specification: [mujoco.md](mujoco.md).
 Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
-Unit / external model repertoire: [mujoco_models_benchmark.md](mujoco_models_benchmark.md).
+Robot models and asset sources: [robots/README.md](robots/README.md).
 
 ---
 

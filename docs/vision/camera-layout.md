@@ -1,6 +1,6 @@
-# Camera layout (v1.4)
+# Camera layout
 
-> **Release:** v1.4 · Related: [architecture.md](architecture.md) ·
+> Related: [architecture.md](architecture.md) ·
 > [algorithm-selection.md](algorithm-selection.md)
 
 Perception cameras (ball tracking) are **not** the same as release **overview**
@@ -113,7 +113,7 @@ For **HSV + table-plane lift**, parallel vs toed-in barely changes precision whe
 both see the ball (errors already ≪ 1 mm). The practical win of toed-in is
 **coverage and obstruction robustness**, not millimetres. Pure stereo depth
 without a plane would prefer a known baseline and limited toe-in; that is not
-the v1.4 primary path.
+the primary path.
 
 **Recommendation:** keep toed-in for this gate; revisit parallel only if a
 future stereo lifter needs a calibrated rectified pair.
