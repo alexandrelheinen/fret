@@ -93,8 +93,8 @@ needs network access). Standard build/test/run commands live in
   config and renders a near-static clip; pass `--no-tracking` to render visible
   planned-path (ARCO RRT*) motion.
 - **Known pre-existing breakages (not environment issues):** the pinned
- pinned `arco[mpc] @ v0.3.2` provides CasADi path-following / joint-space
- MPC. Pre-existing: `mypy` reports a missing `Any` import in
+ `arco[mpc] @ v0.3.7` provides CasADi classical path-following MPCC /
+ joint-space MPC. Pre-existing: `mypy` reports a missing `Any` import in
  `planner_node_ros.py`; and the ROS `planner_node` crashes at launch because
  `declare_parameter("start_configuration", [])` is inferred as `BYTE_ARRAY`
  under rclpy Jazzy. Other nodes (mujoco_bridge, controller, perception,
