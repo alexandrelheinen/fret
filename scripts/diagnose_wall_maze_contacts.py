@@ -10,7 +10,12 @@ Classifies contacts as:
 
 Pinned finding (seed 204, contype=5): plan/track clear; FSM FAULT with
 ``transfer_wall_stem`` ↔ ``gripper_left`` palm (geom 51, bit 4) near
-EE ≈ (0.13, −0.10, 0.23) — pick-side Γ during lift/early MOVE_PLACE.
+EE ≈ (0.13, −0.10, 0.23) — pick-side Γ during early MOVE_PLACE when the
+path was still planned from ``pick_hover``.
+
+Resolution: plan from ``lift_hover``, require zero-hit MPC dry-run on Γ
+paths, densify C-space barriers; acceptance = DONE with wall_contact_steps=0.
+
 
 Usage::
 
