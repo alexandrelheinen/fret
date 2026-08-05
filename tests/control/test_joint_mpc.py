@@ -19,6 +19,9 @@ def test_build_omx_joint_mpc_matches_control_period_dt() -> None:
     """ARCO ≥ v0.3.7 requires step(dt) == config.dt; default is 50 Hz."""
     mpc = build_omx_joint_mpc()
     assert abs(mpc.config.dt - _CTRL_DT) < 1e-9
+    # Preserve ARCO's default physical horizon (12 × 0.05 s = 0.6 s).
+    assert mpc.config.horizon_step_count == 30
+    assert abs(mpc.config.horizon_step_count * mpc.config.dt - 0.6) < 1e-9
 
 
 def test_build_omx_joint_mpc_tracks_target() -> None:
