@@ -53,9 +53,9 @@
         z_max: 0.265
     wall_inflate_m: 0.035
     # Must match omx_wall_maze.yml — release variants are full YAML copies.
-    mpc_cspace_clearance_rad: 0.28
-    mpc_cspace_samples: 14000
-    mpc_weight_obstacle: 120.0
+    mpc_cspace_clearance_rad: 0.30
+    mpc_cspace_samples: 18000
+    mpc_weight_obstacle: 140.0
     fault_on_wall_contact: true
     wall_contact_fault_steps: 5
 

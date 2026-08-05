@@ -58,10 +58,11 @@
     # Palm (bit 4) now collides with Γ stems; keep a thicker planning shell.
     wall_inflate_m: 0.035
     # JointSpaceMPC soft barriers (C-space KDTree of wall-contact configs).
-    mpc_cspace_clearance_rad: 0.28
-    mpc_cspace_samples: 14000
+    # Sample denser after contype=5 so palm/bit-4 collisions populate the tree.
+    mpc_cspace_clearance_rad: 0.30
+    mpc_cspace_samples: 18000
     # Stronger than ARCO default (60) so carrot cuts cannot ignore walls.
-    mpc_weight_obstacle: 120.0
+    mpc_weight_obstacle: 140.0
     # Sticky FAULT if arm↔transfer_wall contact persists (showcase honesty).
     fault_on_wall_contact: true
     wall_contact_fault_steps: 5
