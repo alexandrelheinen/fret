@@ -65,28 +65,28 @@ def gate_body_xml(
     <body name="vision_gate" pos="{x:.5f} 0 0">
       <geom name="gate_post_l" type="box" size="{bar:.4f} {bar:.4f} {post_h:.4f}"
             pos="0 {half_y:.5f} {post_h:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_post_r" type="box" size="{bar:.4f} {bar:.4f} {post_h:.4f}"
             pos="0 {-half_y:.5f} {post_h:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_beam_top" type="box" size="{bar:.4f} {half_y + bar:.5f} {bar:.4f}"
             pos="0 0 {z_top:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_beam_bot" type="box" size="{bar:.4f} {half_y + bar:.5f} {bar:.4f}"
             pos="0 0 {2.0 * bar:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_brace_a" type="box" size="{0.7 * bar:.4f} {brace_len:.5f} {0.7 * bar:.4f}"
             pos="0 0 {0.5 * z_top:.5f}" quat="{q_a}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_brace_b" type="box" size="{0.7 * bar:.4f} {brace_len:.5f} {0.7 * bar:.4f}"
             pos="0 0 {0.5 * z_top:.5f}" quat="{q_b}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_cam_plate_l" type="box" size="0.03 0.025 0.012"
             pos="0.04 {half_y:.5f} {z_top - 0.02:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_cam_plate_r" type="box" size="0.03 0.025 0.012"
             pos="0.04 {-half_y:.5f} {z_top - 0.02:.5f}" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <camera name="gate_cam_left" pos="0.04 {half_y:.5f} {z_top - 0.02:.5f}"
               xyaxes="{xy_l}" fovy="{fovy:.1f}"/>
       <camera name="gate_cam_right" pos="0.04 {-half_y:.5f} {z_top - 0.02:.5f}"

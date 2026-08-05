@@ -148,14 +148,14 @@ def test_omx_pick_place_mjcf_loads() -> None:
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_bottom")
         >= 0
     )
-    # Bin walls collide with proximal arm (bit 1); funnel catcher is ball-only
-    # (bit 2). Distal pads stay on bit 4 so top-down drops are still free.
+    # Bin walls collide with full arm (bits 1|4=5); funnel catcher is ball-only
+    # (bit 2). Distal pads stay on bit 4 (no floor fight) but still hit the bin.
     wall = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_wall_px"
     )
     assert wall >= 0
-    assert int(model.geom_contype[wall]) == 1
-    assert int(model.geom_conaffinity[wall]) == 1
+    assert int(model.geom_contype[wall]) == 5
+    assert int(model.geom_conaffinity[wall]) == 5
     funnel = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "funnel_w0")
     assert funnel >= 0
     assert int(model.geom_contype[funnel]) == 2
@@ -178,7 +178,7 @@ def test_omy_place_bin_blocks_proximal_arm() -> None:
     names = [model.geom(i).name for i in range(model.ngeom)]
     joints = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
     # Historical elbow-down place_grasp that penetrates wall_nx when walls
-    # collide (contype=1). Must produce a place_bin contact.
+    # collide (contype=5). Must produce a place_bin contact.
     dunk = [0.4298, 0.3654, 1.8952, -0.2575, -0.9997, -0.0128]
     for name, val in zip(joints, dunk, strict=True):
         adr = int(

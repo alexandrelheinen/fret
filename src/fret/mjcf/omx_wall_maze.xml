@@ -46,28 +46,28 @@
     <!-- Dual Γ flanking front place; outer stems + ±Y roofs. -->
     <geom name="transfer_wall_stem" type="box" pos="0.270 -0.100 0.11" size="0.040 0.010 0.11"
           material="transfer_wall" friction="1.0 0.1 0.01"
-          contype="1" conaffinity="1"/>
+          contype="5" conaffinity="5"/>
     <geom name="transfer_wall_cap" type="box" pos="0.275 -0.165 0.245" size="0.035 0.075 0.02"
           material="transfer_wall" friction="1.0 0.1 0.01"
-          contype="1" conaffinity="1"/>
+          contype="5" conaffinity="5"/>
     <geom name="transfer_wall_stem_p" type="box" pos="0.270 0.100 0.11" size="0.040 0.010 0.11"
           material="transfer_wall" friction="1.0 0.1 0.01"
-          contype="1" conaffinity="1"/>
+          contype="5" conaffinity="5"/>
     <geom name="transfer_wall_cap_p" type="box" pos="0.275 0.165 0.245" size="0.035 0.075 0.02"
           material="transfer_wall" friction="1.0 0.1 0.01"
-          contype="1" conaffinity="1"/>
+          contype="5" conaffinity="5"/>
 
     <!-- Ø 40 mm tennis-like ball on the floor (grippy felt). -->
 
     <!-- Place bin: open square receptacle.
-         Walls/bottom contype=1: proximal arm only (no ball rim perch).
-         Distal pads/wrist (bit 4) free for top-down drop.
-         Ball catch = invisible funnel_w* (bit 2). -->
-    <geom name="place_bin_bottom" type="box" pos="0.26000 0.00000 0.00063" size="0.05000 0.05000 0.00063" material="place_bin" contype="1" conaffinity="1"/>
-    <geom name="place_bin_wall_px" type="box" pos="0.31250 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="1" conaffinity="1"/>
-    <geom name="place_bin_wall_nx" type="box" pos="0.20750 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="1" conaffinity="1"/>
-    <geom name="place_bin_wall_py" type="box" pos="0.26000 0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="1" conaffinity="1"/>
-    <geom name="place_bin_wall_ny" type="box" pos="0.26000 -0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="1" conaffinity="1"/>
+         Walls/bottom contype=5: proximal (1) + distal/pads (4); ball also
+         contacts the shell (no clipping). Drop from above the rim.
+         Ball catch assist = invisible funnel_w* (bit 2). -->
+    <geom name="place_bin_bottom" type="box" pos="0.26000 0.00000 0.00063" size="0.05000 0.05000 0.00063" material="place_bin" contype="5" conaffinity="5"/>
+    <geom name="place_bin_wall_px" type="box" pos="0.31250 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="5" conaffinity="5"/>
+    <geom name="place_bin_wall_nx" type="box" pos="0.20750 0.00000 0.04900" size="0.00250 0.05500 0.04900" material="place_bin" contype="5" conaffinity="5"/>
+    <geom name="place_bin_wall_py" type="box" pos="0.26000 0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="5" conaffinity="5"/>
+    <geom name="place_bin_wall_ny" type="box" pos="0.26000 -0.05250 0.04900" size="0.05000 0.00250 0.04900" material="place_bin" contype="5" conaffinity="5"/>
     <geom name="funnel_w0" type="box" size="0.00250 0.00757 0.05501" pos="0.28800 0.00000 0.04900" quat="0.972307 0.000000 0.233707 0.000000" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w1" type="box" size="0.00250 0.00757 0.05501" pos="0.28730 0.00623 0.04900" quat="0.966193 -0.026167 0.232238 0.108864" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
     <geom name="funnel_w2" type="box" size="0.00250 0.00757 0.05501" pos="0.28523 0.01215 0.04900" quat="0.947929 -0.052005 0.227848 0.216359" rgba="0.55 0.42 0.35 0" friction="1.4 0.1 0.01" contype="2" conaffinity="2"/>
@@ -119,28 +119,28 @@
     <body name="vision_gate" pos="-0.16000 0 0">
       <geom name="gate_post_l" type="box" size="0.0120 0.0120 0.3600"
             pos="0 0.30000 0.36000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_post_r" type="box" size="0.0120 0.0120 0.3600"
             pos="0 -0.30000 0.36000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_beam_top" type="box" size="0.0120 0.31200 0.0120"
             pos="0 0 0.72000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_beam_bot" type="box" size="0.0120 0.31200 0.0120"
             pos="0 0 0.02400" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_brace_a" type="box" size="0.0084 0.45044 0.0084"
             pos="0 0 0.36000" quat="0.912693 0.408647 0.000000 0.000000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_brace_b" type="box" size="0.0084 0.45044 0.0084"
             pos="0 0 0.36000" quat="0.912693 -0.408647 0.000000 0.000000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_cam_plate_l" type="box" size="0.03 0.025 0.012"
             pos="0.04 0.30000 0.70000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <geom name="gate_cam_plate_r" type="box" size="0.03 0.025 0.012"
             pos="0.04 -0.30000 0.70000" material="vision_portal"
-            contype="0" conaffinity="0" group="1"/>
+            contype="5" conaffinity="5" group="1"/>
       <camera name="gate_cam_left" pos="0.04 0.30000 0.70000"
               xyaxes="-0.745241 -0.666795 0.000000 0.514999 -0.575587 0.635198" fovy="42.0"/>
       <camera name="gate_cam_right" pos="0.04 -0.30000 0.70000"
