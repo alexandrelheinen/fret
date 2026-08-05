@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Render a short MP4 proving place-bin walls block the proximal arm.
+"""Render an MP4 of the normal OMY pick-place flow at real-time speed.
 
-Clip A: drive the historical elbow-down dunk into the bin — link4 contacts
-``place_bin_wall_nx`` (penetration depth logged on stderr).
-
-Clip B: replay the place-phase samples from a successful OMY pick-place run —
-arm stays outside the colliding walls while the ball settles in the funnel.
+Replays a successful ``simulate_omy_pick_place`` run with physics stepping
+(actuators + MuJoCo integration) so the clip shows the full pick → transfer →
+place cycle without forced dunk poses or time compression.
 """
 
 from __future__ import annotations
@@ -56,29 +54,53 @@ def _place_camera(mujoco: object, model: object, data: object) -> object:
     return cam
 
 
-def _set_arm(
+def _overview_camera(mujoco: object) -> object:
+    cam = mujoco.MjvCamera()
+    mujoco.mjv_defaultCamera(cam)
+    cam.type = mujoco.mjtCamera.mjCAMERA_FREE
+    cam.lookat[:] = np.array([0.20, -0.05, 0.20], dtype=np.float64)
+    cam.distance = 1.55
+    cam.azimuth = 132.0
+    cam.elevation = -22.0
+    return cam
+
+
+def _seed_sample(
     mujoco: object,
     model: object,
     data: object,
-    q: np.ndarray,
+    sample: object,
     *,
-    grip: float,
+    joints: tuple[str, ...],
+    qadr: dict[str, int],
+    box_qadr: int,
 ) -> None:
-    joints = ("Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6")
-    for name, val in zip(joints, q, strict=True):
-        adr = int(
-            model.jnt_qposadr[
-                mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
-            ]
-        )
-        data.qpos[adr] = float(val)
-        aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
-        if aid >= 0:
-            data.ctrl[aid] = float(val)
-    grip_act = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "Gripper")
-    if grip_act >= 0:
-        data.ctrl[grip_act] = float(grip)
+    for name in joints:
+        data.qpos[qadr[name]] = float(sample.q_arm[joints.index(name)])
+    grip_j = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "rh_r1")
+    if grip_j >= 0:
+        data.qpos[int(model.jnt_qposadr[grip_j])] = float(sample.gripper)
+    data.qpos[box_qadr : box_qadr + 7] = sample.box_qpos
     mujoco.mj_forward(model, data)
+
+
+def _physics_step_sample(
+    mujoco: object,
+    model: object,
+    data: object,
+    sample: object,
+    *,
+    joints: tuple[str, ...],
+    act: dict[str, int],
+    grip_act: int,
+) -> None:
+    for name in joints:
+        aid = act[name]
+        if aid >= 0:
+            data.ctrl[aid] = float(sample.q_arm[joints.index(name)])
+    if grip_act >= 0:
+        data.ctrl[grip_act] = float(sample.gripper)
+    mujoco.mj_step(model, data)
 
 
 def _bin_contact_summary(
@@ -98,50 +120,16 @@ def _bin_contact_summary(
     return hits, worst
 
 
-def _clip_dunk_blocked(
+def _render_normal_flow(
     mujoco: object,
     model: object,
     data: object,
     renderer: object,
     writer: object,
     *,
+    camera: object,
     fps: int,
-    seconds: float,
 ) -> tuple[int, float]:
-    """Interpolate toward the old elbow-down dunk; physics must hit the wall."""
-    start = np.array(
-        [0.6553, 0.0952, 1.2659, -0.5150, 0.5410, 0.1035], dtype=np.float64
-    )
-    dunk = np.array(
-        [0.4298, 0.3654, 1.8952, -0.2575, -0.9997, -0.0128], dtype=np.float64
-    )
-    cam = _place_camera(mujoco, model, data)
-    frames = max(2, int(round(seconds * fps)))
-    max_hits = 0
-    worst = 0.0
-    for i in range(frames):
-        alpha = min(1.0, float(i) / max(1, frames - 1))
-        q = (1.0 - alpha) * start + alpha * dunk
-        _set_arm(mujoco, model, data, q, grip=1.05)
-        for _ in range(4):
-            mujoco.mj_step(model, data)
-        hits, depth = _bin_contact_summary(mujoco, model, data)
-        max_hits = max(max_hits, hits)
-        worst = min(worst, depth)
-        renderer.update_scene(data, camera=cam)
-        writer.append_data(renderer.render())
-    return max_hits, worst
-
-
-def _clip_successful_place(
-    mujoco: object,
-    model: object,
-    data: object,
-    renderer: object,
-    writer: object,
-    *,
-    fps: int,
-) -> None:
     from fret.control.omy_pick_place_sim import simulate_omy_pick_place
     from fret.control.pick_place_fsm import PickPlaceState
 
@@ -154,7 +142,9 @@ def _clip_successful_place(
         use_vision=False,
     )
     if state != PickPlaceState.DONE:
-        raise RuntimeError(f"place replay ended in {state.name}, expected DONE")
+        raise RuntimeError(f"pick-place replay ended in {state.name}, expected DONE")
+    if len(samples) < 2:
+        raise RuntimeError("pick-place replay recorded too few frames")
 
     box_jid = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
@@ -174,41 +164,38 @@ def _clip_successful_place(
         for name in joints
     }
     grip_act = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "Gripper")
-    cam = _place_camera(mujoco, model, data)
 
-    # Keep transfer + place phases only (last ~40% of motion).
-    place_samples = [
-        s
-        for s in samples
-        if s.state.name
-        in {
-            "MOVE_PLACE",
-            "DESCEND_PLACE",
-            "RELEASE",
-            "RETREAT",
-            "DONE",
-        }
-    ]
-    if len(place_samples) < 30:
-        place_samples = samples[-max(30, len(samples) // 3) :]
+    _seed_sample(
+        mujoco,
+        model,
+        data,
+        samples[0],
+        joints=joints,
+        qadr=qadr,
+        box_qadr=box_qadr,
+    )
+    renderer.update_scene(data, camera=camera)
+    writer.append_data(renderer.render())
 
-    stride = max(1, len(place_samples) // int(8.0 * fps))
-    picked = place_samples[::stride]
-    if picked[-1] is not place_samples[-1]:
-        picked.append(place_samples[-1])
-
-    for sample in picked:
-        for name in joints:
-            data.qpos[qadr[name]] = float(sample.q_arm[joints.index(name)])
-            aid = act[name]
-            if aid >= 0:
-                data.ctrl[aid] = float(sample.q_arm[joints.index(name)])
-        if grip_act >= 0:
-            data.ctrl[grip_act] = float(sample.gripper)
-        data.qpos[box_qadr : box_qadr + 7] = sample.box_qpos
-        mujoco.mj_forward(model, data)
-        renderer.update_scene(data, camera=cam)
+    max_hits = 0
+    worst = 0.0
+    for sample in samples[1:]:
+        _physics_step_sample(
+            mujoco,
+            model,
+            data,
+            sample,
+            joints=joints,
+            act=act,
+            grip_act=grip_act,
+        )
+        hits, depth = _bin_contact_summary(mujoco, model, data)
+        max_hits = max(max_hits, hits)
+        worst = min(worst, depth)
+        renderer.update_scene(data, camera=camera)
         writer.append_data(renderer.render())
+
+    return max_hits, worst
 
 
 def main() -> None:
@@ -222,14 +209,19 @@ def main() -> None:
             "omy_place_bin_collision_proof.mp4"
         ),
     )
-    parser.add_argument("--fps", type=int, default=30)
+    parser.add_argument(
+        "--fps",
+        type=int,
+        default=0,
+        help="Output FPS (0 = match MuJoCo timestep, real-time)",
+    )
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument(
-        "--dunk-seconds",
-        type=float,
-        default=3.0,
-        help="Length of the forced dunk segment",
+        "--camera",
+        choices=("place", "overview"),
+        default="place",
+        help="Camera framing (default: place-bin isometric)",
     )
     args = parser.parse_args()
 
@@ -239,27 +231,32 @@ def main() -> None:
     xml = ensure_omy_pick_place_mjcf()
     model = mujoco.MjModel.from_xml_path(str(xml))
     data = mujoco.MjData(model)
+    dt = float(model.opt.timestep)
+    fps = int(args.fps) if int(args.fps) > 0 else max(1, int(round(1.0 / dt)))
+
     renderer = mujoco.Renderer(model, height=args.height, width=args.width)
-    writer = _open_writer(args.output, args.fps)
+    writer = _open_writer(args.output, fps)
+    camera = (
+        _place_camera(mujoco, model, data)
+        if args.camera == "place"
+        else _overview_camera(mujoco)
+    )
     try:
-        hits, depth = _clip_dunk_blocked(
+        hits, depth = _render_normal_flow(
             mujoco,
             model,
             data,
             renderer,
             writer,
-            fps=args.fps,
-            seconds=args.dunk_seconds,
-        )
-        _clip_successful_place(
-            mujoco, model, data, renderer, writer, fps=args.fps
+            camera=camera,
+            fps=fps,
         )
     finally:
         writer.close()
         renderer.close()
 
     print(
-        f"Wrote {args.output} (dunk place_bin contacts={hits}, "
+        f"Wrote {args.output} ({fps} fps, place_bin contacts={hits}, "
         f"min_depth={depth:.4f} m)",
         flush=True,
     )
