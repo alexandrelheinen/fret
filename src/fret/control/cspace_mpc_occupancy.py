@@ -106,7 +106,12 @@ def mujoco_wall_occupied_predicate(
     joint_names: tuple[str, ...] = ("Joint1", "Joint2", "Joint3", "Joint4"),
     wall_prefix: str | tuple[str, ...] = "transfer_wall",
 ) -> Callable[[npt.NDArray[np.float64]], bool]:
-    """Return ``is_occupied(q)`` using MuJoCo contacts with wall geoms."""
+    """Return ``is_occupied(q)`` using MuJoCo contacts with wall geoms.
+
+    With scene obstacles on contype=5 (bits 1|4), palm/distal meshes (bit 4)
+    contribute colliding samples — barriers cover the gripper, not only the
+    proximal arm.
+    """
     import mujoco as mj
 
     prefixes = (
