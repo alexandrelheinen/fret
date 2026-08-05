@@ -1,31 +1,30 @@
-# Computer vision program (v1.3–v1.5)
+# Computer vision program
 
-> **Era:** Simulation & algorithms (v1.x only).  
 > **Release criteria:** [releases.md](../releases.md) · **Roadmap:** [roadmap.md](../roadmap.md)
 
-FRET’s computer-vision work lives entirely in **simulation** through **v1.5**.
-Hardware cameras and real images belong to **v2.x**.
+FRET’s computer-vision work lives in **simulation** through the current v1.x
+line. Hardware cameras and real images belong to the **v2.x** hardware era.
 
 ---
 
 ## Why vision exists here
 
-Manipulators **grasp scene objects**. From **v1.4**, OM-X / OMY pick-place
-takes the ball pose from gate-camera `BallObservation` (SC-v16). YAML
-`pick_xy` remains a **test oracle** only; place / dispenser stays parametric.
+Manipulators **grasp scene objects**. OM-X / OMY pick-place takes the ball pose
+from gate-camera `BallObservation` (SC-v16). YAML `pick_xy` remains a **test
+oracle** only; place / dispenser stays parametric.
 
 **TurtleBot3 / Dubins does not use CV.** It remains an ARCO → MuJoCo mobility
 case study (no graspable object interaction in the product scenarios).
 
 ---
 
-## Release ladder
+## Program ladder
 
-| Tag | Deliverable | Doc |
-| --- | --- | --- |
-| **v1.3** | Pipeline + unit tests + **algorithm selection** | [algorithm-selection.md](algorithm-selection.md) |
-| **v1.4** | MuJoCo cameras + wire into pick-place (no hardcoded ball) | [camera-layout.md](camera-layout.md) · [architecture.md](architecture.md) |
-| **v1.5** | Rolling ball, pickability, industrial container | [releases.md § v1.5](../releases.md#v15--dynamic-ball--industrial-place) |
+| Stage | Deliverable | Doc | Status |
+| --- | --- | --- | --- |
+| Pipeline | Unit tests + **algorithm selection** | [algorithm-selection.md](algorithm-selection.md) | ✅ |
+| Integration | MuJoCo cameras → pick-place (no hardcoded ball) | [camera-layout.md](camera-layout.md) · [architecture.md](architecture.md) | ✅ |
+| Dynamic scene | Rolling ball, pickability, industrial container | [releases.md § v1.5](../releases.md#v15--dynamic-ball--industrial-place) | 🔲 |
 
 ---
 
@@ -34,11 +33,11 @@ case study (no graspable object interaction in the product scenarios).
 | Decision | Choice | Rationale |
 | --- | --- | --- |
 | Who uses CV | OM-X and OMY only | Only manipulators interact with graspable objects |
-| What CV must find | Ball centre (and pickability from v1.5) | Grasp entry needs object pose |
+| What CV must find | Ball centre (and pickability on the dynamic line) | Grasp entry needs object pose |
 | What stays parametric | Place / dispenser / container pose | Fixed industrial fixture |
 | Algorithm | **HSV blob + table-plane lift** (MVP) | See [algorithm-selection.md](algorithm-selection.md); contracts stay swappable |
 | Multi-camera | Interface supports `N ≥ 1` frames | Fusion is an implementation detail |
-| v1.5 cadence | One ball per cycle (provisional) | Clearer FSM and metrics; multi-ball stretch |
+| Dynamic cadence | One ball per cycle (provisional) | Clearer FSM and metrics; multi-ball stretch |
 
 ---
 
@@ -48,14 +47,14 @@ case study (no graspable object interaction in the product scenarios).
 src/fret/vision/          # pure Python — no rclpy
   types.py                # CameraFrame, BallObservation, VisionConfig, …
   protocols.py            # BallDetector, BallTracker, PoseLifter
-  pipeline.py             # BallVisionPipeline (Level-3 stub on process)
-  detect/                 # future detector implementations
-  geometry/               # future pose-lift implementations
-  track/                  # future trackers
+  pipeline.py             # BallVisionPipeline
+  detect/                 # detector implementations
+  geometry/               # pose-lift implementations
+  track/                  # trackers
 
-src/fret/config/vision/   # calibration / scenario wiring (algo knobs later)
+src/fret/config/vision/   # calibration / scenario wiring
 
-src/fret/ros/             # thin adapters only (v1.4+)
+src/fret/ros/             # thin adapters only
 ```
 
 Module API: [modules/vision.md](../modules/vision.md).
@@ -70,7 +69,7 @@ the ball CV pipeline. Naming:
 
 | Component | Role |
 | --- | --- |
-| `perception_bridge` | Occupancy obstacles → `/obstacle_cloud` (existing) |
-| `fret.vision` | Ball detection / tracking → `BallObservation` (new) |
+| `perception_bridge` | Occupancy obstacles → `/obstacle_cloud` |
+| `fret.vision` | Ball detection / tracking → `BallObservation` |
 
 Do not overload `perception_bridge` with ball tracking; keep contracts separate.

@@ -1,4 +1,4 @@
-# MuJoCo Tutorial — FRET Visual Guide (v1.1 Dubins · v1.2 physics)
+# MuJoCo Tutorial — FRET Visual Guide
 
 > **One-stop tutorial** for seeing FRET robots in MuJoCo.
 > MuJoCo is FRET's simulation engine for physics, contacts, rendering, and SITL.
@@ -112,7 +112,7 @@ token used for CI (never commit secrets to git):
 cp .env.example .env    # fill R2_* values once; .env is gitignored
 sudo apt install awscli # if needed
 ./scripts/download_showcase.sh
-./scripts/download_showcase.sh --tag v1.2.3 --all
+./scripts/download_showcase.sh --tag <tag> --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
 ./scripts/download_showcase.sh --scenario omx_wall_maze_rrt --camera overview
 ./scripts/download_showcase.sh --scenario omx_wall_maze_sst --camera overview
@@ -163,11 +163,11 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 ---
 
-## 5. Physics SITL (v1.2, default)
+## 5. Physics SITL (default)
 
-From v1.2, MuJoCo advances the simulation with `mj_step` and velocity actuators
-instead of kinematic pose mirroring. Release CI and showcase renders pass
-`--physics-mode`; ROS SITL enables physics by default.
+MuJoCo advances the simulation with `mj_step` and velocity actuators instead of
+kinematic pose mirroring. Release CI and showcase renders pass `--physics-mode`;
+ROS SITL enables physics by default.
 
 ```bash
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
@@ -202,7 +202,7 @@ Architecture, actuator mapping, and tuning workflow: [mujoco.md](mujoco.md).
 
 ## Visual assets and realism
 
-FRET v1.1 ships a **hybrid MJCF** scene (`dubins_race.xml`):
+FRET ships a **hybrid MJCF** scene (`dubins_race.xml`):
 
 - **Agents:** ROBOTIS TurtleBot3 Burger MJCF (Apache-2.0) with true wheel hinges + velocity actuators on freejoints
 - **Warehouse:** [AWS RoboMaker Small Warehouse World](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) meshes (MIT-0) for floor, clutter, and shelf visuals

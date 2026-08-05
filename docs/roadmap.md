@@ -1,7 +1,7 @@
 # FRET Project Roadmap
 
 > **Authoritative release criteria:** [releases.md](releases.md)  
-> **Vision program (v1.3–v1.5):** [vision/README.md](vision/README.md)
+> **Vision program:** [vision/README.md](vision/README.md)
 
 ---
 
@@ -24,18 +24,12 @@ kind of work; major bumps change the delivery surface.
    MuJoCo physics. It does **not** consume computer vision — only manipulators
    interact with graspable scene objects.
 3. **Manipulators (OM-X, OMY)** are the CV consumers: detect / classify balls and
-   drive pick-and-place without hardcoded ball poses (from v1.4 onward).
+   drive pick-and-place without hardcoded ball poses.
 4. **v3.0** is a north-star (“everything that works, integrated”). This roadmap
    only *mentions* it; no task breakdown for 3.0+ is maintained here.
 
 ```
-v1.1–v1.2.x   ✅  Mobile + arm MuJoCo showcases (TB3, OM-X, OMY)
-     │
-     ▼
-v1.3   ✅  Computer-vision pipeline (algorithms, unit tests, selection)
-     │
-     ▼
-v1.4   ✅  CV ↔ manipulation integration (MuJoCo cameras, no hardcoded ball)
+v1.1–v1.4   ✅  Mobile + arm showcases, physics SITL, CV ↔ manipulation
      │
      ▼
 v1.5   🔲  Dynamic ball delivery + industrial place geometry + pickability
@@ -65,60 +59,25 @@ v3.0   ○   Definitive product (goal only — no detailed plan yet)
 
 ---
 
-## Phase map (v1.x complete → open)
+## Shipped (summary)
 
-### Phase 0 — Specification ✅
+| Phase | Tag line | What landed |
+| --- | --- | --- |
+| Spec + CI | — | C-space / SE(2) domains, interface contracts, QoS |
+| Mobile race | v1.1 | Dual-agent Dubins / TB3 race, AWS maze, path-following |
+| Physics SITL | v1.2 | `physics_mode`, wheel actuators, contact logging |
+| OM-X tabletop | v1.2.3 | Reach, pick-place FSM, desk clutter, Γ-wall maze |
+| OMY 6-DOF | v1.2.4+ | Reach, floor pick-place, clutter; telemetry on R2 |
+| CV pipeline | v1.3 | `fret.vision`, HSV + table-plane, fixture gates |
+| CV ↔ manip | v1.4 | MuJoCo gate cameras → `BallObservation` → pick-place |
 
-- [x] C-space / SE(2) domains, interface contracts, QoS, CI
+Full acceptance criteria for shipped lines: [releases.md](releases.md).
 
-### Phase 1 — Mobile race showcase ✅ *(v1.1)*
+---
 
-**Robot:** TurtleBot3 Burger (Menagerie). **Role:** ARCO → MuJoCo case study.
+## Open work
 
-- [x] SE(2) planning, dual-agent race, AWS maze, path-following MPC, release MP4s
-
-### Phase 2 — MuJoCo physics SITL ✅ *(v1.2)*
-
-- [x] `physics_mode`, wheel actuators, contact logging, physics-default showcase
-
-### Phase 3 — OpenMANIPULATOR-X tabletop ✅ *(v1.2.3)*
-
-- [x] SC-v13a–d: reach, pick-place FSM, desk clutter, Γ-wall maze
-
-### Phase 4 — 6-DOF OpenMANIPULATOR-Y ✅ *(v1.2.4 + patches)*
-
-- [x] SC-v14a–c: reach, pedestal pick-place, clutter detour; showcase RRT*/SST
-- [x] Telemetry beside R2 videos *(v1.2.6)*; Dubins encode polish *(v1.2.7)*
-
-Optional sim polish (non-blocking for the CV line): denser AWS desk props;
-explicit 6-D self-collision C-space checker.
-
-### Phase 5 — Computer vision pipeline ✅ *(v1.3)*
-
-**Scope:** algorithms + unit tests + **algorithm selection** only. No MuJoCo
-camera MJCF required to *select*; fixtures may use synthetic images.
-
-- [x] Spec `FR-VIS-*` + module package `fret.vision`
-- [x] Evaluate candidates against [vision/algorithm-selection.md](vision/algorithm-selection.md)
-- [x] Lock primary detector / tracker for ball centre in image + world lift
-  (HSV blob + table-plane lift; OpenCV)
-- [x] Unit tests on synthetic fixtures (`tests/vision/`; CI control shard)
-- [x] Web gallery script for qualitative photos (`scripts/vision_web_ball_gallery.py`)
-- [x] Tag `v1.3.0`
-
-### Phase 6 — CV ↔ manipulation integration ✅ *(v1.4)*
-
-- [x] MuJoCo cameras in OM-X / OMY cells (rear structural gate, dual corner cams)
-- [x] MuJoCo image adapter → `fret.vision` + dual-view detect/lift benchmarks
-- [x] Place cone moved in front of arm; pick on the side (±90° yaw margin)
-- [x] Wire `BallObservation` → pick-and-place (replace hardcoded ball / `pick_xy` as grasp GT)
-- [x] Keep **place / dispenser** as known YAML parameters
-- [x] Equivalent behaviour to today’s physics smoke without pose cheats
-- [x] SC-v16a/b scenario YAML + tests (`*_pick_place_cv.yml`)
-- [x] Tag `v1.4.0` *(CV↔manipulation product tag)*
-- [ ] Tag `v1.4.1` *(showcase honesty: C-space MPC barriers, OM-X grasp, Ø40 mm ball)*
-
-### Phase 7 — Dynamic scene + industrial place 🔲 *(v1.5)*
+### Dynamic scene + industrial place 🔲 *(v1.5)*
 
 - [ ] Ball rolls on floor to a **random** rest pose; CV detects it
 - [ ] **Pickability** classifier (in workspace / graspable vs reject)
@@ -126,7 +85,7 @@ camera MJCF required to *select*; fixtures may use synthetic images.
 - [ ] Decide single-ball vs multi-ball delivery for the release scenario
 - [ ] Tag `v1.5.0`
 
-### Phase 8 — Hardware line 🔲 *(v2.x)*
+### Hardware line 🔲 *(v2.x)*
 
 Modular integration (order fixed; each may be its own minor tag):
 
@@ -137,7 +96,7 @@ Modular integration (order fixed; each may be its own minor tag):
 
 See [releases.md § v2.x](releases.md#v2x--hardware-integration-line).
 
-### Phase 9 — Definitive product ○ *(v3.0)*
+### Definitive product ○ *(v3.0)*
 
 Mention only: a release where simulation-proven algorithms and hardware modules
 are validated together as the default product. Detailed 3.0+ planning is
@@ -150,8 +109,8 @@ are validated together as the default product. Detailed 3.0+ planning is
 | Model | Era role | Uses CV? |
 | --- | --- | --- |
 | `dubins` (TB3) | Case study: ARCO kinematics → MuJoCo physics race | **No** |
-| `open_manipulator_x` | 4-DOF tabletop manipulation + CV from v1.4 | **Yes** |
-| `omy` / `six_dof` | 6-DOF manipulation + CV from v1.4 | **Yes** |
+| `open_manipulator_x` | 4-DOF tabletop manipulation + CV | **Yes** |
+| `omy` / `six_dof` | 6-DOF manipulation + CV | **Yes** |
 
 Full acceptance criteria: [releases.md](releases.md).  
 Architecture for vision: [vision/architecture.md](vision/architecture.md).

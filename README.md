@@ -7,11 +7,6 @@ connects the [ARCO](https://github.com/alexandrelheinen/arco) motion-planning st
 MuJoCo simulation. Algorithm code lives in pure Python; a thin ROS 2 layer handles
 topics, actions, and simulator I/O.
 
-**Package on `main`: 1.4.1** — CV↔manipulation (MuJoCo gate cameras →
-`BallObservation` → OM-X/OMY pick-place) plus showcase honesty fixes (C-space
-MPC wall barriers, physical OM-X grasp, Ø40 mm ball). Prior product tag:
-**v1.4.0**; next patch tag: **v1.4.1**.
-
 <br clear="left">
 
 ---
@@ -20,15 +15,14 @@ MPC wall barriers, physical OM-X grasp, Ø40 mm ball). Prior product tag:
 
 | Capability | Mobile (TB3 / Dubins) | Manipulators (OM-X / OMY) |
 |---|---|---|
-| Role | ARCO SE(2) → MuJoCo physics case study | Tabletop pick-and-place (+ CV from v1.4) |
+| Role | ARCO SE(2) → MuJoCo physics case study | Tabletop pick-and-place with CV ball pose |
 | Planning | RRT* / SST in SE(2) | Joint-space RRT* / SST + FSM |
 | Control | Path-following MPC | JointSpaceMPC |
-| Computer vision | **Not used** | Pipeline in v1.3; integrated v1.4–v1.5 |
-| Sim | MuJoCo physics SITL | MuJoCo physics + (v1.4) cameras |
+| Computer vision | Not used | HSV + table-plane → `BallObservation` |
+| Sim | MuJoCo physics SITL | MuJoCo physics + gate cameras |
 
-**Release line:** package **1.4.1** ships T14-* plus post-`v1.4.0` showcase
-honesty (wall MPC barriers, grasp polarity, Ø40 mm ball). See
-[docs/roadmap.md](docs/roadmap.md) and [docs/releases.md](docs/releases.md).
+Roadmap and release criteria: [docs/roadmap.md](docs/roadmap.md),
+[docs/releases.md](docs/releases.md).
 
 ---
 
@@ -41,16 +35,16 @@ src/fret/
 ├── scenario/          # Pure-Python E2E orchestrators (Dubins race)
 ├── telemetry/         # Opt-in PlotJuggler CSV logger + layouts (FR-SIM-12)
 ├── scene/             # Scene acquisition → occupancy adapter
-├── vision/            # Ball CV pipeline (v1.3: HSV + table-plane)
+├── vision/            # Ball CV pipeline (HSV + table-plane)
 ├── ros/               # MuJoCo bridge, perception bridge, race node
 ├── validation/        # Metrics and quality gates
-├── hardware/          # HITL bridge stub (v2.x)
+├── hardware/          # HITL bridge stub (future hardware line)
 ├── config/
 │   ├── scenarios/     # Run definitions (start/goal, duration, config refs)
 │   ├── planning/      # Algorithm tunables (clearance, trajectory, replanning)
 │   ├── controllers/   # Per-model gains (dubins.yml, …)
 │   ├── worlds/        # Obstacle layouts + Dubins vehicle/planner tuning
-│   ├── vision/        # CV thresholds + camera extrinsics (from v1.3)
+│   ├── vision/        # CV thresholds + camera extrinsics
 │   └── simulation/    # MuJoCo bridge settings
 ├── mjcf/              # MuJoCo scenes (primary visual backend)
 ├── launch/            # sitl.py, mujoco.py
@@ -71,13 +65,13 @@ showcase targets.
 - **ARCO** is a synchronous library inside planner nodes — not a separate ROS node.
 - **C-space** is the planning domain for manipulators; **SE(2)** for Dubins agents.
 - **MuJoCo** is the simulation engine for physics, contacts, rendering, cameras,
-  and SITL. v1.2 ships **physics SITL** by default (`mj_step`, velocity
-  actuators, contact dynamics). Kinematic mirroring remains for fast regression
+  and SITL. Physics SITL is the default (`mj_step`, velocity actuators, contact
+  dynamics). Kinematic mirroring remains for fast regression
   (`physics_mode:=false` or `--kinematic-mode`).
-- **Computer vision** (`fret.vision`, from v1.3) serves **manipulators only**;
-  TB3 / Dubins never consumes ball tracking. Place/dispenser poses stay known
-  scenario parameters. Architecture: [docs/vision/](docs/vision/).
-- **Hardware HITL** is a **v2.x** era — not part of v1.3–v1.5.
+- **Computer vision** (`fret.vision`) serves **manipulators only**; TB3 / Dubins
+  never consumes ball tracking. Place/dispenser poses stay known scenario
+  parameters. Architecture: [docs/vision/](docs/vision/).
+- **Hardware HITL** is a future era — see [docs/releases.md](docs/releases.md).
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
 - **Configuration over code:** every tunable algorithm parameter (planning clearance,
   controller gains, trajectory limits, replanning thresholds, Dubins vehicle
@@ -144,7 +138,7 @@ flowchart TB
     TASK --> PLANNING --> CONTROL --> SIMULATOR
 ```
 
-### Dubins race data flow (v1.1 — first product showcase)
+### Dubins race data flow
 
 Scenario YAML references `planning/dubins.yml`; vehicle footprint and planner ARCO
 tunables live in `config/worlds/dubins_race_obstacles.yml`. Two agents share one
@@ -206,11 +200,11 @@ Launch selects kinematics, collision checker, MJCF, and controller config via
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 ```
 
-| `model` | Release | Control strategy |
-|---|---|---|
-| `dubins` | v1.1 | ARCO Pure Pursuit + DubinsVehicle |
-| `open_manipulator_x` | v1.2.3 | Jacobian / joint-space tracking (Menagerie OM-X) |
-| `six_dof` | v1.2.4 | Jacobian + numerical IK (planned) |
+| `model` | Control strategy |
+|---|---|
+| `dubins` | ARCO Pure Pursuit + DubinsVehicle |
+| `open_manipulator_x` | Jacobian / joint-space tracking (Menagerie OM-X) |
+| `six_dof` / `omy` | Jacobian + numerical IK (Menagerie OMY) |
 
 Robot details: [docs/robots/README.md](docs/robots/README.md).
 
@@ -327,14 +321,14 @@ Visual walkthrough: [docs/tutorial.md](docs/tutorial.md) · WSL notes: [docs/wsl
 
 ### 4. Download release showcase clips
 
-After a version tag, CI uploads overview + follow MP4s to Cloudflare R2:
+CI uploads overview (+ optional follow) MP4s to Cloudflare R2 for release tags:
 
 ```bash
 ./scripts/download_showcase.sh --list
-./scripts/download_showcase.sh --tag v1.2.6 --all
+./scripts/download_showcase.sh --tag <tag> --all
 ./scripts/download_showcase.sh --scenario dubins_race --camera follow
-# Video + matching PlotJuggler CSV/JSON (same basename; from v1.2.6)
-./scripts/download_showcase.sh --tag v1.2.6 --scenario dubins_race --with-telemetry
+# Video + matching PlotJuggler CSV/JSON (same basename)
+./scripts/download_showcase.sh --tag <tag> --scenario dubins_race --with-telemetry
 ```
 
 R2 layout is per scenario folder (`latest/<scenario>/<scenario>_overview.mp4`
@@ -358,7 +352,7 @@ pip install -e ".[dev,sim]"
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 
-# Dubins dual-agent race (physics default from v1.2)
+# Dubins dual-agent race (physics default)
 ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 
 # Kinematic mirror (fast regression)
@@ -417,8 +411,8 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 | Topic | Document |
 |---|---|
 | Telemetry + PlotJuggler layouts | [docs/modules/telemetry.md](docs/modules/telemetry.md) §5.3 |
-| Computer vision (v1.3–v1.5) | [docs/vision/README.md](docs/vision/README.md) |
-| v1.2 physics implementation spec | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
+| Computer vision | [docs/vision/README.md](docs/vision/README.md) |
+| MuJoCo physics SITL | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |
@@ -429,13 +423,8 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 | Interface contracts | [docs/interfaces.md](docs/interfaces.md) |
 | Functional requirements | [docs/requirements.md](docs/requirements.md) |
 | Module reference | [docs/modules/](docs/modules/) |
-
-**Project management & engineering process**
-
-| Topic | Document |
-|---|---|
-| Release specification (v1.x / v2.x / v3.0) | [docs/releases.md](docs/releases.md) |
-| Roadmap & eras | [docs/roadmap.md](docs/roadmap.md) |
+| Release specification | [docs/releases.md](docs/releases.md) |
+| Roadmap | [docs/roadmap.md](docs/roadmap.md) |
 | Contributing & V-cycle | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Coding guidelines | [docs/guidelines.md](docs/guidelines.md) |
 
@@ -455,7 +444,7 @@ bash scripts/check/pre_push.sh
 | `tests.yml` | Parallel: unit shards (4×), coverage gate, smoke, integration |
 | `formatting.yml` | Black, isort, clang-format |
 | `type_check.yml` | mypy strict |
-| `release.yml` | Dubins showcase renders + R2 publish on version tags |
+| `release.yml` | Showcase renders + R2 publish on version tags |
 
 ---
 

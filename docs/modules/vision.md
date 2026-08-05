@@ -5,7 +5,7 @@
 **Tests:** `tests/vision/`  
 **Program docs:** [vision/README.md](../vision/README.md)
 
-> **Release:** v1.3 · See [releases.md](../releases.md).
+> See [releases.md](../releases.md) · [vision/README.md](../vision/README.md).
 
 ---
 

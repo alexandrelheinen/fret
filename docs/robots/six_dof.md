@@ -1,22 +1,20 @@
-# 6-DOF Manipulator — OpenMANIPULATOR-Y (v1.2.4)
+# 6-DOF Manipulator — OpenMANIPULATOR-Y
 
-> **Release:** v1.2.4 ✅ · **Scenarios:** SC-v14a–c ·
-> **CV integration:** from v1.4 ([vision/README.md](../vision/README.md)) ·
+> **Scenarios:** SC-v14a–c · **CV:** [vision/README.md](../vision/README.md) ·
 > [Release spec](../releases.md#v124--6-dof-manipulator-challenge)
 
 ---
 
 ## Overview
 
-The v1.2.4 release uses **OpenMANIPULATOR-Y** from
-`third_party/robotis_mujoco_menagerie/robotis_omy` (same submodule policy as
-TB3 and OM-X). Three MuJoCo physics scenarios mirror the OM-X v1.2.3 ladder
-without intermediate maze steps:
+**OpenMANIPULATOR-Y** from `third_party/robotis_mujoco_menagerie/robotis_omy`
+(same submodule policy as TB3 and OM-X). Three MuJoCo physics scenarios mirror
+the OM-X ladder without intermediate maze steps:
 
 | Scenario | File | Purpose |
 |---|---|---|
 | SC-v14a | `omy_reach.yml` | Empty tabletop joint-space reach |
-| SC-v14b | `omy_pick_place.yml` | Floor ball → place-bin pick-and-place (+ CV in v1.4) |
+| SC-v14b | `omy_pick_place.yml` | Floor ball → place-bin pick-and-place (+ CV) |
 | SC-v14c | `omy_clutter.yml` | Cluttered floor pick-and-place with detour |
 
 Model key: `omy` (aliases: `six_dof`, `open_manipulator_y`).
