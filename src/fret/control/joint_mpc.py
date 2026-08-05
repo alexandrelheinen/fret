@@ -33,16 +33,25 @@ def _config_with_control_dt(
     *,
     dt: float,
 ) -> JointSpaceMPCConfig:
-    """Return a joint MPC config whose horizon dt matches the control period."""
+    """Align horizon ``dt`` to the control period, preserving physical ``T``.
+
+    ARCO ≥ v0.3.7 requires ``step(dt) == config.dt``. Naively rewriting only
+    ``dt`` (0.05 → 0.02) shrinks the prediction horizon from the ARCO default
+    ``12 × 0.05 = 0.6 s`` to ``12 × 0.02 = 0.24 s``, which jerks the grasp
+    open during LIFT and FAULTs OMX clutter / wall-maze cycles. Scale
+    ``horizon_step_count`` so ``N·dt`` stays the same.
+    """
     cfg = (
         mpc_cfg
         if mpc_cfg is not None
         else JointSpaceMPCConfig.create_from_config()
     )
     ctrl_dt = float(dt)
-    if abs(cfg.dt - ctrl_dt) > 1e-9:
-        return cfg.with_horizon_overrides(dt=ctrl_dt)
-    return cfg
+    if abs(cfg.dt - ctrl_dt) <= 1e-9:
+        return cfg
+    physical_t = float(cfg.horizon_step_count) * float(cfg.dt)
+    steps = max(1, int(round(physical_t / ctrl_dt)))
+    return cfg.with_horizon_overrides(step_count=steps, dt=ctrl_dt)
 
 
 def build_joint_mpc(
