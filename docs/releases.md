@@ -279,7 +279,7 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.4.0` | CV ↔ manipulation + MuJoCo cameras | ✅ |
 | `v1.4.1` | Showcase honesty (MPC barriers, OM-X grasp, Ø40 mm ball) | ✅ |
 | `v1.4.2` | ARCO v0.3.7 MPCC + full-arm obstacle contacts | ✅ |
-| `v1.4.3` | OMY APPROACH_PICK plans around colliding place-bin shell | 🔲 |
+| `v1.4.3` | OMY APPROACH_PICK plans around colliding place-bin shell | ✅ |
 | `v1.5.0` | Dynamic ball + industrial place | 🔲 |
 | `v2.0.0+` | Hardware line (modular) | 🔲 |
 | `v3.0.0` | Definitive product (north-star) | ○ |
