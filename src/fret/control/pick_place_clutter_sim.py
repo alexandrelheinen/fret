@@ -1,10 +1,12 @@
 """SC-v13c/d pick-and-place with desk wall / Γ maze: planner + MPC + physics.
 
 Grasp/release phases reuse the SC-v13b FSM and MuJoCo adhesion grasp. The
-``MOVE_PLACE`` phase plans ``pick_hover → place_hover`` with ARCO RRT* against
-an inflated wall occupancy cloud, densifies via ``TrajectoryGenerator``, then
-tracks the path with ARCO :class:`~arco.control.mpc.JointSpaceMPC` (carrot
-NMPC — replaces proportional ``ControllerNode`` joint-space tracking).
+``MOVE_PLACE`` phase plans ``lift_hover → place_hover`` with ARCO RRT* against
+an inflated wall / place-bin occupancy cloud, densifies via
+``TrajectoryGenerator``, then tracks the path with ARCO
+:class:`~arco.control.mpc.JointSpaceMPC` (carrot NMPC — replaces proportional
+``ControllerNode`` joint-space tracking). OMY also plans ``APPROACH_PICK``
+(``idle → pick_hover``) so distal pads clear the colliding place-bin shell.
 
 SC-v13c uses a single mid-cell slab; SC-v13d uses a Γ (inverted-L) stem+cap.
 """
@@ -763,16 +765,41 @@ def simulate_pick_place_clutter(
     for _ in range(400):
         mj.mj_step(model, data)
 
-    phase_mpc.reset(_arm_q(mj, model, data, arm_names))
+    q_settled = _arm_q(mj, model, data, arm_names)
+    # OMY place-bin contype=5 blocks the idle→pick_hover chord (distal pads
+    # hit place_bin_wall_nx). Plan APPROACH_PICK the same way as MOVE_PLACE.
+    approach_tracker: JointPathMPCTracker | None = None
+    if is_omy:
+        from fret.control.pick_place_planning import plan_arm_transfer_path
+
+        approach_path, _approach_collides = plan_arm_transfer_path(
+            q_settled,
+            np.asarray(wp.pick_hover, dtype=np.float64),
+            scenario_path=scenario,
+            seed_offset=seed_offset + 1,
+            prefer_detour=True,
+        )
+        approach_tracker = JointPathMPCTracker(
+            approach_path,
+            _joint_mpc_for_model(
+                robot_model, occupancy=mpc_occ, params=params
+            ),
+            race_speed=1.2,
+            max_carrot_lag=0.40,
+            goal_tol=max(0.12, float(joint_tol_rad)),
+        )
+
+    phase_mpc.reset(q_settled)
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
     samples: list[PickPlaceSample] = []
     record_every_steps = max(1, int(record_every_steps))
+    approach_armed = False
     transfer_armed = False
     ctrl_accum = 0.0
     # Start the command at the settled pose (not pick_hover) so maze
     # rate-limited slews actually traverse idle → hover under the roof.
-    q_cmd = _arm_q(mj, model, data, arm_names)
+    q_cmd = q_settled.copy()
     last_phase_target = wp.idle.copy()
     fault_on_wall = bool(params.get("fault_on_wall_contact", False))
     # Debounce single-tick numerical flicker (~10 ms at 2 ms timestep).
@@ -805,13 +832,31 @@ def simulate_pick_place_clutter(
         )
         cmd = fsm.tick(obs, dt)
 
+        if (
+            cmd.state == PickPlaceState.APPROACH_PICK
+            and approach_tracker is not None
+            and not approach_armed
+        ):
+            approach_armed = True
+            approach_tracker.reset(q)
+            q_cmd = q.copy()
         if cmd.state == PickPlaceState.MOVE_PLACE and not transfer_armed:
+            approach_armed = False
             transfer_armed = True
             transfer_tracker.reset(q)
             q_cmd = q.copy()
+        if cmd.state not in {
+            PickPlaceState.APPROACH_PICK,
+            PickPlaceState.MOVE_PLACE,
+        }:
+            approach_armed = False
 
+        tracking_planned_path = cmd.state == PickPlaceState.MOVE_PLACE or (
+            cmd.state == PickPlaceState.APPROACH_PICK
+            and approach_tracker is not None
+        )
         if (
-            cmd.state != PickPlaceState.MOVE_PLACE
+            not tracking_planned_path
             and float(np.linalg.norm(cmd.q_des - last_phase_target)) > 1e-9
         ):
             phase_mpc.reset(q)
@@ -820,7 +865,16 @@ def simulate_pick_place_clutter(
         ctrl_accum += dt
         if ctrl_accum >= _CTRL_PERIOD_S:
             ctrl_accum -= _CTRL_PERIOD_S
-            if cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
+            if (
+                cmd.state == PickPlaceState.APPROACH_PICK
+                and approach_tracker is not None
+                and approach_armed
+            ):
+                if approach_tracker.complete:
+                    q_cmd = wp.pick_hover.copy()
+                else:
+                    q_cmd = approach_tracker.step(_CTRL_PERIOD_S)
+            elif cmd.state == PickPlaceState.MOVE_PLACE and transfer_armed:
                 if transfer_tracker.complete:
                     q_cmd = wp.place_hover.copy()
                 else:

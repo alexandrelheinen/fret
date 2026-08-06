@@ -336,8 +336,18 @@ def plan_arm_transfer_path(
     *,
     scenario_path: str | Path,
     seed_offset: int = 0,
+    prefer_detour: bool | None = None,
 ) -> tuple[list[npt.NDArray[np.float64]], bool]:
-    """Plan a dense collision-free transfer path from scenario wall occupancy."""
+    """Plan a dense collision-free transfer path from scenario wall occupancy.
+
+    Args:
+        prefer_detour: When True, try ``transfer_detour_configuration`` before
+            RRT*/SST. When False, skip that early shortcut (release RRT/SST
+            variants). When None, honor scenario ``prefer_transfer_detour``.
+            Approach planning should pass True so idle→pick_hover does not
+            burn minutes in 6-DOF sampling when a YAML via already clears the
+            place-bin shell.
+    """
     scenario = Path(scenario_path)
     params = load_scenario_parameters(scenario)
     scenario_id = str(params.get("scenario_id", scenario.stem))
@@ -374,9 +384,12 @@ def plan_arm_transfer_path(
 
     last_err: str | None = None
     detour_mid = params.get("transfer_detour_configuration")
-    if detour_mid is not None and bool(
-        params.get("prefer_transfer_detour", False)
-    ):
+    use_detour = (
+        bool(prefer_detour)
+        if prefer_detour is not None
+        else bool(params.get("prefer_transfer_detour", False))
+    )
+    if detour_mid is not None and use_detour:
         mid = np.asarray(detour_mid, dtype=np.float64)
         detour = [start.copy(), mid, goal.copy()]
         if all(
