@@ -4,7 +4,8 @@ Stack (shared with OpenMANIPULATOR-X):
 
 1. ``PickPlaceFSM`` — task phases (approach → grasp → lift → place → retreat)
 2. Joint-space path / phase targets from scenario YAML (pad-mid IK)
-3. ARCO ``JointSpaceMPC`` — carrot tracking of each phase target
+3. Planned ``APPROACH_PICK`` / ``MOVE_PLACE`` around the place-bin shell
+   (``contype=5``), tracked with ARCO ``JointSpaceMPC`` carrot NMPC
 4. MuJoCo position actuators — low-level joint control
 
 Physics grasp only: Menagerie finger pads close on the free ball, then MuJoCo
@@ -196,8 +197,23 @@ def simulate_omy_pick_place(
     if not use_vision:
         fsm.start()
 
-    # Plan around the place-bin shell (same occupancy as clutter). A joint
-    # chord through lift→via→place drives link4 into the colliding wall.
+    # Place-bin shell is contype=5 (proximal + distal). A joint chord through
+    # idle→pick_hover and lift→place both clip place_bin_wall_nx — plan both.
+    q_settled = _arm_q(mj, model, data)
+    approach_path, _approach_collides = plan_arm_transfer_path(
+        q_settled,
+        np.asarray(wp.pick_hover, dtype=np.float64),
+        scenario_path=scenario,
+        seed_offset=1,
+        prefer_detour=True,
+    )
+    approach_tracker = JointPathMPCTracker(
+        approach_path,
+        build_joint_mpc(6),
+        race_speed=1.2,
+        max_carrot_lag=0.40,
+        goal_tol=max(0.12, float(joint_tol_rad)),
+    )
     lift = wp.lift_hover if wp.lift_hover is not None else wp.pick_hover
     transfer_path, _straight_collides = plan_arm_transfer_path(
         np.asarray(lift, dtype=np.float64),
@@ -213,10 +229,11 @@ def simulate_omy_pick_place(
     )
 
     phase_mpc = build_joint_mpc(6)
-    phase_mpc.reset(_arm_q(mj, model, data))
-    q_cmd = _arm_q(mj, model, data).copy()
+    phase_mpc.reset(q_settled)
+    q_cmd = q_settled.copy()
     last_target = wp.idle.copy()
     ctrl_accum = 0.0
+    approach_armed = False
     transfer_armed = False
 
     dt = float(model.opt.timestep)
@@ -245,7 +262,20 @@ def simulate_omy_pick_place(
         )
         cmd = fsm.tick(obs, dt)
 
-        if cmd.state == PickPlaceState.MOVE_PLACE:
+        if cmd.state == PickPlaceState.APPROACH_PICK:
+            if not approach_armed:
+                approach_tracker.reset(q)
+                approach_armed = True
+            transfer_armed = False
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                if approach_tracker.complete:
+                    q_cmd = wp.pick_hover.copy()
+                else:
+                    q_cmd = approach_tracker.step(_CTRL_PERIOD_S)
+        elif cmd.state == PickPlaceState.MOVE_PLACE:
+            approach_armed = False
             if not transfer_armed:
                 transfer_tracker.reset(q)
                 transfer_armed = True
@@ -257,6 +287,7 @@ def simulate_omy_pick_place(
                 else:
                     q_cmd = transfer_tracker.step(_CTRL_PERIOD_S)
         else:
+            approach_armed = False
             transfer_armed = False
             if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
                 phase_mpc.reset(q)

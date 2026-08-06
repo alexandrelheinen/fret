@@ -77,6 +77,28 @@ def test_omy_empty_cell_joint_space_a_to_b() -> None:
     assert err < 0.35
 
 
+def test_omy_idle_to_pick_hover_needs_place_bin_detour() -> None:
+    """Place-bin contype=5 blocks the idle→pick chord; planner must detour.
+
+    Regression for release showcase stuck in APPROACH_PICK after obstacle
+    contact bits were widened to hit distal pads (v1.4.2 / PR #136).
+    """
+    from fret.control.omy_pick_place_sim import waypoints_from_scenario
+    from fret.control.pick_place_planning import plan_arm_transfer_path
+
+    wp = waypoints_from_scenario(_PICK)
+    path, straight_collides = plan_arm_transfer_path(
+        wp.idle,
+        wp.pick_hover,
+        scenario_path=_PICK,
+        seed_offset=1,
+        prefer_detour=True,
+    )
+    assert straight_collides, "place-bin shell should block idle→pick_hover"
+    assert len(path) >= 3, "expected detour via (not a 2-point chord)"
+    assert float(np.linalg.norm(path[-1] - wp.pick_hover)) < 1e-9
+
+
 @pytest.mark.slow
 def test_omy_pick_place_physics_smoke() -> None:
     from fret.control.omy_pick_place_sim import simulate_omy_pick_place
@@ -106,8 +128,10 @@ def test_omy_pick_place_physics_moves_ball_into_place_cone() -> None:
     cone_r = float(params.get("place_cone_radius_m", 0.14))
     wp = waypoints_from_scenario(_PICK)
     state, ball = run_omy_pick_place(
-        duration_s=45.0,
-        joint_tol_rad=0.16,
+        duration_s=60.0,
+        # Match showcase / render_mujoco joint tol (0.16 perched the ball on
+        # the place-bin rim after contype=5 place-pose retune).
+        joint_tol_rad=0.22,
         scenario_path=_PICK,
     )
     assert state != PickPlaceState.FAULT, "OMY pick-place FSM faulted"

@@ -135,7 +135,7 @@ flowchart TB
 | `PickPlaceState` | Logical role | Runner plans to |
 | --- | --- | --- |
 | `IDLE` | wait / hold idle fold | — |
-| `APPROACH_PICK` | MOVE_PICK (hover) | `pick_hover` |
+| `APPROACH_PICK` | MOVE_PICK (hover) | `pick_hover` (OMY: planned around place-bin shell) |
 | `DESCEND_PICK` | MOVE_PICK (grasp) | `pick_grasp` |
 | `GRASP` | close gripper | — |
 | `LIFT` | MOVE_PLACE (clear) | `lift_hover` |
@@ -212,5 +212,5 @@ BallObservation ──► runner (IK / waypoint update)
 | ID | Note |
 | --- | --- |
 | SC-v13b / SC-v14b | Physics pick-place smoke |
-| SC-v13c/d · OMY clutter | `MOVE_PLACE` uses wall-aware planner |
+| SC-v13c/d · OMY clutter | `APPROACH_PICK` + `MOVE_PLACE` use wall / place-bin planner |
 | v1.4 T14-03 | Wire `BallObservation` into pick goal (IDLE trigger) |
