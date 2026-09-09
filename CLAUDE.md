@@ -1,10 +1,23 @@
-# CLAUDE Instructions
+# Claude instructions
 
-Claude-based agents must read [CONTRIBUTING.md](CONTRIBUTING.md) before making
-changes. It defines SDD, the 4-level V-cycle, constraint layers for AI work,
-and the pre-merge checklist.
+@.guidelines/workflow/sdd.md
+@.guidelines/workflow/integration.md
+@.guidelines/workflow/tdd.md
+@.guidelines/agents/writing.md
+@.guidelines/style/naming.md
+@.guidelines/languages/py.md
+@.guidelines/languages/cpp.md
+@.guidelines/languages/cmake.md
+@.guidelines/languages/sh.md
 
-For coding standards, see [docs/guidelines.md](docs/guidelines.md).
+For FRET's own project context, quality gates, and merge policy, read
+[CONTRIBUTING.md](CONTRIBUTING.md). For FRET-specific coding notes, read
+[docs/guidelines.md](docs/guidelines.md). For environment/debugging notes,
+read [docs/dev-environment.md](docs/dev-environment.md).
 
-Do not duplicate workflow rules here. An imperative order always includes the
-full V-cycle from [CONTRIBUTING.md](CONTRIBUTING.md).
+Before push, run at minimum:
+
+```bash
+bash scripts/check/formatting.sh
+bash scripts/check/types.sh
+```
