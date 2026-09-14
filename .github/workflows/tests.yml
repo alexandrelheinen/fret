@@ -1,6 +1,8 @@
 name: Tests
 
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
@@ -15,7 +17,7 @@ permissions:
 
 jobs:
   unit:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -53,7 +55,7 @@ jobs:
           if-no-files-found: error
 
   unit-coverage:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -77,7 +79,7 @@ jobs:
         run: bash scripts/tests/unit_coverage.sh
 
   smoke:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
@@ -102,7 +104,7 @@ jobs:
         run: bash scripts/tests/smoke.sh
 
   integration:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     container:
