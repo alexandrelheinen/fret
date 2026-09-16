@@ -1,0 +1,199 @@
+# Illustration gallery matrix (16:9 stills for web, decks, and papers).
+#
+# Rendered by scripts/release/render_gallery.py from the SAME simulations
+# the release videos use: ARCO plans, the FRET controllers track, MuJoCo
+# steps the physics. A plate stages that run (lights, camera, grade); it
+# never edits geometry, poses, or trajectories.
+#
+# Every plate is 16:9 so one asset serves the website card, a slide, and
+# a social preview. The renderer rejects any other ratio.
+#
+# Plate vocabulary:
+#   * hero   — the sample the sharp pose is rendered at. With `state`,
+#              the index is taken inside that PickPlaceState phase
+#              (1 APPROACH_PICK, 3 GRASP, 4 LIFT, 5 MOVE_PLACE,
+#              6 DESCEND_PLACE, 8 RETREAT) at the `at` fraction.
+#   * ghosts — multi-exposure copies of the actor bodies along the
+#              recorded path, screened in as a motion trail.
+#   * trace  — the executed end-effector (or vehicle) track, coloured by
+#              FSM phase (arms) or by planner (race). Planned ARCO paths
+#              are drawn thin and dashed.
+#
+# Render every plate:
+#   MUJOCO_GL=egl python3 scripts/release/render_gallery.py --all
+
+width: 1920
+height: 1080
+# Rendered at width*supersample then box-filtered down (edge quality).
+supersample: 2
+
+plates:
+  # --- OMY floor pick-and-place (SC-v14b / SC-v16b) ----------------------
+  - id: omy_transfer
+    model: omy
+    scenario: omy_pick_place
+    source: pick_place
+    output: fret_omy_transfer.png
+    caption: >-
+      OpenMANIPULATOR-Y carrying the picked ball to the place bin;
+      the ribbon is the executed tool path, coloured by FSM phase.
+    hero: {state: 5, at: 0.85}
+    camera:
+      lookat: [0.34, -0.05, 0.24]
+      distance: 1.15
+      azimuth: 125.0
+      elevation: -22.0
+      fovy: 42.0
+    ghosts:
+      count: 6
+      span: [0.05, 0.70]
+      weight: [0.03, 0.08]
+      rgb: [0.16, 0.58, 0.92]
+      bodies:
+        [link1, link2, link3, link4, link5, link6, rh_r1, rh_r2, rh_l1,
+         rh_l2]
+    trace:
+      width: 0.0032
+      future_width: 0.0014
+      marker_radius: 0.013
+      show_future: false
+
+  # --- Same run, gripper-level close-up ---------------------------------
+  - id: omy_grasp
+    model: omy
+    scenario: omy_pick_place
+    source: pick_place
+    output: fret_omy_grasp.png
+    caption: >-
+      Contact-level view of the grasp: MuJoCo elliptic-cone contacts on
+      the finger pads close on the Ø86 mm ball.
+    hero: {state: 3, at: 0.6}
+    camera:
+      lookat: [0.0, 0.0, 0.08]
+      track: tool
+      distance: 0.55
+      azimuth: 55.0
+      elevation: -20.0
+      fovy: 38.0
+    ghosts:
+      count: 6
+      span: [0.35, 0.96]
+      weight: [0.02, 0.07]
+      rgb: [0.16, 0.58, 0.92]
+      bodies: [link4, link5, link6, rh_r1, rh_r2, rh_l1, rh_l2]
+    trace: {width: 0.0018, future_width: 0.0010, marker_radius: 0.008}
+    grade: {bloom_threshold: 0.72, bloom_gain: 0.9, vignette: 0.6}
+
+  # --- OM-X Gamma wall maze, RRT* transfer (SC-v13d) --------------------
+  - id: omx_wall_maze
+    model: open_manipulator_x
+    scenario: omx_wall_maze_rrt
+    source: clutter
+    output: fret_omx_wall_maze.png
+    caption: >-
+      OpenMANIPULATOR-X threading the Γ wall maze; the RRT* transfer plan
+      keeps the whole arm clear of both walls.
+    hero: {state: 5, at: 0.5}
+    camera:
+      lookat: [0.20, 0.00, 0.15]
+      distance: 0.80
+      azimuth: 62.0
+      elevation: -24.0
+      fovy: 42.0
+    ghosts:
+      count: 5
+      span: [0.05, 0.60]
+      weight: [0.02, 0.06]
+      rgb: [0.16, 0.58, 0.92]
+      bodies: [link2, link3, link4, link5, gripper_left, gripper_right]
+    trace:
+      width: 0.0022
+      future_width: 0.0011
+      marker_radius: 0.010
+      show_future: false
+
+  # --- OMY clutter cell, RRT* transfer (SC-v14c) ------------------------
+  - id: omy_clutter
+    model: omy
+    scenario: omy_clutter_rrt
+    source: clutter
+    output: fret_omy_clutter.png
+    caption: >-
+      OMY transferring to the place bin in the clutter cell; joint-space
+      MPC tracks the RRT* plan with C-space barriers active.
+    hero: {state: 5, at: 0.5}
+    camera:
+      lookat: [0.42, -0.06, 0.22]
+      distance: 1.25
+      azimuth: 235.0
+      elevation: -18.0
+      fovy: 42.0
+    ghosts:
+      count: 6
+      span: [0.05, 0.65]
+      weight: [0.025, 0.07]
+      rgb: [0.16, 0.58, 0.92]
+      bodies:
+        [link1, link2, link3, link4, link5, link6, rh_r1, rh_r2, rh_l1,
+         rh_l2]
+    trace:
+      width: 0.0030
+      future_width: 0.0015
+      marker_radius: 0.013
+      show_future: false
+
+  # --- Dubins race, planner duel (SC-v11) -------------------------------
+  - id: dubins_duel
+    model: dubins
+    scenario: dubins_race
+    source: dubins
+    output: fret_dubins_duel.png
+    caption: >-
+      Two TurtleBot3 vehicles mid-race in the warehouse: RRT* (cyan) and
+      SST (amber), dashed lines are the plans, solid the physics tracks.
+    hero: {at: 0.995}
+    agents: [rrt, sst]
+    camera:
+      lookat: [8.8, 8.8, 0.28]
+      track: pack
+      distance: 3.2
+      azimuth: 178.0
+      elevation: -12.0
+      fovy: 45.0
+    ghosts:
+      count: 10
+      span: [0.05, 0.95]
+      weight: [0.03, 0.10]
+      rgb: [0.20, 0.64, 0.95]
+      bodies:
+        [car_rrt, rrt_wheel_left, rrt_wheel_right, car_sst, sst_wheel_left,
+         sst_wheel_right]
+    trace: {width: 0.030, future_width: 0.018, marker_radius: 0.09}
+
+  # --- Dubins race, finished-run atlas ----------------------------------
+  - id: dubins_atlas
+    model: dubins
+    scenario: dubins_race
+    source: dubins
+    output: fret_dubins_atlas.png
+    caption: >-
+      The finished race read as a map: both planned routes and both
+      driven tracks across the full warehouse floor.
+    hero: {at: 0.99}
+    agents: [rrt, sst]
+    camera:
+      lookat: [5.0, 4.9, 0.25]
+      distance: 10.6
+      azimuth: 135.0
+      elevation: -55.0
+      fovy: 45.0
+    ghosts:
+      count: 12
+      span: [0.05, 0.98]
+      weight: [0.03, 0.09]
+      rgb: [0.20, 0.64, 0.95]
+      bodies:
+        [car_rrt, rrt_wheel_left, rrt_wheel_right, car_sst, sst_wheel_left,
+         sst_wheel_right]
+    trace: {width: 0.035, future_width: 0.020, marker_radius: 0.10}
+    grade: {vignette: 0.9, vignette_start: 0.45}

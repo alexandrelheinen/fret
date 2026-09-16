@@ -406,6 +406,23 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 
 ---
 
+## Illustration gallery
+
+Publication stills rendered from the release scenarios — same planners,
+same controllers, same physics, staged and graded for print and web. All
+plates are 16:9; see [docs/gallery.md](docs/gallery.md).
+
+| | |
+|---|---|
+| <img src="docs/images/gallery/fret_omy_transfer.png" alt="OMY carrying the ball to the place bin" width="360" /> | <img src="docs/images/gallery/fret_dubins_duel.png" alt="RRT* and SST vehicles at the race goal" width="360" /> |
+| <img src="docs/images/gallery/fret_omx_wall_maze.png" alt="OM-X threading the wall maze" width="360" /> | <img src="docs/images/gallery/fret_dubins_atlas.png" alt="Top-down map of the finished race" width="360" /> |
+
+```bash
+MUJOCO_GL=egl python3 scripts/release/render_gallery.py --all
+```
+
+---
+
 ## Documentation
 
 | Topic | Document |
@@ -418,6 +435,7 @@ Example from a validated Dubins / TB3 race (RRT* blue, SST green, dummy grey):
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |
 | Dubins race | [docs/robots/dubins.md](docs/robots/dubins.md) |
 | MuJoCo integration | [docs/mujoco.md](docs/mujoco.md) |
+| Illustration gallery | [docs/gallery.md](docs/gallery.md) |
 | Simulation guide | [docs/simulation.md](docs/simulation.md) |
 | ARCO integration | [docs/arco.md](docs/arco.md) |
 | Interface contracts | [docs/interfaces.md](docs/interfaces.md) |
