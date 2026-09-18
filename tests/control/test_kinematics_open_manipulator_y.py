@@ -243,4 +243,11 @@ def test_omy_clutter_pick_place_smoke() -> None:
     assert result.straight_line_collides
     assert len(result.transfer_path) >= 2
     if result.state == PickPlaceState.DONE:
-        assert float(np.linalg.norm(result.box_pos[:2] - place_xy)) < 0.10
+        # The ball rolls on the bin floor now that the catcher cone is gone,
+        # so containment in the square footprint is the honest check: the
+        # bin half-width is 0.14 m and the ball radius 0.043 m.
+        offset = np.abs(result.box_pos[:2] - place_xy)
+        assert (
+            float(np.max(offset)) < 0.097
+        ), f"ball {result.box_pos[:2]} left the bin footprint"
+        assert float(result.box_pos[2]) < 0.06, "ball not resting on the floor"
