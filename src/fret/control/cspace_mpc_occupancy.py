@@ -9,6 +9,7 @@ in ``KDTreeOccupancy`` for the controller.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Callable
 
 import numpy as np
@@ -98,6 +99,60 @@ def build_cspace_barrier_occupancy(
             dummy = np.full((1, dof), 1.0e3, dtype=np.float64)
         pts = dummy
     return KDTreeOccupancy(pts, clearance=float(clearance))
+
+
+def fit_clearance_to_waypoints(
+    occupancy: Any,
+    waypoints: Sequence[npt.NDArray[np.float64]],
+    *,
+    safety: float = 0.9,
+) -> Any:
+    """Shrink a barrier clearance until every commanded waypoint clears it.
+
+    From ARCO v0.5.0 the joint-space obstacle barrier is a half-space with
+    a penalized slack whose marginal cost holds at the barrier weight
+    however deep the arm is (deviations A-30 and A-33), so the controller
+    stops at the boundary rather than buying through it the way the earlier
+    quartic penalty allowed. A start or a goal sitting inside the clearance
+    therefore stalls the arm one clearance short of where it was sent.
+
+    Args:
+        occupancy: ARCO ``KDTreeOccupancy`` over configuration space.
+        waypoints: Configurations the controller is commanded to settle at.
+        safety: Fraction of the tightest waypoint distance to keep as the
+            new clearance, so a fitted barrier still bites before contact.
+
+    Returns:
+        The same occupancy when every waypoint already clears it, otherwise
+        a new ``KDTreeOccupancy`` over the same points with the fitted
+        clearance.
+
+    Raises:
+        ValueError: If a waypoint collides with the barrier cloud itself,
+            which no clearance can make reachable.
+        ImportError: If ARCO is not installed.
+    """
+    if KDTreeOccupancy is None:  # pragma: no cover
+        raise ImportError("arco.mapping.KDTreeOccupancy is required")
+    clearance = float(occupancy.clearance)
+    distances = [
+        float(occupancy.nearest_obstacle(np.asarray(q, dtype=np.float64))[0])
+        for q in waypoints
+    ]
+    if not distances:
+        return occupancy
+    tightest = min(distances)
+    if tightest <= 0.0:
+        raise ValueError(
+            "commanded waypoint collides with the C-space barrier cloud; "
+            "no clearance makes it reachable"
+        )
+    if tightest > clearance:
+        return occupancy
+    return KDTreeOccupancy(
+        np.asarray(occupancy.points, dtype=np.float64),
+        clearance=float(safety) * tightest,
+    )
 
 
 def mujoco_wall_occupied_predicate(

@@ -1,6 +1,6 @@
 """ARCO JointSpaceMPC helpers for OpenMANIPULATOR-X pick-and-place.
 
-Replaces proportional / Jacobian waypoint tracking with the CasADi carrot
+Replaces proportional / Jacobian waypoint tracking with the carrot
 NMPC from ARCO (≥ v0.3.2; ``build_joint_tracker(..., tracker="mpc")``).
 
 ARCO ≥ v0.3.7 requires ``JointSpaceMPC.step(dt)`` to equal
@@ -222,7 +222,12 @@ def sync_mpc_state_from_measurement(
 ) -> None:
     """Pull the MPC configuration toward the measured joint state.
 
-    MuJoCo position actuators may lag the command; keeping the NLP state
+    MuJoCo position actuators may lag the command; keeping the solver state
     near the measured ``q`` avoids large warm-start errors.
+
+    ARCO v0.5.0 compiles ``JointSpaceMPC``, so ``q`` is read-only and
+    ``reset`` is the way in. ``reset`` also zeroes the joint velocity,
+    which the measured configuration no longer matches anyway once the
+    actuators have lagged.
     """
-    mpc.q = np.asarray(q_meas, dtype=np.float64).copy()
+    mpc.reset(np.asarray(q_meas, dtype=np.float64).copy())

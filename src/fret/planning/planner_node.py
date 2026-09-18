@@ -40,25 +40,35 @@ from fret.planning.cspace_checker import (
     CSpaceChecker,
     make_cspace_checker,
 )
+from fret.planning.planner_rng import active_planner_seed
 from fret.planning.trajectory_generator import TrajectoryGenerator
 from fret.scene.occupancy_adapter import OccupancyAdapter
 
 PlannerAlgorithm = Literal["sst", "rrt_star"]
 
 try:
+    from arco.mapping.occupancy import Occupancy
     from arco.planning import RRTPlanner, SSTPlanner
 except ImportError:
     RRTPlanner = None
     SSTPlanner = None
+    Occupancy = object
 
 
-class _CSpaceOccupancy:
+# ARCO ships no type stubs, so mypy reads the base as ``Any`` and refuses
+# the subclass; the base is required from ARCO v0.5.0 (see docs/arco.md).
+class _CSpaceOccupancy(Occupancy):  # type: ignore[misc]
     """Adapts ``CSpaceChecker`` to the ARCO ``Occupancy`` interface.
 
     ``SSTPlanner`` operates in joint space and calls ``is_occupied(q)`` where
     ``q`` is a joint configuration.  This adapter forwards the call to
     ``CSpaceChecker.is_collision_free``, which performs FK + world-frame
     obstacle lookup internally.
+
+    Subclassing ARCO's ``Occupancy`` base is required from ARCO v0.5.0: the
+    compiled planners and ``TrajectoryPruner`` call ``segment_free`` on the
+    map they are given, and the base supplies the sampled default that the
+    Python planners used to apply themselves.
 
     Args:
         checker: Configured ``CSpaceChecker`` instance.
@@ -70,6 +80,20 @@ class _CSpaceOccupancy:
     def is_occupied(self, point: npt.NDArray[np.float64]) -> bool:
         """Return True if the joint configuration collides with an obstacle."""
         return not self._checker.is_collision_free(point)
+
+    def nearest_obstacle(
+        self, point: npt.NDArray[np.float64]
+    ) -> tuple[float, npt.NDArray[np.float64]]:
+        """Return a binary clearance: zero when in collision, else infinite.
+
+        A C-space collision predicate reports no metric distance, so the
+        only honest answers are "touching" and "nothing known nearby".
+        ``segment_free`` and the planners use ``is_occupied``; this method
+        exists because the ARCO base declares it abstract.
+        """
+        q = np.asarray(point, dtype=np.float64)
+        distance = 0.0 if self.is_occupied(q) else float("inf")
+        return distance, q
 
 
 class PlannerNode:
@@ -293,6 +317,7 @@ class PlannerNode:
                 limits = self._kin.joint_limits  # shape (DOF, 2)
                 bounds = [(float(lo), float(hi)) for lo, hi in limits]
             occ = _CSpaceOccupancy(checker)
+            planner_seed = active_planner_seed()
             start_q = np.asarray(start, dtype=np.float64)
             goal_q = np.asarray(goal, dtype=np.float64)
             if self._planner_algorithm == "rrt_star":
@@ -304,6 +329,7 @@ class PlannerNode:
                     goal_tolerance=0.1,
                     collision_check_count=12,
                     goal_bias=0.15,
+                    seed=planner_seed,
                 )
                 planner_name = "RRTPlanner"
             else:
@@ -315,6 +341,7 @@ class PlannerNode:
                     goal_tolerance=0.1,
                     witness_radius=0.15,
                     goal_bias=0.15,
+                    seed=planner_seed,
                 )
                 planner_name = "SSTPlanner"
             t0 = time.monotonic()

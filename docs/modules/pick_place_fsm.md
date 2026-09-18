@@ -175,7 +175,7 @@ Disable with ``use_vision=False`` on ``simulate_pick_place`` /
 | Pick pose from vision | runner updates waypoints / goals | HSV, cameras |
 | Place / dispenser | scenario YAML → waypoints | mesh asset |
 | Path planning | `JointPathPlanner` protocol in runner | ARCO RRT* internals |
-| Tracking | `JointPathMPCTracker` / MPC | CasADi |
+| Tracking | `JointPathMPCTracker` / MPC | ARCO compiled MPC |
 
 ```text
 BallObservation ──► runner (IK / waypoint update)

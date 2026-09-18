@@ -10,6 +10,7 @@ import numpy as np
 
 from fret.scenario.planner_rng import (
     SHOWCASE_PLANNER_RNG_SEED,
+    active_planner_seed,
     deterministic_planner_rng,
 )
 
@@ -65,3 +66,22 @@ def test_planner_rng_import_does_not_load_opencv() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "ok" in proc.stdout
+
+
+def test_active_planner_seed_is_none_outside_the_context() -> None:
+    assert active_planner_seed() is None
+
+
+def test_active_planner_seed_reports_the_pinned_seed() -> None:
+    """Compiled ARCO planners take a seed argument, not a patched numpy.
+
+    ARCO v0.5.0 plans in Rust with its own generator, so the planners read
+    this value at construction; patching ``numpy.random.default_rng`` alone
+    leaves a showcase render unseeded.
+    """
+    with deterministic_planner_rng(11):
+        assert active_planner_seed() == 11
+        with deterministic_planner_rng(SHOWCASE_PLANNER_RNG_SEED):
+            assert active_planner_seed() == SHOWCASE_PLANNER_RNG_SEED
+        assert active_planner_seed() == 11
+    assert active_planner_seed() is None

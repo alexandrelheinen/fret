@@ -13,6 +13,7 @@ SC-v13c uses a single mid-cell slab; SC-v13d uses a Γ (inverted-L) stem+cap.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ import numpy.typing as npt
 from fret.config_loader import load_algorithm_config, planning_config_for_model
 from fret.control.cspace_mpc_occupancy import (
     build_wall_cspace_barrier_occupancy,
+    fit_clearance_to_waypoints,
 )
 from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
 from fret.control.kinematics import Kinematics
@@ -37,6 +39,7 @@ from fret.control.pick_place_fsm import (
     PickPlaceFSM,
     PickPlaceObservation,
     PickPlaceState,
+    PickPlaceWaypoints,
 )
 from fret.control.pick_place_planning import (
     walls_from_scenario as _walls_from_scenario_shared,
@@ -127,17 +130,42 @@ def _require_mpc_occupancy(mpc: Any, *, context: str) -> None:
         )
 
 
+def _commanded_waypoints(
+    waypoints: PickPlaceWaypoints,
+) -> tuple[npt.NDArray[np.float64], ...]:
+    """Return every configuration the pick-and-place FSM settles at."""
+    named = (
+        waypoints.idle,
+        waypoints.pick_hover,
+        waypoints.pick_grasp,
+        waypoints.place_hover,
+        waypoints.place_grasp,
+        waypoints.lift_hover,
+        waypoints.retreat,
+    )
+    return tuple(
+        np.asarray(q, dtype=np.float64) for q in named if q is not None
+    )
+
+
 def _barrier_occupancy_for_scenario(
     params: dict[str, Any],
     *,
     robot_model: str,
     scenario_id: str,
     seed: int,
+    waypoints: Sequence[npt.NDArray[np.float64]] | None = None,
 ) -> Any | None:
     """Build C-space KDTree barriers from MuJoCo wall contacts when present.
 
     Returns ``None`` when the scenario MJCF has no ``transfer_wall*`` geoms
     (open pick-place cells) so MPC keeps the occupancy-free path.
+
+    ``waypoints`` are the configurations the controller will be commanded
+    to settle at. The clearance is fitted to them, because from ARCO
+    v0.5.0 the arm stops at the barrier boundary instead of buying through
+    it, so a waypoint inside the clearance is one it never reaches. See
+    :func:`fret.control.cspace_mpc_occupancy.fit_clearance_to_waypoints`.
     """
     try:
         import mujoco as mj
@@ -157,7 +185,7 @@ def _barrier_occupancy_for_scenario(
     names = _arm_joint_names(robot_model)
     clearance = float(params.get("mpc_cspace_clearance_rad", 0.28))
     n_samples = int(params.get("mpc_cspace_samples", 14000))
-    return build_wall_cspace_barrier_occupancy(
+    occupancy = build_wall_cspace_barrier_occupancy(
         mjcf_path=str(xml),
         joint_limits=kin.joint_limits,
         joint_names=names,
@@ -165,6 +193,9 @@ def _barrier_occupancy_for_scenario(
         n_samples=n_samples,
         rng=np.random.default_rng(int(seed) + 91),
     )
+    if waypoints is None:
+        return occupancy
+    return fit_clearance_to_waypoints(occupancy, waypoints)
 
 
 @dataclass(frozen=True)
@@ -307,7 +338,7 @@ def _dry_run_transfer(
 
     ``max_wall_hits`` defaults to 0 for Γ-maze scenarios (``peak`` transfer)
     and 40 for open clutter cells (legacy soft brush tolerance). Pass a
-    pre-built ``mpc`` to avoid rebuilding CasADi on every planner attempt.
+    pre-built ``mpc`` to avoid rebuilding the solver on every attempt.
     """
     try:
         import mujoco as mj
@@ -484,8 +515,12 @@ def plan_transfer_path(
         robot_model=robot_model,
         scenario_id=scenario_id,
         seed=seed0,
+        waypoints=(
+            np.asarray(start, dtype=np.float64),
+            np.asarray(goal, dtype=np.float64),
+        ),
     )
-    # Reuse one CasADi MPC across dry-run attempts (rebuild is multi-second).
+    # Reuse one MPC across dry-run attempts (rebuild is multi-second).
     dry_run_mpc = (
         _joint_mpc_for_model(robot_model, occupancy=mpc_occ, params=params)
         if validate_mujoco
@@ -690,6 +725,7 @@ def simulate_pick_place_clutter(
         robot_model=robot_model,
         scenario_id=scenario_id,
         seed=mpc_seed,
+        waypoints=_commanded_waypoints(wp),
     )
     if mpc_occ is None and bool(params.get("fault_on_wall_contact", False)):
         raise RuntimeError(
@@ -889,8 +925,7 @@ def simulate_pick_place_clutter(
                 )
                 if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
                     q_cmd = cmd.q_des.copy()
-                    phase_mpc.q = q_cmd.copy()
-                    phase_mpc.vel = np.zeros_like(q_cmd)
+                    phase_mpc.reset(q_cmd.copy())
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

@@ -10,8 +10,7 @@ The base VM snapshot already has ROS 2 Jazzy Desktop, headless-GL
 libraries, `xvfb`, and a complete C/C++ toolchain installed system-wide.
 The startup update script only refreshes Python deps
 (`pip install -e ".[dev,sim]"`, installed to `~/.local`; this also
-reinstalls the `arco` git dependency from its `main` branch, so it needs
-network access).
+downloads the pinned ARCO release wheel, so it needs network access).
 
 ## Sourcing ROS
 
@@ -49,8 +48,12 @@ render visible planned-path (ARCO RRT*) motion.
 
 ## Known pre-existing breakages (not environment issues)
 
-The pinned `arco[mpc] @ v0.3.7` provides CasADi classical path-following
-MPCC / joint-space MPC. Pre-existing: `mypy` reports a missing `Any`
+The pinned ARCO v0.5.0 wheel provides the compiled classical
+path-following MPCC and joint-space MPC. It carries the abi3 extension,
+so `pip install -e ".[sim]"` needs no Rust toolchain on Linux x86_64,
+macOS arm64 or Windows x86_64; any other platform falls back to the
+source distribution and does need one. CasADi is gone with the `mpc`
+extra, and ARCO now pulls SciPy. Pre-existing: `mypy` reports a missing `Any`
 import in `planner_node_ros.py`; and the ROS `planner_node` crashes at
 launch because `declare_parameter("start_configuration", [])` is inferred
 as `BYTE_ARRAY` under rclpy Jazzy. Other nodes (mujoco_bridge, controller,

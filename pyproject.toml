@@ -1,14 +1,21 @@
 [project]
 name = "fret"
-version = "1.4.3"
+version = "1.4.4"
 description = "Full-stack Robotic Effector Trajectories Framework"
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "pyyaml>=6.0",
-    # ARCO v0.3.7 classical MPCC (linear progress reward, structural lag,
-    # weight_slack removed, JointSpaceMPC step dt must equal config.dt).
-    "arco[mpc] @ git+https://github.com/alexandrelheinen/arco.git@v0.3.7",
+    # ARCO v0.5.0 runs its planners, maps and controllers as a compiled
+    # Rust extension. The `mpc` extra is gone with CasADi, and the `arco`
+    # name on PyPI belongs to an unrelated project, so pin the release
+    # wheels by URL: they carry the abi3 extension and need no Rust
+    # toolchain. A platform without a wheel below builds the sdist with
+    # maturin, which does need one.
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-macosx_11_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-win_amd64.whl ; sys_platform == 'win32'",
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0.tar.gz ; (sys_platform != 'linux' or platform_machine != 'x86_64') and (sys_platform != 'darwin' or platform_machine != 'arm64') and sys_platform != 'win32'",
 ]
 
 [project.optional-dependencies]

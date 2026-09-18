@@ -301,8 +301,7 @@ def simulate_omy_pick_place(
                 )
                 if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
                     q_cmd = cmd.q_des.copy()
-                    phase_mpc.q = q_cmd.copy()
-                    phase_mpc.vel = np.zeros_like(q_cmd)
+                    phase_mpc.reset(q_cmd.copy())
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

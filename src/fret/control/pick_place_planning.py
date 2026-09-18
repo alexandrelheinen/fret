@@ -205,6 +205,7 @@ def _omy_rrt_star_path(
         goal_tolerance=0.20,
         collision_check_count=5,
         goal_bias=0.35,
+        seed=int(seed),
     )
     with deterministic_planner_rng(int(seed)):
         path = planner.plan(
@@ -245,6 +246,7 @@ def _omy_sst_path(
         witness_radius=0.35,
         collision_check_count=5,
         goal_bias=0.35,
+        seed=int(seed),
     )
     with deterministic_planner_rng(int(seed)):
         path = planner.plan(

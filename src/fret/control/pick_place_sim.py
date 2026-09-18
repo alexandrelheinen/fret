@@ -5,7 +5,7 @@ then MuJoCo adhesion holds it through lift/transfer. Adhesion is delayed until
 the jaw has settled so the sphere is not ejected on close. No kinematic attach.
 
 Arm motion toward each FSM joint target is tracked with ARCO
-:class:`~arco.control.mpc.JointSpaceMPC` (CasADi carrot NMPC).
+:class:`~arco.control.mpc.JointSpaceMPC` (carrot-on-path MPC).
 """
 
 from __future__ import annotations
@@ -224,8 +224,7 @@ def simulate_pick_place(
             # stiff position actuators (matches prior setpoint behavior).
             if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
                 q_cmd = cmd.q_des.copy()
-                mpc.q = q_cmd.copy()
-                mpc.vel = np.zeros_like(q_cmd)
+                mpc.reset(q_cmd.copy())
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

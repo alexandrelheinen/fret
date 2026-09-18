@@ -18,7 +18,7 @@
 #      0 — flat lateral bands invite left/right chatter.
 #   4) Model dt must equal the control period (update_rate=20 → 0.05 s).
 #      FRET builds the tracker via ``_build_vehicle_mpc_sim`` so the full
-#      PathFollowingMPCConfig (including lag) reaches the live NLP.
+#      PathFollowingMPCConfig (including lag) reaches the live solver.
 # The grey dummy keeps Pure Pursuit without repulsion so it collides on
 # the naive diagonal as a foil.
 #
@@ -51,6 +51,9 @@
       contour_deadzone: 0.0         # flats chatter; city keeps 0 too
       weight_control: 0.15
       weight_obstacle: 0.0
+      # Inert from ARCO v0.5.0 (deviation A-30): the obstacle barrier is
+      # a half-space with a penalized slack, so the exponent no longer
+      # shapes it. Kept because the config record still accepts the key.
       obstacle_barrier_power: 2.0
       weight_terminal: 12.0
       max_solver_iter_count: 40

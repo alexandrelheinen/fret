@@ -8,6 +8,7 @@ import pytest
 from fret.control.cspace_mpc_occupancy import (
     build_cspace_barrier_occupancy,
     build_wall_cspace_barrier_occupancy,
+    fit_clearance_to_waypoints,
     sample_colliding_configurations,
 )
 from fret.control.joint_mpc import build_omx_joint_mpc
@@ -101,3 +102,51 @@ def test_joint_mpc_barrier_keeps_clearance_from_wall_cspace() -> None:
     assert min_open < 0.05, "sanity: open MPC should enter the collision cloud"
     assert min_safe > min_open + 0.05
     assert min_safe > 0.12
+
+
+def test_fit_clearance_keeps_a_barrier_the_waypoints_already_clear() -> None:
+    occ = build_cspace_barrier_occupancy(
+        np.array([[1.0, 1.0]], dtype=np.float64),
+        clearance=0.2,
+        joint_limits=[(-2, 2)] * 2,
+    )
+    fitted = fit_clearance_to_waypoints(occ, [np.zeros(2, dtype=np.float64)])
+    assert fitted is occ
+    assert float(fitted.clearance) == 0.2
+
+
+def test_fit_clearance_shrinks_until_a_commanded_goal_is_reachable() -> None:
+    """A goal inside the barrier stalls the arm one clearance short.
+
+    From ARCO v0.5.0 the obstacle barrier is a half-space with a penalized
+    slack whose marginal cost holds at the barrier weight however deep the
+    arm is (deviations A-30 and A-33), so the joint-space MPC stops at the
+    boundary instead of buying through it as the quartic penalty allowed.
+    """
+    goal = np.array([0.85, 0.0], dtype=np.float64)
+    occ = build_cspace_barrier_occupancy(
+        np.array([[1.0, 0.0]], dtype=np.float64),
+        clearance=0.4,
+        joint_limits=[(-2, 2)] * 2,
+    )
+    assert occ.is_occupied(goal) is True
+
+    fitted = fit_clearance_to_waypoints(
+        occ, [np.zeros(2, dtype=np.float64), goal]
+    )
+
+    assert fitted.is_occupied(goal) is False
+    assert float(fitted.clearance) == pytest.approx(0.135)
+    assert np.allclose(np.asarray(fitted.points), np.asarray(occ.points))
+
+
+def test_fit_clearance_rejects_a_waypoint_on_an_obstacle() -> None:
+    occ = build_cspace_barrier_occupancy(
+        np.array([[0.5, 0.5]], dtype=np.float64),
+        clearance=0.3,
+        joint_limits=[(-2, 2)] * 2,
+    )
+    with pytest.raises(ValueError, match="collides"):
+        fit_clearance_to_waypoints(
+            occ, [np.array([0.5, 0.5], dtype=np.float64)]
+        )

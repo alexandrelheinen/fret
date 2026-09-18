@@ -37,10 +37,14 @@ def test_build_omx_joint_mpc_tracks_target() -> None:
 
 
 def test_joint_mpc_rejects_dt_mismatch() -> None:
-    """Mismatched plant/model dt must raise (ARCO zigzag guard)."""
+    """Mismatched plant/model dt must raise (ARCO zigzag guard).
+
+    ARCO v0.5.0 validates the elapsed interval in the compiled control
+    step and words the rejection differently (deviation A-17).
+    """
     mpc = build_omx_joint_mpc()
     mpc.reset(np.zeros(4, dtype=np.float64))
-    with pytest.raises(ValueError, match="must equal config.dt"):
+    with pytest.raises(ValueError, match="elapsed interval"):
         mpc.step(np.zeros(4, dtype=np.float64), 0.05)
 
 

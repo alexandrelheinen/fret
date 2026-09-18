@@ -67,7 +67,10 @@ try:
 except ImportError:  # pragma: no cover
     _make_dubins_race_bridge_core = cast(Any, None)
 
-from fret.scenario.planner_rng import deterministic_planner_rng
+from fret.scenario.planner_rng import (
+    active_planner_seed,
+    deterministic_planner_rng,
+)
 from fret.sitl_config import controller_config_path, scenario_config_path
 
 _DEFAULT_SCENARIO = scenario_config_path("dubins_race")
@@ -364,9 +367,7 @@ class DubinsRaceSimulation:
         x = x + float(vx) * self.dt
         y = y + float(vy) * self.dt
         self.dummy_pose = (x, y, yaw)
-        self.dummy_vehicle.x = x
-        self.dummy_vehicle.y = y
-        self.dummy_vehicle.heading = yaw
+        _place_vehicle(self.dummy_vehicle, x, y, yaw)
         self.dummy_pose_history.append(self.dummy_pose)
 
     def step_physics(self, bridge: Any) -> bool:
@@ -635,7 +636,7 @@ def _build_vehicle_mpc_sim(
 
     Uses ``dataclasses.replace`` so every :class:`PathFollowingMPCConfig`
     field (including structural ``weight_lag`` / optional
-    ``contour_deadzone``) reaches the live NLP; only ``cruise_speed`` is
+    ``contour_deadzone``) reaches the live solver; only ``cruise_speed`` is
     overridden from :class:`VehicleConfig`. ARCO ≥ v0.3.7's
     ``build_vehicle_mpc_sim`` does the same, but FRET keeps this local
     factory so race agents can force ``occupancy=None`` without pulling
@@ -901,6 +902,7 @@ def _plan_path(
         ),
         goal_bias=float(planner_cfg.get("goal_bias", 0.12)),
         early_stop=True,
+        seed=active_planner_seed(),
     )
 
     if planner_kind == "rrt_star":
@@ -1094,16 +1096,12 @@ def _agent_physics_velocity_command(
         }
 
     sim_x, sim_y, sim_theta = vehicle.pose
-    vehicle.x = float(sim_x)
-    vehicle.y = float(sim_y)
-    vehicle.heading = float(sim_theta)
+    _place_vehicle(vehicle, sim_x, sim_y, sim_theta)
 
     # MPCTrackingLoop.step integrates a kinematic preview; restore the
     # MuJoCo pose afterward and apply only the first optimal command.
     metrics = loop.step(path, dt)
-    vehicle.x = float(sim_x)
-    vehicle.y = float(sim_y)
-    vehicle.heading = float(sim_theta)
+    _place_vehicle(vehicle, sim_x, sim_y, sim_theta)
 
     forward = float(metrics.get("mpc_speed_cmd", metrics.get("speed", 0.0)))
     omega = float(
@@ -1143,11 +1141,24 @@ def _agent_physics_velocity_command(
     )
 
 
+def _place_vehicle(vehicle: Any, x: float, y: float, heading: float) -> None:
+    """Move a Dubins vehicle without dropping its filtered command state.
+
+    ARCO v0.5.0 compiles ``DubinsVehicle``, so ``x``, ``y`` and ``heading``
+    are read-only and ``reset`` is the only way to set a pose. ``reset``
+    also zeroes the speed and turn-rate filters, which the physics sync
+    must keep, so both are restored through their setters.
+    """
+    speed = float(vehicle.speed)
+    turn_rate = float(vehicle.turn_rate)
+    vehicle.reset(float(x), float(y), float(heading))
+    vehicle.speed = speed
+    vehicle.turn_rate = turn_rate
+
+
 def _sync_vehicle_pose(vehicle: Any, pose: npt.NDArray[np.float64]) -> None:
     """Copy simulated ``(x, y, heading)`` into a Dubins vehicle model."""
-    vehicle.x = float(pose[0])
-    vehicle.y = float(pose[1])
-    vehicle.heading = float(pose[2])
+    _place_vehicle(vehicle, float(pose[0]), float(pose[1]), float(pose[2]))
 
 
 def _distance_to_goal(
@@ -1284,9 +1295,12 @@ class DubinsRaceRunner:
         dummy_vehicle, dummy_loop = build_vehicle_sim(
             dummy_path, vehicle_cfg, occupancy=occupancy
         )
-        dummy_vehicle.x = float(dummy_pose[0])
-        dummy_vehicle.y = float(dummy_pose[1])
-        dummy_vehicle.heading = float(dummy_pose[2])
+        _place_vehicle(
+            dummy_vehicle,
+            float(dummy_pose[0]),
+            float(dummy_pose[1]),
+            float(dummy_pose[2]),
+        )
         session = DubinsRaceSimulation(
             world=world,
             vehicle_cfg=vehicle_cfg,

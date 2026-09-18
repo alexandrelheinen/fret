@@ -57,10 +57,13 @@ def test_mpc_config_defaults_lag_positive_when_keys_absent() -> None:
 
 
 def test_zero_lag_rejected_by_arco_mpcc() -> None:
-    """ARCO ≥ v0.3.7 rejects lag ≤ 0 at tracker construction."""
+    """ARCO rejects lag <= 0 at tracker construction.
+
+    ARCO v0.5.0 reports the bound it checked rather than the field name.
+    """
     from arco.control.mpc import DubinsPathFollowingMPC, DubinsVehicleLimits
 
-    with pytest.raises(ValueError, match="weight_lag"):
+    with pytest.raises(ValueError, match="lag weight"):
         DubinsPathFollowingMPC(
             vehicle_limits=DubinsVehicleLimits(
                 max_speed=1.0,
