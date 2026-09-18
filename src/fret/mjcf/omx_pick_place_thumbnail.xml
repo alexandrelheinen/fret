@@ -1,0 +1,96 @@
+<mujoco model="omx_pick_place_thumbnail">
+  <!--
+    Presentation-only wrapper over the SC-v13b pick-and-place cell
+    (FR-SIM-14, docs/presentation_stills.md).
+
+    This file exists so that website stills can be framed and lit without
+    editing omx_pick_place.xml. That scene carries gate_cam_left and
+    gate_cam_right, which fret.vision reads through the HSV thresholds in
+    config/vision/hsv_blob_overhead.yml (hsv_lower: [5, 80, 80]). Moving a
+    light in the shared scene would shift the value channel those thresholds
+    read and would silently reduce the BallObservation count. Nothing here
+    is loaded by fret.vision, by the scenario runners, or by the release
+    showcase matrix; only scripts/render_still.py loads it.
+
+    The include target is the resolved cell that fret.mjcf.omx builds from
+    omx_pick_place.xml plus the Menagerie OM-X model, so this wrapper needs
+    ensure_omx_pick_place_mjcf() to have run first.
+
+    Camera poses come from a target point, an azimuth, an elevation, and a
+    distance, fitted so the arm, the ball, and the place bin land inside the
+    central 85 percent of a 16:9 frame. The fitted values are kept literal
+    below so the scene loads without a build step; each camera's comment
+    records the parameters it came from.
+  -->
+  <include file=".generated/omx_pick_place.xml"/>
+
+  <visual>
+    <!-- The shared cell caps the framebuffer at 1280x720. Headroom above
+         1920x1080 so a wider source can be rendered for the composite. -->
+    <global offwidth="2560" offheight="1440"/>
+    <!-- The cell's key light points straight down, so it lands almost
+         entirely on the checkered floor and leaves the OM-X reading as a
+         silhouette. Trading headlight diffuse for ambient and specular, and
+         doing the modelling with the two grazing fills below, keeps the
+         floor off the blowout point while the arm's castings stay legible.
+         The OM-X is a matte black robot; this lights it, it does not
+         repaint it. -->
+    <headlight ambient="0.26 0.27 0.29" diffuse="0.04 0.04 0.05"
+               specular="0.30 0.30 0.30"/>
+    <!-- Shadow mapping off, and more edge samples than the 720p video
+         default. The cell's key light shines straight down across a
+         large reflective floor, and at still resolution its shadow map
+         breaks into acne stripes over the far floor no matter how the
+         map is sized or its frustum tightened. Both settings are
+         renderer quality, in the same class as the frame size; no pixel
+         is edited after the render. -->
+    <quality shadowsize="0" offsamples="8"/>
+  </visual>
+
+  <worldbody>
+    <!-- Near-horizontal key fill from the pick side. A grazing direction
+         rakes the arm's vertical faces and barely touches the floor. -->
+    <light name="thumb_fill" pos="1.2 -1.0 0.30" dir="-0.75 0.62 -0.20"
+           directional="true" diffuse="0.85 0.85 0.87"
+           specular="0.10 0.10 0.10" castshadow="false"/>
+    <!-- Opposite grazing fill; opens the shadow side of the castings. -->
+    <light name="thumb_back" pos="-0.9 0.9 0.35" dir="0.70 -0.68 -0.22"
+           directional="true" diffuse="0.55 0.55 0.57"
+           specular="0.06 0.06 0.06" castshadow="false"/>
+
+    <!-- target (0.2131, -0.0964, 0.0739), azimuth -65 deg, elevation 20 deg,
+         distance 0.6030 m: three-quarter from the pick side, gripper
+         straddling the ball, place bin off to the right. -->
+    <camera name="thumb_pick_three_quarter" pos="0.452570 -0.609945 0.280138"
+            xyaxes="0.906308 0.422618 -0.000000
+                    -0.144544 0.309976 0.939693"
+            fovy="34"/>
+
+    <!-- Same eye as thumb_pick_three_quarter, wider field. The composed
+         project thumbnail gives this scene half a frame cut on a diagonal,
+         and the arm at fovy 34 is too large to sit in that half with air
+         around it. Pulling the field back to 46 degrees keeps the pose and
+         the lighting and buys the margin, rather than cropping the arm.
+         Used only by scripts/make_project_thumbnail.py. -->
+    <camera name="thumb_split" pos="0.452570 -0.609945 0.280138"
+            xyaxes="0.906308 0.422618 -0.000000
+                    -0.144544 0.309976 0.939693"
+            fovy="46"/>
+
+    <!-- target (0.1241, -0.1024, 0.0771), azimuth -115 deg, elevation
+         26 deg, distance 0.5560 m: along the work surface, the whole reach
+         in profile from shoulder to gripper. -->
+    <camera name="thumb_reach_profile" pos="-0.087095 -0.555309 0.320834"
+            xyaxes="0.906308 -0.422618 0.000000
+                    0.185264 0.397299 0.898794"
+            fovy="34"/>
+
+    <!-- target (0.2036, -0.0728, 0.1143), azimuth -20 deg, elevation 45 deg,
+         distance 0.6382 m: raised three-quarter from the place side, both
+         the pick and the bin in one read. -->
+    <camera name="thumb_cell_overlook" pos="0.627660 -0.227145 0.565576"
+            xyaxes="0.342020 0.939693 -0.000000
+                    -0.664463 0.241845 0.707107"
+            fovy="34"/>
+  </worldbody>
+</mujoco>

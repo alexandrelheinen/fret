@@ -120,6 +120,12 @@ a separate path.
 `<camera>` sensors for the vision pipeline (distinct from showcase overview
 cameras).
 
+**FR-SIM-14:** (v1.4.4+) Presentation stills for the website shall be real
+renderer output, produced from presentation-only MJCF wrappers that add
+cameras and fill light without editing any scene the vision pipeline,
+scenario tests, or release matrix consume. Specification:
+[presentation_stills.md](presentation_stills.md).
+
 Full integration specification: [mujoco.md](mujoco.md).
 Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
 Robot models and asset sources: [robots/README.md](robots/README.md).
@@ -232,6 +238,7 @@ Rolling ball, pickability, improved container; single-ball cadence provisional.
 | FR-SIM-11 | v1.2+ | `tests/simulation/test_*_robot_unit.py` |
 | FR-SIM-12 | v1.2.6+ | Telemetry tests / release upload |
 | FR-SIM-13 | v1.4+ | SC-v16 MJCF + adapter tests |
+| FR-SIM-14 | v1.4.4+ | `tests/simulation/test_render_still.py` |
 | FR-VIS-01–04 | v1.3 | `tests/vision/`, selection doc |
 | FR-VIS-05–06 | v1.4 | SC-v16 physics smoke |
 | FR-VIS-07–08 | v1.5 | SC-v17 |

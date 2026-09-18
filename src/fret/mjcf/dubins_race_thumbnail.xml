@@ -1,0 +1,69 @@
+<mujoco model="dubins_race_thumbnail">
+  <!--
+    Presentation-only wrapper over the SC-v11 Dubins warehouse race
+    (FR-SIM-14, docs/presentation_stills.md).
+
+    dubins_race.xml is consumed by the release showcase job, by the scenario
+    tests, and by the physics evidence scripts, so it is read-only for
+    framing work. The cameras below sit close enough to read both racing
+    AGVs and the warehouse structures they weave through; the scene's own
+    overview camera sits 12.5 m up and shows the whole 10 m arena instead.
+
+    Each camera's target point is a place both AGVs pass through in the
+    seeded showcase race (planner RNG seed 5, fret.scenario.planner_rng).
+    The instant is not fixed here: scripts/render_still.py ranks every
+    recorded instant by how far inside the frame the worse-placed AGV sits,
+    then takes the best one whose segmentation render actually shows both
+    AGVs, so a rack standing in front of one of them rules that instant out.
+  -->
+  <include file="dubins_race.xml"/>
+
+  <visual>
+    <!-- The arena floor is wide and bright, and the release clips run at
+         720p where its shadow map holds up. A 1080p still shows that map
+         breaking into acne stripes over the far floor, so shadow mapping is
+         off and the edge sampling is raised. Renderer quality settings, in
+         the same class as the frame size; no pixel is edited afterward. -->
+    <!-- The race scene already declares 1920x1080; raise it so a wider
+         source can be rendered for the composed project thumbnail. -->
+    <global offwidth="2560" offheight="1440"/>
+    <quality shadowsize="0" offsamples="8"/>
+    <!-- The scene's headlight runs a high flat ambient, which suits a 720p
+         overview of a 10 m arena and washes out a close still. Trading that
+         ambient for specular, and doing the modelling with the two grazing
+         fills below, keeps the concrete floor off the blowout point. -->
+    <headlight ambient="0.30 0.31 0.33" diffuse="0.10 0.11 0.12"
+               specular="0.22 0.22 0.22"/>
+  </visual>
+
+  <worldbody>
+    <!-- Grazing fill from the south-west. The TurtleBot3 shells are small
+         and the scene's key light points straight down, so without this the
+         AGVs read as two dark blocks against a bright floor. -->
+    <light name="thumb_fill" pos="-2.0 -2.0 1.2" dir="0.70 0.68 -0.22"
+           directional="true" diffuse="0.42 0.42 0.44"
+           specular="0.08 0.08 0.08" castshadow="false"/>
+    <!-- Opposite grazing fill; opens the shadow side of the shells. -->
+    <light name="thumb_back" pos="12.0 12.0 1.4" dir="-0.68 -0.70 -0.22"
+           directional="true" diffuse="0.28 0.28 0.30"
+           specular="0.05 0.05 0.05" castshadow="false"/>
+
+    <!-- target (2.27, 3.98, 0.20), azimuth 135 deg, elevation 20 deg,
+         distance 2.30 m: close pursuit through the south-west clutter, both
+         AGVs between the loose tables and the stacked pallets. -->
+    <camera name="thumb_aisle_pursuit" pos="0.741735 5.508265 0.986646"
+            xyaxes="-0.707107 -0.707107 0.000000 0.241845 -0.241845 0.939693" fovy="34"/>
+
+    <!-- target (3.80, 5.55, 0.22), azimuth 315 deg, elevation 26 deg,
+         distance 3.88 m: along the corridor between the two central rack
+         blocks, both AGVs clear of the uprights and the stacked pallets. -->
+    <camera name="thumb_rack_corridor" pos="6.265908 3.084092 1.920880"
+            xyaxes="0.707107 0.707107 -0.000000 -0.309975 0.309975 0.898794" fovy="34"/>
+
+    <!-- target (5.68, 6.96, 0.20), azimuth -145 deg, elevation 34 deg,
+         distance 3.82 m: raised three-quarter over the racks on the goal
+         side, with the two planners' AGVs separated across the aisle. -->
+    <camera name="thumb_goal_overlook" pos="3.085808 5.143527 2.336117"
+            xyaxes="0.573576 -0.819152 0.000000 0.458064 0.320740 0.829038" fovy="34"/>
+  </worldbody>
+</mujoco>
