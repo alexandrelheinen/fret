@@ -21,7 +21,6 @@ def test_manifest_loads_release_focus_scenarios() -> None:
         "dubins_race",
         "omx_wall_maze_rrt",
         "omx_wall_maze_sst",
-        "omy_pick_place",
         "omy_clutter_rrt",
         "omy_clutter_sst",
     }

@@ -280,7 +280,7 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.4.1` | Showcase honesty (MPC barriers, OM-X grasp, Ø40 mm ball) | ✅ |
 | `v1.4.2` | ARCO v0.3.7 MPCC + full-arm obstacle contacts | ✅ |
 | `v1.4.3` | OMY APPROACH_PICK plans around colliding place-bin shell | ✅ |
-| `v1.4.4` | ARCO v0.5.0 compiled core (Rust planners, maps, controllers) | ✅ |
+| `v1.4.4` | ARCO v0.5.0 compiled core (Rust planners, maps, controllers); `omy_pick_place` out of the release render matrix | ✅ |
 | `v1.5.0` | Dynamic ball + industrial place | 🔲 |
 | `v2.0.0+` | Hardware line (modular) | 🔲 |
 | `v3.0.0` | Definitive product (north-star) | ○ |
@@ -294,7 +294,7 @@ Canonical matrix: [`src/fret/config/release/showcase.yml`](../src/fret/config/re
 | Robot class | Scenarios (today) | Required cameras |
 |---|---|---|
 | **mobile** | `dubins_race` (TB3) | `overview` (isometric); `follow` optional / local |
-| **static** | OM-X Γ-maze (`omx_wall_maze_rrt` / `_sst`); OMY pick-place + clutter RRT*/SST | `overview` only |
+| **static** | OM-X Γ-maze (`omx_wall_maze_rrt` / `_sst`); OMY clutter RRT*/SST | `overview` only |
 
 OM-X and OMY clutter release clips share the same wall geometry and joint
 tracking; they differ only in the transfer planner (**RRT\*** vs **SST**).

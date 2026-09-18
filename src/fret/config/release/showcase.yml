@@ -16,11 +16,13 @@
 #
 # Static release focus:
 #   * OM-X SC-v13d Γ-wall maze — RRT* vs SST (v1.2.3)
-#   * OMY pick-place (SC-v14b / SC-v16b CV path) + SC-v14c clutter RRT* vs SST
+#   * OMY SC-v14c clutter RRT* vs SST
 #
-# v1.4: OMY pick-place runners default use_vision=True (gate cams → pick IK).
-# Showcase id stays omy_pick_place so R2 clip names remain stable; SC-v16b
-# alias is config/scenarios/omy_pick_place_cv.yml for tests / explicit CV runs.
+# omy_pick_place left the release matrix in v1.4.4: its render took 43 min
+# against 2-9 min for every other scenario, so it alone decided how long a
+# release took. The scenario itself is unchanged and still covered by
+# tests/control; render it locally with
+# scripts/release/render_showcase.py --scenario omy_pick_place.
 #
 # Post-v1.4.0 / v1.4.1 showcase refresh:
 #   * All arm cells use floor balls (no pick pedestals); OM-X ball Ø40 mm.
@@ -73,16 +75,6 @@ scenarios:
     collision_backend: mujoco
     timing_file: omx_wall_maze_sst_timing.json
     primary_video: omx_wall_maze_sst_overview.mp4
-
-  - id: omy_pick_place
-    model: omy
-    robot_class: static
-    cameras: [overview]
-    physics_mode: false
-    planner_algorithm: rrt_star
-    collision_backend: mujoco
-    timing_file: omy_pick_place_timing.json
-    primary_video: omy_pick_place_overview.mp4
 
   - id: omy_clutter_rrt
     model: omy
