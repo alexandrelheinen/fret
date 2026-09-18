@@ -148,17 +148,19 @@ def test_omx_pick_place_mjcf_loads() -> None:
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_bottom")
         >= 0
     )
-    # Bin walls collide with full arm (bits 1|4=5); funnel catcher is ball-only
-    # (bit 2). Distal pads stay on bit 4 (no floor fight) but still hit the bin.
+    # Bin walls collide with full arm (bits 1|4=5). Distal pads stay on bit 4
+    # (no floor fight) but still hit the bin.
     wall = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_GEOM, "place_bin_wall_px"
     )
     assert wall >= 0
     assert int(model.geom_contype[wall]) == 5
     assert int(model.geom_conaffinity[wall]) == 5
-    funnel = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "funnel_w0")
-    assert funnel >= 0
-    assert int(model.geom_contype[funnel]) == 2
+    # The invisible catcher cone is gone: it held the ball 22 mm above the
+    # bin floor, which read as a collision bug in the release clips.
+    assert (
+        mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "funnel_w0") == -1
+    )
     ball = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "pick_box_geom")
     assert ball >= 0
     assert int(model.geom_type[ball]) == int(mujoco.mjtGeom.mjGEOM_SPHERE)
