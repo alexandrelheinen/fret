@@ -22,7 +22,7 @@ quality (fluidity, kink tracking, lag, accel spikes) in PlotJuggler.
 This is **not** a replacement for:
 
 - ROS `get_logger()` console messages
-- MuJoCo contact JSONL / `metrics.json` ([mujoco_physics_v1.2.md](../mujoco_physics_v1.2.md) §4)
+- MuJoCo contact JSONL / `metrics.json`
 - In-memory `pose_history` used only by tests / render scripts
 
 It **is** a durable, PlotJuggler-first time-series export under `/tmp/fret_telemetry/`.
@@ -483,7 +483,7 @@ manifest.
 
 ## References
 
-- Existing contact/metrics pattern: [mujoco_physics_v1.2.md](../mujoco_physics_v1.2.md) §4, `src/fret/ros/mujoco_physics_log.py`
+- Existing contact/metrics pattern: `src/fret/ros/mujoco_physics_log.py`
 - PlotJuggler: [PlotJuggler](https://github.com/facontidavide/PlotJuggler) (CSV loader + `-l` layouts)
 - Checked-in layouts: [`src/fret/telemetry/layouts/`](../../src/fret/telemetry/layouts/) (`index.yaml`, `*.xml`)
 - Launcher: `scripts/plotjuggler.sh`; baseline generator: `scripts/gen_plotjuggler_layouts.py`

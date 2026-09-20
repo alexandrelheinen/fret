@@ -291,7 +291,7 @@ Passed to `ros2 launch fret sitl.py` or declared in scenario YAML under
 
 When `physics_mode:=true`, `/joint_states` must reflect simulated `qpos`/`qvel`
 only — no open-loop pose injection (FR-SIM-07). See
-[mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
+[mujoco.md](mujoco.md).
 
 ---
 

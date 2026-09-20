@@ -48,7 +48,7 @@ publishes joint state at 50 Hz.
 | `substeps_per_tick` | int | `25` | MuJoCo steps per control callback |
 | `simulation_config` | string | — | Loaded from scenario or launch |
 
-Spec: [mujoco_physics_v1.2.md](../mujoco_physics_v1.2.md) · [config.md](../config.md).
+Spec: [../mujoco.md](../mujoco.md) · [../config.md](../config.md).
 
 **Demo:** `python3 scripts/demo_mujoco_bridge.py`  
 **Tests:** `tests/ros/test_mujoco_bridge.py` — 11 unit tests.

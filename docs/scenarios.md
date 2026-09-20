@@ -49,7 +49,7 @@ existing scenario.
 
 **Pass criteria:** See [releases.md § v1.2](releases.md#v12--mujoco-physics-sitl).
 
-Implementation spec: [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) ·
+Architecture: [mujoco.md](mujoco.md) ·
 Config: [config.md § Simulation](config.md#simulation-physics-v12).
 
 ---

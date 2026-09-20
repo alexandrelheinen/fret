@@ -316,7 +316,7 @@ git safety, communication) follows
    format/types when code/tests changed); wait for CI green on affected
    jobs; do not claim done while checks fail. Include a proportional
    proof report per the
-   [`report-writing` skill](.cursor/skills/report-writing/SKILL.md) (also
+   [`report-writing` skill](.agents/skills/report-writing/SKILL.md) (also
    [AGENTS.md § Proof reports](AGENTS.md#proof-reports-mandatory)).
 
 ---
@@ -336,7 +336,6 @@ When an external guide conflicts with this file, `.guidelines/`, or
 | [docs/mujoco.md](docs/mujoco.md) | Level 2 — MuJoCo simulation integration |
 | [docs/simulation.md](docs/simulation.md) | User guide — MuJoCo modes and quick start |
 | [docs/releases.md](docs/releases.md) | Release specification (v1.x sim/CV, v2.x hardware, v3.0 north-star) |
-| [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) | v1.2 physics SITL engineering spec |
 | [docs/guidelines.md](docs/guidelines.md) | FRET-specific coding notes |
 | [docs/dev-environment.md](docs/dev-environment.md) | Environment/debugging notes |
 

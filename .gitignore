@@ -217,3 +217,7 @@ src/fret/mjcf/.generated/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Agents
+.claude/
+.claude/worktrees/

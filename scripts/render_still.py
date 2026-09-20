@@ -4,7 +4,7 @@
 The frame this writes is what MuJoCo produced. Nothing is drawn on top of
 it: no text, no boxes, no legend, no watermark, and no compositing. The
 scenes carry no chrome of their own either, so a still here is the raw
-render. Specification: docs/presentation_stills.md.
+render. Specification: docs/gallery.md.
 
 Framing and fill light live in presentation-only wrappers
 (``src/fret/mjcf/<scenario>_thumbnail.xml``) that include the shared scene

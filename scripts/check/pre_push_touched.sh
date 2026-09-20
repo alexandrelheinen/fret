@@ -67,7 +67,7 @@ code_changed=0
 classify() {
     local f="$1"
     case "${f}" in
-        *.md|docs/*|.cursor/*|LICENSE*|AUTHORS*)
+        *.md|docs/*|.agents/*|.cursor/*|LICENSE*|AUTHORS*)
             return 0
             ;;
     esac

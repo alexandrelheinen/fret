@@ -429,7 +429,6 @@ MUJOCO_GL=egl python3 scripts/release/render_gallery.py --all
 |---|---|
 | Telemetry + PlotJuggler layouts | [docs/modules/telemetry.md](docs/modules/telemetry.md) §5.3 |
 | Computer vision | [docs/vision/README.md](docs/vision/README.md) |
-| MuJoCo physics SITL | [docs/mujoco_physics_v1.2.md](docs/mujoco_physics_v1.2.md) |
 | Configuration reference | [docs/config.md](docs/config.md) |
 | Scenario catalogue | [docs/scenarios.md](docs/scenarios.md) |
 | Robot models | [docs/robots/README.md](docs/robots/README.md) |

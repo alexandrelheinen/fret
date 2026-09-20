@@ -1,7 +1,7 @@
 """Non-holonomic wheel constraints for Dubins *race* physics SITL (v1.2).
 
 Holonomic X/Y slide joints in ``dubins_race.xml`` are a deliberate MJCF
-simplification (see ``docs/mujoco_physics_v1.2.md``). After each ``mj_step``
+simplification (see ``docs/mujoco.md``). After each ``mj_step``
 the race bridge may project planar ``qvel`` so motion is forward-only in the
 body frame.
 

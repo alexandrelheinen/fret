@@ -13,4 +13,4 @@ export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
 python3 scripts/evidence_dubins_physics_seed.py
 ```
 
-Agents: follow [`.cursor/skills/report-writing/SKILL.md`](../.cursor/skills/report-writing/SKILL.md).
+Agents: follow [`.agents/skills/report-writing/SKILL.md`](../../.agents/skills/report-writing/SKILL.md).

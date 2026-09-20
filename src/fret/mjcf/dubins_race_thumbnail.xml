@@ -1,7 +1,7 @@
 <mujoco model="dubins_race_thumbnail">
   <!--
     Presentation-only wrapper over the SC-v11 Dubins warehouse race
-    (FR-SIM-14, docs/presentation_stills.md).
+    (FR-SIM-14, docs/gallery.md).
 
     dubins_race.xml is consumed by the release showcase job, by the scenario
     tests, and by the physics evidence scripts, so it is read-only for

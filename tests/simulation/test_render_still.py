@@ -1,6 +1,6 @@
 """Tests for scripts/render_still.py (FR-SIM-14 presentation stills).
 
-Covers AC-STILL-01 .. AC-STILL-06 from docs/presentation_stills.md. The
+Covers AC-STILL-01 .. AC-STILL-06 from docs/gallery.md. The
 full 1920x1080 render is a release-time command, not a unit test; these
 tests exercise the pure-Python helpers plus a small MuJoCo load.
 """

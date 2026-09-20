@@ -93,7 +93,7 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 Kinematic mirror (fast regression): `physics_mode:=false` or `--kinematic-mode`.
 
 See [mujoco.md § Physics SITL](mujoco.md#physics-sitl-v12) for architecture
-and tuning workflow. Implementation spec: [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md).
+and tuning workflow.
 
 ---
 

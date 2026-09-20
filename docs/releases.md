@@ -91,8 +91,7 @@ alcoves), reproducing the ARCO `vehicle` race format (RRT* vs SST).
 ### v1.2 — MuJoCo physics SITL ✅
 
 Upgrade from kinematic mirroring to actuator-driven MuJoCo physics for the
-Dubins showcase. Spec: [mujoco.md](mujoco.md) ·
-[physics SITL](mujoco_physics_v1.2.md).
+Dubins showcase. Spec: [mujoco.md](mujoco.md).
 
 | # | Criterion |
 |---|---|

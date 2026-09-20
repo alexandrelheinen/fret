@@ -20,8 +20,7 @@ Scenario schema: [scenarios.md](scenarios.md#scenario-yaml-schema).
 
 ## Simulation / physics (v1.2)
 
-**Spec:** [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md) · **Overview:**
-[mujoco.md](mujoco.md)
+**Overview:** [mujoco.md](mujoco.md)
 
 ### Parameter precedence
 
@@ -121,5 +120,5 @@ layer tuning in `simulation/mujoco.yml`.
 1. Run kinematic baseline; record pose error from existing tests.
 2. Set `physics_mode: true`; start with default `kv` values above.
 3. Increase `kv` until tracking error meets FR-CTL-02 limits without actuator saturation.
-4. Inspect contact log (§4 in [mujoco_physics_v1.2.md](mujoco_physics_v1.2.md)).
+4. Inspect contact log ([modules/telemetry.md](modules/telemetry.md)).
 5. Commit tuned values to `simulation/mujoco.yml` only — not Python.

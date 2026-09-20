@@ -1,7 +1,7 @@
 <mujoco model="omx_pick_place_thumbnail">
   <!--
     Presentation-only wrapper over the SC-v13b pick-and-place cell
-    (FR-SIM-14, docs/presentation_stills.md).
+    (FR-SIM-14, docs/gallery.md).
 
     This file exists so that website stills can be framed and lit without
     editing omx_pick_place.xml. That scene carries gate_cam_left and

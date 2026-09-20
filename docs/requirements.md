@@ -124,7 +124,7 @@ cameras).
 renderer output, produced from presentation-only MJCF wrappers that add
 cameras and fill light without editing any scene the vision pipeline,
 scenario tests, or release matrix consume. Specification:
-[presentation_stills.md](presentation_stills.md).
+[gallery.md](gallery.md).
 
 Full integration specification: [mujoco.md](mujoco.md).
 Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
