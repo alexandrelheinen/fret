@@ -61,17 +61,20 @@ Module API: [modules/vision.md](../modules/vision.md).
 
 ---
 
-## Mathematical write-up (PDF, Portuguese)
+## Mathematical write-up
 
-[algoritmo-visao/algoritmo_visao.pdf](algoritmo-visao/algoritmo_visao.pdf)
-derives the full chain from camera pixels to the grasp targets: camera model,
-HSV threshold, morphology, contour circularity, minimum enclosing circle,
-ray–plane lift, multi-view fusion, error propagation, and pad-mid IK. All
-figures and numbers are regenerated from the live MuJoCo cells:
+[algorithm/vision_algorithm.md](algorithm/vision_algorithm.md) (also as
+[LaTeX](algorithm/vision_algorithm.tex) and
+[PDF](algorithm/vision_algorithm.pdf)) derives the full chain from camera
+pixels to the grasp targets: camera model, HSV threshold, morphology, contour
+circularity, minimum enclosing circle, ray–plane lift, multi-view fusion,
+error propagation, and pad-mid IK. All figures and numbers are regenerated
+from the live MuJoCo cells; the Markdown file is rendered from
+`vision_algorithm.template.md`, so edit the template:
 
 ```bash
 MUJOCO_GL=egl PYOPENGL_PLATFORM=egl python3 scripts/vision_algorithm_figures.py
-cd docs/vision/algoritmo-visao && latexmk -pdf algoritmo_visao.tex
+cd docs/vision/algorithm && latexmk -pdf vision_algorithm.tex
 ```
 
 ---
