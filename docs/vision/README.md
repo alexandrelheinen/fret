@@ -61,6 +61,21 @@ Module API: [modules/vision.md](../modules/vision.md).
 
 ---
 
+## Mathematical write-up (PDF, Portuguese)
+
+[algoritmo-visao/algoritmo_visao.pdf](algoritmo-visao/algoritmo_visao.pdf)
+derives the full chain from camera pixels to the grasp targets: camera model,
+HSV threshold, morphology, contour circularity, minimum enclosing circle,
+ray–plane lift, multi-view fusion, error propagation, and pad-mid IK. All
+figures and numbers are regenerated from the live MuJoCo cells:
+
+```bash
+MUJOCO_GL=egl PYOPENGL_PLATFORM=egl python3 scripts/vision_algorithm_figures.py
+cd docs/vision/algoritmo-visao && latexmk -pdf algoritmo_visao.tex
+```
+
+---
+
 ## Relationship to existing “perception”
 
 `PerceptionBridgeNode` (`fret.ros.perception_bridge`) publishes a **synthetic
