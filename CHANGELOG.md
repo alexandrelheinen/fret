@@ -7,7 +7,7 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
-## [1.5.0] - TBD
+## [1.5.0] - 2026-11-17
 
 ### Added
 
