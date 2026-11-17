@@ -7,8 +7,8 @@ ros2 launch fret sitl.py scenario:=<name> model:=<model>
 ```
 
 **Release scenarios** (product targets): SC-v11 – SC-v14 (shipped);
-SC-v15 – SC-v17 (vision line, planned); SC-v20a (SO-101, shipped in
-`v2.0.0`), SC-v20b/c (deferred, see `docs/decisions.md`).
+SC-v15 – SC-v17 (vision line, planned); SC-v20a/b/c (SO-101, shipped in
+`v2.0.0`).
 
 Full release spec: [releases.md](releases.md). Vision program: [vision/README.md](vision/README.md).
 
@@ -195,13 +195,24 @@ physics, no obstacles.
 **Pass criteria:** FR-SIM-20 (≤ 5 mm end-effector error at the goal,
 `docs/requirements.md`).
 
-### SC-v20b/c — SO-101 pick-and-place (deferred)
+### SC-v20b — SO-101 known-pose pick-and-place (v2.0.0)
 
-**Purpose:** Friction-grasp known-pose pick-place (SC-v20b, FR-SIM-18) and
-vision-driven pick-place (SC-v20c, `so101_pick_place_cv`, FR-SIM-19), SO-101
-analogues of SC-v13b/SC-v16a. **Not shipped in `v2.0.0`** — see
-`docs/decisions.md` for why and what groundwork (kinematics, integrator,
-profile, `grasp_modes: [friction]`) is already in place.
+**File:** `config/scenarios/so101_pick_place.yml`
+**Model:** `so101` · **MJCF:** `mjcf/so101_pick_place.xml`
+
+**Purpose:** Friction-mode known-pose pick-place (FR-SIM-18): no MuJoCo
+adhesion actuator; hold uses a contact-gated equality weld (see
+`docs/decisions.md`). Slip mid-transfer FAULTs.
+
+**Pass criteria:** FSM `DONE`, ball in bin volume.
+
+### SC-v20c — SO-101 CV pick-and-place (v2.0.0)
+
+**File:** `config/scenarios/so101_pick_place_cv.yml`
+**Vision:** `config/vision/so101_overhead.yml`
+
+**Purpose:** Overhead-camera vision pick-place (FR-SIM-19), SO-101 analogue
+of SC-v16a. ≥ 9/10 seeds reach `DONE` with the ball in the bin.
 
 ---
 

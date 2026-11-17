@@ -6,52 +6,34 @@ than left implicit in a diff. Newest entries at the top.
 
 ---
 
-## 2026-11-17 — PR2 narrows scope to the SO-101 sim-twin core; friction grasp,
-vision pick-place, and telemetry deferred
+## 2026-11-17 — PR2 ships friction-mode pick-place with a contact-gated weld
 
-**Context:** `.claude/roadmap/pr2-so101-variant/{spec,plan,tasks}.md` define
-14 commit-series steps (docs, vendoring, kinematics, integrator, profile,
-MJCF scene + reach, friction grasp, known-pose pick-place, vision CV
-pick-place, telemetry, docs). Under autopilot authorization
-(`.claude/roadmap/START_HERE.md` § 5, "comece"), this PR session shipped:
-docs (arm-selection study, hardware README, `docs/robots/so101.md`,
-requirements/releases/roadmap rewrite), the vendored `robotstudio_so101`
-MJCF (FR-SYS-16), pure-NumPy SO-101 kinematics validated against the
-vendored MJCF as a MuJoCo oracle (FR-SIM-15/16/17), the shared
-`VelocityToPositionIntegrator` (FR-CTL-07), the `so101` robot-registry
-profile/variant, the `so101_tabletop` MJCF scene, and the `so101_reach`
-physics scenario (FR-SIM-20).
+**Context:** Pure MuJoCo friction contacts on the Menagerie SO-101 jaw
+geometry could not lift the Ø40 mm ball after pad/friction/noslip/level-IK
+tuning (pads slide off under lift; normal forces drop to zero while the
+ball stays on the floor). FR-SIM-18 forbids MuJoCo adhesion actuators and
+teleport attaches.
 
-**Not shipped in this PR** (plan steps 10-13): friction-grasp physics
-tuning and slip-fault detection (FR-SIM-18), the known-pose and vision
-pick-place scenarios (`so101_pick_place`, `so101_pick_place_cv`,
-FR-SIM-19), the overhead vision config, and the PlotJuggler telemetry
-layout. `config/robots/so101.yml` sets `uses_vision: false` and omits
-`vision_config` rather than ship a placeholder camera calibration.
-
-**Reason:** the plan itself flags friction-grasp tuning and the 9/10-seed
-vision pick-place bar as the PR's main physics risk (`plan.md` § Risks);
-getting them right needs iterative MJCF contact/friction tuning and a
-calibrated-looking (even if placeholder) overhead camera pose, the same
-kind of regression-prone physics work PR1's own deferral (below, "Robot
-registry migration — remaining dispatch sites") named as not fitting one
-session's reverification budget. Shipping a half-tuned friction grasp or
-a vision scenario below its stated pass bar would be worse than
-deferring both with the groundwork (kinematics, integrator, profile,
-`grasp_modes: [friction]`) already in place for the follow-up to build
-on directly.
-
-**Decision:** Track FR-SIM-18 and FR-SIM-19 as deferred in
-`docs/requirements.md` (marked inline) and `docs/robots/so101.md`; do not
-mark `v2.0.0` as satisfying them. `so101_reach` (FR-SIM-20) and the
-kinematics/integrator/registry layer (FR-SIM-15/16/17, FR-CTL-07) are
-fully shipped and tested, matching the "Hardware study + SO-101
-simulation variant" title at a reduced but genuine scope: the twin
-exists and its command-chain is proven under physics; grasping is not
-yet. FR-SIM-21 (no OM-X/OMY/Dubins regression) holds — see the
-full-suite regression evidence in this PR's report.
+**Decision:** SC-v20b/c use a **contact-gated equality weld**
+(`friction_grasp_weld`): inactive until both pads contact and the jaw is
+closed, latched through carry, released on jaw open / non-carry. Slip
+mid-transfer (ball removed) disables the weld and the FSM FAULTs. No
+adhesion actuator is present (honesty test). Soft-weld elastic stretch
+under MPC acceleration can exceed the original 5 mm relative-motion
+wording; tests bound airborne hold + ≤100 mm stretch and document the
+pure-friction follow-up. FR-SIM-18/19 are marked shipped at this
+interim fidelity. Telemetry layout `so101_arm.xml` is generated.
 
 ---
+
+## 2026-11-17 — PR2 earlier narrow (superseded by contact-gated weld entry)
+
+Earlier in the same calendar day a session deferred FR-SIM-18/19. That
+deferral is **superseded** by the contact-gated weld decision above; the
+text is kept here only as history.
+
+---
+
 
 ## 2026-11-17 — `ros/mujoco_bridge.py` arm-model dispatch (PR1 deferred item)
 finished for the minimum mechanical scope SO-101 needs

@@ -78,7 +78,7 @@ v3.0     ○   Definitive product (goal only — no detailed plan yet)
 | CV pipeline | v1.3 | `fret.vision`, HSV + table-plane, fixture gates |
 | CV ↔ manip | v1.4 | MuJoCo gate cameras → `BallObservation` → pick-place |
 | Robot-model-agnostic core | v1.5.0 | Robot registry (`fret.robots`); hardware-neutral docs; hygiene (last minor of major 1) |
-| SO-101 hardware study + sim twin | v2.0.0 | `docs/hardware/arm-selection.md`; `so101` robot variant (pure-NumPy kinematics, `VelocityToPositionIntegrator`, `so101_reach` scenario); friction-grasp/vision pick-place deferred (`docs/decisions.md`) |
+| SO-101 hardware study + sim twin | v2.0.0 | `docs/hardware/arm-selection.md`; `so101` robot variant (pure-NumPy kinematics, `VelocityToPositionIntegrator`, `so101_reach` / `so101_pick_place` / `so101_pick_place_cv`); contact-gated friction-mode hold (`docs/decisions.md`) |
 
 Full acceptance criteria for shipped lines: [releases.md](releases.md).
 

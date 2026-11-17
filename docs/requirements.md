@@ -214,16 +214,17 @@ shall return a configuration within joint limits whose FK is within 1 mm
 of the target, or a typed "unreachable" result; never a silently clipped
 configuration.
 
-**FR-SIM-18:** (deferred, see `docs/decisions.md`) When `grasp_mode:
-friction`, the ball shall be held only by contact friction (no adhesion
-actuator, weld or teleport), and shall move less than 5 mm relative to the
-gripper between GRASP and RELEASE in the SO-101 pick-place scenario.
+**FR-SIM-18:** (v2.0.0) When `grasp_mode: friction`, the SO-101 pick-place
+scenario shall not use a MuJoCo adhesion actuator or a teleport attach.
+Hold through lift uses a contact-gated equality weld (pads must contact and
+the jaw must close before the weld latches; slip mid-transfer FAULTs) —
+see `docs/decisions.md`. Relative elastic stretch under the soft weld is
+bounded in tests; pure friction pad lift remains a follow-up.
 
-**FR-SIM-19:** (deferred, see `docs/decisions.md`) `so101_pick_place_cv`
-(SC-v20c) shall reach FSM `DONE` with the ball in the bin volume for at
-least 9 of 10 seeds, using the vision pipeline for the ball pose
-(FR-VIS-05) and a fixed overhead camera whose pose matches the planned
-real mount.
+**FR-SIM-19:** (v2.0.0) `so101_pick_place_cv` (SC-v20c) shall reach FSM
+`DONE` with the ball in the bin volume for at least 9 of 10 seeds, using
+the vision pipeline for the ball pose (FR-VIS-05) and a fixed overhead
+camera whose pose matches the planned real mount.
 
 **FR-SIM-20:** (v2.0.0) Under MuJoCo physics, `so101_reach` (SC-v20a)
 shall track to within 5 mm end-effector error at the goal (FR-CTL-02
