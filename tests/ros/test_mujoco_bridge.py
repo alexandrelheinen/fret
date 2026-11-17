@@ -124,6 +124,24 @@ def test_make_mujoco_bridge_core_unknown_model() -> None:
         make_mujoco_bridge_core("not_a_robot", "nope")
 
 
+@pytest.mark.parametrize("model", ["open_manipulator_x", "omx"])
+def test_make_mujoco_bridge_core_resolves_arm_through_registry(
+    model: str,
+) -> None:
+    """FR-SYS-08 follow-up: arm models route through the robot registry
+    (deferred from PR1; previously every non-dubins model raised)."""
+    core = make_mujoco_bridge_core(model, "omx_reach")
+    assert core.joint_names == ["Joint1", "Joint2", "Joint3", "Joint4"]
+    assert core.limits.shape == (4, 2)
+    assert core.mjcf_path.name == "omx_tabletop.xml"
+
+
+def test_make_mujoco_bridge_core_mobile_non_dubins_still_raises() -> None:
+    """Diffdrive/turtlebot3 have no generic bridge-core path yet (unchanged)."""
+    with pytest.raises(ValueError, match="Unknown MuJoCo bridge model"):
+        make_mujoco_bridge_core("diffdrive", "diffdrive_unit")
+
+
 def test_bridge_core_step_integrates_velocity(
     se2_mjcf_path: pathlib.Path,
 ) -> None:
