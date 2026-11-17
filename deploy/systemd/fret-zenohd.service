@@ -1,0 +1,16 @@
+[Unit]
+Description=Zenoh router for FRET ROS 2 over Wi-Fi (FR-HW-63)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fret
+EnvironmentFile=-/etc/fret/ros.env
+# ros-jazzy-rmw-zenoh-cpp ships rmw_zenohd / zenohd depending on package version.
+ExecStart=/bin/bash -lc 'if command -v rmw_zenohd >/dev/null; then exec rmw_zenohd; else exec ros2 run rmw_zenoh_cpp rmw_zenohd; fi'
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
