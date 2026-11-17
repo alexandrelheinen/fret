@@ -51,9 +51,11 @@ render visible planned-path (ARCO RRT*) motion.
 The pinned ARCO v0.5.0 wheel provides the compiled classical
 path-following MPCC and joint-space MPC. It carries the abi3 extension,
 so `pip install -e ".[sim]"` needs no Rust toolchain on Linux x86_64,
-macOS arm64 or Windows x86_64; any other platform falls back to the
-source distribution and does need one. CasADi is gone with the `mpc`
-extra, and ARCO now pulls SciPy. Pre-existing: `mypy` reports a missing `Any`
+Linux aarch64 (Pi), macOS arm64 or Windows x86_64; any other platform
+falls back to the source distribution and does need one. On the Pi use
+`pip install -e ".[hw]"` (no MuJoCo); the aarch64 wheel pin and SHA are
+recorded in `docs/decisions.md` (OPS-05 / PR5). CasADi is gone with the
+`mpc` extra, and ARCO now pulls SciPy. Pre-existing: `mypy` reports a missing `Any`
 import in `planner_node_ros.py`; and the ROS `planner_node` crashes at
 launch because `declare_parameter("start_configuration", [])` is inferred
 as `BYTE_ARRAY` under rclpy Jazzy. Other nodes (mujoco_bridge, controller,

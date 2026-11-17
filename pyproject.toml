@@ -15,9 +15,11 @@ dependencies = [
     # toolchain. A platform without a wheel below builds the sdist with
     # maturin, which does need one.
     "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl ; sys_platform == 'linux' and platform_machine == 'aarch64'",
     "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-macosx_11_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-win_amd64.whl ; sys_platform == 'win32'",
-    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0.tar.gz ; (sys_platform != 'linux' or platform_machine != 'x86_64') and (sys_platform != 'darwin' or platform_machine != 'arm64') and sys_platform != 'win32'",
+    # Sdist fallback: never compile on linux aarch64 (Pi uses the wheel above).
+    "arco @ https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0.tar.gz ; (sys_platform != 'linux' or platform_machine != 'x86_64') and (sys_platform != 'linux' or platform_machine != 'aarch64') and (sys_platform != 'darwin' or platform_machine != 'arm64') and sys_platform != 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +34,11 @@ dev = [
 vision = [
     # <4.12 keeps NumPy 1.26 (ROS Jazzy / Debian) installable in CI.
     # 4.12+ requires NumPy 2 and breaks apt-managed numpy uninstall.
+    "opencv-python-headless>=4.10,<4.12",
+]
+# Raspberry Pi 5 runtime: hardware + vision, never MuJoCo (FR-HW-61).
+hw = [
+    "pyserial>=3.5",
     "opencv-python-headless>=4.10,<4.12",
 ]
 sim = [
@@ -51,6 +58,9 @@ mujoco_bridge = "fret.ros.mujoco_bridge:main"
 dubins_race_node = "fret.ros.dubins_race_node:main"
 bridge_node = "fret.hardware.bridge_node:main"
 fret-hw = "fret.hardware.cli:main"
+fret-diag = "fret.diag.cli:main"
+fret-calib = "fret.calib.cli:main"
+vision_node = "fret.vision.ros.vision_node:main"
 
 [build-system]
 requires = ["setuptools>=71", "wheel"]
