@@ -18,8 +18,9 @@ kind of work; major bumps change the delivery surface.
 
 **Rules:**
 
-1. **All of v1.x stays in simulation.** No Micro-ROS, Pi, or physical actuators
-   until the v2.x line.
+1. **All of v1.x stays in simulation.** No hardware transport or physical
+   actuators until the v2.x line; the v2.x hardware target is undefined
+   pending redefinition (`docs/requirements.md` FR-HW-01..03).
 2. **TB3 / Dubins** is a **case study**: port ARCO kinematic SE(2) racing into
    MuJoCo physics. It does **not** consume computer vision — only manipulators
    interact with graspable scene objects.
@@ -29,16 +30,16 @@ kind of work; major bumps change the delivery surface.
    only *mentions* it; no task breakdown for 3.0+ is maintained here.
 
 ```
-v1.1–v1.4   ✅  Mobile + arm showcases, physics SITL, CV ↔ manipulation
+v1.1–v1.4    ✅  Mobile + arm showcases, physics SITL, CV ↔ manipulation
      │
      ▼
-v1.5   🔲  Dynamic ball delivery + industrial place geometry + pickability
+v1.5.0   ✅  Robot-model-agnostic core (last minor of major 1)
      │
      ▼
-v2.0+  🔲  Hardware line (modular HITL)
+v2.0+    🔲  Hardware line (modular HITL); dynamic-ball scope backlogged
      │
      ▼
-v3.0   ○   Definitive product (goal only — no detailed plan yet)
+v3.0     ○   Definitive product (goal only — no detailed plan yet)
 ```
 
 ---
@@ -54,8 +55,9 @@ v3.0   ○   Definitive product (goal only — no detailed plan yet)
 * **Assets:** ROBOTIS MuJoCo Menagerie + AWS RoboMaker warehouse (submodules).
 * **v1.x vision:** Track a graspable ball; place target / dispenser pose stays a
   **known scenario parameter** (fixed industrial fixture).
-* **v2.x hardware:** Raspberry Pi 5 + Arduino Mega (Micro-ROS) and real cameras,
-  introduced **after** v1.5 is validated — modular milestones, not a big-bang cutover.
+* **v2.x hardware:** target undefined as of v1.5.0 (decided when hardware
+  planning for the relevant phase opens, see `docs/hardware/`), introduced
+  in modular milestones, not a big-bang cutover.
 
 ---
 
@@ -70,6 +72,7 @@ v3.0   ○   Definitive product (goal only — no detailed plan yet)
 | OMY 6-DOF | v1.2.4+ | Reach, floor pick-place, clutter; telemetry on R2 |
 | CV pipeline | v1.3 | `fret.vision`, HSV + table-plane, fixture gates |
 | CV ↔ manip | v1.4 | MuJoCo gate cameras → `BallObservation` → pick-place |
+| Robot-model-agnostic core | v1.5.0 | Robot registry (`fret.robots`); hardware-neutral docs; hygiene (last minor of major 1) |
 
 Full acceptance criteria for shipped lines: [releases.md](releases.md).
 
@@ -77,21 +80,26 @@ Full acceptance criteria for shipped lines: [releases.md](releases.md).
 
 ## Open work
 
-### Dynamic scene + industrial place 🔲 *(v1.5)*
+### Dynamic scene + industrial place 🔲 *(simulation backlog)*
+
+Deferred from the former "v1.5" plan when `v1.5.0` became the
+robot-model-agnostic core release (`docs/releases.md` § v1.5.0). Not
+scheduled to a release yet.
 
 - [ ] Ball rolls on floor to a **random** rest pose; CV detects it
 - [ ] **Pickability** classifier (in workspace / graspable vs reject)
 - [ ] Asset research + improved container / dispenser geometry
 - [ ] Decide single-ball vs multi-ball delivery for the release scenario
-- [ ] Tag `v1.5.0`
 
 ### Hardware line 🔲 *(v2.x)*
 
-Modular integration (order fixed; each may be its own minor tag):
+Modular integration (order fixed; each may be its own minor tag); the
+transport and physical target are undefined until hardware planning for
+the relevant phase opens (`docs/hardware/`):
 
-1. Low-level target bridge (Micro-ROS / serial)
+1. Low-level target bridge (transport TBD)
 2. Real image pipeline (same `fret.vision` contracts)
-3. Real manipulator actuation + encoder feedback
+3. Real manipulator actuation + feedback
 4. Full closed-loop pick-and-place on hardware
 
 See [releases.md § v2.x](releases.md#v2x--hardware-integration-line).

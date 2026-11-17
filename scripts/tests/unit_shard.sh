@@ -54,6 +54,7 @@ case "${SHARD}" in
             tests/test_sitl_config.py
             tests/test_resource_resolution.py
             tests/test_version_consistency.py
+            tests/test_docs_hardware_neutral.py
         )
         ;;
     simulation)
