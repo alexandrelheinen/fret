@@ -20,11 +20,13 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
     from fret.scene.acquisition import SceneAcquisition
 
-    class _SceneAcquisitionNode(rclpy.node.Node):  # type: ignore[misc]
+    class _SceneAcquisitionNode(rclpy.node.Node):
         def __init__(self) -> None:
             super().__init__("scene_acquisition_node")
             self._acquisition = SceneAcquisition(node=self)
-            self.get_logger().info("SceneAcquisitionNode ready.")
+            self.get_logger().info(  # type: ignore[no-untyped-call]
+                "SceneAcquisitionNode ready."
+            )
 
     rclpy.init(args=args)
     node = _SceneAcquisitionNode()
@@ -33,6 +35,6 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
-        if rclpy.ok():
+        node.destroy_node()  # type: ignore[no-untyped-call]
+        if rclpy.ok():  # type: ignore[attr-defined]
             rclpy.shutdown()

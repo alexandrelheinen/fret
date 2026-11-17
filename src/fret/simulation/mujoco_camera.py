@@ -64,7 +64,9 @@ def mujoco_xmat_to_opencv_rotation(
     OpenCV optical: ``+Z`` forward (into the scene), ``+Y`` down, ``+X`` right.
     """
     rotation_mj = np.asarray(xmat, dtype=np.float64).reshape(3, 3)
-    return rotation_mj @ np.diag([1.0, -1.0, -1.0])
+    return np.asarray(
+        rotation_mj @ np.diag([1.0, -1.0, -1.0]), dtype=np.float64
+    )
 
 
 def extrinsics_from_mujoco_camera(

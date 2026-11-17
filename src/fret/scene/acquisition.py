@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import numpy.typing as npt
 
 from fret.interfaces import OccupancyUpdatePayload
 
@@ -40,7 +41,7 @@ class SceneAcquisition:
         self._latest_payload: OccupancyUpdatePayload | None = None
 
         # RELIABLE + TRANSIENT_LOCAL so the last cloud survives late joiners.
-        qos = QoSProfile(
+        qos = QoSProfile(  # type: ignore[no-untyped-call]
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -75,7 +76,9 @@ class SceneAcquisition:
             )
 
             if pts.shape[0] == 0:
-                xyz: np.ndarray = np.empty((0, 3), dtype=np.float64)
+                xyz: npt.NDArray[np.float64] = np.empty(
+                    (0, 3), dtype=np.float64
+                )
             elif pts.dtype.names is not None:
                 # Structured array (older sensor_msgs_py): named field access.
                 xyz = np.column_stack(
@@ -99,7 +102,7 @@ class SceneAcquisition:
                 frame_id="world",
             )
         except (ValueError, AttributeError, KeyError, TypeError) as exc:
-            self._node.get_logger().warning(
+            self._node.get_logger().warning(  # type: ignore[no-untyped-call]
                 f"SceneAcquisition: failed to process PointCloud2: {exc}"
             )
 
