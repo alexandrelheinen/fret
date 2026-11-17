@@ -1,15 +1,27 @@
-"""OpenMANIPULATOR-X variant registration (FR-SYS-08)."""
+"""OpenMANIPULATOR-X variant registration (FR-SYS-08).
+
+MuJoCo kinematics stay behind a lazy import so the Pi hardware import
+graph (FR-HW-61) never loads ``mujoco``.
+"""
 
 from __future__ import annotations
 
-from fret.control.kinematics_open_manipulator_x import (
-    OpenManipulatorXKinematics,
-)
+from typing import TYPE_CHECKING
+
 from fret.robots.registry import register_controller, register_kinematics
+
+if TYPE_CHECKING:
+    from fret.control.kinematics_open_manipulator_x import (
+        OpenManipulatorXKinematics,
+    )
 
 
 @register_kinematics("open_manipulator_x")
 def _build_omx_kinematics() -> OpenManipulatorXKinematics:
+    from fret.control.kinematics_open_manipulator_x import (
+        OpenManipulatorXKinematics,
+    )
+
     return OpenManipulatorXKinematics()
 
 
