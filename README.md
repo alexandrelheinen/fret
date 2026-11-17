@@ -212,6 +212,7 @@ ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
 | `dubins` | ARCO Pure Pursuit + DubinsVehicle |
 | `open_manipulator_x` | Jacobian / joint-space tracking (Menagerie OM-X) |
 | `six_dof` / `omy` | Jacobian + numerical IK (Menagerie OMY) |
+| `so101` | Pure-NumPy FK/IK, damped least squares (v2.0.0, sim twin) |
 
 Robot details: [docs/robots/README.md](docs/robots/README.md).
 

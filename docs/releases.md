@@ -32,6 +32,7 @@ grouped by era:
 | **v1.3** | Vision algorithms | Ball track pipeline + algorithm selection | Fixtures (+ optional MuJoCo frames) | ✅ |
 | **v1.4** | OM-X / OMY + CV | MuJoCo cameras → replace hardcoded ball pose | MuJoCo + CV | ✅ |
 | **v1.5.0** | Robot-model-agnostic core | Registry-based robot dispatch; hardware-neutral docs; hygiene | MuJoCo | ✅ |
+| **v2.0.0** | SO-101 | Hardware study + SO-101 MuJoCo simulation twin | MuJoCo | ✅ |
 | **v2.x** | Hardware HITL | Modular bridge → cameras → arm → full loop | Hardware | 🔲 |
 | **v3.0** | Product | Definitive integrated system | Sim + HW | ○ |
 
@@ -220,22 +221,28 @@ release once picked up again:
 ### Goal
 
 After **v1.5** is validated in simulation, bring the same contracts onto
-**physical hardware** in **modular** steps. Each minor tag may ship one layer.
+**physical hardware** in **modular** steps. Each tag ships one layer,
+validated against a hardware-free mock before anything touches a real
+port.
 
-| Step | Focus | Notes |
-|---|---|---|
-| **v2.0** | Low-level target bridge | Transport TBD; `/joint_commands` ↔ drivers; feedback → `/joint_states` |
-| **v2.1** | Real image pipeline | Same `fret.vision` interfaces; real camera drivers |
-| **v2.2** | Real manipulator actuation | Closed-loop joint tracking on hardware |
-| **v2.3** | Full HITL pick-and-place | Vision + plan + control + hardware together |
+The hardware target (robot, servo bus, deployment host) is decided in PR2
+(`v2.0.0`) and documented under [`hardware/`](hardware/README.md) and
+[`robots/so101.md`](robots/so101.md), which this release line stays
+neutral to by reference rather than naming here (`FR-SYS-13`). FR-HW-01..03
+(the earlier microcontroller-based assumption) are superseded; FR-HW-10
+onward (`docs/requirements.md`) define the decided target.
 
-The hardware target (robot, bus, protocol) is **undefined as of v1.5.0**;
-FR-HW-01..03 are marked superseded in v2.0, pending redefinition
-(`docs/requirements.md`). It is decided and recorded under
-[`docs/hardware/`](hardware/README.md) when hardware planning for the
-relevant phase opens — see [roadmap.md](roadmap.md) for the current plan.
+| Step | Phase | Focus | Result |
+|---|---|---|---|
+| **v2.0.0** | PR2 | Hardware study + SO-101 MuJoCo simulation twin (new robot variant, pure-NumPy kinematics, position-actuator sim IO, friction grasp) | ✅ (sim twin core; friction-grasp/vision pick-place deferred, see `docs/decisions.md`) |
+| **v2.1.0** | PR3 | Hardware-free test infrastructure: mock servo bus, the real bridge developed TDD against it, recorded replays, fault injection, `fret-hw` servo tools | 🔲 |
+| **v2.2.0** | PR4 | Safety layer: e-stop detection, bridge-side limits, command watchdog, soft start, torque-off on shutdown / hold on fault; validated in sim and on the PR3 mock | 🔲 |
+| **v2.3.0-rc.1** → **v2.3.0** | PR5 | Deployment + bring-up kit (arm64 build incl. the ARCO aarch64 wheel, systemd, udev, camera node, calibration, diagnostics); promoted to `v2.3.0` after the OPS-08 hardware-arrival checklist | 🔲 |
+| **v2.4.0** | (post-arrival) | Hardware-validated closed loop + HITL pick-and-place, tolerances set from measured data | 🔲 |
 
-Module stub today: [hardware/bridge.md](hardware/bridge.md).
+Module stub today: [hardware/bridge.md](hardware/bridge.md). Full phase
+sequence, decisions and operations: see the hardware roadmap package
+referenced from [hardware/README.md](hardware/README.md).
 
 ### Acceptance criteria (era-level)
 
@@ -244,8 +251,6 @@ Module stub today: [hardware/bridge.md](hardware/bridge.md).
 | V2x-1 | Each step has its own tag, tests, and does not require the next step to merge |
 | V2x-2 | Algorithm packages (`fret.vision`, planning, control) stay simulator-agnostic |
 | V2x-3 | At least one end-to-end hardware pick-place smoke before declaring the era done |
-
-*Detailed T2x-* task lists are written when v1.5 closes.*
 
 ---
 
@@ -274,7 +279,8 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.4.3` | OMY APPROACH_PICK plans around colliding place-bin shell | ✅ |
 | `v1.4.4` | ARCO v0.5.0 compiled core (Rust planners, maps, controllers); `omy_pick_place` out of the release render matrix | ✅ |
 | `v1.5.0` | Robot-model-agnostic core (last minor of major 1); dynamic-ball scope deferred to a simulation backlog | ✅ |
-| `v2.0.0+` | Hardware line (modular) | 🔲 |
+| `v2.0.0` | SO-101 hardware study + MuJoCo simulation twin | ✅ |
+| `v2.1.0+` | Hardware line continued (mock bridge, safety, Pi deployment) | 🔲 |
 | `v3.0.0` | Definitive product (north-star) | ○ |
 
 ---

@@ -7,7 +7,8 @@ ros2 launch fret sitl.py scenario:=<name> model:=<model>
 ```
 
 **Release scenarios** (product targets): SC-v11 – SC-v14 (shipped);
-SC-v15 – SC-v17 (vision line, planned).
+SC-v15 – SC-v17 (vision line, planned); SC-v20a (SO-101, shipped in
+`v2.0.0`), SC-v20b/c (deferred, see `docs/decisions.md`).
 
 Full release spec: [releases.md](releases.md). Vision program: [vision/README.md](vision/README.md).
 
@@ -181,6 +182,26 @@ pickability; pickable balls go into an improved container / dispenser.
 Provisional cadence: one ball per cycle.
 
 **Pass criteria:** [releases.md § v1.5](releases.md#v15--dynamic-ball--industrial-place).
+
+### SC-v20a — SO-101 empty reach (v2.0.0)
+
+**File:** `config/scenarios/so101_reach.yml`
+**Model:** `so101` · **MJCF:** `mjcf/so101_tabletop.xml`
+
+**Purpose:** Command-chain validation on the SO-101 simulation twin (same
+role as SC-v13a for OM-X): empty cell, joint-space A→B under full MuJoCo
+physics, no obstacles.
+
+**Pass criteria:** FR-SIM-20 (≤ 5 mm end-effector error at the goal,
+`docs/requirements.md`).
+
+### SC-v20b/c — SO-101 pick-and-place (deferred)
+
+**Purpose:** Friction-grasp known-pose pick-place (SC-v20b, FR-SIM-18) and
+vision-driven pick-place (SC-v20c, `so101_pick_place_cv`, FR-SIM-19), SO-101
+analogues of SC-v13b/SC-v16a. **Not shipped in `v2.0.0`** — see
+`docs/decisions.md` for why and what groundwork (kinematics, integrator,
+profile, `grasp_modes: [friction]`) is already in place.
 
 ---
 
