@@ -1,0 +1,9 @@
+# Everything-on-Pi performance budget (FR-HW-73). Measured by fret-diag load.
+bridge_cycle_p99_ms: 10.0
+bridge_cycle_max_ms: 20.0
+vision_p95_ms: 100.0
+cpu_percent: 70.0
+memory_gb: 4.0
+soc_temp_c: 75.0
+planner_timeout_rrt_s: 30.0
+planner_timeout_sst_s: 60.0
