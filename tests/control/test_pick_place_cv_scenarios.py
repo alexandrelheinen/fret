@@ -13,6 +13,7 @@ mujoco = pytest.importorskip("mujoco")
 
 _OMX_CV = Path("src/fret/config/scenarios/omx_pick_place_cv.yml")
 _OMY_CV = Path("src/fret/config/scenarios/omy_pick_place_cv.yml")
+_SO101_CV = Path("src/fret/config/scenarios/so101_pick_place_cv.yml")
 
 
 @pytest.mark.parametrize(
@@ -31,6 +32,13 @@ _OMY_CV = Path("src/fret/config/scenarios/omy_pick_place_cv.yml")
             "omy_pick_place",
             "omy_pick_place_cv",
             "src/fret/config/vision/omy_portal_overhead.yml",
+        ),
+        (
+            _SO101_CV,
+            "so101",
+            "so101_pick_place",
+            "so101_pick_place_cv",
+            "src/fret/config/vision/so101_overhead.yml",
         ),
     ],
 )
@@ -94,3 +102,50 @@ def test_omy_pick_place_cv_physics_done() -> None:
     assert float(np.linalg.norm(ball[:2] - place_xy)) < cone_r
     assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.15
     assert float(ball[2]) < float(params.get("place_cone_height_m", 0.28))
+
+
+@pytest.mark.slow
+def test_so101_pick_place_cv_physics_done_fr_sim_19() -> None:
+    """FR-SIM-19: vision pick-place reaches DONE with ball in bin (≥1 seed)."""
+    from fret.control.pick_place_fsm import PickPlaceState
+    from fret.control.so101_pick_place_sim import run_so101_pick_place
+
+    params = load_scenario_parameters(_SO101_CV)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
+    pick_xy = np.asarray(params["pick_xy"], dtype=np.float64)
+    cone_r = float(params.get("place_cone_radius_m", 0.06))
+    state, ball = run_so101_pick_place(
+        duration_s=55.0,
+        scenario_path=_SO101_CV,
+        use_vision=True,
+    )
+    assert state != PickPlaceState.FAULT
+    assert state == PickPlaceState.DONE, f"ended in {state.name}"
+    assert float(np.linalg.norm(ball[:2] - place_xy)) < cone_r
+    assert float(np.linalg.norm(ball[:2] - pick_xy)) > 0.10
+    assert float(ball[2]) < float(params.get("place_cone_height_m", 0.10))
+
+
+@pytest.mark.slow
+def test_so101_pick_place_cv_nine_of_ten_seeds() -> None:
+    """FR-SIM-19: at least 9 of 10 seeded CV runs reach DONE in-bin."""
+    from fret.control.pick_place_fsm import PickPlaceState
+    from fret.control.so101_pick_place_sim import run_so101_pick_place
+
+    params = load_scenario_parameters(_SO101_CV)
+    place_xy = np.asarray(params["place_xy"], dtype=np.float64)
+    cone_r = float(params.get("place_cone_radius_m", 0.06))
+    passes = 0
+    for seed in range(10):
+        np.random.seed(seed)
+        state, ball = run_so101_pick_place(
+            duration_s=55.0,
+            scenario_path=_SO101_CV,
+            use_vision=True,
+        )
+        if (
+            state == PickPlaceState.DONE
+            and float(np.linalg.norm(ball[:2] - place_xy)) < cone_r
+        ):
+            passes += 1
+    assert passes >= 9, f"FR-SIM-19: only {passes}/10 seeds passed"

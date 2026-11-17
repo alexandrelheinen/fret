@@ -31,6 +31,9 @@ def test_so101_profile_resolves_through_default_registry() -> None:
     assert list(profile.joint_names) == _ARM_JOINTS
     assert profile.dof == 5
     assert profile.grasp_modes == ("friction",)
+    assert profile.uses_vision is True
+    assert profile.vision_config is not None
+    assert "so101_overhead" in profile.vision_config
 
 
 def test_so101_aliases_resolve_to_canonical_key() -> None:

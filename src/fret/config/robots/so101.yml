@@ -32,9 +32,5 @@ aliases:
   - "so_arm101"
 grasp_modes:
   - "friction"
-# vision_config / uses_vision: deliberately not set in this PR. The
-# so101_pick_place_cv scenario (FR-SIM-19, overhead camera calibration)
-# is deferred; see docs/decisions.md. Add vision/so101_overhead.yml and
-# flip uses_vision to true in that follow-up, not with placeholder
-# extrinsics here.
-uses_vision: false
+vision_config: "vision/so101_overhead.yml"
+uses_vision: true
