@@ -7,6 +7,8 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-17
+
 ### Added
 
 - Hardware-free Feetech STS3215 test infra: protocol module, `MockStsBus`
