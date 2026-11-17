@@ -7,6 +7,23 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+### Added
+
+- Hardware-free Feetech STS3215 test infra: protocol module, `MockStsBus`
+  with fault injection, pty fake device, record/replay JSONL (FR-HW-68,
+  FR-HW-71).
+- SO-101 `BridgeNode` / `BridgeCore` developed TDD against the mock
+  (FR-HW-20..25, FR-HW-45 integrity); identity `SafetySupervisor` seam
+  for PR4; mock-only torque interlock (FR-SYS-18).
+- `fret-hw` servo tooling CLI; `launch/hardware.py robot:=so101`;
+  hardware `RobotIO`; example calibration YAML (FR-HW-26, FR-HW-27,
+  FR-SYS-17).
+
+### Known gaps
+
+- Mock only: not validated on real hardware. Torque enable on real
+  serial ports is refused until PR4.
+
 ## [2.0.0] - 2026-11-17
 
 ### Added

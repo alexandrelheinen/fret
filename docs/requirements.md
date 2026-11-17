@@ -322,10 +322,14 @@ firmware.
 **FR-HW-25:** Same `/joint_commands` / `/joint_states` topics as
 `MuJoCoBridgeNode` (model-agnostic bridge interface).
 
-**FR-HW-26:** A simulation twin (this PR's `so101` variant) exists and is
-kept in step with the bridge's command/state contract.
+**FR-HW-26:** (v2.1.0) `fret-hw calibrate` shall record per-joint range
+with torque off and write a machine-local calibration YAML; 
+`fret-hw import-lerobot-calibration` shall convert LeRobot JSON to the
+same format. (The SO-101 simulation twin that keeps the command/state
+contract in step is FR-SIM-15..21.)
 
-**FR-HW-27:** (reserved)
+**FR-HW-27:** (v2.1.0) `fret-hw set-id` shall refuse when more than one
+servo answers on the bus, and shall verify the new id by PING.
 
 ### Perception (verified: PR5)
 
@@ -392,6 +396,25 @@ and monitoring (decided by Alexandre, 2026-11-17).
 
 **FR-HW-62:** Per-subsystem diagnostics (bridge, safety, controller,
 planner, vision each report health independently).
+
+### Hardware-free test infrastructure (verified: PR3 mock)
+
+**FR-HW-68:** (v2.1.0) `fret-hw record` shall write bus traffic as
+timestamped JSONL, and the replay transport shall reproduce the same
+bridge outputs for the same trace, bit for bit, in a test.
+
+**FR-HW-71:** (v2.1.0) Every fault the mock can inject shall have a test
+that observes the bridge's documented reaction (reject and count in
+v2.1.0; state transitions in PR4).
+
+**FR-SYS-17:** (v2.1.0) `launch/hardware.py robot:=so101 port:=…`
+shall start the bridge and the controller; against a pty fake device it
+shall reach `CONNECTED_DISABLED` and publish `/joint_states` at 50 Hz.
+
+**FR-SYS-18:** (v2.1.0) The bridge shall refuse to enable torque unless
+the port is a mock, a replay, or a pty fake device, logging that the
+safety layer (PR4) is required; PR4 removes this interlock in the same
+commit that lands the safety tests.
 
 ---
 
