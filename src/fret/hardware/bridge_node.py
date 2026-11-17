@@ -23,6 +23,7 @@ from fret.hardware.config import (
     default_example_calibration_path,
     load_bridge_config,
 )
+from fret.hardware.sd_notify import WatchdogNotifier, watchdog_sec_from_env
 from fret.hardware.sts.errors import StsError, TorqueEnableRefusedError
 from fret.hardware.sts.fake_device import FakeStsDevice
 from fret.hardware.sts.mock_bus import make_so101_mock
@@ -156,6 +157,10 @@ class BridgeNode:
         self._node: Any | None = None
         self._rclpy: Any | None = None
         self._state_pub: Any | None = None
+        self._watchdog: WatchdogNotifier | None = None
+        watchdog_sec = watchdog_sec_from_env()
+        if watchdog_sec is not None:
+            self._watchdog = WatchdogNotifier(watchdog_sec)
 
         if enable_ros:
             self._setup_ros()
@@ -321,13 +326,20 @@ class BridgeNode:
             except StsError as exc:
                 if self._node is not None:
                     self._node.get_logger().warning(f"connect failed: {exc}")
+                if self._watchdog is not None:
+                    self._watchdog.mark_stall()
                 return
         try:
             self._core.cycle()
         except StsError as exc:
             if self._node is not None:
                 self._node.get_logger().warning(f"cycle fault: {exc}")
+            if self._watchdog is not None:
+                self._watchdog.mark_stall()
             return
+        if self._watchdog is not None:
+            self._watchdog.clear_stall()
+            self._watchdog.maybe_notify()
         if self._state_pub is None or self._node is None:
             return
         msg = JointState()
