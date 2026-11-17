@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from fret.hardware.bridge_node import main
+
+main()
