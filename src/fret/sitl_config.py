@@ -66,22 +66,30 @@ def mujoco_sim_config_relative() -> str:
 
 
 def package_source_root() -> pathlib.Path:
-    """Return the on-disk ``fret`` Python package root (dev / editable installs)."""
-    return pathlib.Path(__file__).resolve().parent
+    """Return the on-disk ``fret`` Python package root (dev / editable installs).
+
+    Thin wrapper over :func:`fret.resources.package_source_root` (FR-SYS-10);
+    kept here so existing call sites are unchanged.
+    """
+    from fret.resources import package_source_root as _package_source_root
+
+    return _package_source_root()
 
 
 def package_share_root() -> pathlib.Path:
-    """Return the installed ROS share directory for ``fret`` when available."""
-    try:
-        from ament_index_python.packages import get_package_share_directory
+    """Return the installed ROS share directory for ``fret`` when available.
 
-        return pathlib.Path(get_package_share_directory("fret"))
-    except Exception:
-        return package_source_root()
+    Thin wrapper over :func:`fret.resources.package_share_root` (FR-SYS-10).
+    """
+    from fret.resources import package_share_root as _package_share_root
+
+    return _package_share_root()
 
 
 def resolve_package_file(*parts: str) -> pathlib.Path:
     """Resolve a file under ``share/fret`` or the source package tree.
+
+    Thin wrapper over :func:`fret.resources.resolve` (FR-SYS-10).
 
     Args:
         *parts: Path segments relative to the package root, e.g.
@@ -93,16 +101,11 @@ def resolve_package_file(*parts: str) -> pathlib.Path:
     Raises:
         FileNotFoundError: If the file cannot be located.
     """
-    seen: set[pathlib.Path] = set()
-    for root in (package_share_root(), package_source_root()):
-        if root in seen:
-            continue
-        seen.add(root)
-        candidate = root.joinpath(*parts)
-        if candidate.is_file():
-            return candidate
-    joined = "/".join(parts)
-    raise FileNotFoundError(f"Package file not found: {joined}")
+    from fret.resources import resolve as _resolve
+
+    if not parts:
+        raise FileNotFoundError("Package file not found: (empty path)")
+    return _resolve(parts[0], "/".join(parts[1:]))
 
 
 def resolve_source_mjcf(filename: str) -> pathlib.Path:
