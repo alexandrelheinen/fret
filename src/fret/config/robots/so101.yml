@@ -1,0 +1,40 @@
+# Robot profile: Seeed SO-ARM101 Pro (SO-101 follower), 5-DOF arm + gripper
+# (FR-SYS-06, FR-SYS-07). See docs/hardware/arm-selection.md for the
+# hardware decision record.
+#
+# Joint names and limits read from the vendored Menagerie MJCF
+# (third_party/robotstudio_so101/so101.xml, pinned commit recorded in its
+# IMPORTED_ASSETS.md) via fret.control.kinematics_so101.SO101Kinematics.
+# joint_names covers the 5 arm joints that move the gripper tip site; the
+# 6th joint ("gripper", range [-0.174533, 1.7453292] rad) operates the
+# moving jaw and is handled by grasp logic, not kinematics (same split as
+# open_manipulator_x.yml's "Gripper").
+
+name: "SO-101"
+kind: "arm"
+joint_names:
+  - "shoulder_pan"
+  - "shoulder_lift"
+  - "elbow_flex"
+  - "wrist_flex"
+  - "wrist_roll"
+joint_limits:
+  - [-1.91986, 1.91986]
+  - [-1.7453293, 1.7453293]
+  - [-1.69, 1.69]
+  - [-1.658063, 1.658063]
+  - [-2.7438473, 2.8412063]
+kinematics: "so101"
+controller_config: "config/controllers/so101.yml"
+planning_config: "planning/so101.yml"
+aliases:
+  - "so-101"
+  - "so_arm101"
+grasp_modes:
+  - "friction"
+# vision_config / uses_vision: deliberately not set in this PR. The
+# so101_pick_place_cv scenario (FR-SIM-19, overhead camera calibration)
+# is deferred; see docs/decisions.md. Add vision/so101_overhead.yml and
+# flip uses_vision to true in that follow-up, not with placeholder
+# extrinsics here.
+uses_vision: false

@@ -40,7 +40,8 @@ class TestRealProfiles:
     """Every shipped profile must load and validate."""
 
     @pytest.mark.parametrize(
-        "stem", ["dubins", "open_manipulator_x", "open_manipulator_y"]
+        "stem",
+        ["dubins", "open_manipulator_x", "open_manipulator_y", "so101"],
     )
     def test_real_profile_loads(self, stem: str) -> None:
         profile = load_robot_profile(_REAL_PROFILES_DIR / f"{stem}.yml")
