@@ -8,18 +8,19 @@ than left implicit in a diff. Newest entries at the top.
 
 ## 2026-11-17 — ARCO on aarch64 from the published wheel (OPS-05 / PR5)
 
-**Context:** The Raspberry Pi 5 runs the full control path (bridge, safety,
-controller, planner, vision). Compiling ARCO from Rust on the Pi is out of
-scope (Q10). OPS-05 verified the linux aarch64 abi3 wheel attached to ARCO
-`v0.5.0`.
+**Context:** The linux aarch64 deployment host runs the full control path
+(bridge, safety, controller, planner, vision). Compiling ARCO from Rust on
+that host is out of scope (Q10). OPS-05 verified the linux aarch64 abi3
+wheel attached to ARCO `v0.5.0`. Hardware-specific bring-up docs live under
+`docs/hardware/` (FR-SYS-13).
 
 **Decision:** ARCO on aarch64 comes from the published wheel
 https://github.com/alexandrelheinen/arco/releases/download/v0.5.0/arco-0.5.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
 (SHA-256 `d279384fb15e3ea455cc3aa19a9fc5214accbc0a9a57e7e9f847a358640e8a51`),
-decided by Alexandre on 2026-11-17. The Pi does not build ARCO from source.
-The sdist fallback marker excludes linux aarch64 so a missing wheel fails
-clearly instead of compiling. Release stays `v0.5.0` for the other three
-platform wheels (no pin move).
+decided by Alexandre on 2026-11-17. The aarch64 host does not build ARCO
+from source. The sdist fallback marker excludes linux aarch64 so a missing
+wheel fails clearly instead of compiling. Release stays `v0.5.0` for the
+other three platform wheels (no pin move).
 
 ---
 
