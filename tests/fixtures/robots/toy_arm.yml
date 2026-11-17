@@ -1,0 +1,22 @@
+# Test-only toy 2-DOF arm profile (FR-SYS-09).
+#
+# Exists purely to prove a new model can be added with one profile YAML
+# plus one variant-registration module, without touching control/,
+# planning/, ros/, scene/, vision/ or launch/.
+
+name: "Toy 2-DOF arm"
+kind: "arm"
+joint_names:
+  - "toy_joint_1"
+  - "toy_joint_2"
+joint_limits:
+  - [-3.141592653589793, 3.141592653589793]
+  - [-1.5707963267948966, 1.5707963267948966]
+kinematics: "toy_arm"
+controller_config: "config/controllers/toy_arm.yml"
+planning_config: "planning/toy_arm.yml"
+aliases:
+  - "toy"
+grasp_modes:
+  - "parallel"
+uses_vision: false

@@ -1,0 +1,21 @@
+# Robot profile: Dubins mobile vehicle (FR-SYS-06, FR-SYS-07).
+#
+# SE(2) kinematics (x, y, theta). No grasp modes, no vision pipeline.
+# Values mirror fret.control.kinematics_dubins.DubinsKinematics defaults
+# (read at 2b918f3).
+
+name: "Dubins vehicle"
+kind: "mobile"
+joint_names:
+  - "joint_x"
+  - "joint_y"
+  - "joint_yaw"
+joint_limits:
+  - [0.0, 24.0]
+  - [0.0, 16.0]
+  - [-3.141592653589793, 3.141592653589793]
+kinematics: "dubins"
+controller_config: "config/controllers/dubins.yml"
+planning_config: "planning/dubins.yml"
+aliases: []
+uses_vision: false

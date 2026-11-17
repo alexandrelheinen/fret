@@ -1,0 +1,27 @@
+# Robot profile: OpenMANIPULATOR-X, 4-DOF (FR-SYS-06, FR-SYS-07).
+#
+# Joint names and limits read from the bundled Menagerie MJCF via
+# fret.control.kinematics_open_manipulator_x.OpenManipulatorXKinematics
+# (read at 2b918f3); keep in sync if the Menagerie submodule is updated.
+
+name: "OpenMANIPULATOR-X"
+kind: "arm"
+joint_names:
+  - "Joint1"
+  - "Joint2"
+  - "Joint3"
+  - "Joint4"
+joint_limits:
+  - [-3.14159, 3.14159]
+  - [-1.5, 1.5]
+  - [-1.5, 1.4]
+  - [-1.7, 1.97]
+kinematics: "open_manipulator_x"
+controller_config: "config/controllers/open_manipulator_x.yml"
+planning_config: "planning/open_manipulator_x.yml"
+aliases:
+  - "omx"
+vision_config: "vision/omx_portal_overhead.yml"
+grasp_modes:
+  - "parallel"
+uses_vision: true
