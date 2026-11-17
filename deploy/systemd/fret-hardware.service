@@ -1,0 +1,24 @@
+[Unit]
+Description=FRET SO-101 hardware stack (torque disabled at start)
+Documentation=file:///opt/fret/src/docs/hardware/deployment-rpi5.md
+After=network-online.target fret-zenohd.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=fret
+Group=dialout
+SupplementaryGroups=video
+EnvironmentFile=-/etc/fret/ros.env
+Environment=FRET_ROOT=/opt/fret
+WorkingDirectory=/opt/fret/current
+ExecStart=/opt/fret/bin/fret-hardware-launch
+Restart=on-failure
+RestartSec=2
+WatchdogSec=5
+NotifyAccess=main
+# Never enable torque from the unit; operator must call ~/enable.
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
