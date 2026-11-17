@@ -76,7 +76,9 @@ class VelocityToPositionIntegrator:
         single malformed message cannot stop the control loop.
         """
         if self._position is None:
-            raise RuntimeError("start() must be called before command_velocity()")
+            raise RuntimeError(
+                "start() must be called before command_velocity()"
+            )
         v = np.asarray(velocity, dtype=np.float64)
         if v.shape != self._position.shape:
             self._rejected_command_count += 1

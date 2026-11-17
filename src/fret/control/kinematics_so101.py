@@ -107,9 +107,9 @@ def chain_constants() -> list[
     return [(jf.name, jf.pos, jf.quat, jf.joint_range) for jf in _CHAIN]
 
 
-def ee_site_constants() -> tuple[
-    tuple[float, float, float], tuple[float, float, float, float]
-]:
+def ee_site_constants() -> (
+    tuple[tuple[float, float, float], tuple[float, float, float, float]]
+):
     """Expose the hardcoded EE site frame for the generator's ``--check``."""
     return (_EE_SITE.pos, _EE_SITE.quat)
 
@@ -271,9 +271,7 @@ def solve_ik(
         q = np.clip(q + dq, limits[:, 0], limits[:, 1])
     T = forward_kinematics_matrix(q)
     err_norm = float(np.linalg.norm(target - T[:3, 3]))
-    return IKResult(
-        q=q, reachable=err_norm < tol_m, position_error_m=err_norm
-    )
+    return IKResult(q=q, reachable=err_norm < tol_m, position_error_m=err_norm)
 
 
 class SO101Kinematics:

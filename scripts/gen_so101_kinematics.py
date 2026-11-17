@@ -24,9 +24,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-_DEFAULT_MJCF = (
-    _REPO_ROOT / "third_party" / "robotstudio_so101" / "so101.xml"
-)
+_DEFAULT_MJCF = _REPO_ROOT / "third_party" / "robotstudio_so101" / "so101.xml"
 
 # Arm joints that move the gripper tip (the 6th joint, "gripper", operates
 # the moving jaw only and does not move the "gripperframe" site).
@@ -143,9 +141,7 @@ def parse_so101_chain(
     return [found[name] for name in JOINT_ORDER], ee_site
 
 
-def _format_chain_source(
-    chain: list[JointFrame], ee_site: SiteFrame
-) -> str:
+def _format_chain_source(chain: list[JointFrame], ee_site: SiteFrame) -> str:
     lines = ["_CHAIN: tuple[_JointFrame, ...] = ("]
     for jf in chain:
         lines.append(
