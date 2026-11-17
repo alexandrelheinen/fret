@@ -1,84 +1,30 @@
-"""Launch: hardware-in-the-loop pipeline (bridge + controller).
+"""Launch: hardware-in-the-loop pipeline — not available before v2.x.
 
-Usage::
-
-    ros2 launch fret hardware.py model:=open_manipulator_x port:=/dev/ttyUSB0
-
-Arguments:
-    model (str, default: open_manipulator_x)
-        Robot model name.
-    port (str, default: /dev/ttyUSB0)
-        Serial port connected to the Arduino hardware interface.
-    config (str, default: open_manipulator_x.yml)
-        Controller YAML config file stem under ``config/controllers/``.
+The hardware bridge (:class:`fret.hardware.bridge_node.BridgeNode`) is an
+unimplemented stub (FR-HW-01..03, superseded in v2.0, pending
+redefinition) with no registered ``bridge_node`` executable in
+``pyproject.toml`` ``[project.scripts]`` or ``CMakeLists.txt``. Running
+``ros2 launch fret hardware.py`` previously tried to launch that missing
+executable and failed with an unhelpful "executable not found" error;
+this now fails fast with a clear message instead. The v2.x hardware
+target is defined starting v2.0 (see ``docs/hardware/README.md``).
 """
 
 from __future__ import annotations
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Return the launch description for the hardware-in-the-loop pipeline."""
-    pkg_share = FindPackageShare("fret")
+    """Raise: hardware launch is not wired up before v2.x.
 
-    model_arg = DeclareLaunchArgument(
-        "model",
-        default_value="open_manipulator_x",
-        description="Robot model name",
-    )
-    port_arg = DeclareLaunchArgument(
-        "port",
-        default_value="/dev/ttyUSB0",
-        description="Serial port for the Arduino hardware bridge",
-    )
-    config_arg = DeclareLaunchArgument(
-        "config",
-        default_value="open_manipulator_x",
-        description="Controller config YAML stem (config/controllers/<config>.yml)",
-    )
-
-    controller_config = PathJoinSubstitution(
-        [
-            pkg_share,
-            "config",
-            "controllers",
-            [LaunchConfiguration("config"), ".yml"],
-        ]
-    )
-
-    bridge_node = Node(
-        package="fret",
-        executable="bridge_node",
-        name="bridge_node",
-        output="screen",
-        parameters=[
-            {"port": LaunchConfiguration("port")},
-            {"baud_rate": 115200},
-        ],
-    )
-
-    controller_node = Node(
-        package="fret",
-        executable="controller_node",
-        name="controller_node",
-        output="screen",
-        parameters=[
-            {"model": LaunchConfiguration("model")},
-            controller_config,
-        ],
-    )
-
-    return LaunchDescription(
-        [
-            model_arg,
-            port_arg,
-            config_arg,
-            bridge_node,
-            controller_node,
-        ]
+    Raises:
+        RuntimeError: Always, naming the missing bridge implementation and
+            pointing to ``docs/hardware/README.md``.
+    """
+    raise RuntimeError(
+        "fret hardware.py is not available before v2.x: the hardware "
+        "bridge (fret.hardware.bridge_node.BridgeNode) is an "
+        "unimplemented stub (FR-HW-01..03, superseded in v2.0, pending "
+        "redefinition). See docs/hardware/README.md."
     )
