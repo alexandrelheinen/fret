@@ -84,6 +84,10 @@ differ.
 parameters under rclpy Jazzy, it shall not crash (regression for the
 `BYTE_ARRAY` inference recorded in `docs/dev-environment.md`).
 
+**FR-SYS-16:** (v2.0.0) Every vendored third-party file shall sit next to
+its upstream `LICENSE`, and an `IMPORTED_ASSETS.md` next to it shall
+record the source URL, upstream commit, license, and any local edits.
+
 ---
 
 ## Scene Acquisition
@@ -136,6 +140,15 @@ parameters under rclpy Jazzy, it shall not crash (regression for the
 
 **FR-CTL-06:** Fault on sustained tracking error → HALTED + `/fault`.
 
+**FR-CTL-07:** (v2.0.0) `VelocityToPositionIntegrator` shall start from the
+measured joint position, integrate commanded velocity over the actual
+elapsed time (capped at a configured maximum so a scheduler hiccup cannot
+produce a jump), clamp velocity to the robot profile's `max_joint_velocity`
+and the result to joint limits, hold position when no command arrives
+within a configured timeout, and reject (count, never raise or silently
+accept) a wrong-length command vector. Shared by the SO-101 simulation
+`SimIOAdapter` (PR2) and the real Feetech bridge (PR3).
+
 ---
 
 ## Simulation (MuJoCo)
@@ -183,6 +196,42 @@ cameras and fill light without editing any scene the vision pipeline,
 scenario tests, or release matrix consume. Specification:
 [gallery.md](gallery.md).
 
+**FR-SIM-15:** (v2.0.0) When a scenario sets `model: so101`, the system
+shall load the SO-101 profile (joints `shoulder_pan`, `shoulder_lift`,
+`elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper`; limits from the
+vendored MJCF) and run the scenario headless with no edits outside
+`robots/variants/so101.py`, `config/`, `mjcf/` and the SO-101 kinematics
+module.
+
+**FR-SIM-16:** (v2.0.0) The SO-101 forward kinematics shall match MuJoCo's
+body pose of the gripper tip site to within 1e-6 m and 1e-6 rad over 1,000
+seeded random configurations, and shall not import `mujoco` (the hardware
+deployment target has no MuJoCo; see `docs/hardware/`, GAPS G2, PR5).
+
+**FR-SIM-17:** (v2.0.0) When asked for a tip-down pose inside the
+reachable workspace (radius 0.10 to 0.32 m at table height), SO-101 IK
+shall return a configuration within joint limits whose FK is within 1 mm
+of the target, or a typed "unreachable" result; never a silently clipped
+configuration.
+
+**FR-SIM-18:** (deferred, see `docs/decisions.md`) When `grasp_mode:
+friction`, the ball shall be held only by contact friction (no adhesion
+actuator, weld or teleport), and shall move less than 5 mm relative to the
+gripper between GRASP and RELEASE in the SO-101 pick-place scenario.
+
+**FR-SIM-19:** (deferred, see `docs/decisions.md`) `so101_pick_place_cv`
+(SC-v20c) shall reach FSM `DONE` with the ball in the bin volume for at
+least 9 of 10 seeds, using the vision pipeline for the ball pose
+(FR-VIS-05) and a fixed overhead camera whose pose matches the planned
+real mount.
+
+**FR-SIM-20:** (v2.0.0) Under MuJoCo physics, `so101_reach` (SC-v20a)
+shall track to within 5 mm end-effector error at the goal (FR-CTL-02
+applied to the twin; the hardware tolerance is set in v2.4).
+
+**FR-SIM-21:** (v2.0.0) Every OM-X, OMY and Dubins scenario test that
+passed before PR2 shall pass with the same seeds after it.
+
 Full integration specification: [mujoco.md](mujoco.md).
 Telemetry module specification: [modules/telemetry.md](modules/telemetry.md).
 Robot models and asset sources: [robots/README.md](robots/README.md).
@@ -223,16 +272,125 @@ pick target; vision must observe the settled ball.
 
 ## Hardware (v2.x)
 
-> **Superseded in v2.0, pending redefinition** (FR-SYS-13, `v1.5.0`): these
-> three described an earlier Arduino + Micro-ROS plan. The v2.x hardware
-> target is undefined as of `v1.5.0`; see `docs/hardware/README.md`. Not
-> renumbered.
+> **Superseded in v2.0** (FR-SYS-13, `v1.5.0`): these three described an
+> earlier Arduino + Micro-ROS plan, replaced by the Seeed SO-ARM101 Pro /
+> Raspberry Pi 5 target decided in PR2 (`v2.0.0`;
+> `docs/hardware/arm-selection.md`). Not renumbered.
 
-**FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
+**FR-HW-01:** ~~Relay `/joint_commands` to Arduino via Micro-ROS.~~
 
-**FR-HW-02:** Publish encoder feedback on `/joint_states` ≥ 50 Hz.
+**FR-HW-02:** ~~Publish encoder feedback on `/joint_states` ≥ 50 Hz.~~
 
-**FR-HW-03:** Validate message integrity before actuation.
+**FR-HW-03:** ~~Validate message integrity before actuation.~~
+
+The ids below (`v2.0.0`, PR2) are the hardware target's requirements.
+**Documentation only in this PR** — verification lands in the PR noted per
+group; none are tested by PR2 itself (the SO-101 simulation twin verifies
+FR-SIM-15..21 above instead).
+
+### Task / workspace (verified: PR2 sim twin + OPS-08 bench)
+
+**FR-HW-10:** Pick a 40 mm ball (about 13 g) from the table and drop it in
+a fixed bin.
+
+**FR-HW-11:** Reach of at least 0.32 m with a top-down approach.
+
+**FR-HW-12:** Payload of at least 50 g.
+
+**FR-HW-13:** 5 revolute joints plus a 1-DOF gripper (full 6-D orientation
+not required).
+
+**FR-HW-14:** Friction grasp (no adhesion, weld, or teleport on hardware).
+
+**FR-HW-15:** Gripper opens at least 50 mm (clears a 40 mm ball).
+
+### Actuation (verified: PR3 bridge + mock)
+
+**FR-HW-20:** Absolute joint positions from servo sync-read.
+
+**FR-HW-21:** Publish `/joint_states` at 50 Hz or more.
+
+**FR-HW-22:** Accept `/joint_commands` at 50 Hz.
+
+**FR-HW-23:** Velocity-to-position conversion in the bridge
+(`VelocityToPositionIntegrator`, FR-CTL-07).
+
+**FR-HW-24:** USB serial to STS3215 servos at 1 Mbps, no intermediate MCU
+firmware.
+
+**FR-HW-25:** Same `/joint_commands` / `/joint_states` topics as
+`MuJoCoBridgeNode` (model-agnostic bridge interface).
+
+**FR-HW-26:** A simulation twin (this PR's `so101` variant) exists and is
+kept in step with the bridge's command/state contract.
+
+**FR-HW-27:** (reserved)
+
+### Perception (verified: PR5)
+
+**FR-HW-30:** Fixed UVC camera at 1280x720 or more.
+
+**FR-HW-31:** V4L2 capture (no proprietary SDK).
+
+**FR-HW-32:** Intrinsics calibrated and written into `VisionConfig` YAML.
+
+**FR-HW-33:** `t_world_cam` extrinsic calibrated and written into
+`VisionConfig` YAML.
+
+**FR-HW-34:** Rigid camera mount (no recalibration drift between runs).
+
+### Safety (verified: PR4)
+
+**FR-HW-40:** Hardware e-stop on the 12 V servo line (physical, case a per
+`ROADMAP.md` Q9).
+
+**FR-HW-41:** 100 ms command watchdog: torque off / hold on bridge stall.
+
+**FR-HW-42:** Joint limits enforced in the bridge, independent of the
+servo's own limit behavior.
+
+**FR-HW-43:** Servo torque/current/temperature protection enabled.
+
+**FR-HW-44:** Soft start at the measured pose (no snap-to-command on
+connect).
+
+**FR-HW-45:** Torque off on clean shutdown; safe stop (hold) on fault.
+
+**FR-HW-46:** Protocol checksum validation and stale-frame rejection.
+
+**FR-HW-47:** Honor `/controller_fault` (halt actuation).
+
+### Deployment (verified: PR5, OPS-06/07)
+
+**FR-HW-50:** Total delivered cost within budget (see
+`arm-selection.md` scored comparison).
+
+**FR-HW-51:** Vendor availability / lead time acceptable at decision time.
+
+**FR-HW-52:** No military or dual-use vendor orientation (light screen; see
+`arm-selection.md`).
+
+**FR-HW-55:** Runs on Raspberry Pi 5 (arm64), Ubuntu 24.04, ROS 2 Jazzy
+native (no cross-compilation required).
+
+**FR-HW-56:** Reproducible install (scripted, not manual steps only).
+
+**FR-HW-57:** systemd unit for the bridge/control stack.
+
+**FR-HW-58:** udev symlinks for the servo bus and camera (stable device
+paths across reboots/replugs).
+
+**FR-HW-59:** Separate 5 V / 5 A Pi supply and 12 V servo supply (no shared
+rail).
+
+**FR-HW-60:** The whole control path (bridge, safety, controller, planner,
+vision) runs on the Pi; the PC is used only for simulation, development,
+and monitoring (decided by Alexandre, 2026-11-17).
+
+**FR-HW-61:** Raspberry Pi 5, 8 GB RAM, microSD, Wi-Fi.
+
+**FR-HW-62:** Per-subsystem diagnostics (bridge, safety, controller,
+planner, vision each report health independently).
 
 ---
 

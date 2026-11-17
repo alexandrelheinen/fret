@@ -19,8 +19,10 @@ kind of work; major bumps change the delivery surface.
 **Rules:**
 
 1. **All of v1.x stays in simulation.** No hardware transport or physical
-   actuators until the v2.x line; the v2.x hardware target is undefined
-   pending redefinition (`docs/requirements.md` FR-HW-01..03).
+   actuators until the v2.x line. As of `v2.0.0` the hardware target is
+   decided — see `docs/hardware/` and `docs/robots/so101.md` — superseding
+   the earlier microcontroller-based assumption (`docs/requirements.md`
+   FR-HW-01..03).
 2. **TB3 / Dubins** is a **case study**: port ARCO kinematic SE(2) racing into
    MuJoCo physics. It does **not** consume computer vision — only manipulators
    interact with graspable scene objects.
@@ -36,7 +38,10 @@ v1.1–v1.4    ✅  Mobile + arm showcases, physics SITL, CV ↔ manipulation
 v1.5.0   ✅  Robot-model-agnostic core (last minor of major 1)
      │
      ▼
-v2.0+    🔲  Hardware line (modular HITL); dynamic-ball scope backlogged
+v2.0.0   ✅  SO-101 hardware study + MuJoCo simulation twin
+     │
+     ▼
+v2.1+    🔲  Hardware line continued (mock bridge, safety, Pi deployment)
      │
      ▼
 v3.0     ○   Definitive product (goal only — no detailed plan yet)
@@ -55,9 +60,9 @@ v3.0     ○   Definitive product (goal only — no detailed plan yet)
 * **Assets:** ROBOTIS MuJoCo Menagerie + AWS RoboMaker warehouse (submodules).
 * **v1.x vision:** Track a graspable ball; place target / dispenser pose stays a
   **known scenario parameter** (fixed industrial fixture).
-* **v2.x hardware:** target undefined as of v1.5.0 (decided when hardware
-  planning for the relevant phase opens, see `docs/hardware/`), introduced
-  in modular milestones, not a big-bang cutover.
+* **v2.x hardware:** target decided in `v2.0.0` (see `docs/hardware/` and
+  `docs/robots/so101.md`), introduced in modular milestones, not a
+  big-bang cutover.
 
 ---
 
@@ -73,6 +78,7 @@ v3.0     ○   Definitive product (goal only — no detailed plan yet)
 | CV pipeline | v1.3 | `fret.vision`, HSV + table-plane, fixture gates |
 | CV ↔ manip | v1.4 | MuJoCo gate cameras → `BallObservation` → pick-place |
 | Robot-model-agnostic core | v1.5.0 | Robot registry (`fret.robots`); hardware-neutral docs; hygiene (last minor of major 1) |
+| SO-101 hardware study + sim twin | v2.0.0 | `docs/hardware/arm-selection.md`; `so101` robot variant (pure-NumPy kinematics, `VelocityToPositionIntegrator`, `so101_reach` scenario); friction-grasp/vision pick-place deferred (`docs/decisions.md`) |
 
 Full acceptance criteria for shipped lines: [releases.md](releases.md).
 
@@ -91,16 +97,18 @@ scheduled to a release yet.
 - [ ] Asset research + improved container / dispenser geometry
 - [ ] Decide single-ball vs multi-ball delivery for the release scenario
 
-### Hardware line 🔲 *(v2.x)*
+### Hardware line (v2.x)
 
-Modular integration (order fixed; each may be its own minor tag); the
-transport and physical target are undefined until hardware planning for
-the relevant phase opens (`docs/hardware/`):
+Modular integration onto the target decided in `v2.0.0`
+(`docs/hardware/`), each step its own minor tag, validated against a
+hardware-free mock before any real port:
 
-1. Low-level target bridge (transport TBD)
-2. Real image pipeline (same `fret.vision` contracts)
-3. Real manipulator actuation + feedback
-4. Full closed-loop pick-and-place on hardware
+1. ✅ `v2.0.0` — Hardware study + SO-101 MuJoCo simulation twin
+2. 🔲 `v2.1.0` — Hardware-free test infra + real bridge (TDD against a
+   mock servo bus)
+3. 🔲 `v2.2.0` — Safety layer (e-stop, watchdog, soft start, fault hold)
+4. 🔲 `v2.3.0-rc.1` → `v2.3.0` — Deployment + bring-up kit
+5. 🔲 `v2.4.0` — Hardware-validated closed-loop pick-and-place
 
 See [releases.md § v2.x](releases.md#v2x--hardware-integration-line).
 

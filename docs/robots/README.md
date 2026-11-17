@@ -8,6 +8,7 @@ submodules** (ROBOTIS MuJoCo Menagerie + AWS props).
 | `dubins` (TB3 Burger) | [dubins.md](dubins.md) | **No** — ARCO→MuJoCo case study |
 | `open_manipulator_x` | [open_manipulator_x.md](open_manipulator_x.md) | **Yes** |
 | `six_dof` / `omy` (OpenMANIPULATOR-Y) | [six_dof.md](six_dof.md) | **Yes** |
+| `so101` (Seeed SO-ARM101 Pro) | [so101.md](so101.md) | Deferred (PR2 ships the twin; `uses_vision: false` until `so101_pick_place_cv`) |
 
 All robots run on **MuJoCo** for physics, rendering, and SITL. See
 [mujoco.md](../mujoco.md).
