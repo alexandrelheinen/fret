@@ -21,15 +21,6 @@ runs:
           pytest pytest-cov pytest-timeout coverage
         python3 -m pip install --break-system-packages -e ".[sim]"
 
-    - name: Configure Gazebo apt repository
-      shell: bash
-      run: |
-        curl -sSL https://packages.osrfoundation.org/gazebo.gpg \
-          | gpg --dearmor --yes -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable noble main" \
-          > /etc/apt/sources.list.d/gazebo-stable.list
-        apt-get update
-
     - name: Initialize rosdep
       shell: bash
       run: |

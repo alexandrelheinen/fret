@@ -5,87 +5,6 @@ project(fret)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-# Xacro is optional: Menagerie MJCF arms do not need URDF generation.
-find_program(XACRO_EXECUTABLE xacro)
-
-
-set(GENERATED_URDF_DIR   ${CMAKE_CURRENT_BINARY_DIR}/generated)
-set(GENERATED_MESHES_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_meshes)
-file(MAKE_DIRECTORY ${GENERATED_URDF_DIR})
-
-# ---------------------------------------------------------------------------
-# Per-model loop — driven by urdf/*.xacro (none required for Menagerie arms)
-# ---------------------------------------------------------------------------
-file(GLOB XACRO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/urdf/*.xacro)
-if(XACRO_FILES AND NOT XACRO_EXECUTABLE)
-  message(FATAL_ERROR "[fret] urdf/*.xacro present but xacro executable not found")
-endif()
-
-set(GENERATED_URDF_FILES)
-set(MESH_STAMPS)
-
-foreach(XACRO_FILE ${XACRO_FILES})
-  get_filename_component(MODEL_NAME ${XACRO_FILE} NAME_WE)
-  message(STATUS "[fret] model: ${MODEL_NAME}")
-
-  # -- URDF from XACRO -------------------------------------------------------
-  set(URDF_FILE ${GENERATED_URDF_DIR}/${MODEL_NAME}.urdf)
-  add_custom_command(
-    OUTPUT  ${URDF_FILE}
-    COMMAND ${CMAKE_COMMAND} -E env "AMENT_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}/ament_cmake_index:${AMENT_PREFIX_PATH}" ${XACRO_EXECUTABLE} ${XACRO_FILE} -o ${URDF_FILE} "fret:=${CMAKE_CURRENT_SOURCE_DIR}"
-    DEPENDS ${XACRO_FILE}
-    COMMENT "[fret] ${MODEL_NAME}: XACRO → URDF"
-    VERBATIM
-  )
-  list(APPEND GENERATED_URDF_FILES ${URDF_FILE})
-
-  # -- Mesh generator (optional: mesh/<model>.py) ----------------------------
-  set(MESH_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/mesh/${MODEL_NAME}.py)
-  if(EXISTS ${MESH_SCRIPT})
-    message(STATUS "[fret]   mesh generator : mesh/${MODEL_NAME}.py")
-    set(MODEL_MESH_DIR ${GENERATED_MESHES_DIR}/${MODEL_NAME})
-    set(MESH_STAMP     ${GENERATED_MESHES_DIR}/${MODEL_NAME}.stamp)
-    add_custom_command(
-      OUTPUT  ${MESH_STAMP}
-      COMMAND ${Python3_EXECUTABLE} ${MESH_SCRIPT} --output-dir ${MODEL_MESH_DIR}
-      COMMAND ${CMAKE_COMMAND} -E touch ${MESH_STAMP}
-      DEPENDS ${MESH_SCRIPT} ${XACRO_FILE}
-      COMMENT "[fret] ${MODEL_NAME}: generating meshes"
-      VERBATIM
-    )
-    list(APPEND MESH_STAMPS ${MESH_STAMP})
-    install(
-      DIRECTORY ${MODEL_MESH_DIR}/
-      DESTINATION share/${PROJECT_NAME}/meshes/${MODEL_NAME}
-      OPTIONAL
-    )
-  else()
-    message(STATUS "[fret]   mesh generator : (none)")
-  endif()
-
-endforeach()
-
-# ---------------------------------------------------------------------------
-# Top-level build targets
-# ---------------------------------------------------------------------------
-add_custom_target(generate_urdfs  ALL DEPENDS ${GENERATED_URDF_FILES})
-add_custom_target(generate_meshes ALL DEPENDS ${MESH_STAMPS})
-
-# ---------------------------------------------------------------------------
-# Install generated URDFs and XACRO source files.
-# sim.py calls `xacro <pkg_share>/urdf/<model>.xacro` at launch time, so
-# the source .xacro files must be present in the install tree alongside the
-# pre-generated .urdf files.
-# ---------------------------------------------------------------------------
-install(FILES ${GENERATED_URDF_FILES}
-  DESTINATION share/${PROJECT_NAME}/urdf
-)
-
-install(
-  DIRECTORY urdf/
-  DESTINATION share/${PROJECT_NAME}/urdf
-  FILES_MATCHING PATTERN "*.xacro"
-)
 
 # ---------------------------------------------------------------------------
 # Install Python package (fret) into ament index
@@ -115,12 +34,6 @@ install(DIRECTORY config
 install(DIRECTORY action
   DESTINATION share/${PROJECT_NAME}
 )
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/worlds)
-  install(DIRECTORY worlds
-    DESTINATION share/${PROJECT_NAME}
-  )
-endif()
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/mjcf)
   install(DIRECTORY mjcf

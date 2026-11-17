@@ -97,11 +97,6 @@ sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu ${TARGET_UBUNTU_CODENAME} main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
 ok "ROS 2 repository configured."
 
-info "Configuring Gazebo APT repository..."
-sudo curl -sSL https://packages.osrfoundation.org/gazebo.gpg | sudo gpg --dearmor --yes -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable ${TARGET_UBUNTU_CODENAME} main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-ok "Gazebo repository configured."
-
 info "Installing ROS 2 core and development tools..."
 sudo apt update
 sudo apt install -y \
@@ -111,26 +106,6 @@ sudo apt install -y \
   python3-colcon-common-extensions \
   python3-vcstool
 ok "ROS 2 core and development tools installed."
-
-info "Installing simulation stack..."
-if apt-cache show gz-harmonic >/dev/null 2>&1; then
-  GZ_BASE_PACKAGE="gz-harmonic"
-elif apt-cache show gz-sim >/dev/null 2>&1; then
-  warn "Package gz-harmonic is unavailable; falling back to gz-sim."
-  GZ_BASE_PACKAGE="gz-sim"
-else
-  fail "Could not find Gazebo Harmonic packages (gz-harmonic/gz-sim) in configured apt sources."
-  exit 1
-fi
-
-sudo apt install -y \
-  "${GZ_BASE_PACKAGE}" \
-  "ros-${ROS_DISTRO}-ros-gz" \
-  "ros-${ROS_DISTRO}-ros-gz-sim" \
-  "ros-${ROS_DISTRO}-xacro" \
-  "ros-${ROS_DISTRO}-joint-state-publisher-gui" \
-  "ros-${ROS_DISTRO}-robot-state-publisher"
-ok "Simulation stack installed."
 
 info "Initializing rosdep..."
 if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
