@@ -1,0 +1,3 @@
+# FRET / ROS logs on size-capped tmpfs (FR-HW-72). Reports persist via fret-diag --save.
+tmpfs /var/log/fret tmpfs defaults,noatime,nosuid,nodev,noexec,size=256M,mode=0755 0 0
+tmpfs /tmp/ros_logs tmpfs defaults,noatime,nosuid,nodev,noexec,size=256M,mode=0755 0 0
