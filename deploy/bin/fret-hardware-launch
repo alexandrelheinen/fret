@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Launch the hardware stack with torque disabled (FR-HW-57).
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+FRET_ROOT="${FRET_ROOT:-/opt/fret}"
+# shellcheck source=/dev/null
+source /opt/ros/jazzy/setup.bash
+if [[ -f /etc/fret/ros.env ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source /etc/fret/ros.env
+  set +a
+fi
+if [[ -f "${FRET_ROOT}/current/install/setup.bash" ]]; then
+  set +u
+  # shellcheck source=/dev/null
+  source "${FRET_ROOT}/current/install/setup.bash"
+  set -u
+fi
+if [[ -f "${FRET_ROOT}/venv/bin/activate" ]]; then
+  # shellcheck source=/dev/null
+  source "${FRET_ROOT}/venv/bin/activate"
+fi
+
+PORT="${FRET_SERVO_PORT:-/dev/fret-servo-follower}"
+# Never pass an enable flag: bridge starts CONNECTED_DISABLED.
+exec ros2 launch fret hardware.py robot:=so101 port:="${PORT}"
