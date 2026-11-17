@@ -1,0 +1,32 @@
+# Robot profile: OpenMANIPULATOR-Y (OMY), 6-DOF (FR-SYS-06, FR-SYS-07).
+#
+# Joint names and limits read from the bundled Menagerie MJCF via
+# fret.control.kinematics_open_manipulator_y.OpenManipulatorYKinematics
+# (read at 2b918f3); keep in sync if the Menagerie submodule is updated.
+
+name: "OpenMANIPULATOR-Y"
+kind: "arm"
+joint_names:
+  - "Joint1"
+  - "Joint2"
+  - "Joint3"
+  - "Joint4"
+  - "Joint5"
+  - "Joint6"
+joint_limits:
+  - [-6.283185, 6.283185]
+  - [-6.283185, 6.283185]
+  - [-2.617994, 2.617994]
+  - [-6.283185, 6.283185]
+  - [-6.283185, 6.283185]
+  - [-6.283185, 6.283185]
+kinematics: "open_manipulator_y"
+controller_config: "config/controllers/open_manipulator_y.yml"
+planning_config: "planning/open_manipulator_y.yml"
+aliases:
+  - "omy"
+  - "six_dof"
+vision_config: "vision/omy_portal_overhead.yml"
+grasp_modes:
+  - "parallel"
+uses_vision: true
