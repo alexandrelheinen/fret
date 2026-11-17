@@ -7,6 +7,23 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+## [2.3.0rc1] - 2026-11-17
+
+### Added
+
+- Raspberry Pi 5 deployment kit: `rpi5_install` / `update` / `rollback`,
+  arm64 container check, udev, systemd (torque-disabled start +
+  `sd_notify`), microSD storage policy, Zenoh/CycloneDDS Wi-Fi RMW,
+  `hw` extra + aarch64 ARCO wheel pin (OPS-05).
+- Bring-up kit: `fret-diag` (incl. `load` budget), `usb_cam` launch +
+  `vision_node`, `fret-calib`, SC-v23a (`so101_pick_place_hw`), hardware
+  docs under `docs/hardware/`.
+
+### Known gaps
+
+- Not validated on a real Pi or physical arm (OPS-06/07/08). Arm64
+  container is the reproducibility check while CI is off.
+
 ## [2.2.0] - 2026-11-17
 
 ### Added

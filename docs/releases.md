@@ -35,6 +35,7 @@ grouped by era:
 | **v2.0.0** | SO-101 | Hardware study + SO-101 MuJoCo simulation twin | MuJoCo | ✅ |
 | **v2.1.0** | SO-101 mock bridge | Hardware-free STS mock + SO-101 bridge (mock only) | Mock / pty | ✅ |
 | **v2.2.0** | Safety layer | Watchdog, limits, soft start, hold on fault, e-stop/power-loss | Mock + sim | ✅ |
+| **v2.3.0-rc.1** | Pi deploy + bring-up | Install/update/rollback, diag, camera, calib, SC-v23a | Container + mock | ✅ |
 | **v2.x** | Hardware HITL | Safety → Pi deployment → full loop | Hardware | 🔲 |
 | **v3.0** | Product | Definitive integrated system | Sim + HW | ○ |
 
@@ -239,7 +240,7 @@ onward (`docs/requirements.md`) define the decided target.
 | **v2.0.0** | PR2 | Hardware study + SO-101 MuJoCo simulation twin (new robot variant, pure-NumPy kinematics, friction-mode pick-place SC-v20b/c with contact-gated weld, overhead CV) | ✅ |
 | **v2.1.0** | PR3 | Hardware-free test infrastructure: mock servo bus, the real bridge developed TDD against it, recorded replays, fault injection, `fret-hw` servo tools (mock only; FR-SYS-18) | ✅ |
 | **v2.2.0** | PR4 | Safety layer: e-stop detection, bridge-side limits, command watchdog, soft start, torque-off on shutdown / hold on fault; validated in sim and on the PR3 mock | ✅ |
-| **v2.3.0-rc.1** → **v2.3.0** | PR5 | Deployment + bring-up kit (arm64 build incl. the ARCO aarch64 wheel, systemd, udev, camera node, calibration, diagnostics); promoted to `v2.3.0` after the OPS-08 hardware-arrival checklist | 🔲 |
+| **v2.3.0-rc.1** → **v2.3.0** | PR5 | Deployment + bring-up kit (arm64 build incl. the ARCO aarch64 wheel, systemd, udev, camera node, calibration, diagnostics); `v2.3.0-rc.1` tagged (container + mock); promote to `v2.3.0` after OPS-08 | ✅ rc / 🔲 final |
 | **v2.4.0** | (post-arrival) | Hardware-validated closed loop + HITL pick-and-place, tolerances set from measured data | 🔲 |
 
 Module stub today: [hardware/bridge.md](hardware/bridge.md). Full phase
@@ -284,7 +285,8 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v2.0.0` | SO-101 hardware study + MuJoCo simulation twin | ✅ |
 | `v2.1.0` | Mock STS bus + SO-101 bridge (`fret-hw`, pty/replay; mock only) | ✅ |
 | `v2.2.0` | Safety layer (watchdog, limits, soft start, hold on fault) | ✅ |
-| `v2.3.0-rc.1+` | Pi deployment | 🔲 |
+| `v2.3.0-rc.1` | Pi deployment + bring-up kit (container/mock; not hardware) | ✅ |
+| `v2.3.0` | Pi deployment after OPS-08 hardware arrival | 🔲 |
 | `v3.0.0` | Definitive product (north-star) | ○ |
 
 ---
