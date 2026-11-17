@@ -331,18 +331,22 @@ contract in step is FR-SIM-15..21.)
 **FR-HW-27:** (v2.1.0) `fret-hw set-id` shall refuse when more than one
 servo answers on the bus, and shall verify the new id by PING.
 
-### Perception (verified: PR5)
+### Perception (verified: PR5 — mock / synthetic; hardware in OPS-08)
 
-**FR-HW-30:** Fixed UVC camera at 1280x720 or more.
+**FR-HW-30:** When `/dev/fret-cam0` exists, the camera launch shall publish
+images at the configured resolution (target 1280x720) and rate.
 
-**FR-HW-31:** V4L2 capture (no proprietary SDK).
+**FR-HW-31:** `fret-diag vision` shall detect a 40 mm ball at a printed
+reference mark and report table-plane error (V4L2 / no proprietary SDK).
 
-**FR-HW-32:** Intrinsics calibrated and written into `VisionConfig` YAML.
+**FR-HW-32:** `fret-diag camera` shall report negotiated format, resolution
+and measured fps; intrinsics land in `VisionConfig` YAML via `fret-calib`.
 
-**FR-HW-33:** `t_world_cam` extrinsic calibrated and written into
-`VisionConfig` YAML.
+**FR-HW-33:** `fret-calib intrinsics` / `extrinsics` shall write
+`VisionConfig` YAML the existing loader accepts (RMS gates in the PR5 spec).
 
-**FR-HW-34:** Rigid camera mount (no recalibration drift between runs).
+**FR-HW-34:** `fret-calib base-check` shall report FK tip vs ≥ 4 board
+points; pass ≤ 10 mm (provisional). Rigid mount assumed between runs.
 
 ### Safety (verified: PR4 / v2.2.0 — mock + sim only)
 
@@ -388,7 +392,7 @@ latches until `clear`, and is never named an emergency stop.
 bridge may enable on a non-mock port only when an active
 `SafetySupervisor` is present.
 
-### Deployment (verified: PR5, OPS-06/07)
+### Deployment (verified: PR5 container/mock; OPS-06/07/08 on hardware)
 
 **FR-HW-50:** Total delivered cost within budget (see
 `arm-selection.md` scored comparison).
@@ -398,27 +402,58 @@ bridge may enable on a non-mock port only when an active
 **FR-HW-52:** No military or dual-use vendor orientation (light screen; see
 `arm-selection.md`).
 
-**FR-HW-55:** Runs on Raspberry Pi 5 (arm64), Ubuntu 24.04, ROS 2 Jazzy
-native (no cross-compilation required).
+**FR-HW-55:** When `scripts/deploy/rpi5_install.sh` runs on Ubuntu Server
+24.04 arm64 (Pi or arm64 container), it shall install ROS 2 Jazzy ros-base,
+deps, venv, ARCO, and build FRET, and shall be idempotent.
 
-**FR-HW-56:** Reproducible install (scripted, not manual steps only).
+**FR-HW-56:** Tagged update builds into `/opt/fret/releases/<tag>`, switches
+`current` only after smoke, and supports rollback to the previous release.
 
-**FR-HW-57:** systemd unit for the bridge/control stack.
+**FR-HW-57:** `fret-hardware.service` starts with torque disabled; restart
+never enables torque by itself.
 
-**FR-HW-58:** udev symlinks for the servo bus and camera (stable device
-paths across reboots/replugs).
+**FR-HW-58:** udev creates `/dev/fret-servo-follower` and `/dev/fret-cam0`
+(optional reserved leader) with dialout/video `0660`; ModemManager ignores
+adapters.
 
-**FR-HW-59:** Separate 5 V / 5 A Pi supply and 12 V servo supply (no shared
-rail).
+**FR-HW-59:** `fret-diag pi` reports architecture, OS, ROS, Python, ARCO,
+fret import, groups, udev, RAM, thermal, storage, network, timer loop, and
+ARCO micro-benchmark (pass/fail/skip with reason; JSON + text).
 
-**FR-HW-60:** The whole control path (bridge, safety, controller, planner,
-vision) runs on the Pi; the PC is used only for simulation, development,
-and monitoring (decided by Alexandre, 2026-11-17).
+**FR-HW-60:** Arm64 container build on the PC produces the same install tree
+shape and runs MuJoCo-free unit shards (CI substitute).
 
-**FR-HW-61:** Raspberry Pi 5, 8 GB RAM, microSD, Wi-Fi.
+**FR-HW-61:** The `hw` extra installs without MuJoCo; the hardware import
+graph loads without MuJoCo installed.
 
-**FR-HW-62:** Per-subsystem diagnostics (bridge, safety, controller,
-planner, vision each report health independently).
+**FR-HW-62:** Deployment doc states official 5 V / 5 A Pi supply, separate
+12 V servo supply, and official Active Cooler requirement.
+
+**FR-HW-63:** Wi-Fi RMW config (`/etc/fret/ros.env`): Zenoh router recommended,
+CycloneDDS unicast peers fallback; control path entirely on the Pi.
+
+**FR-HW-64:** When `WatchdogSec=` is set, the bridge `sd_notify`s
+`WATCHDOG=1` at half the interval and stops on cycle stall.
+
+**FR-HW-65:** `fret-diag` provides `pi`, `usb`, `bus`, `servos`,
+`calibration`, `estop`, `joints`, `gripper`, `camera`, `vision`, `loop`,
+`load`, `e2e`, and `all` with exit codes 0/1/2 and JSON reports.
+
+**FR-HW-66:** Motion diagnostics refuse without `--allow-motion`,
+confirmation, `CONNECTED_DISABLED`, and speed scale ≤ 0.3.
+
+**FR-HW-67:** SC-v23a against mock bus + generated frames reaches FSM
+`DONE` (first supervised pick in OPS-08).
+
+**FR-HW-72:** Install applies microSD storage policy (journald cap, tmpfs
+logs, noatime, zram, no swap file); doc recommends A2 ≥ 64 GB and NVMe
+optional.
+
+**FR-HW-73:** `fret-diag load` measures the everything-on-Pi budget and
+exits 1 if any limit is exceeded.
+
+**FR-HW-74:** Deployment doc gives headless first-boot (Imager or
+cloud-init) so install runs over SSH with no monitor or keyboard.
 
 ### Hardware-free test infrastructure (verified: PR3 mock)
 

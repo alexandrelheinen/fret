@@ -8,7 +8,7 @@ ros2 launch fret sitl.py scenario:=<name> model:=<model>
 
 **Release scenarios** (product targets): SC-v11 – SC-v14 (shipped);
 SC-v15 – SC-v17 (vision line, planned); SC-v20a/b/c (SO-101, shipped in
-`v2.0.0`).
+`v2.0.0`); SC-v23a (SO-101 hardware bring-up, PR5 / `v2.3.0-rc.1`).
 
 Full release spec: [releases.md](releases.md). Vision program: [vision/README.md](vision/README.md).
 
@@ -213,6 +213,17 @@ adhesion actuator; hold uses a contact-gated equality weld (see
 
 **Purpose:** Overhead-camera vision pick-place (FR-SIM-19), SO-101 analogue
 of SC-v16a. ≥ 9/10 seeds reach `DONE` with the ball in the bin.
+
+### SC-v23a — SO-101 hardware pick-and-place (v2.3.0-rc.1)
+
+**File:** `config/scenarios/so101_pick_place_hw.yml`
+**Vision:** `config/vision/so101_overhead.yml`
+**IO:** `HardwareRobotIO` on `/dev/fret-servo-follower` (mock in tests)
+
+**Purpose:** Supervised first pick on the Pi at 30 % speed (FR-HW-67). Same
+FSM as SC-v20b/c. Mock + generated frames in PR5; real arm in OPS-08.
+
+**Pass criteria:** FSM `DONE`.
 
 ---
 

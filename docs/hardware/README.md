@@ -20,6 +20,11 @@ PR3 mock bridge. Validated on the mock bus and the MuJoCo twin —
 
 | Doc | Contents |
 |---|---|
+| [deployment-rpi5.md](deployment-rpi5.md) | Pi install, update, rollback, Wi-Fi/RMW, storage |
+| [bring-up.md](bring-up.md) | Hardware-arrival checklist (OPS-08) |
+| [calibration.md](calibration.md) | `fret-calib` intrinsics / extrinsics / base-check |
+| [diagnostics.md](diagnostics.md) | `fret-diag` subsystem commands |
+| [troubleshooting.md](troubleshooting.md) | Common Pi / bus / vision failures |
 | [safety.md](safety.md) | Stop categories, e-stop wiring, supervisor behavior |
 | [testing-without-hardware.md](testing-without-hardware.md) | Mock bus, pty fake, record/replay |
 | [servo-setup.md](servo-setup.md) | `fret-hw` commands and calibration |
@@ -27,6 +32,8 @@ PR3 mock bridge. Validated on the mock bus and the MuJoCo twin —
 | [arm-selection.md](arm-selection.md) | Hardware decision record |
 | [../modules/hardware.md](../modules/hardware.md) | Module map and FR checklist |
 
-## What comes next
+## Status as of v2.3.0-rc.1
 
-PR5: Raspberry Pi 5 deployment and bring-up kit.
+PR5 ships the Raspberry Pi 5 deployment kit and bring-up diagnostics.
+Validated in an arm64 container and on the mock bus — **not validated on
+real Pi hardware or the physical arm** until OPS-06/07/08.
