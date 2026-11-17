@@ -1,90 +1,37 @@
-"""Per-model kinematics facade for FRET robot models.
+"""Per-model kinematics facade for FRET robot models (FR-SYS-01, FR-SYS-08).
 
-Dispatches to model-specific engines:
-
-- ``"dubins"`` — Dubins mobile (v1.1)
-- ``"open_manipulator_x"`` / ``"omx"`` — Menagerie OM-X (v1.2.3)
-- ``"omy"`` / ``"six_dof"`` / ``"open_manipulator_y"`` — Menagerie OMY (v1.2.4)
+Thin facade over :mod:`fret.robots.registry` so existing call sites and
+tests keep compiling unchanged (``control/kinematics.py::Kinematics(model)``
+design note in ``docs/robot-model-agnostic.md``). The actual per-model
+dispatch lives in the registry; this module contains no model-name string
+literals.
 """
 
 from __future__ import annotations
 
-from typing import Protocol
-
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.kinematics_dubins import DubinsKinematics
-from fret.control.kinematics_open_manipulator_x import (
-    OpenManipulatorXKinematics,
-)
-from fret.control.kinematics_open_manipulator_y import (
-    OpenManipulatorYKinematics,
-)
-
-
-class _KinematicsBackend(Protocol):
-    """Structural protocol shared by per-model kinematics engines."""
-
-    @property
-    def dof(self) -> int: ...
-
-    @property
-    def joint_names(self) -> list[str]: ...
-
-    @property
-    def joint_limits(self) -> npt.NDArray[np.float64]: ...
-
-    def forward_kinematics(
-        self, joint_positions: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]: ...
-
-    def inverse_kinematics(
-        self,
-        ee_pose: npt.NDArray[np.float64],
-        seed: npt.NDArray[np.float64] | None = None,
-    ) -> npt.NDArray[np.float64]: ...
-
-    def jacobian(
-        self, joint_positions: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]: ...
-
-
-_SUPPORTED_MODELS: frozenset[str] = frozenset(
-    {
-        "dubins",
-        "open_manipulator_x",
-        "omx",
-        "omy",
-        "six_dof",
-        "open_manipulator_y",
-    }
-)
-_OMY_MODELS = frozenset({"omy", "six_dof", "open_manipulator_y"})
+from fret.robots.protocols import KinematicsBackend
+from fret.robots.registry import get_default_registry
 
 
 class Kinematics:
     """Facade for per-model kinematics engines (FR-SYS-01).
 
     Args:
-        model: Robot model name — ``"dubins"`` or ``"open_manipulator_x"``.
+        model: Robot model name or alias, resolved through the robot
+            registry (``config/robots/*.yml``).
 
     Raises:
-        ValueError: If ``model`` is not supported.
+        fret.robots.registry.UnknownRobotModelError: If ``model`` is not a
+            known key or alias.
     """
 
     def __init__(self, model: str) -> None:
-        if model not in _SUPPORTED_MODELS:
-            supported = ", ".join(sorted(_SUPPORTED_MODELS))
-            raise ValueError(
-                f"Unsupported model '{model}'. Supported models: {supported}"
-            )
-        if model in {"open_manipulator_x", "omx"}:
-            self._impl: _KinematicsBackend = OpenManipulatorXKinematics()
-        elif model in _OMY_MODELS:
-            self._impl = OpenManipulatorYKinematics()
-        else:
-            self._impl = DubinsKinematics()
+        self._impl: KinematicsBackend = get_default_registry().get_kinematics(
+            model
+        )
 
     @property
     def dof(self) -> int:
