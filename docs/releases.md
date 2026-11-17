@@ -33,7 +33,8 @@ grouped by era:
 | **v1.4** | OM-X / OMY + CV | MuJoCo cameras → replace hardcoded ball pose | MuJoCo + CV | ✅ |
 | **v1.5.0** | Robot-model-agnostic core | Registry-based robot dispatch; hardware-neutral docs; hygiene | MuJoCo | ✅ |
 | **v2.0.0** | SO-101 | Hardware study + SO-101 MuJoCo simulation twin | MuJoCo | ✅ |
-| **v2.x** | Hardware HITL | Modular bridge → cameras → arm → full loop | Hardware | 🔲 |
+| **v2.1.0** | SO-101 mock bridge | Hardware-free STS mock + SO-101 bridge (mock only) | Mock / pty | 🔲 |
+| **v2.x** | Hardware HITL | Safety → Pi deployment → full loop | Hardware | 🔲 |
 | **v3.0** | Product | Definitive integrated system | Sim + HW | ○ |
 
 **TB3 / Dubins** never consumes CV — it exists to prove ARCO SE(2) racing under
@@ -235,7 +236,7 @@ onward (`docs/requirements.md`) define the decided target.
 | Step | Phase | Focus | Result |
 |---|---|---|---|
 | **v2.0.0** | PR2 | Hardware study + SO-101 MuJoCo simulation twin (new robot variant, pure-NumPy kinematics, friction-mode pick-place SC-v20b/c with contact-gated weld, overhead CV) | ✅ |
-| **v2.1.0** | PR3 | Hardware-free test infrastructure: mock servo bus, the real bridge developed TDD against it, recorded replays, fault injection, `fret-hw` servo tools | 🔲 |
+| **v2.1.0** | PR3 | Hardware-free test infrastructure: mock servo bus, the real bridge developed TDD against it, recorded replays, fault injection, `fret-hw` servo tools (mock only; FR-SYS-18) | 🔲 |
 | **v2.2.0** | PR4 | Safety layer: e-stop detection, bridge-side limits, command watchdog, soft start, torque-off on shutdown / hold on fault; validated in sim and on the PR3 mock | 🔲 |
 | **v2.3.0-rc.1** → **v2.3.0** | PR5 | Deployment + bring-up kit (arm64 build incl. the ARCO aarch64 wheel, systemd, udev, camera node, calibration, diagnostics); promoted to `v2.3.0` after the OPS-08 hardware-arrival checklist | 🔲 |
 | **v2.4.0** | (post-arrival) | Hardware-validated closed loop + HITL pick-and-place, tolerances set from measured data | 🔲 |
