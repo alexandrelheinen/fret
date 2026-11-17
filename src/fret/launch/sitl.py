@@ -1,11 +1,13 @@
-"""Launch: full SITL pipeline (sim + planning + control + scene).
+"""Launch: full SITL pipeline (planning + control + scene) on MuJoCo.
 
-This is the main entry point for ``fretsim``.
+This is the main entry point for ``fretsim``. MuJoCo is the sole
+simulator (FR-SIM-01); the Gazebo backend was removed in v1.5.0 (it had
+no ``urdf/`` directory to run from, see ``docs/decisions.md``).
 
 Usage::
 
-    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins backend:=mujoco
-    ros2 launch fret sitl.py scenario:=omx_reach model:=open_manipulator_x backend:=mujoco
+    ros2 launch fret sitl.py scenario:=dubins_race model:=dubins
+    ros2 launch fret sitl.py scenario:=omx_reach model:=open_manipulator_x
 
 Arguments:
     model (str, default: dubins)
@@ -26,7 +28,6 @@ from launch.actions import (
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
-    AndSubstitution,
     EqualsSubstitution,
     LaunchConfiguration,
     OrSubstitution,
@@ -54,7 +55,11 @@ def generate_launch_description() -> LaunchDescription:
     backend_arg = DeclareLaunchArgument(
         "backend",
         default_value="mujoco",
-        description="Simulator backend: gazebo | mujoco",
+        description=(
+            "Accepted for backward compatibility; MuJoCo is the sole "
+            "simulator since v1.5.0 removed the Gazebo backend "
+            "(docs/decisions.md). Any value is ignored."
+        ),
     )
     physics_mode_arg = DeclareLaunchArgument(
         "physics_mode",
@@ -62,8 +67,6 @@ def generate_launch_description() -> LaunchDescription:
         description="Enable MuJoCo physics SITL (mj_step + actuators)",
     )
 
-    is_mujoco = EqualsSubstitution(LaunchConfiguration("backend"), "mujoco")
-    is_gazebo = UnlessCondition(is_mujoco)
     is_dubins_race = EqualsSubstitution(
         LaunchConfiguration("scenario"), "dubins_race"
     )
@@ -82,13 +85,10 @@ def generate_launch_description() -> LaunchDescription:
     is_standard_mujoco = PythonExpression(
         [
             "'",
-            LaunchConfiguration("backend"),
-            "' == 'mujoco' and '",
             LaunchConfiguration("scenario"),
             "' != 'dubins_race'",
         ]
     )
-    is_dubins_mujoco = AndSubstitution(is_mujoco, is_dubins_race)
 
     scenario_config = PathJoinSubstitution(
         [
@@ -110,14 +110,6 @@ def generate_launch_description() -> LaunchDescription:
         [pkg_share, "config", "perception.yaml"]
     )
 
-    sim_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([pkg_share, "/launch/sim.py"]),
-        launch_arguments={
-            "model": LaunchConfiguration("model"),
-        }.items(),
-        condition=is_gazebo,
-    )
-
     mujoco_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([pkg_share, "/launch/mujoco.py"]),
         launch_arguments={
@@ -137,7 +129,7 @@ def generate_launch_description() -> LaunchDescription:
             {"scenario": LaunchConfiguration("scenario")},
             {"physics_mode": LaunchConfiguration("physics_mode")},
         ],
-        condition=IfCondition(is_dubins_mujoco),
+        condition=IfCondition(is_dubins_race),
     )
 
     planner_node = Node(
@@ -205,7 +197,6 @@ def generate_launch_description() -> LaunchDescription:
             scenario_arg,
             backend_arg,
             physics_mode_arg,
-            sim_launch,
             mujoco_launch,
             dubins_race_node,
             scene_acquisition_node,
