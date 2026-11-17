@@ -1,12 +1,18 @@
 """ROS-free SO-101 bridge core (C2).
 
-State machine: DISCONNECTED → CONNECTED_DISABLED → ENABLED.
-PR4 plugs a real ``SafetySupervisor`` between integrator output and SYNC
-WRITE; PR3 leaves that seam as an identity pass-through.
+State machine:
+``DISCONNECTED → CONNECTED_DISABLED → ENABLED → FAULT``.
+``FAULT → (clear) → CONNECTED_DISABLED``. Nothing reaches ``ENABLED``
+except an explicit enable with a fresh lease.
+
+``SafetySupervisor`` filters integrator output before SYNC WRITE.
+Fault policy (D9): hold position; torque off only on shutdown or
+explicit disable.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from dataclasses import dataclass, field
@@ -18,6 +24,8 @@ import numpy.typing as npt
 
 from fret.control.velocity_to_position import VelocityToPositionIntegrator
 from fret.hardware.config import BridgeConfig, JointCalibration
+from fret.hardware.safety import SafetyConfig
+from fret.hardware.safety import SafetySupervisor as ConcreteSafetySupervisor
 from fret.hardware.sts import protocol as proto
 from fret.hardware.sts.errors import (
     StsChecksumError,
@@ -30,22 +38,36 @@ from fret.hardware.sts.errors import (
 )
 from fret.hardware.sts.registers import (
     GOAL_POSITION,
+    MAX_TEMPERATURE_LIMIT,
+    MAX_TORQUE_LIMIT,
     MODEL_NUMBER,
     PRESENT_POSITION,
     PRESENT_VELOCITY,
+    PROTECTION_CURRENT,
     TORQUE_ENABLE,
 )
 from fret.hardware.sts.transport import port_is_mock_safe
+
+_LOG = logging.getLogger(__name__)
+
+# Servo status bits (Feetech STS status register).
+_STATUS_OVERHEAT = 0x04
+_STATUS_OVERLOAD = 0x20
+_STATUS_LOW_VOLTAGE = 0x01
 
 
 class BridgeState(Enum):
     DISCONNECTED = auto()
     CONNECTED_DISABLED = auto()
     ENABLED = auto()
+    FAULT = auto()
 
 
 class SafetySupervisor(Protocol):
-    """PR4 seam: filter position goals before SYNC WRITE."""
+    """Filter position goals before SYNC WRITE (PR3 seam / PR4 concrete)."""
+
+    @property
+    def active(self) -> bool: ...
 
     def filter_goals(
         self,
@@ -56,7 +78,11 @@ class SafetySupervisor(Protocol):
 
 
 class IdentitySafetySupervisor:
-    """PR3 placeholder — passes goals through unchanged."""
+    """PR3 placeholder — passes goals through; not an active supervisor."""
+
+    @property
+    def active(self) -> bool:
+        return False
 
     def filter_goals(
         self,
@@ -78,6 +104,12 @@ class BridgeDiagnostics:
     servo_error_counts: dict[int, int] = field(default_factory=dict)
     velocity_source: str = "present_speed"
     last_cycle_ms: float = 0.0
+    consecutive_failed_cycles: int = 0
+    fault_reason: str = ""
+    clamp_events: int = 0
+    watchdog: bool = False
+    lease_expired: bool = False
+    stop_latched: bool = False
 
 
 class BridgeCore:
@@ -93,10 +125,15 @@ class BridgeCore:
     ) -> None:
         self._transport = transport
         self._config = config
-        self._safety: SafetySupervisor = (
-            safety if safety is not None else IdentitySafetySupervisor()
-        )
         self._clock = clock or time.monotonic
+        if safety is None:
+            self._safety: SafetySupervisor = ConcreteSafetySupervisor(
+                config.joint_limits_rad(),
+                config=config.safety,
+                calibrated_limits_rad=config.joint_limits_rad(),
+            )
+        else:
+            self._safety = safety
         self._state = BridgeState.DISCONNECTED
         self._diag = BridgeDiagnostics(velocity_source=config.velocity_source)
         self._positions = np.zeros(config.dof, dtype=np.float64)
@@ -106,6 +143,10 @@ class BridgeCore:
         self._last_positions: npt.NDArray[np.float64] | None = None
         self._last_read_time: float | None = None
         self._transact = getattr(transport, "transact", None)
+        self._hold_goals: npt.NDArray[np.float64] | None = None
+        self._power_present = True
+        self._shutdown_logged = False
+        self._last_servo_status: dict[int, int] = {}
 
     @property
     def state(self) -> BridgeState:
@@ -114,6 +155,10 @@ class BridgeCore:
     @property
     def diagnostics(self) -> BridgeDiagnostics:
         return self._diag
+
+    @property
+    def safety(self) -> SafetySupervisor:
+        return self._safety
 
     @property
     def positions(self) -> npt.NDArray[np.float64]:
@@ -132,7 +177,7 @@ class BridgeCore:
         return str(getattr(self._transport, "port_name", ""))
 
     def connect(self) -> None:
-        """FR-HW-20: read all servos; refuse CONNECTED if any check fails."""
+        """FR-HW-20 / FR-HW-43: validate servos and protection registers."""
         if self._state != BridgeState.DISCONNECTED:
             return
         positions: list[float] = []
@@ -143,6 +188,7 @@ class BridgeCore:
                     f"servo {sid}: unexpected model {model}, "
                     f"expected {self._config.expected_model_number}"
                 )
+            self._verify_protection_registers(sid)
             ticks = self._read_present_position(sid)
             rad = self._ticks_to_rad(sid, ticks)
             cal = self._cal_by_id.get(sid)
@@ -174,22 +220,48 @@ class BridgeCore:
         self._state = BridgeState.CONNECTED_DISABLED
         self._last_positions = self._positions.copy()
         self._last_read_time = self._clock()
+        self._diag.consecutive_failed_cycles = 0
+        self._diag.fault_reason = ""
+        self._power_present = True
 
-    def enable_torque(self) -> None:
-        """Enter ENABLED after FR-SYS-18 mock-only check."""
+    def enable_torque(self, now_s: float | None = None) -> None:
+        """Soft-start enable with a fresh lease (FR-HW-44, FR-HW-47)."""
+        t = self._clock() if now_s is None else now_s
         if self._state == BridgeState.DISCONNECTED:
             raise StsError("cannot enable torque while DISCONNECTED")
-        if not self._torque_allowed():
-            raise TorqueEnableRefusedError(
-                "FR-SYS-18: torque enable refused on real serial port "
-                f"{self.port_name!r}; safety layer (PR4) is required. "
-                "Use mock:, replay:, or a /dev/pts/ pty fake device."
+        if self._state == BridgeState.FAULT:
+            raise StsError(
+                f"cannot enable while FAULT ({self._diag.fault_reason}); "
+                "call clear() first"
             )
+        if not self._supervisor_allows_enable():
+            raise TorqueEnableRefusedError(
+                "FR-SYS-19: torque enable refused on real serial port "
+                f"{self.port_name!r} without an active SafetySupervisor. "
+                "Inject fret.hardware.safety.SafetySupervisor."
+            )
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            reason = concrete.check_enable_pose(self._positions)
+            if reason is not None:
+                raise StsError(f"enable refused: {reason}")
+            goals = concrete.soft_start_goals(self._positions)
+            self._sync_write_goals(goals)
+            concrete.renew_lease(t)
+            concrete.note_command(t)
+            concrete.set_enabled(True)
+            concrete.clear_stop()
+            concrete.set_controller_fault(False)
         for sid in self._config.servo_ids:
             self._write_u8(sid, TORQUE_ENABLE[0], 1)
+        if self._integrator is not None:
+            self._integrator.start(self._positions)
+        self._hold_goals = self._positions.copy()
         self._state = BridgeState.ENABLED
+        self._diag.fault_reason = ""
 
-    def disable_torque(self) -> None:
+    def disable_torque(self, *, shutdown: bool = False) -> None:
+        """Torque off; arm goes limp (support by hand first)."""
         if self._state == BridgeState.DISCONNECTED:
             return
         try:
@@ -197,8 +269,53 @@ class BridgeCore:
                 self._write_u8(sid, TORQUE_ENABLE[0], 0)
         except StsError:
             pass
-        if self._state == BridgeState.ENABLED:
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.set_enabled(False)
+        if shutdown and not self._shutdown_logged:
+            _LOG.warning(
+                "bridge shutdown: torque disabled; arm goes limp "
+                "(support the arm by hand)"
+            )
+            self._shutdown_logged = True
+        if self._state in {BridgeState.ENABLED, BridgeState.FAULT}:
             self._state = BridgeState.CONNECTED_DISABLED
+
+    def clear(self) -> None:
+        """Clear latched stop; FAULT → CONNECTED_DISABLED if cause is gone.
+
+        Does not enable motion. Refused while bus power is still absent.
+        """
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.clear_stop()
+            self._diag.stop_latched = False
+        if self._state != BridgeState.FAULT:
+            return
+        if not self._power_present:
+            self._diag.fault_reason = "power_loss"
+            return
+        if concrete is not None:
+            concrete.set_controller_fault(False)
+            concrete.set_enabled(False)
+        self._diag.consecutive_failed_cycles = 0
+        self._diag.fault_reason = ""
+        self._state = BridgeState.CONNECTED_DISABLED
+
+    def stop(self) -> None:
+        """Latched category-2 hold. Not an emergency stop (FR-HW-70)."""
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.latch_stop()
+        self._hold_goals = self._positions.copy()
+        self._diag.stop_latched = True
+
+    def set_controller_fault(self, active: bool) -> None:
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.set_controller_fault(active)
+        if active and self._state == BridgeState.ENABLED:
+            self._enter_fault("controller_fault")
 
     def command_velocity(
         self, velocity: npt.NDArray[np.float64], now_s: float | None = None
@@ -206,13 +323,32 @@ class BridgeCore:
         if self._integrator is None:
             self._diag.bad_commands += 1
             return
+        if self._state in {BridgeState.FAULT, BridgeState.DISCONNECTED}:
+            self._diag.bad_commands += 1
+            return
+        concrete = self._concrete_safety()
+        if concrete is not None and concrete.stop_latched:
+            self._diag.bad_commands += 1
+            return
+        if concrete is not None and concrete.controller_fault:
+            self._diag.bad_commands += 1
+            return
         v = np.asarray(velocity, dtype=np.float64)
         if v.shape != (self._config.dof,) or not np.all(np.isfinite(v)):
             self._diag.bad_commands += 1
             return
-        self._integrator.command_velocity(
-            v, self._clock() if now_s is None else now_s
-        )
+        t = self._clock() if now_s is None else now_s
+        self._integrator.command_velocity(v, t)
+        if concrete is not None:
+            concrete.note_command(t)
+
+    def renew_enable_lease(self, now_s: float | None = None) -> None:
+        """Re-assert the enable lease (FR-HW-47)."""
+        if self._state != BridgeState.ENABLED:
+            return
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.renew_lease(self._clock() if now_s is None else now_s)
 
     def cycle(self, now_s: float | None = None) -> None:
         """One control cycle: SYNC READ, integrate, optional SYNC WRITE."""
@@ -221,6 +357,14 @@ class BridgeCore:
             return
         try:
             self._sync_read(t0)
+            self._power_present = True
+            self._observe_servo_faults()
+            if self._state == BridgeState.FAULT:
+                # Hold last pose; do not integrate (FR-HW-46).
+                if self._hold_goals is not None:
+                    self._sync_write_goals(self._hold_goals)
+                self._diag.consecutive_failed_cycles = 0
+                return
             if (
                 self._state == BridgeState.ENABLED
                 and self._integrator is not None
@@ -230,11 +374,14 @@ class BridgeCore:
                     goals, self._positions, t0
                 )
                 self._sync_write_goals(filtered)
+                self._hold_goals = filtered.copy()
+                self._copy_safety_diag()
+            self._diag.consecutive_failed_cycles = 0
         except (StsChecksumError, StsIdMismatchError, StsLengthError):
-            # Counted in _do_transact.
+            self._note_failed_cycle("integrity")
             raise
         except StsTimeoutError:
-            # Counted in _do_transact.
+            self._note_failed_cycle("timeout")
             raise
         except StsPortError:
             self._state = BridgeState.DISCONNECTED
@@ -253,18 +400,118 @@ class BridgeCore:
             else:
                 self._diag.consecutive_overruns = 0
 
+    def note_power_loss(self) -> None:
+        """External signal that bus power disappeared (mock power-cut)."""
+        self._power_present = False
+        self._note_failed_cycle("power_loss")
+
     def disconnect(self) -> None:
-        self.disable_torque()
+        self.disable_torque(shutdown=True)
         self._state = BridgeState.DISCONNECTED
         try:
             self._transport.close()
         except Exception:  # noqa: BLE001
             pass
 
-    def _torque_allowed(self) -> bool:
+    def _supervisor_allows_enable(self) -> bool:
+        if bool(getattr(self._safety, "active", False)):
+            return True
         if bool(getattr(self._transport, "is_mock_safe", False)):
             return True
         return port_is_mock_safe(self.port_name)
+
+    def _concrete_safety(self) -> ConcreteSafetySupervisor | None:
+        if isinstance(self._safety, ConcreteSafetySupervisor):
+            return self._safety
+        return None
+
+    def _copy_safety_diag(self) -> None:
+        concrete = self._concrete_safety()
+        if concrete is None:
+            return
+        d = concrete.diagnostics
+        self._diag.clamp_events = d.clamp_events
+        self._diag.watchdog = d.watchdog
+        self._diag.lease_expired = d.lease_expired
+        self._diag.stop_latched = d.stop_latched
+
+    def _enter_fault(self, reason: str) -> None:
+        self._state = BridgeState.FAULT
+        self._diag.fault_reason = reason
+        self._hold_goals = self._positions.copy()
+        concrete = self._concrete_safety()
+        if concrete is not None:
+            concrete.set_enabled(False)
+
+    def _note_failed_cycle(self, reason: str) -> None:
+        self._diag.consecutive_failed_cycles += 1
+        limit = self._config.safety.fault_failed_cycles
+        if reason in {"power_loss", "timeout", "low_voltage"}:
+            if reason == "power_loss":
+                self._power_present = False
+            # Bus silence / brown-out: FAULT within N cycles (FR-HW-40).
+            if (
+                self._state
+                in {
+                    BridgeState.ENABLED,
+                    BridgeState.CONNECTED_DISABLED,
+                }
+                and self._diag.consecutive_failed_cycles >= limit
+            ):
+                self._power_present = False
+                self._enter_fault("power_loss")
+            return
+        if (
+            self._state == BridgeState.ENABLED
+            and self._diag.consecutive_failed_cycles >= limit
+        ):
+            self._enter_fault(reason)
+
+    def _observe_servo_faults(self) -> None:
+        for sid, count in list(self._diag.servo_error_counts.items()):
+            if count <= 0:
+                continue
+            # Immediate FAULT on overload / overheat status bits last seen.
+            # The status is carried on the last sync-read error field; we
+            # also check sticky mock status via a best-effort read helper.
+            status = self._last_servo_status.get(sid, 0)
+            if status & _STATUS_OVERLOAD:
+                self._enter_fault(f"overload:servo_{sid}")
+                return
+            if status & _STATUS_OVERHEAT:
+                self._enter_fault(f"overheat:servo_{sid}")
+                return
+            if status & _STATUS_LOW_VOLTAGE:
+                self._note_failed_cycle("low_voltage")
+
+    def _verify_protection_registers(self, servo_id: int) -> None:
+        """FR-HW-43: write and read back protection thresholds."""
+        safety: SafetyConfig = self._config.safety
+        self._write_u16(servo_id, MAX_TORQUE_LIMIT[0], safety.torque_limit)
+        self._write_u16(
+            servo_id, PROTECTION_CURRENT[0], safety.protection_current
+        )
+        self._write_u8(
+            servo_id, MAX_TEMPERATURE_LIMIT[0], safety.max_temperature
+        )
+        got_torque = self._read_u16(servo_id, MAX_TORQUE_LIMIT[0])
+        got_current = self._read_u16(servo_id, PROTECTION_CURRENT[0])
+        got_temp = self._read_u8(servo_id, MAX_TEMPERATURE_LIMIT[0])
+        if got_torque != safety.torque_limit:
+            raise StsError(
+                f"servo {servo_id}: torque_limit mismatch "
+                f"{got_torque} != {safety.torque_limit}"
+            )
+        if got_current != safety.protection_current:
+            raise StsError(
+                f"servo {servo_id}: protection_current mismatch "
+                f"{got_current} != {safety.protection_current}"
+            )
+        if got_temp != safety.max_temperature:
+            raise StsError(
+                f"servo {servo_id}: max_temperature mismatch "
+                f"{got_temp} != {safety.max_temperature}"
+            )
 
     def _cal(self, servo_id: int) -> JointCalibration:
         cal = self._cal_by_id.get(servo_id)
@@ -314,6 +561,7 @@ class BridgeCore:
             if reply is None:
                 self._diag.timeouts += 1
                 raise StsTimeoutError(f"missing sync-read reply for id {sid}")
+            self._last_servo_status[sid] = int(reply.error)
             if reply.error:
                 self._diag.servo_error_counts[sid] = (
                     self._diag.servo_error_counts.get(sid, 0) + 1
@@ -327,8 +575,6 @@ class BridgeCore:
             positions[i] = self._ticks_to_rad(sid, ticks)
             if self._config.velocity_source == "present_speed":
                 signed = proto.decode_sign_magnitude(raw_vel, 15)
-                # Feetech present speed unit ≈ 0.0146 rpm * sign; map coarsely
-                # to rad/s via ticks/s at 50 Hz scale for the mock.
                 velocities[i] = (
                     float(self._cal(sid).drive_sign)
                     * signed
@@ -373,8 +619,19 @@ class BridgeCore:
         replies = self._do_transact(request, expected_id=servo_id)
         return proto.unpack_u16_le(replies[0].params)
 
+    def _read_u8(self, servo_id: int, address: int) -> int:
+        request = proto.build_read(servo_id, address, 1)
+        replies = self._do_transact(request, expected_id=servo_id)
+        return int(replies[0].params[0])
+
     def _write_u8(self, servo_id: int, address: int, value: int) -> None:
-        request = proto.build_write(servo_id, address, bytes((value,)))
+        request = proto.build_write(servo_id, address, bytes((value & 0xFF,)))
+        self._do_transact(request, expected_id=servo_id)
+
+    def _write_u16(self, servo_id: int, address: int, value: int) -> None:
+        request = proto.build_write(
+            servo_id, address, proto.pack_u16_le(value)
+        )
         self._do_transact(request, expected_id=servo_id)
 
     def _do_transact(
@@ -436,6 +693,7 @@ def make_bridge_core_for_mock(
     config: BridgeConfig | None = None,
     *,
     bus: Any | None = None,
+    safety: SafetySupervisor | None = None,
 ) -> tuple[BridgeCore, Any]:
     """Factory used by unit tests: in-process mock + BridgeCore."""
     from fret.hardware.config import (
@@ -484,4 +742,4 @@ def make_bridge_core_for_mock(
         return replies
 
     transport.transact = _transact  # type: ignore[attr-defined]
-    return BridgeCore(transport, config), mock
+    return BridgeCore(transport, config, safety=safety), mock

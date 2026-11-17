@@ -11,14 +11,16 @@ from fret.hardware.bridge_core import BridgeState, make_bridge_core_for_mock
 def test_velocity_command_integrates_and_sync_writes_fr_hw_22_23() -> None:
     core, bus = make_bridge_core_for_mock()
     core.connect()
-    core.enable_torque()
-    assert core.state is BridgeState.ENABLED
+    assert core.state is BridgeState.CONNECTED_DISABLED
 
     v = np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float64)
     t = 0.0
-    core.command_velocity(v, t)
+    core.enable_torque(t)
+    assert core.state is BridgeState.ENABLED
     for i in range(10):
         t = (i + 1) * 0.02
+        core.command_velocity(v, t)
+        core.renew_enable_lease(t)
         core.cycle(t)
 
     # Goal on servo 1 should have moved away from mid toward positive.

@@ -79,9 +79,11 @@ def test_fault_cable_pull_disconnects_fr_hw_71() -> None:
     core, bus = make_bridge_core_for_mock()
     core.connect()
     bus.inject_fault(FaultConfig(FaultKind.CABLE_PULL))
-    with pytest.raises(StsTimeoutError):
-        core.cycle(0.0)
-    # Bridge stays connected until port error; timeouts counted.
+    for i in range(5):
+        with pytest.raises(StsTimeoutError):
+            core.cycle(float(i) * 0.02)
+    # PR4: sustained bus silence → FAULT (power_loss path).
+    assert core.state is BridgeState.FAULT
     assert core.diagnostics.timeouts >= 1
 
 
