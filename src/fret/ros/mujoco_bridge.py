@@ -329,15 +329,40 @@ def make_mujoco_bridge_core(
         Configured ``MuJoCoBridgeCore`` instance.
 
     Raises:
-        ValueError: If ``model`` is not recognised.
+        ValueError: If ``model`` is not recognised, or is a mobile model
+            with no generic bridge-core path (``dubins`` has its own
+            dual-agent factory; see :func:`make_dubins_race_bridge_core`).
     """
-    _ = (scenario, mjcf_path, initial_positions, physics_config)
     if model == "dubins":
         raise ValueError(
             "Use make_dubins_race_bridge_core() for the dual-agent dubins race."
         )
 
-    raise ValueError(f"Unknown MuJoCo bridge model: {model!r}")
+    from fret.robots.registry import UnknownRobotModelError, get_default_registry
+
+    try:
+        profile = get_default_registry().get_profile(model)
+    except UnknownRobotModelError as exc:
+        raise ValueError(f"Unknown MuJoCo bridge model: {model!r}") from exc
+
+    if profile.kind != "arm":
+        # Mobile models other than dubins (diffdrive, turtlebot3) have no
+        # generic MuJoCoBridgeCore path yet; keep the historical error.
+        raise ValueError(f"Unknown MuJoCo bridge model: {model!r}")
+
+    resolved_mjcf = resolve_mjcf_path(profile.key, scenario, mjcf_path)
+    limits = np.asarray(profile.joint_limits, dtype=np.float64)
+    positions = (
+        np.asarray(initial_positions, dtype=np.float64)
+        if initial_positions is not None
+        else np.zeros(len(profile.joint_names), dtype=np.float64)
+    )
+    core = MuJoCoBridgeCore(
+        resolved_mjcf, list(profile.joint_names), limits, positions
+    )
+    if physics_config is not None:
+        core.configure_physics(physics_config)
+    return core
 
 
 class MuJoCoBridgeCore:
