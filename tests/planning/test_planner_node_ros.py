@@ -157,6 +157,58 @@ def _ros_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# FR-SYS-15: planner_node must not crash under real rclpy Jazzy parameter
+# type inference.  The stub above cannot catch this regression because it
+# does not replicate rclpy's real ParameterType inference (an empty-list
+# default is inferred as BYTE_ARRAY unless a dynamically-typed descriptor is
+# used, which then rejects a float[] override from the scenario YAML; see
+# docs/dev-environment.md).  This test undoes the module's autouse stub for
+# itself only and exercises the real rclpy installed alongside ROS 2 Jazzy.
+# ---------------------------------------------------------------------------
+
+
+def test_default_parameters_declare_without_crash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Declaring default parameters under real rclpy must not raise."""
+    pytest.importorskip("rclpy", reason="requires ROS 2 Jazzy sourced")
+    # Undo this test's _ros_stubs fixture application (same monkeypatch
+    # instance; function-scoped) so the real rclpy module is restored, and
+    # drop the hand-rolled ROS message stubs (installed directly into
+    # sys.modules, so monkeypatch cannot undo them) in favor of the real
+    # packages that ship with ROS 2 Jazzy.
+    monkeypatch.undo()
+    _STUBBED_PREFIXES = (
+        "rclpy",
+        "rcl_interfaces",
+        "sensor_msgs",
+        "trajectory_msgs",
+        "builtin_interfaces",
+    )
+    for mod_name in list(sys.modules):
+        if mod_name.startswith(_STUBBED_PREFIXES):
+            sys.modules.pop(mod_name, None)
+    sys.modules.pop("fret.planning.planner_node_ros", None)
+
+    import rclpy
+    import rclpy.node
+
+    from fret.planning.planner_node_ros import PlannerRosNode
+
+    class _RealPlannerNode(PlannerRosNode, rclpy.node.Node):  # type: ignore[misc]
+        pass
+
+    rclpy.init(args=[])
+    try:
+        node = _RealPlannerNode.__new__(_RealPlannerNode)
+        PlannerRosNode.__init__(node)  # must not raise (FR-SYS-15)
+        node.destroy_node()
+    finally:
+        rclpy.shutdown()
+        sys.modules.pop("fret.planning.planner_node_ros", None)
+
+
+# ---------------------------------------------------------------------------
 # Factory: build a concrete PlannerRosNode with controllable parameters
 # ---------------------------------------------------------------------------
 
