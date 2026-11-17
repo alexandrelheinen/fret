@@ -11,3 +11,7 @@ omx_reach: omx_arm.xml
 omy_pick_place: omy_arm.xml
 omy_clutter: omy_arm.xml
 omy_reach: omy_arm.xml
+
+so101_reach: so101_arm.xml
+so101_pick_place: so101_arm.xml
+so101_pick_place_cv: so101_arm.xml

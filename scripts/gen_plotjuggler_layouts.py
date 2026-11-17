@@ -26,6 +26,7 @@ _COLORS = {
     "tb3_dummy": "#737373",
     "omx": "#1f77b4",
     "omy": "#ff7f0e",
+    "so101": "#2ca02c",
     "joint": "#17becf",
 }
 
@@ -283,6 +284,7 @@ def main() -> None:
     gen_dubins_race()
     gen_arm("omx", 4, "omx_arm.xml", "omx_arm")
     gen_arm("omy", 6, "omy_arm.xml", "omy_arm")
+    gen_arm("so101", 5, "so101_arm.xml", "so101_arm")
 
 
 if __name__ == "__main__":
