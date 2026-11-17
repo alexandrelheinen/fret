@@ -7,6 +7,46 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-17
+
+### Added
+
+- SO-101 robot variant: Menagerie `robotstudio_so101` vendored under
+  `third_party/`, pure-NumPy FK/IK (`kinematics_so101.py`), registry
+  profile + configs, `VelocityToPositionIntegrator` (FR-CTL-07), and
+  `so101_reach` empty-cell scenario (FR-SIM-15, FR-SIM-16, FR-SIM-17,
+  FR-SIM-20).
+- Friction-mode pick-and-place (`so101_pick_place`, SC-v20b): no MuJoCo
+  adhesion actuator; contact-gated equality weld after pad contact;
+  FSM slip → FAULT (FR-SIM-18 interim fidelity — see `docs/decisions.md`).
+- Overhead CV pick-and-place (`so101_pick_place_cv`, SC-v20c) with
+  level-pad IK and 9/10 seed acceptance (FR-SIM-19).
+- PlotJuggler layout `so101_arm` and hardware study
+  (`docs/hardware/arm-selection.md`, `docs/robots/so101.md`).
+- Third-party license adjacency gate for vendored Menagerie assets
+  (FR-SYS-16).
+
+### Changed
+
+- `make_mujoco_bridge_core` routes arm models through the robot registry
+  (fixes the pre-v2.0.0 "Unknown MuJoCo bridge model" path for OMX/OMY/
+  SO-101).
+- Requirements / roadmap / releases docs rewritten for the v2.x hardware
+  line; SO-101 is the decided target.
+- `types.sh` green again: retargeted rclpy mypy ignores after stub drift
+  (31 unused-ignore / attr-defined errors cleared on `main`-class files).
+
+### Known gaps
+
+- Contact-gated weld is an interim stand-in for pure friction lift with
+  Menagerie jaw geometry; soft-weld stretch under MPC can exceed the
+  original 5 mm wording (airborne hold + ≤100 mm stretch bounded in
+  tests).
+- Combined unit coverage still &lt;90% on `main` (pre-existing); gate not
+  lowered.
+- Remaining PR1 registry migrations (`pick_place_*` / launch EqualsSubstitution)
+  still deferred — see `docs/decisions.md`.
+
 ## [1.5.0] - 2026-11-17
 
 ### Added
