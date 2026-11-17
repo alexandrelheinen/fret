@@ -6,6 +6,40 @@ than left implicit in a diff. Newest entries at the top.
 
 ---
 
+## 2026-11-17 — Unit coverage gate (90%) was already failing before PR1
+
+**Context:** `bash scripts/tests/unit_coverage.sh` (combining the 4 unit
+shards' `.coverage.*` files) reports **83%** on this branch, below the
+90% `--fail-under` gate. OPS-00's baseline run did not measure this
+specific combined number (it reported pass/fail counts, not coverage
+percent), so this looked at first like a PR1 regression.
+
+**Verification:** Cloned `main` at the OPS-00 baseline commit
+(`2b918f3`) into a throwaway checkout, symlinked the `third_party/`
+submodules from this checkout (no re-fetch needed), built it, and ran
+the identical 4-shard-then-combine sequence. Result: **82%**, same
+`[FAIL] Coverage gate: FAILED (< 90%)` outcome. The gate was already
+failing before this PR; PR1's changes move it from 82% to 83% (new
+`fret.robots` code is itself well covered: `profile.py` 98%,
+`protocols.py` 100%, `registry.py` 76%, all three `variants/*.py` 100%).
+Worst-covered pre-existing files, untouched by this PR, driving the
+gap: `pick_place_planning.py` 37%, `telemetry/layout_paths.py` 33%,
+`scenario/__init__.py` 50%, `gate_overlay.py` 40%,
+`ros/dubins_race_node.py` 0% (unit-tested only via
+`tests/integration/`, which `unit_coverage.sh` does not include).
+
+**Decision:** Do not lower the 90% threshold (never weaken a gate) and
+do not attempt to backfill coverage for files PR1 does not otherwise
+touch — that is a separate, sizeable hygiene task, not named in
+OPS-00's hygiene list (version alignment, Gazebo legacy, stale docs, the
+`bridge_node` reference, the three `dev-environment.md` breakages, the
+wall-maze flake). Report the true number in the PR (83%, not a PR1
+regression) and flag it to Alexandre as a pre-existing gap needing its
+own follow-up, rather than silently claim the gate passes or quietly
+raise it without saying so.
+
+---
+
 ## 2026-11-17 — A second pre-existing physics flake found during T21 gate evidence
 
 **Context:** While running the full local gate for PR1,
