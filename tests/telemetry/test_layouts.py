@@ -28,6 +28,8 @@ def test_index_maps_known_scenarios() -> None:
     assert index["dubins_race"] == "dubins_race.xml"
     assert index["omx_wall_maze"] == "omx_arm.xml"
     assert index["omy_clutter"] == "omy_arm.xml"
+    assert index["so101_reach"] == "so101_arm.xml"
+    assert index["so101_pick_place"] == "so101_arm.xml"
 
 
 def test_layout_path_resolves() -> None:
@@ -43,7 +45,7 @@ def test_unknown_scenario_raises() -> None:
 
 @pytest.mark.parametrize(
     "xml_name",
-    ["dubins_race.xml", "omx_arm.xml", "omy_arm.xml"],
+    ["dubins_race.xml", "omx_arm.xml", "omy_arm.xml", "so101_arm.xml"],
 )
 def test_layout_xml_well_formed_and_curves_named(xml_name: str) -> None:
     path = _LAYOUT_DIR / xml_name
