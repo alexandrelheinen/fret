@@ -31,7 +31,7 @@ def test_physics_controller_config_relative_unknown_raises() -> None:
 def test_controller_config_relative_unknown_raises() -> None:
     import pytest
 
-    with pytest.raises(ValueError, match="No controller config"):
+    with pytest.raises(ValueError, match="Unknown robot model"):
         controller_config_relative("unknown_model")
 
 

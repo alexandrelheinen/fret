@@ -18,7 +18,7 @@ def test_planning_config_for_model() -> None:
     assert planning_config_for_model("dubins") == "planning/dubins.yml"
     import pytest
 
-    with pytest.raises(ValueError, match="No planning config"):
+    with pytest.raises(ValueError, match="Unknown robot model"):
         planning_config_for_model("unknown_model")
 
 
