@@ -1,0 +1,33 @@
+# SC-v20c — SO-101 CV-driven floor pick-and-place (FR-SIM-19).
+#
+# Same geometry / FSM / friction grasp mode as SC-v20b (`so101_pick_place.yml`).
+# Pick pose comes from overhead-camera BallObservation; place stays YAML.
+# Internal scenario_id stays so101_pick_place so MJCF resolve stays stable.
+# pick_xy is a test oracle only — not grasp ground truth.
+
+/**:
+  ros__parameters:
+    model: so101
+    scenario_id: so101_pick_place
+    showcase_id: so101_pick_place_cv
+    simulation_dt: 0.02
+    duration: 35.0
+    planning_timeout: 60.0
+    goal_tolerance: 0.05
+    mjcf: mjcf/so101_pick_place.xml
+    pick_object: ball
+    ball_radius_m: 0.020
+    place_cone_height_m: 0.098
+    place_cone_radius_m: 0.060
+    grasp_mode: friction
+    use_vision: true
+    vision_config: src/fret/config/vision/so101_overhead.yml
+    idle_configuration: [-0.2628, -1.2754, 0.2338, 1.6021, -1.6472]
+    pick_hover_configuration: [0.6390, -0.0816, 0.0847, 1.6581, 0.0512]
+    pick_grasp_configuration: [0.6388, -0.0399, 0.4973, 1.0366, 0.0508]
+    lift_hover_configuration: [0.5794, -0.1921, -0.1273, 1.6542, -1.1914]
+    lift_height_m: 0.08
+    place_hover_configuration: [-0.9237, -0.2520, 0.1023, 1.4335, -1.2533]
+    place_grasp_configuration: [-0.9237, -0.2520, 0.1023, 1.4335, -1.2533]
+    pick_xy: [0.200, -0.120]
+    place_xy: [0.200, 0.080]

@@ -1,0 +1,35 @@
+# Fixed overhead camera + HSV blob + table-plane lift (SC-v20c / FR-SIM-19).
+# Extrinsics match mjcf/so101_pick_place.xml camera "overhead_cam"
+# (placeholder mount; PR5 replaces with calibration).
+camera_ids: [overhead_cam]
+intrinsics:
+  - camera_id: overhead_cam
+    width: 1280
+    height: 720
+    fx: 937.8320633
+    fy: 937.8320633
+    cx: 639.5
+    cy: 359.5
+extrinsics:
+  - camera_id: overhead_cam
+    t_world_cam:
+    - [0.0, 1.0, 0.0, 0.15]
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 0.0, -1.0, 0.85]
+    - [0.0, 0.0, 0.0, 1.0]
+detector:
+  camera_ids: [overhead_cam]
+  hsv_lower: [20, 40, 40]
+  hsv_upper: [50, 255, 255]
+  hsv_lower_alt: null
+  hsv_upper_alt: null
+  morph_kernel_px: 5
+  min_area_px: 80.0
+  max_area_px: 500000.0
+  min_circularity: 0.45
+lifter:
+  camera_ids: [overhead_cam]
+  table_z_m: 0.0
+  ball_radius_m: 0.020
+pipeline:
+  source: so101_overhead_hsv_plane
