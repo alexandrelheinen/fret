@@ -10,6 +10,11 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 
+from fret.hardware.safety import (
+    SafetyConfig,
+    default_safety_config_from_mapping,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class JointCalibration:
@@ -46,6 +51,7 @@ class BridgeConfig:
     servo_ids: tuple[int, ...] = (1, 2, 3, 4, 5, 6)
     expected_model_number: int = 777
     calibration: tuple[JointCalibration, ...] = field(default_factory=tuple)
+    safety: SafetyConfig = field(default_factory=SafetyConfig)
 
     @property
     def dof(self) -> int:
@@ -135,6 +141,11 @@ def load_bridge_config(
         servo_ids=tuple(data.get("servo_ids", [1, 2, 3, 4, 5, 6])),
         expected_model_number=int(data.get("expected_model_number", 777)),
         calibration=cal,
+        safety=default_safety_config_from_mapping(
+            data.get("safety")
+            if isinstance(data.get("safety"), dict)
+            else None
+        ),
     )
 
 

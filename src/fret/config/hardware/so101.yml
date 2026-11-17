@@ -20,3 +20,15 @@ joint_names:
   - gripper
 servo_ids: [1, 2, 3, 4, 5, 6]
 expected_model_number: 777
+safety:
+  watchdog_s: 0.1
+  enable_lease_s: 0.5
+  limit_margin_rad: 0.03
+  max_joint_velocity: 2.0
+  dt_s: 0.02
+  fault_failed_cycles: 5
+  ease_in_speed_rad_s: 0.3
+  out_of_limit_refuse_margin_rad: 0.15
+  torque_limit: 1000
+  protection_current: 500
+  max_temperature: 70
