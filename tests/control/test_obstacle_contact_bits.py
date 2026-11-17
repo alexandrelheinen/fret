@@ -85,7 +85,9 @@ def test_pad_collides_with_gamma_wall_and_gate() -> None:
     box_jid = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "pick_box_joint"
     )
-    data.qpos[int(model.jnt_qposadr[box_jid]) : int(model.jnt_qposadr[box_jid]) + 3] = [
+    data.qpos[
+        int(model.jnt_qposadr[box_jid]) : int(model.jnt_qposadr[box_jid]) + 3
+    ] = [
         0.5,
         0.5,
         0.5,
@@ -97,9 +99,7 @@ def test_pad_collides_with_gamma_wall_and_gate() -> None:
     data.qvel[:] = 0.0
     mujoco.mj_forward(model, data)
     fromto = np.empty(6)
-    dist = float(
-        mujoco.mj_geomDistance(model, data, pad, stem, 10.0, fromto)
-    )
+    dist = float(mujoco.mj_geomDistance(model, data, pad, stem, 10.0, fromto))
     assert dist < 0.0, f"expected pad–stem penetration, got dist={dist}"
     pad_stem_hits = 0
     for ci in range(data.ncon):

@@ -154,9 +154,7 @@ def _run_gate_benchmark(
         frames_one = [f for f in frames if f.camera_id == kept.camera_id]
         obs_one = pipeline.process(frames_one)
         assert obs_one is not None
-        xy_one = float(
-            np.linalg.norm(obs_one.position_world[:2] - ball[:2])
-        )
+        xy_one = float(np.linalg.norm(obs_one.position_world[:2] - ball[:2]))
         assert xy_one <= max_xy_err_m * 1.5
 
     return {
