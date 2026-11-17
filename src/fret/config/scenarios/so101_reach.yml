@@ -1,0 +1,19 @@
+# SC-v20a — SO-101 empty tabletop reach (command-chain validation).
+#
+# Joint-space A->B on an empty cell. No obstacles. Gripper stays closed.
+# Mirrors omx_reach.yml (SC-v13a): a wide shoulder_pan sweep at a fixed
+# reach posture for the other four joints, well inside all joint limits
+# (shoulder_pan +-1.919, shoulder_lift +-1.745, elbow_flex +-1.69,
+# wrist_flex +-1.658, wrist_roll +-2.74/2.84 rad).
+
+/**:
+  ros__parameters:
+    model: so101
+    scenario_id: so101_reach
+    simulation_dt: 0.02
+    duration: 12.0
+    planning_timeout: 30.0
+    start_configuration: [-1.0, 0.9, -1.0, -0.3, 0.0]
+    goal_configuration: [1.0, 0.9, -1.0, -0.3, 0.0]
+    goal_tolerance: 0.005
+    mjcf: mjcf/so101_tabletop.xml

@@ -19,9 +19,7 @@ from fret.control.kinematics_so101 import (
 
 mujoco = pytest.importorskip("mujoco")
 
-_XML = (
-    "third_party/robotstudio_so101/so101.xml"
-)
+_XML = "third_party/robotstudio_so101/so101.xml"
 _ARM_JOINTS = [
     "shoulder_pan",
     "shoulder_lift",
@@ -34,9 +32,15 @@ _ARM_JOINTS = [
 def _mujoco_oracle():
     model = mujoco.MjModel.from_xml_path(_XML)
     data = mujoco.MjData(model)
-    site_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, "gripperframe")
+    site_id = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_SITE, "gripperframe"
+    )
     qpos_adrs = [
-        int(model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)])
+        int(
+            model.jnt_qposadr[
+                mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)
+            ]
+        )
         for n in _ARM_JOINTS
     ]
     return model, data, site_id, qpos_adrs
@@ -99,7 +103,11 @@ def test_jacobian_matches_mujoco_mj_jacsite() -> None:
         jacr = np.zeros((3, model.nv))
         mujoco.mj_jacSite(model, data, jacp, jacr, site_id)
         cols = [
-            int(model.jnt_dofadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)])
+            int(
+                model.jnt_dofadr[
+                    mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n)
+                ]
+            )
             for n in _ARM_JOINTS
         ]
         J_mj = np.vstack([jacp[:, cols], jacr[:, cols]])

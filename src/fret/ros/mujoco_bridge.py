@@ -338,7 +338,10 @@ def make_mujoco_bridge_core(
             "Use make_dubins_race_bridge_core() for the dual-agent dubins race."
         )
 
-    from fret.robots.registry import UnknownRobotModelError, get_default_registry
+    from fret.robots.registry import (
+        UnknownRobotModelError,
+        get_default_registry,
+    )
 
     try:
         profile = get_default_registry().get_profile(model)
