@@ -234,7 +234,7 @@ onward (`docs/requirements.md`) define the decided target.
 
 | Step | Phase | Focus | Result |
 |---|---|---|---|
-| **v2.0.0** | PR2 | Hardware study + SO-101 MuJoCo simulation twin (new robot variant, pure-NumPy kinematics, position-actuator sim IO, friction grasp) | ✅ (sim twin core; friction-grasp/vision pick-place deferred, see `docs/decisions.md`) |
+| **v2.0.0** | PR2 | Hardware study + SO-101 MuJoCo simulation twin (new robot variant, pure-NumPy kinematics, friction-mode pick-place SC-v20b/c with contact-gated weld, overhead CV) | ✅ |
 | **v2.1.0** | PR3 | Hardware-free test infrastructure: mock servo bus, the real bridge developed TDD against it, recorded replays, fault injection, `fret-hw` servo tools | 🔲 |
 | **v2.2.0** | PR4 | Safety layer: e-stop detection, bridge-side limits, command watchdog, soft start, torque-off on shutdown / hold on fault; validated in sim and on the PR3 mock | 🔲 |
 | **v2.3.0-rc.1** → **v2.3.0** | PR5 | Deployment + bring-up kit (arm64 build incl. the ARCO aarch64 wheel, systemd, udev, camera node, calibration, diagnostics); promoted to `v2.3.0` after the OPS-08 hardware-arrival checklist | 🔲 |
