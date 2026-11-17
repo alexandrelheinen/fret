@@ -6,6 +6,37 @@ than left implicit in a diff. Newest entries at the top.
 
 ---
 
+## 2026-11-17 — A second pre-existing physics flake found during T21 gate evidence
+
+**Context:** While running the full local gate for PR1,
+`tests/control/test_pick_place_clutter.py::test_omx_desk_clutter_physics_places_ball_around_wall`
+failed once (`assert result.straight_line_collides` was `False`) inside a
+full `control` unit-shard run, asserting a result whose `state` was
+`DONE` (the simulated pick-place itself succeeded; only the "the naive
+straight chord should be blocked by the wall" geometric assertion did
+not hold that run).
+
+**Investigation:** Reran the single test in isolation 8 times (5 with the
+BLAS/OpenMP thread pins from the wall-maze fix above, 3 without) — 8/8
+passed. Reran the full `control` unit shard a second time, identical
+command and test order (no randomization plugin is installed) — 151
+passed, 2 xfailed, this test included. The failure did not reproduce
+in either isolation or a second full-shard run.
+
+**Decision:** Treat this as a second pre-existing MuJoCo-physics-timing
+flake (same class as the wall-maze one: a geometric check sitting close
+to a boundary, sensitive to floating-point or scheduling nondeterminism
+inside a chaotic physics simulation), not a regression introduced by
+PR1 — this PR does not touch `pick_place_clutter_sim.py`,
+`pick_place_planning.py`, or any geometry/collision code the test
+exercises. Not fixed in this PR (out of the T4 scope, which named only
+the wall-maze test); recorded here per the "no silent flake" rule
+instead of re-running until a clean log appears. If it recurs, look at
+MuJoCo-internal threading next (the `OMP_NUM_THREADS=1` pin covers
+NumPy/BLAS, not MuJoCo's own engine).
+
+---
+
 ## 2026-11-17 — PR1 robot-registry migration stops short of full FR-SYS-08/11
 
 **Context:** PR1 (`v1.5.0`, robot-model-agnostic core) introduced
