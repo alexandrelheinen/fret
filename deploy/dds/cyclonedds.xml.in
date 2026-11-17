@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- CycloneDDS unicast peers fallback when Zenoh is unavailable (FR-HW-63). -->
+<CycloneDDS>
+  <Domain id="@ROS_DOMAIN_ID@">
+    <General>
+      <AllowMulticast>false</AllowMulticast>
+      <EnableMulticastLoopback>false</EnableMulticastLoopback>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <Peers>
+        <Peer address="127.0.0.1"/>
+        <!-- Add the PC unicast address, e.g. <Peer address="192.168.1.10"/> -->
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>
