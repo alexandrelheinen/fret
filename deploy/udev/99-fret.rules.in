@@ -1,0 +1,15 @@
+# FRET SO-101 device symlinks (FR-HW-58).
+# Capture real serials with scripts/deploy/udev_capture.sh before enabling.
+# MODE 0660, groups dialout (servos) / video (camera). ModemManager ignore.
+
+# Follower servo USB-serial adapter (required).
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{serial}=="FOLLOWER_SERIAL", \
+  SYMLINK+="fret-servo-follower", MODE="0660", GROUP="dialout", ENV{ID_MM_DEVICE_IGNORE}="1"
+
+# Leader servo adapter (reserved; leader arm out of scope).
+# SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{serial}=="LEADER_SERIAL", \
+#   SYMLINK+="fret-servo-leader", MODE="0660", GROUP="dialout", ENV{ID_MM_DEVICE_IGNORE}="1"
+
+# UVC camera.
+SUBSYSTEM=="video4linux", KERNEL=="video*", ATTRS{idVendor}=="CAMERA_VENDOR", ATTRS{idProduct}=="CAMERA_PRODUCT", \
+  ATTR{index}=="0", SYMLINK+="fret-cam0", MODE="0660", GROUP="video"
