@@ -48,3 +48,42 @@ def test_connect_refuses_missing_servo_fr_hw_20() -> None:
     core, _ = make_bridge_core_for_mock(bus=bus)
     with pytest.raises(StsError):
         core.connect()
+
+
+def test_protection_registers_verified_fr_hw_43() -> None:
+    from fret.hardware.sts.registers import (
+        MAX_TEMPERATURE_LIMIT,
+        MAX_TORQUE_LIMIT,
+        PROTECTION_CURRENT,
+    )
+
+    core, bus = make_bridge_core_for_mock()
+    core.connect()
+    safety = core._config.safety
+    for sid in range(1, 7):
+        servo = bus.servo(sid)
+        torque = servo._read_u16(MAX_TORQUE_LIMIT[0])
+        current = servo._read_u16(PROTECTION_CURRENT[0])
+        temp = servo.registers.get(MAX_TEMPERATURE_LIMIT[0], -1)
+        assert torque == safety.torque_limit
+        assert current == safety.protection_current
+        assert temp == safety.max_temperature
+
+
+def test_protection_mismatch_is_connect_error_fr_hw_43() -> None:
+    bus = make_so101_mock()
+    core, _ = make_bridge_core_for_mock(bus=bus)
+
+    # Sabotage readback: after first write, freeze torque limit to wrong value.
+    original_write = bus.servo(1).write_bytes
+
+    def _bad_write(address: int, data: bytes) -> None:
+        original_write(address, data)
+        from fret.hardware.sts.registers import MAX_TORQUE_LIMIT
+
+        if address == MAX_TORQUE_LIMIT[0]:
+            bus.servo(1)._write_u16(MAX_TORQUE_LIMIT[0], 1)
+
+    bus.servo(1).write_bytes = _bad_write  # type: ignore[method-assign]
+    with pytest.raises(StsError, match="torque_limit mismatch"):
+        core.connect()

@@ -4,9 +4,10 @@ Topic contract matches ``MuJoCoBridgeNode`` (FR-HW-25):
 
 * ``/joint_commands`` — ``std_msgs/Float64MultiArray``, BEST_EFFORT
 * ``/joint_states`` — ``sensor_msgs/JointState``, ≥ 50 Hz
+* ``/controller_fault`` — ``std_msgs/Bool`` (FR-HW-46)
 
-v2.1.0 is mock-only (FR-SYS-18): torque enable is refused on real serial
-ports until the PR4 safety layer lands.
+Services (``std_srvs/Trigger``): ``~/enable``, ``~/disable``, ``~/clear``,
+``~/stop`` (category-2 latched hold; never an emergency stop).
 """
 
 from __future__ import annotations
@@ -91,19 +92,13 @@ class BridgeNode:
 
     Subscribes:
         /joint_commands  (``std_msgs/Float64MultiArray``, BEST_EFFORT)
+        /controller_fault (``std_msgs/Bool``)
 
     Publishes:
         /joint_states    (``sensor_msgs/JointState``, default 50 Hz)
 
-    Args:
-        port: Serial port path, ``mock:…``, ``replay:<path>``, or pty.
-        baud_rate: Serial baud rate; must match the hardware configuration.
-        config: Optional pre-loaded :class:`BridgeConfig`.
-        config_path: Optional YAML path for bridge thresholds.
-        calibration_path: Optional calibration YAML.
-        transport: Injected transport (tests); skips ``open_transport``.
-        enable_ros: When False, only construct the core (unit tests).
-        auto_connect: Connect during construction when True.
+    Services:
+        ~/enable, ~/disable, ~/clear, ~/stop (``std_srvs/Trigger``)
     """
 
     def __init__(
@@ -133,7 +128,6 @@ class BridgeNode:
             )
             config = load_bridge_config(cfg_path, calibration_path=cal_path)
         if baud_rate != config.baud_rate:
-            # Constructor baud wins for the transport; keep other thresholds.
             config = BridgeConfig(
                 robot=config.robot,
                 baud_rate=baud_rate,
@@ -151,6 +145,7 @@ class BridgeNode:
                 servo_ids=config.servo_ids,
                 expected_model_number=config.expected_model_number,
                 calibration=config.calibration,
+                safety=config.safety,
             )
         self._config = config
         self._owned_fake: FakeStsDevice | None = None
@@ -191,12 +186,20 @@ class BridgeNode:
     def disable_torque(self) -> None:
         self._core.disable_torque()
 
+    def clear(self) -> None:
+        self._core.clear()
+
+    def stop(self) -> None:
+        """Category-2 latched hold. Not an emergency stop."""
+        self._core.stop()
+
     def _setup_ros(self) -> None:
         import rclpy
         import rclpy.node
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
         from sensor_msgs.msg import JointState
-        from std_msgs.msg import Float64MultiArray
+        from std_msgs.msg import Bool, Float64MultiArray
+        from std_srvs.srv import Trigger
 
         self._rclpy = rclpy
 
@@ -222,9 +225,19 @@ class BridgeNode:
             self._command_callback,
             cmd_qos,
         )
+        self._node.create_subscription(
+            Bool,
+            "/controller_fault",
+            self._controller_fault_callback,
+            10,
+        )
         self._state_pub = self._node.create_publisher(
             JointState, "/joint_states", 10
         )
+        self._node.create_service(Trigger, "~/enable", self._srv_enable)
+        self._node.create_service(Trigger, "~/disable", self._srv_disable)
+        self._node.create_service(Trigger, "~/clear", self._srv_clear)
+        self._node.create_service(Trigger, "~/stop", self._srv_stop)
         rate = float(
             self._node.get_parameter("update_rate")
             .get_parameter_value()  # type: ignore[no-untyped-call]
@@ -235,6 +248,55 @@ class BridgeNode:
             f"BridgeNode ready: port={self.port}, baud={self.baud_rate}, "
             f"rate={rate} Hz, mock_safe={port_is_mock_safe(self.port)}"
         )
+
+    def _srv_enable(self, _request: Any, response: Any) -> Any:
+        try:
+            if self._core.state == BridgeState.DISCONNECTED:
+                self._core.connect()
+            if self._core.state == BridgeState.ENABLED:
+                self._core.renew_enable_lease()
+                response.success = True
+                response.message = "lease renewed"
+                return response
+            self._core.enable_torque()
+            response.success = True
+            response.message = "enabled"
+        except StsError as exc:
+            response.success = False
+            response.message = str(exc)
+        return response
+
+    def _srv_disable(self, _request: Any, response: Any) -> Any:
+        self._core.disable_torque()
+        response.success = True
+        response.message = "disabled; arm goes limp"
+        return response
+
+    def _srv_clear(self, _request: Any, response: Any) -> Any:
+        before = self._core.state
+        self._core.clear()
+        if (
+            before is BridgeState.FAULT
+            and self._core.state is BridgeState.FAULT
+        ):
+            response.success = False
+            response.message = (
+                f"clear refused; fault persists "
+                f"({self._core.diagnostics.fault_reason})"
+            )
+        else:
+            response.success = True
+            response.message = "cleared"
+        return response
+
+    def _srv_stop(self, _request: Any, response: Any) -> Any:
+        self._core.stop()
+        response.success = True
+        response.message = "stop latched (category 2 hold)"
+        return response
+
+    def _controller_fault_callback(self, msg: Any) -> None:
+        self._core.set_controller_fault(bool(getattr(msg, "data", False)))
 
     def _command_callback(self, msg: Any) -> None:
         data = list(getattr(msg, "data", []))
@@ -247,6 +309,8 @@ class BridgeNode:
                 )
             return
         self._core.command_velocity(np.asarray(data[:dof], dtype=np.float64))
+        if self._core.state == BridgeState.ENABLED:
+            self._core.renew_enable_lease()
 
     def _timer_callback(self) -> None:
         from sensor_msgs.msg import JointState
@@ -303,7 +367,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     parser.add_argument(
         "--auto-enable",
         action="store_true",
-        help="Enable torque after connect (mock/pty/replay only)",
+        help="Enable torque after connect",
     )
     parsed, ros_args = parser.parse_known_args(args)
 

@@ -32,4 +32,4 @@ class StsPortError(StsError):
 
 
 class TorqueEnableRefusedError(StsError):
-    """FR-SYS-18: torque enable refused on a real serial port until PR4."""
+    """Torque enable refused without an active SafetySupervisor (FR-SYS-19)."""

@@ -2,7 +2,8 @@
 
 Against a pty fake device (``fret-hw fake-bus``) the bridge reaches
 ``CONNECTED_DISABLED`` and publishes ``/joint_states`` at 50 Hz.
-Torque enable on a real USB serial port is refused until PR4 (FR-SYS-18).
+Torque enable on a real port requires an active ``SafetySupervisor``
+(FR-SYS-19).
 """
 
 from __future__ import annotations

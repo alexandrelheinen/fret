@@ -39,6 +39,7 @@ class FaultKind(Enum):
     OVERLOAD = auto()
     OVERHEAT = auto()
     CABLE_PULL = auto()
+    POWER_CUT = auto()  # FR-HW-40: e-stop / 12 V supply removed
 
 
 @dataclass
@@ -139,11 +140,16 @@ class MockStsBus:
         self._reply_latency_s = reply_latency_s
         self._faults: list[FaultConfig] = []
         self._cable_pulled = False
+        self._power_cut = False
         self._listeners: list[Callable[[bytes, bytes], None]] = []
 
     @property
     def cable_pulled(self) -> bool:
         return self._cable_pulled
+
+    @property
+    def power_cut(self) -> bool:
+        return self._power_cut
 
     def add_listener(self, cb: Callable[[bytes, bytes], None]) -> None:
         self._listeners.append(cb)
@@ -151,31 +157,41 @@ class MockStsBus:
     def inject_fault(self, fault: FaultConfig) -> None:
         if fault.kind == FaultKind.CABLE_PULL:
             self._cable_pulled = True
+        if fault.kind == FaultKind.POWER_CUT:
+            self._power_cut = True
+            for servo in self._servos.values():
+                servo.voltage = 0
+                servo.status |= 0x01
         if (
             fault.kind == FaultKind.MISSING_SERVO
             and fault.servo_id is not None
         ):
             self._servos.pop(fault.servo_id, None)
         if fault.kind == FaultKind.LOW_VOLTAGE and fault.servo_id is not None:
-            servo = self._servos.get(fault.servo_id)
-            if servo is not None:
-                servo.voltage = 50  # 5.0 V
-                servo.status |= 0x01
+            low_v = self._servos.get(fault.servo_id)
+            if low_v is not None:
+                low_v.voltage = 50  # 5.0 V
+                low_v.status |= 0x01
         if fault.kind == FaultKind.OVERLOAD and fault.servo_id is not None:
-            servo = self._servos.get(fault.servo_id)
-            if servo is not None:
-                servo.status |= 0x20
-                servo.load = 900
+            overloaded = self._servos.get(fault.servo_id)
+            if overloaded is not None:
+                overloaded.status |= 0x20
+                overloaded.load = 900
         if fault.kind == FaultKind.OVERHEAT and fault.servo_id is not None:
-            servo = self._servos.get(fault.servo_id)
-            if servo is not None:
-                servo.temperature = 85
-                servo.status |= 0x04
+            overheated = self._servos.get(fault.servo_id)
+            if overheated is not None:
+                overheated.temperature = 85
+                overheated.status |= 0x04
         self._faults.append(fault)
 
     def clear_faults(self) -> None:
         self._faults.clear()
         self._cable_pulled = False
+        self._power_cut = False
+        for servo in self._servos.values():
+            if servo.voltage == 0:
+                servo.voltage = 120
+                servo.status &= ~0x01
 
     def servo(self, servo_id: int) -> MockServo:
         return self._servos[servo_id]
@@ -201,7 +217,7 @@ class MockStsBus:
 
     def handle_request(self, request: bytes) -> bytes:
         """Parse one request packet and return concatenated replies."""
-        if self._cable_pulled:
+        if self._cable_pulled or self._power_cut:
             return b""
         self.tick()
         if len(request) < 6 or request[0] != 0xFF or request[1] != 0xFF:
@@ -314,6 +330,7 @@ class MockStsBus:
             if fault.kind in {
                 FaultKind.MISSING_SERVO,
                 FaultKind.CABLE_PULL,
+                FaultKind.POWER_CUT,
                 FaultKind.LOW_VOLTAGE,
                 FaultKind.OVERLOAD,
                 FaultKind.OVERHEAT,
