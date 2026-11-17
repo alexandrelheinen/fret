@@ -80,13 +80,13 @@ class RobotRegistry:
         self,
         profiles_dir: str | pathlib.Path | None = None,
         *,
-        kinematics_factories: dict[str, Callable[[], KinematicsBackend]]
-        | None = None,
+        kinematics_factories: (
+            dict[str, Callable[[], KinematicsBackend]] | None
+        ) = None,
         controller_factories: dict[str, ControllerFactory] | None = None,
-        transfer_planner_factories: dict[
-            str, Callable[[], TransferPlannerStrategy]
-        ]
-        | None = None,
+        transfer_planner_factories: (
+            dict[str, Callable[[], TransferPlannerStrategy]] | None
+        ) = None,
         sim_io_factories: dict[str, Callable[[], SimIOAdapter]] | None = None,
     ) -> None:
         directory = (
@@ -121,7 +121,9 @@ class RobotRegistry:
 
     def _load_profiles(self, directory: pathlib.Path) -> None:
         if not directory.is_dir():
-            raise FileNotFoundError(f"Robot profiles directory not found: {directory}")
+            raise FileNotFoundError(
+                f"Robot profiles directory not found: {directory}"
+            )
         for path in sorted(directory.glob("*.yml")):
             profile = load_robot_profile(path)
             if profile.key in self._profiles:
@@ -197,7 +199,9 @@ class RobotRegistry:
             )
         return factory
 
-    def get_transfer_planner(self, model: str) -> TransferPlannerStrategy | None:
+    def get_transfer_planner(
+        self, model: str
+    ) -> TransferPlannerStrategy | None:
         """Return the registered transfer-planner strategy for ``model``.
 
         Returns ``None`` when the profile does not declare
@@ -206,7 +210,9 @@ class RobotRegistry:
         profile = self.get_profile(model)
         if profile.transfer_planner is None:
             return None
-        factory = self._transfer_planner_factories.get(profile.transfer_planner)
+        factory = self._transfer_planner_factories.get(
+            profile.transfer_planner
+        )
         if factory is None:
             raise RobotVariantNotRegisteredError(
                 f"No transfer-planner strategy registered for key "
@@ -232,13 +238,17 @@ class RobotRegistry:
 
 _KINEMATICS_FACTORIES: dict[str, Callable[[], KinematicsBackend]] = {}
 _CONTROLLER_FACTORIES: dict[str, ControllerFactory] = {}
-_TRANSFER_PLANNER_FACTORIES: dict[str, Callable[[], TransferPlannerStrategy]] = {}
+_TRANSFER_PLANNER_FACTORIES: dict[
+    str, Callable[[], TransferPlannerStrategy]
+] = {}
 _SIM_IO_FACTORIES: dict[str, Callable[[], SimIOAdapter]] = {}
 
 
 def register_kinematics(
     key: str,
-) -> Callable[[Callable[[], KinematicsBackend]], Callable[[], KinematicsBackend]]:
+) -> Callable[
+    [Callable[[], KinematicsBackend]], Callable[[], KinematicsBackend]
+]:
     """Decorator: register a zero-arg ``KinematicsBackend`` factory under ``key``.
 
     Raises:
@@ -281,7 +291,8 @@ def register_controller(
 def register_transfer_planner(
     key: str,
 ) -> Callable[
-    [Callable[[], TransferPlannerStrategy]], Callable[[], TransferPlannerStrategy]
+    [Callable[[], TransferPlannerStrategy]],
+    Callable[[], TransferPlannerStrategy],
 ]:
     """Decorator: register a zero-arg ``TransferPlannerStrategy`` factory."""
 

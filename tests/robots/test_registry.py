@@ -87,7 +87,9 @@ class TestRegistryIsolatedConstruction:
         assert a.known_keys() == b.known_keys()
         assert a.get_profile("dubins") == b.get_profile("dubins")
 
-    def test_profiles_dir_not_found_raises(self, tmp_path: pathlib.Path) -> None:
+    def test_profiles_dir_not_found_raises(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         with pytest.raises(FileNotFoundError):
             RobotRegistry(tmp_path / "does_not_exist")
 
@@ -126,7 +128,9 @@ class TestVariantNotRegistered:
     def test_missing_kinematics_factory_raises(
         self, tmp_path: pathlib.Path
     ) -> None:
-        _write_yaml(tmp_path / "ghost.yml", dict(_BASE, kinematics="ghost_kin"))
+        _write_yaml(
+            tmp_path / "ghost.yml", dict(_BASE, kinematics="ghost_kin")
+        )
         registry = RobotRegistry(
             tmp_path, kinematics_factories={}, controller_factories={}
         )

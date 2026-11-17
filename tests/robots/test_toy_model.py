@@ -24,7 +24,9 @@ from fret.robots.registry import (
     reset_default_registry,
 )
 
-_FIXTURES_DIR = pathlib.Path(__file__).resolve().parents[1] / "fixtures" / "robots"
+_FIXTURES_DIR = (
+    pathlib.Path(__file__).resolve().parents[1] / "fixtures" / "robots"
+)
 
 
 class _ToyKinematics:
@@ -122,7 +124,10 @@ class TestToyModelEndToEnd:
     def test_unknown_alias_for_toy_model_still_rejected(
         self, _toy_default_registry: None
     ) -> None:
-        from fret.robots.registry import UnknownRobotModelError, get_default_registry
+        from fret.robots.registry import (
+            UnknownRobotModelError,
+            get_default_registry,
+        )
 
         registry = get_default_registry()
         assert registry.resolve_key("toy") == "toy_arm"
