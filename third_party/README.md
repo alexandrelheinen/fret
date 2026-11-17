@@ -1,12 +1,16 @@
-# Third-party git submodules
+# Third-party sources
 
-FRET keeps large robot / world mesh sources as **git submodules** instead of
-vendoring copies under `src/fret/mjcf/assets/`.
+FRET keeps large robot / world mesh sources as **git submodules** where the
+upstream repository is dedicated to the model(s) FRET needs, and as **direct
+vendored copies** (with an `IMPORTED_ASSETS.md` recording the source commit
+and license) where the model lives inside a larger monorepo FRET does not
+want to pull in wholesale.
 
-| Submodule | Upstream | License | Used for |
-| --- | --- | --- | --- |
-| `aws-robomaker-small-warehouse-world` | [aws-robotics/aws-robomaker-small-warehouse-world](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) (`ros1`) | MIT-0 | Warehouse shelves, clutter, props, floor/wall textures |
-| `robotis_mujoco_menagerie` | [ROBOTIS-GIT/robotis_mujoco_menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie) | Apache-2.0 | TurtleBot3 Burger STL meshes + reference MJCF |
+| Source | Kind | Upstream | License | Used for |
+| --- | --- | --- | --- | --- |
+| `aws-robomaker-small-warehouse-world` | submodule | [aws-robotics/aws-robomaker-small-warehouse-world](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world) (`ros1`) | MIT-0 | Warehouse shelves, clutter, props, floor/wall textures |
+| `robotis_mujoco_menagerie` | submodule | [ROBOTIS-GIT/robotis_mujoco_menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie) | Apache-2.0 | TurtleBot3 Burger + OM-X/OMY STL meshes and reference MJCF |
+| `robotstudio_so101` | vendored (see its `IMPORTED_ASSETS.md`) | [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/main/robotstudio_so101) | Apache-2.0 | SO-101 STL meshes and reference MJCF |
 
 ## Setup
 
