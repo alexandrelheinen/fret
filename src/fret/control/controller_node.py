@@ -68,15 +68,20 @@ class ControllerNode:
     ``rclpy.node.Node`` and wires in timers, subscriptions, and publishers.
 
     Args:
-        model: Robot model name.  Accepts ``"open_manipulator_x"``;
-            models.
-        config_path: Path to the controller YAML configuration file
-            (e.g. ``config/controllers/open_manipulator_x.yml``) or a directory.  If
-            the file cannot be found or parsed, default values are used
-            silently.
+        model: Robot model name (resolved against the robot registry;
+            FR-SYS-08).
+        config_path: Path to the controller YAML configuration file (e.g.
+            ``config/controllers/open_manipulator_x.yml``) or the
+            directory containing it. If the file cannot be found or
+            parsed, default values are used silently.
+        dof: Degrees of freedom for ``model`` (from the robot profile).
+            Defaults to 4 (OM-X) for backward compatibility with existing
+            direct construction.
     """
 
-    def __init__(self, model: str, config_path: str) -> None:
+    def __init__(
+        self, model: str, config_path: str, dof: int = _DEFAULT_ARM_DOF
+    ) -> None:
         self._model = model
         self._state: _NodeState = _NodeState.IDLE
         self._fault_threshold: float = _DEFAULT_FAULT_THRESHOLD
@@ -85,7 +90,7 @@ class ControllerNode:
         self._max_joint_velocity: float = _DEFAULT_MAX_VEL
         self._update_rate: float = _DEFAULT_RATE
         self._kp: float = _DEFAULT_KP
-        self._dof: int = _DEFAULT_ARM_DOF
+        self._dof: int = int(dof)
         self._current_command: npt.NDArray[np.float64] = np.zeros(
             self._dof, dtype=np.float64
         )
@@ -94,24 +99,31 @@ class ControllerNode:
         self._tick_count: int = (
             0  # incremented every compute call; drives waypoint advancement
         )
-        self._load_config(config_path)
+        self._load_config(config_path, model=model)
 
     # ------------------------------------------------------------------
     # Configuration
     # ------------------------------------------------------------------
 
-    def _load_config(self, config_path: str) -> None:
+    def _load_config(self, config_path: str, *, model: str) -> None:
         """Load controller parameters from a YAML file if one is found.
 
         Silently falls back to built-in defaults on any error.
 
         Args:
-            config_path: Path to the YAML file or a directory.  If a
-                directory is given, ``open_manipulator_x.yml`` is tried inside it.
+            config_path: Path to the YAML file or a directory. If a
+                directory is given, ``<model>``'s controller YAML
+                (resolved through the robot registry) is tried inside it.
+            model: Robot model name, used only to pick the YAML file name
+                when ``config_path`` names a directory.
         """
         path = pathlib.Path(config_path)
         if path.is_dir():
-            path = path / "open_manipulator_x.yml"
+            from fret.robots.registry import get_default_registry
+
+            profile = get_default_registry().get_profile(model)
+            filename = pathlib.Path(profile.controller_config).name
+            path = path / filename
         if not path.is_file():
             return
         import yaml
@@ -398,7 +410,7 @@ class ControllerRosNode:  # pragma: no cover
         from fret.control.state_estimator import StateEstimator
 
         # Initialise ROS 2 node (must be the first super() call)
-        rclpy.node.Node.__init__(self, "controller_node")
+        rclpy.node.Node.__init__(self, "controller_node")  # type: ignore[arg-type]
 
         self._logic = make_controller_node(
             model=model, config_path=config_path
@@ -406,12 +418,12 @@ class ControllerRosNode:  # pragma: no cover
         self._model = model
         self._kinematics = Kinematics(model=model)
         self._state_estimator = StateEstimator(
-            node=self,
+            node=self,  # type: ignore[arg-type]
             kinematics=self._kinematics,
         )
 
         # Reliable QoS for trajectory (guaranteed delivery)
-        traj_qos = QoSProfile(
+        traj_qos = QoSProfile(  # type: ignore[no-untyped-call]
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -424,7 +436,7 @@ class ControllerRosNode:  # pragma: no cover
         )
 
         # Best-effort QoS for commands (high-frequency, loss-tolerant)
-        cmd_qos = QoSProfile(
+        cmd_qos = QoSProfile(  # type: ignore[no-untyped-call]
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
             depth=1,
@@ -542,8 +554,12 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
     loader = rclpy.create_node("_controller_param_loader")
     loader.declare_parameter("model", "open_manipulator_x")
-    model = loader.get_parameter("model").get_parameter_value().string_value
-    loader.destroy_node()
+    model = (
+        loader.get_parameter("model")  # type: ignore[no-untyped-call]
+        .get_parameter_value()
+        .string_value
+    )
+    loader.destroy_node()  # type: ignore[no-untyped-call]
 
     config_path = str(controllers_dir)
 
@@ -554,7 +570,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
         pass
     finally:
         node.destroy_node()
-        if rclpy.ok():
+        if rclpy.ok():  # type: ignore[attr-defined]
             rclpy.shutdown()
 
 
@@ -562,24 +578,28 @@ def make_controller_node(
     model: str,
     config_path: str | pathlib.Path,
 ) -> ControllerNode | Any:
-    """Build a model-appropriate Level-3 controller (FR-SYS-01).
-
-    Dispatches to the Jacobian ``ControllerNode`` for arm models.
+    """Build a model-appropriate Level-3 controller through the robot
+    registry (FR-SYS-01, FR-SYS-08).
 
     Args:
-        model: Robot model name (``"open_manipulator_x"``).
+        model: Robot model name or alias (resolved via the robot registry).
         config_path: Path to controller YAML or the controllers directory.
 
     Returns:
-        ``ControllerNode`` instance.
+        A controller instance built by the registered
+        :class:`fret.robots.protocols.ControllerFactory` for ``model``.
 
     Raises:
-        ValueError: If ``model`` is not recognised.
+        fret.robots.registry.UnknownRobotModelError: If ``model`` is not a
+            known key or alias.
+        fret.robots.registry.RobotVariantNotRegisteredError: If no
+            controller factory is registered for ``model``'s kinematics key.
     """
-    path = str(config_path)
-    if model in {"open_manipulator_x", "omx"}:
-        return ControllerNode(model=model, config_path=path)
-    raise ValueError(f"Unknown controller model: {model!r}")
+    from fret.robots.registry import get_default_registry
+
+    registry = get_default_registry()
+    factory = registry.get_controller_factory(model)
+    return factory(model, str(config_path))
 
 
 def controller_update_rate_hz(logic: Any, model: str) -> float:
@@ -626,7 +646,7 @@ def _make_controller_ros_node(  # pragma: no cover
     """
     import rclpy.node
 
-    class _ConcreteControllerNode(ControllerRosNode, rclpy.node.Node):  # type: ignore[misc]
+    class _ConcreteControllerNode(ControllerRosNode, rclpy.node.Node):
         """Concrete class combining ControllerRosNode with rclpy.node.Node."""
 
         def __init__(self) -> None:
