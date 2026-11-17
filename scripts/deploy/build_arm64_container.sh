@@ -44,11 +44,27 @@ info "Running MuJoCo-free unit shards inside the arm64 image"
 set +e
 docker run --rm --platform linux/arm64 "${IMAGE_TAG}" bash -lc '
   set -Eeuo pipefail
+  # ROS setup.bash references optional unset vars (AMENT_TRACE_SETUP_FILES).
+  set +u
   source /opt/ros/jazzy/setup.bash
+  set -u
   uname -m | tee /tmp/arch.txt
   test "$(cat /tmp/arch.txt)" = "aarch64"
-  python3 -c "import arco, platform; assert platform.machine()==\"aarch64\"; print(\"arco\", arco.__version__)"
-  python3 -m pytest tests/test_import_graph_no_mujoco.py tests/deploy tests/hardware/test_diag_pi.py tests/hardware/test_diag_cli.py \
+  python3 - <<'PY'
+import arco, importlib.metadata, platform
+assert platform.machine() == "aarch64"
+ver = getattr(arco, "__version__", None) or importlib.metadata.version("arco")
+print("arco", ver)
+import fret  # noqa: F401
+print("fret_import_ok")
+PY
+  # Prefer apt usb_cam evidence for the PR driver choice.
+  apt-cache policy ros-jazzy-usb-cam ros-jazzy-v4l2-camera 2>/dev/null \
+    | tee /tmp/camera-drivers.txt || true
+  python3 -m pytest tests/test_import_graph_no_mujoco.py tests/deploy \
+    tests/hardware/test_diag_pi.py tests/hardware/test_diag_cli.py \
+    tests/hardware/test_diag_load.py tests/hardware/test_sd_notify_cadence.py \
+    tests/integration/test_so101_hw_scenario_mock.py \
     -p no:launch_testing -p no:launch_ros -q
 '
 SMOKE_RC=$?
