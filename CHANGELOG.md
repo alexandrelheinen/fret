@@ -7,6 +7,25 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+### Added
+
+- Safety layer (`SafetySupervisor`): command watchdog, limit/step clamp,
+  enable lease, latched category-2 `~/stop`, soft start, protection
+  register write/readback, hold-on-fault, bus power-loss → `FAULT`
+  (FR-HW-40..47, FR-HW-69, FR-HW-70). Validated on mock bus + MuJoCo twin.
+- Mock `POWER_CUT` fault; bridge services `~/enable`/`~/disable`/
+  `~/clear`/`~/stop`; `/controller_fault` handling.
+- `docs/hardware/safety.md` (case a e-stop primary; case b fallback).
+
+### Removed
+
+- FR-SYS-18 mock-only torque interlock (replaced by FR-SYS-19: active
+  supervisor required for real-port enable).
+
+### Known gaps
+
+- Not validated on real hardware (T4).
+
 ## [2.1.0] - 2026-11-17
 
 ### Added

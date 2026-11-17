@@ -344,26 +344,49 @@ servo answers on the bus, and shall verify the new id by PING.
 
 **FR-HW-34:** Rigid camera mount (no recalibration drift between runs).
 
-### Safety (verified: PR4)
+### Safety (verified: PR4 / v2.2.0 — mock + sim only)
 
-**FR-HW-40:** Hardware e-stop on the 12 V servo line (physical, case a per
-`ROADMAP.md` Q9).
+**FR-HW-40:** Docs describe both stop configs (physical e-stop case a
+primary; case b fallback). Bus power loss → `FAULT` within 5 cycles
+(100 ms); never auto re-enable when power returns.
 
-**FR-HW-41:** 100 ms command watchdog: torque off / hold on bridge stall.
+**FR-HW-41:** 100 ms command watchdog in `ENABLED`: hold last measured
+position; report `watchdog` in diagnostics; resume only on a new valid
+command.
 
-**FR-HW-42:** Joint limits enforced in the bridge, independent of the
-servo's own limit behavior.
+**FR-HW-42:** Before every write, clamp goals to profile ∩ calibrated
+range minus margin (default 0.03 rad); limit per-cycle step by
+`max_joint_velocity × dt`; count clamps in diagnostics.
 
-**FR-HW-43:** Servo torque/current/temperature protection enabled.
+**FR-HW-43:** On connect, write and read back torque limit, protection
+current, and over-temperature thresholds; mismatch is a connect error.
 
-**FR-HW-44:** Soft start at the measured pose (no snap-to-command on
-connect).
+**FR-HW-44:** Soft start at the measured pose (goals = measured, then
+torque on). On clean shutdown (SIGINT/SIGTERM), disable torque and log
+that the arm goes limp. (Integrity rejects for bad checksum / wrong id /
+length / timeout are counted — PR3.)
 
-**FR-HW-45:** Torque off on clean shutdown; safe stop (hold) on fault.
+**FR-HW-45:** After N consecutive failed cycles (default 5) enter
+`FAULT`; overload/overheat status → `FAULT` immediately. Hold position
+on fault (D9); torque off only on shutdown or explicit `disable`.
 
-**FR-HW-46:** Protocol checksum validation and stale-frame rejection.
+**FR-HW-46:** When `/controller_fault` is true or the bridge enters
+`FAULT`, stop integrating and hold; require explicit `clear` then
+`enable` to move again.
 
-**FR-HW-47:** Honor `/controller_fault` (halt actuation).
+**FR-HW-47:** Accept motion only while an enable lease is fresh (default
+0.5 s); expired lease holds like FR-HW-41.
+
+**FR-HW-69:** The same `SafetySupervisor` runs in the SO-101 MuJoCo
+position-actuator IO; safety scenarios pass on the twin and the mock bus
+with the same expected outcomes.
+
+**FR-HW-70:** `~/stop` performs a controlled stop to hold (category 2),
+latches until `clear`, and is never named an emergency stop.
+
+**FR-SYS-19:** The PR3 mock-only interlock (FR-SYS-18) is removed; the
+bridge may enable on a non-mock port only when an active
+`SafetySupervisor` is present.
 
 ### Deployment (verified: PR5, OPS-06/07)
 
@@ -411,10 +434,9 @@ v2.1.0; state transitions in PR4).
 shall start the bridge and the controller; against a pty fake device it
 shall reach `CONNECTED_DISABLED` and publish `/joint_states` at 50 Hz.
 
-**FR-SYS-18:** (v2.1.0) The bridge shall refuse to enable torque unless
-the port is a mock, a replay, or a pty fake device, logging that the
-safety layer (PR4) is required; PR4 removes this interlock in the same
-commit that lands the safety tests.
+**FR-SYS-18:** (v2.1.0, removed in v2.2.0) The bridge refused to enable
+torque unless the port was a mock, replay, or pty fake device. Superseded
+by FR-SYS-19.
 
 ---
 
