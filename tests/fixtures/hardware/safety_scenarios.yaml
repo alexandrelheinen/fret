@@ -1,0 +1,25 @@
+# Shared safety scenarios for mock bus and MuJoCo twin parity (FR-HW-69).
+scenarios:
+  - id: watchdog_hold
+    description: No command for >100 ms holds measured pose
+    expect:
+      watchdog: true
+      holding: true
+  - id: limit_clamp
+    description: Out-of-range goal is clamped inside effective limits
+    expect:
+      clamp_events_min: 1
+  - id: lease_expiry
+    description: Expired enable lease holds like watchdog
+    expect:
+      lease_expired: true
+      holding: true
+  - id: soft_start
+    description: Soft-start goals equal measured pose
+    expect:
+      soft_start_equal: true
+  - id: stop_latch
+    description: Latched stop holds until clear
+    expect:
+      stop_latched: true
+      holding: true
