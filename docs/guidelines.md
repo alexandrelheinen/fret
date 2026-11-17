@@ -29,7 +29,7 @@ src/fret/
 ├── urdf/                    ← robot description files (XACRO/URDF)
 ├── mesh/                    ← mesh generator scripts
 ├── mjcf/                    ← MuJoCo scene files (v1.0+)
-├── launch/                  ← sitl.py, mujoco.py, sim.py, hardware.py
+├── launch/                  ← sitl.py, mujoco.py, hardware.py
 └── config/                  ← parameter files (YAML)
 ```
 

@@ -27,6 +27,63 @@ Layers: `SYS`, `SCN`, `PLN`, `CTL`, `SIM`, `VIS`, `HW`
 interact with graspable objects. Dubins / TB3 scenarios shall not depend on
 ball vision.
 
+**FR-SYS-06:** (v1.5.0) When a scenario YAML sets `model: <key>`, the system
+shall resolve the robot profile through the registry, accepting the
+canonical key and every alias declared in the profile, and shall raise a
+typed error naming the known keys when the key is unknown.
+
+**FR-SYS-07:** (v1.5.0) When a robot profile is loaded, the system shall
+validate it against the schema (required: `name`, `kind` in {`mobile`,
+`arm`}, `joint_names`, `joint_limits`, `kinematics`, `controller_config`,
+`planning_config`; optional: `aliases`, `mjcf`, `vision_config`,
+`grasp_modes`, `transfer_planner`, `uses_vision`) and reject a profile with a
+missing or ill-typed field with a message naming the field and file.
+
+**FR-SYS-08:** (v1.5.0) When any module needs kinematics, a controller, a
+transfer-planner strategy, a simulation I/O adapter or a default vision
+config for a model, it shall obtain it from the registry; no module outside
+`src/fret/robots/` and `config/robots/` shall compare a model name to a
+string literal. As of `v1.5.0` this holds for `control/kinematics.py`,
+`config_loader.py`, `sitl_config.py` and `control/controller_node.py`;
+`control/pick_place_planning.py`, `control/pick_place_vision.py`,
+`control/pick_place_clutter_sim.py` and `ros/mujoco_bridge.py` are a tracked
+follow-up (`docs/decisions.md`).
+
+**FR-SYS-09:** (v1.5.0) When a new model is added by creating one profile
+YAML and registering its variants in one module under
+`src/fret/robots/variants/`, the system shall run that model's scenarios
+without edits to `control/`, `planning/`, `ros/`, `scene/`, `vision/` or
+`launch/`. (Verified by a test-only toy model.)
+
+**FR-SYS-10:** (v1.5.0) When FRET runs from an installed workspace with the
+working directory outside the repository, every config and MJCF asset shall
+resolve through the package share, never through a path relative to the
+source tree or CWD. (Menagerie third-party assets are a tracked follow-up;
+see `docs/decisions.md`.)
+
+**FR-SYS-11:** (v1.5.0, interfaces only) `fret.robots.protocols.RobotIO` is
+the intended seam for driving the pick-and-place FSM independently of
+MuJoCo; wiring the FSM through it is a tracked follow-up
+(`docs/decisions.md`).
+
+**FR-SYS-12:** (v1.5.0) Behavior preservation: for every scenario that
+passed in the OPS-00 baseline, the same seed shall produce the same
+pass/fail verdict and the same FSM terminal state after the change.
+
+**FR-SYS-13:** (v1.5.0) The documentation outside `docs/robots/` and
+`docs/hardware/` shall not name a specific hardware target (Raspberry Pi,
+Arduino, Nema, Micro-ROS) as an assumption of the software; FR-HW-01..03
+below are marked "superseded in v2.0, pending redefinition" without
+renumbering.
+
+**FR-SYS-14:** (v1.5.0) The package version in `src/fret/package.xml` and
+`pyproject.toml` shall be equal, and a unit test shall fail when they
+differ.
+
+**FR-SYS-15:** (v1.5.0) When the ROS `planner_node` starts with default
+parameters under rclpy Jazzy, it shall not crash (regression for the
+`BYTE_ARRAY` inference recorded in `docs/dev-environment.md`).
+
 ---
 
 ## Scene Acquisition
@@ -166,6 +223,11 @@ pick target; vision must observe the settled ball.
 
 ## Hardware (v2.x)
 
+> **Superseded in v2.0, pending redefinition** (FR-SYS-13, `v1.5.0`): these
+> three described an earlier Arduino + Micro-ROS plan. The v2.x hardware
+> target is undefined as of `v1.5.0`; see `docs/hardware/README.md`. Not
+> renumbered.
+
 **FR-HW-01:** Relay `/joint_commands` to Arduino via Micro-ROS.
 
 **FR-HW-02:** Publish encoder feedback on `/joint_states` ≥ 50 Hz.
@@ -230,6 +292,7 @@ Rolling ball, pickability, improved container; single-ball cadence provisional.
 |---|---|---|
 | FR-SYS-01–04 | all | Launch smoke tests |
 | FR-SYS-05 | v1.3+ | Vision / scenario review |
+| FR-SYS-06–15 | v1.5.0 | `tests/robots/`, `tests/test_resource_resolution.py`, `tests/test_version_consistency.py`, `tests/test_docs_hardware_neutral.py`, `tests/planning/test_planner_node_ros.py` |
 | FR-SCN-01–04 | v1.1+ | `tests/scene/` |
 | FR-PLN-01–07 | v1.1+ | `tests/planning/`, SC-v11+ |
 | FR-CTL-01–06 | v1.1+ | `tests/control/` |
@@ -242,4 +305,4 @@ Rolling ball, pickability, improved container; single-ball cadence provisional.
 | FR-VIS-01–04 | v1.3 | `tests/vision/`, selection doc |
 | FR-VIS-05–06 | v1.4 | SC-v16 physics smoke |
 | FR-VIS-07–08 | v1.5 | SC-v17 |
-| FR-HW-01–03 | v2.x | HITL smoke (future) |
+| FR-HW-01–03 | superseded in v2.0, pending redefinition | `tests/hardware/test_bridge_node.py` (strict xfail; stub only) |

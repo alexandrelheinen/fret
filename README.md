@@ -71,8 +71,15 @@ showcase targets.
 - **Computer vision** (`fret.vision`) serves **manipulators only**; TB3 / Dubins
   never consumes ball tracking. Place/dispenser poses stay known scenario
   parameters. Architecture: [docs/vision/](docs/vision/).
-- **Hardware HITL** is a future era — see [docs/releases.md](docs/releases.md).
+- **Hardware HITL** is a future era, target undefined as of v1.5.0 — see
+  [docs/releases.md](docs/releases.md) and [docs/hardware/](docs/hardware/README.md).
 - **Simulator-specific code** lives only in `fret.ros` and `launch/`.
+- **Robot model is a configuration choice** (since v1.5.0): a scenario names a
+  `model:`, a profile YAML under `config/robots/` describes it, and per-model
+  behavior (kinematics, controller, …) comes from a registry of variants —
+  not string-literal dispatch. Full design:
+  [docs/robot-model-agnostic.md](docs/robot-model-agnostic.md); how to add a
+  model: [docs/robots/README.md](docs/robots/README.md).
 - **Configuration over code:** every tunable algorithm parameter (planning clearance,
   controller gains, trajectory limits, replanning thresholds, Dubins vehicle
   margins, vision HSV ranges, and similar) **must live in YAML under `src/fret/config/`**.

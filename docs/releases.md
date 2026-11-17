@@ -31,7 +31,7 @@ grouped by era:
 | **v1.2.4** | OpenMANIPULATOR-Y | 6-DOF reach → pick-place → clutter | MuJoCo | ✅ |
 | **v1.3** | Vision algorithms | Ball track pipeline + algorithm selection | Fixtures (+ optional MuJoCo frames) | ✅ |
 | **v1.4** | OM-X / OMY + CV | MuJoCo cameras → replace hardcoded ball pose | MuJoCo + CV | ✅ |
-| **v1.5** | Dynamic manipulation | Rolling ball, pickability, industrial place | MuJoCo + CV | 🔲 |
+| **v1.5.0** | Robot-model-agnostic core | Registry-based robot dispatch; hardware-neutral docs; hygiene | MuJoCo | ✅ |
 | **v2.x** | Hardware HITL | Modular bridge → cameras → arm → full loop | Hardware | 🔲 |
 | **v3.0** | Product | Definitive integrated system | Sim + HW | ○ |
 
@@ -60,7 +60,7 @@ Product robots are drawn from the **ROBOTIS MuJoCo Menagerie** submodule
 | Ball pose | From vision; no hardcoded ball / `pick_xy` in release paths |
 | Place / dispenser | **Known scenario parameter** (fixed fixture) — not required from CV |
 | Primary algorithm | **HSV blob + table-plane lift** (OpenCV); contracts remain swappable |
-| v1.5 ball cadence (provisional) | **One ball at a time** for the release scenario; multi-ball deferred |
+| Dynamic-ball cadence (provisional, simulation backlog) | **One ball at a time** for the release scenario; multi-ball deferred |
 
 ---
 
@@ -179,16 +179,30 @@ wall-contact FAULT, physical OM-X grasp adhesion, and Ø 40 mm pick ball.
 
 ---
 
-## v1.5 — Dynamic ball + industrial place
+## v1.5.0 — Robot-model-agnostic core ✅
 
-### Goal
+**Decided by Alexandre, 2026-11-17 (Q2):** `v1.5.0` is the last minor of
+major 1. The per-model string-literal dispatch across `control/`,
+`planning/`, `ros/` and `launch/` is replaced by a robot registry
+(`fret.robots`): a scenario names a `model:`, a profile YAML
+(`config/robots/<model>.yml`) describes it, and per-model behavior comes
+from a registry of variants. Config/MJCF resources resolve through the
+package share from any working directory. Hardware assumptions are removed
+from documentation outside `docs/robots/` and `docs/hardware/`
+(FR-SYS-13); the v2.x hardware target is undefined pending redefinition.
+Hygiene: version alignment, Gazebo legacy removal (the backend could not
+run — no `urdf/` directory existed), the unregistered `bridge_node`
+launch reference, and the known `docs/dev-environment.md` breakages.
 
-Upgrade the manipulation cell toward a more **industrial** workflow: a ball
-**rolls on the floor** and stops at a **random** pose; vision **detects** it and
-labels it **pickable or not**; if pickable, run the existing pipeline into an
-improved **container / dispenser**. Asset research is part of the release.
+Full spec: [robot-model-agnostic.md](robot-model-agnostic.md).
 
-### Scope
+### Deferred to a simulation backlog
+
+The scope formerly planned for "v1.5" — a ball that rolls to a random rest
+pose, a pickability classifier, and an improved place container/dispenser
+(scenario `SC-v17`, requirements `FR-VIS-07`/`FR-VIS-08`) — is **not** part
+of `v1.5.0`. It moves to a simulation backlog, to be scheduled as its own
+release once picked up again:
 
 | Item | Detail |
 |---|---|
@@ -196,32 +210,8 @@ improved **container / dispenser**. Asset research is part of the release.
 | Classification | Pickable vs reject (workspace, size, rest stability — exact rules in FR-VIS) |
 | Place geometry | Survey Menagerie / AWS / other assets; ship improved container mesh |
 | Cadence | **Provisional:** one ball per cycle for the release scenario; multi-ball optional stretch |
-| TB3 | Still out of CV scope |
-
-### Scenario IDs
-
-| ID | Description |
-|---|---|
-| SC-v17 | Dynamic ball delivery + pickability + place into improved container |
-
-### Acceptance criteria
-
-| # | Criterion |
-|---|---|
-| V15-1 | Written asset survey (container / dispenser candidates) with chosen mesh |
-| V15-2 | Ball released / rolled; final XY not scripted as the pick target |
-| V15-3 | Vision emits pickability; non-pickable balls do not start grasp |
-| V15-4 | Pickable balls are placed in the improved container under physics |
-| V15-5 | Documented decision: single-ball release vs multi-ball (default: single) |
-
-### Implementation tasks
-
-| ID | Task |
-|---|---|
-| T15-01 | Asset research note under `docs/vision/` + MJCF container upgrade |
-| T15-02 | Ball emitter / roll-out mechanism in MJCF |
-| T15-03 | Pickability classifier + SC-v17 scenario + tests |
-| T15-04 | Cadence decision recorded; multi-ball deferred or stretch-tagged |
+| Scenario ID | `SC-v17` |
+| Requirements | `FR-VIS-07`, `FR-VIS-08` |
 
 ---
 
@@ -234,15 +224,18 @@ After **v1.5** is validated in simulation, bring the same contracts onto
 
 | Step | Focus | Notes |
 |---|---|---|
-| **v2.0** | Low-level target bridge | Micro-ROS / serial; `/joint_commands` ↔ drivers; encoders → `/joint_states` |
+| **v2.0** | Low-level target bridge | Transport TBD; `/joint_commands` ↔ drivers; feedback → `/joint_states` |
 | **v2.1** | Real image pipeline | Same `fret.vision` interfaces; real camera drivers |
 | **v2.2** | Real manipulator actuation | Closed-loop joint tracking on hardware |
 | **v2.3** | Full HITL pick-and-place | Vision + plan + control + hardware together |
 
-Targets (indicative): Raspberry Pi 5 + Arduino Mega + Nema-class actuators;
-exact BOM frozen when v2.0 planning opens.
+The hardware target (robot, bus, protocol) is **undefined as of v1.5.0**;
+FR-HW-01..03 are marked superseded in v2.0, pending redefinition
+(`docs/requirements.md`). It is decided and recorded under
+[`docs/hardware/`](hardware/README.md) when hardware planning for the
+relevant phase opens — see [roadmap.md](roadmap.md) for the current plan.
 
-Module stub today: [modules/hardware.md](modules/hardware.md).
+Module stub today: [hardware/bridge.md](hardware/bridge.md).
 
 ### Acceptance criteria (era-level)
 
@@ -280,7 +273,7 @@ this repository documentation** — see [roadmap.md](roadmap.md).
 | `v1.4.2` | ARCO v0.3.7 MPCC + full-arm obstacle contacts | ✅ |
 | `v1.4.3` | OMY APPROACH_PICK plans around colliding place-bin shell | ✅ |
 | `v1.4.4` | ARCO v0.5.0 compiled core (Rust planners, maps, controllers); `omy_pick_place` out of the release render matrix | ✅ |
-| `v1.5.0` | Dynamic ball + industrial place | 🔲 |
+| `v1.5.0` | Robot-model-agnostic core (last minor of major 1); dynamic-ball scope deferred to a simulation backlog | ✅ |
 | `v2.0.0+` | Hardware line (modular) | 🔲 |
 | `v3.0.0` | Definitive product (north-star) | ○ |
 

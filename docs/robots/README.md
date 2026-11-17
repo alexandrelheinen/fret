@@ -23,3 +23,32 @@ Unit physics sandboxes (no race): `turtlebot3_unit` via
 `fret.simulation.TurtleBot3UnitRobot` (FR-SIM-11); procedural `diffdrive_unit`
 remains as a lightweight twin. External MJCF sources: ROBOTIS MuJoCo Menagerie
 and AWS RoboMaker warehouse (git submodules).
+
+## Adding a model (since v1.5.0)
+
+Full design: [robot-model-agnostic.md](../robot-model-agnostic.md). Per-model
+behavior is resolved through `fret.robots.registry.RobotRegistry`
+(FR-SYS-06, FR-SYS-08), not through string-literal dispatch in `control/`,
+`planning/`, `ros/`, `scene/`, `vision/` or `launch/` (FR-SYS-09). Adding a
+model means:
+
+1. **One profile YAML** under `src/fret/config/robots/<model>.yml`, validated
+   against the schema in `fret.robots.profile` (FR-SYS-07): `name`, `kind`
+   (`mobile` or `arm`), `joint_names`, `joint_limits`, `kinematics`,
+   `controller_config`, `planning_config`, plus any `aliases`, `mjcf`,
+   `vision_config`, `grasp_modes`, `transfer_planner`, `uses_vision`.
+2. **One variant module** under `src/fret/robots/variants/<model>.py`,
+   registering factories under the profile's `kinematics` key with
+   `@register_kinematics(...)` and, for arm models with a ROS controller,
+   `@register_controller(...)`.
+3. Import the new variant module from
+   `src/fret/robots/variants/__init__.py`.
+
+`tests/robots/test_toy_model.py` proves this end to end with a test-only
+toy 2-DOF arm, through the real `Kinematics` facade and
+`make_controller_node`, with zero edits outside `fret.robots` and the test
+itself.
+
+As of `v1.5.0`, `TransferPlannerStrategy`, `SimIOAdapter` and `RobotIO`
+are defined protocols (`fret.robots.protocols`) that not every call site
+consumes yet; `docs/decisions.md` tracks the remaining migration.
