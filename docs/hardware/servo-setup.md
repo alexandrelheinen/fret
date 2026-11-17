@@ -1,8 +1,9 @@
 # Servo setup and calibration
 
-Feetech STS3215 tools for the SO-101 follower. **v2.1.0 is mock-only**:
-do not enable torque on a real USB serial adapter with this release
-(`FR-SYS-18`). Use `fret-hw fake-bus` or `port:=mock:so101`.
+Feetech STS3215 tools for the SO-101 follower. Prefer
+`fret-hw fake-bus` or `port:=mock:so101` until OPS-08. Real-port torque
+enable requires an active `SafetySupervisor` (`FR-SYS-19`). See
+[safety.md](safety.md).
 
 ## Install
 
