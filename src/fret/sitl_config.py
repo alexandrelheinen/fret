@@ -226,6 +226,13 @@ def mjcf_path(model: str, scenario: str) -> pathlib.Path:
         from fret.mjcf.so101 import ensure_so101_tabletop_mjcf
 
         return ensure_so101_tabletop_mjcf()
+    if model in {"so101", "so-101", "so_arm101"} and scenario in {
+        "so101_pick_place",
+        "pick_place",
+    }:
+        from fret.mjcf.so101 import ensure_so101_pick_place_mjcf
+
+        return ensure_so101_pick_place_mjcf()
     raise ValueError(
         f"Unsupported model/scenario combination: model={model!r}, "
         f"scenario={scenario!r}"

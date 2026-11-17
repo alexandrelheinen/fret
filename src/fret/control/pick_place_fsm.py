@@ -31,6 +31,11 @@ GRIPPER_CLOSED: float = 0.006
 OMY_GRIPPER_OPEN: float = 0.0
 OMY_GRIPPER_CLOSED: float = 1.05
 
+# SO-101 revolute gripper: larger angle ⇒ wider jaw. Soft pinch for Ø 40 mm
+# (~37–43 mm tip gap); wide open clears > 50 mm (FR-HW-15).
+SO101_GRIPPER_OPEN: float = 1.0
+SO101_GRIPPER_CLOSED: float = 0.40
+
 
 @dataclass(frozen=True)
 class GripperSpec:
@@ -42,6 +47,9 @@ class GripperSpec:
 
 OMX_GRIPPER = GripperSpec(open=GRIPPER_OPEN, closed=GRIPPER_CLOSED)
 OMY_GRIPPER = GripperSpec(open=OMY_GRIPPER_OPEN, closed=OMY_GRIPPER_CLOSED)
+SO101_GRIPPER = GripperSpec(
+    open=SO101_GRIPPER_OPEN, closed=SO101_GRIPPER_CLOSED
+)
 
 
 class PickPlaceState(enum.IntEnum):
