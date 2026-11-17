@@ -17,7 +17,9 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _REAL_PROFILES_DIR = _REPO_ROOT / "src" / "fret" / "config" / "robots"
 
 
-def _write_profile(tmp_path: pathlib.Path, name: str, data: dict) -> pathlib.Path:
+def _write_profile(
+    tmp_path: pathlib.Path, name: str, data: dict
+) -> pathlib.Path:
     path = tmp_path / name
     path.write_text(yaml.safe_dump(data), encoding="utf-8")
     return path

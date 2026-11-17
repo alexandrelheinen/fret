@@ -91,7 +91,10 @@ def _require(data: dict[str, Any], field_name: str, path: pathlib.Path) -> Any:
 
 
 def _require_type(
-    value: Any, expected: type | tuple[type, ...], field_name: str, path: pathlib.Path
+    value: Any,
+    expected: type | tuple[type, ...],
+    field_name: str,
+    path: pathlib.Path,
 ) -> Any:
     if not isinstance(value, expected):
         raise RobotProfileError(
@@ -124,7 +127,9 @@ def load_robot_profile(path: str | pathlib.Path) -> RobotProfile:
     with file_path.open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     if not isinstance(data, dict):
-        raise RobotProfileError(f"Invalid YAML root (expected mapping): {file_path}")
+        raise RobotProfileError(
+            f"Invalid YAML root (expected mapping): {file_path}"
+        )
 
     for field_name in _REQUIRED_STR_FIELDS:
         _require_type(
