@@ -5,7 +5,7 @@ specific hardware targets. The rest of `docs/` is hardware-neutral
 (`FR-SYS-13`): it does not assume a particular robot, microcontroller, bus,
 or protocol.
 
-## Status as of v2.1.0
+## Status as of v2.2.0
 
 The v2.x hardware target is the **Seeed SO-ARM101 Pro** (SO-101 follower: 5
 revolute joints + a friction gripper, Feetech STS3215 USB smart servos, no
@@ -13,13 +13,14 @@ onboard firmware), driven by a Raspberry Pi 5. See
 [`arm-selection.md`](arm-selection.md) for the decision record and
 [`docs/robots/so101.md`](../robots/so101.md) for the model page.
 
-PR3 (`v2.1.0`) ships the **hardware-free test infrastructure** and the
-SO-101 bridge developed TDD against it. **Mock only — not validated on
-real hardware.** Torque enable on a real serial port is refused until
-PR4 (`FR-SYS-18`).
+PR4 (`v2.2.0`) ships the **safety layer** (watchdog, limits, soft start,
+hold on fault, enable lease, e-stop / power-loss detection) on top of the
+PR3 mock bridge. Validated on the mock bus and the MuJoCo twin —
+**not validated on real hardware**.
 
 | Doc | Contents |
 |---|---|
+| [safety.md](safety.md) | Stop categories, e-stop wiring, supervisor behavior |
 | [testing-without-hardware.md](testing-without-hardware.md) | Mock bus, pty fake, record/replay |
 | [servo-setup.md](servo-setup.md) | `fret-hw` commands and calibration |
 | [bridge.md](bridge.md) | Bridge module overview |
@@ -28,5 +29,4 @@ PR4 (`FR-SYS-18`).
 
 ## What comes next
 
-PR4 (`v2.2.0`): safety layer (watchdog, limits, soft start, fault hold).
 PR5: Raspberry Pi 5 deployment and bring-up kit.
