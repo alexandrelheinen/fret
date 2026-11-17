@@ -7,6 +7,8 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-17
+
 ### Added
 
 - Safety layer (`SafetySupervisor`): command watchdog, limit/step clamp,
