@@ -1,0 +1,18 @@
+[Unit]
+Description=FRET vision_node on Raspberry Pi 5
+After=fret-hardware.service
+Wants=fret-hardware.service
+
+[Service]
+Type=simple
+User=fret
+Group=video
+SupplementaryGroups=dialout
+EnvironmentFile=-/etc/fret/ros.env
+Environment=FRET_ROOT=/opt/fret
+ExecStart=/bin/bash -lc 'source /opt/ros/jazzy/setup.bash; source /etc/fret/ros.env; source /opt/fret/venv/bin/activate; exec vision_node'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
