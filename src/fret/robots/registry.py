@@ -256,7 +256,7 @@ def register_kinematics(
     """
 
     def decorator(
-        factory: Callable[[], KinematicsBackend]
+        factory: Callable[[], KinematicsBackend],
     ) -> Callable[[], KinematicsBackend]:
         if key in _KINEMATICS_FACTORIES:
             raise RobotRegistrationError(
@@ -297,7 +297,7 @@ def register_transfer_planner(
     """Decorator: register a zero-arg ``TransferPlannerStrategy`` factory."""
 
     def decorator(
-        factory: Callable[[], TransferPlannerStrategy]
+        factory: Callable[[], TransferPlannerStrategy],
     ) -> Callable[[], TransferPlannerStrategy]:
         if key in _TRANSFER_PLANNER_FACTORIES:
             raise RobotRegistrationError(
@@ -315,7 +315,7 @@ def register_sim_io(
     """Decorator: register a zero-arg ``SimIOAdapter`` factory under ``key``."""
 
     def decorator(
-        factory: Callable[[], SimIOAdapter]
+        factory: Callable[[], SimIOAdapter],
     ) -> Callable[[], SimIOAdapter]:
         if key in _SIM_IO_FACTORIES:
             raise RobotRegistrationError(
