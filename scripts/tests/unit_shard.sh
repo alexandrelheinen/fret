@@ -38,6 +38,7 @@ case "${SHARD}" in
             tests/hardware
             tests/vision
             tests/robots
+            tests/deploy
         )
         ;;
     planning)
@@ -55,6 +56,8 @@ case "${SHARD}" in
             tests/test_resource_resolution.py
             tests/test_version_consistency.py
             tests/test_docs_hardware_neutral.py
+            tests/test_import_graph_no_mujoco.py
+            tests/test_docs_deployment_rpi5.py
         )
         ;;
     simulation)
