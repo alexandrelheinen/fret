@@ -6,6 +6,8 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "pyyaml>=6.0",
+    "pyserial>=3.5",
+
     # ARCO v0.5.0 runs its planners, maps and controllers as a compiled
     # Rust extension. The `mpc` extra is gone with CasADi, and the `arco`
     # name on PyPI belongs to an unrelated project, so pin the release
@@ -47,6 +49,8 @@ planner_node = "fret.planning.planner_node_ros:main"
 perception_bridge = "fret.ros.perception_bridge:main"
 mujoco_bridge = "fret.ros.mujoco_bridge:main"
 dubins_race_node = "fret.ros.dubins_race_node:main"
+bridge_node = "fret.hardware.bridge_node:main"
+fret-hw = "fret.hardware.cli:main"
 
 [build-system]
 requires = ["setuptools>=71", "wheel"]

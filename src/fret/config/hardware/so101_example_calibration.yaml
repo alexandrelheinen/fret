@@ -1,0 +1,41 @@
+# Example SO-101 follower calibration (machine-local format).
+# Production path: /var/lib/fret/calibration/so101_follower.yaml
+# Zero is mid-range (2048 ticks). Drive signs match Menagerie convention.
+robot: so101
+joints:
+  - name: shoulder_pan
+    id: 1
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
+  - name: shoulder_lift
+    id: 2
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
+  - name: elbow_flex
+    id: 3
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
+  - name: wrist_flex
+    id: 4
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
+  - name: wrist_roll
+    id: 5
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
+  - name: gripper
+    id: 6
+    drive_sign: 1
+    range_min: 0
+    range_max: 4095
+    zero: 2048
