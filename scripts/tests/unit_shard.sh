@@ -94,6 +94,12 @@ export COVERAGE_FILE="${REPO_ROOT}/.coverage.${SHARD}"
 # the first ``import mujoco`` in the pytest process.
 export MUJOCO_GL="${MUJOCO_GL:-egl}"
 export PYOPENGL_PLATFORM="${PYOPENGL_PLATFORM:-egl}"
+# Pin BLAS/OpenMP thread pools to 1 for deterministic floating-point
+# reduction order; see scripts/tests/unit.sh for the wall-maze flake this
+# fixes (FR-SYS-12).
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 
 info "Unit shard: ${SHARD}"
 if pytest "${PATHS[@]}" \

@@ -51,6 +51,16 @@ set -u
 require_command python3 "python3 is required."
 require_command pytest "pytest is required. Run: pip install pytest pytest-cov pytest-timeout"
 
+# Pin BLAS/OpenMP thread pools to 1 for deterministic floating-point
+# reduction order (same reasoning as scripts/tests/integration.sh): with a
+# multi-threaded BLAS, numpy's reduction order (and therefore the exact
+# floating-point result of Jacobian/IK/MPC math) is not guaranteed stable
+# across runs, which previously produced a flaky wall-maze result close to
+# a geometry threshold boundary (FR-SYS-12 regression guard).
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+
 if pytest tests/ \
     --ignore=tests/integration \
     -p no:launch_testing \
