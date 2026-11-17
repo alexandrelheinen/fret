@@ -1,0 +1,11 @@
+# Default UVC camera settings for /dev/fret-cam0 (FR-HW-30).
+device: /dev/fret-cam0
+# Driver choice recorded in PR5: usb_cam (arm64 Jazzy binary available).
+driver: usb_cam
+image_width: 1280
+image_height: 720
+framerate: 15
+pixel_format: mjpeg
+camera_name: fret_cam0
+camera_frame_id: fret_cam0
+frame_id: fret_cam0
