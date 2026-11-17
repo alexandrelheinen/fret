@@ -158,11 +158,8 @@ def resolve_obstacle_file(planning: dict[str, Any]) -> pathlib.Path:
 
 
 def planning_config_for_model(model: str) -> str:
-    """Return the default planning config relative path for a robot model."""
-    if model == "dubins":
-        return "planning/dubins.yml"
-    if model in {"open_manipulator_x", "omx"}:
-        return "planning/open_manipulator_x.yml"
-    if model in {"omy", "six_dof", "open_manipulator_y"}:
-        return "planning/open_manipulator_y.yml"
-    raise ValueError(f"No planning config for model: {model!r}")
+    """Return the default planning config relative path for a robot model
+    (FR-SYS-08: resolved through the robot registry, no model literals)."""
+    from fret.robots.registry import get_default_registry
+
+    return get_default_registry().get_profile(model).planning_config

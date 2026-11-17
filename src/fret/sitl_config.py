@@ -17,21 +17,18 @@ _DIFFDRIVE_MODEL = "diffdrive"
 
 
 def controller_config_relative(model: str) -> str:
-    """Return package-relative controller YAML path for a robot model.
+    """Return package-relative controller YAML path for a robot model
+    (FR-SYS-08: resolved through the robot registry, no model literals).
 
     Args:
-        model: Robot model name (``dubins``, ``open_manipulator_x``, …).
+        model: Robot model name or alias.
 
     Returns:
         Path relative to the ``fret`` package share root.
     """
-    if model == _DUBINS_MODEL:
-        return "config/controllers/dubins.yml"
-    if model in {"open_manipulator_x", "omx"}:
-        return "config/controllers/open_manipulator_x.yml"
-    if model in {"omy", "six_dof", "open_manipulator_y"}:
-        return "config/controllers/open_manipulator_y.yml"
-    raise ValueError(f"No controller config for model: {model!r}")
+    from fret.robots.registry import get_default_registry
+
+    return get_default_registry().get_profile(model).controller_config
 
 
 def physics_controller_config_relative(model: str) -> str:
