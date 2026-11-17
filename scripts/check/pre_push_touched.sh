@@ -74,9 +74,14 @@ classify() {
     code_changed=1
     case "${f}" in
         src/fret/control/*|src/fret/mjcf/*|src/fret/vision/*|src/fret/hardware/*|\
-        src/fret/config/scenarios/*|src/fret/config/vision/*|\
-        tests/control/*|tests/vision/*|tests/hardware/*)
+        src/fret/diag/*|src/fret/calib/*|src/fret/deploy/*|\
+        src/fret/config/scenarios/*|src/fret/config/vision/*|src/fret/config/hardware/*|\
+        tests/control/*|tests/vision/*|tests/hardware/*|tests/deploy/*)
             need_control=1
+            ;;
+        scripts/deploy/*|deploy/*|docker/rpi5.Dockerfile)
+            need_control=1
+            need_scene=1
             ;;
         src/fret/planning/*|tests/planning/*)
             need_planning=1
@@ -87,7 +92,7 @@ classify() {
         src/fret/simulation/*|src/fret/scenario/*|src/fret/ros/*|\
         src/fret/config/release/*|scripts/release/*|scripts/render_mujoco.py|\
         scripts/video.sh|tests/simulation/*|tests/scenario/*|tests/ros/*|\
-        tests/release/*)
+        tests/release/*|tests/integration/test_so101_hw_scenario_mock.py)
             need_simulation=1
             ;;
         src/fret/*|tests/*|scripts/*|pyproject.toml|setup.cfg|.github/*|\
