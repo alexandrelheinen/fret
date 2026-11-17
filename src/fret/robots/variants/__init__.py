@@ -14,6 +14,7 @@ from fret.robots.variants import (  # noqa: F401
     dubins,
     open_manipulator_x,
     open_manipulator_y,
+    so101,
 )
 
-__all__ = ["dubins", "open_manipulator_x", "open_manipulator_y"]
+__all__ = ["dubins", "open_manipulator_x", "open_manipulator_y", "so101"]

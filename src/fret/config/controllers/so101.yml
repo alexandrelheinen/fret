@@ -1,0 +1,21 @@
+# SO-101 controller parameters (v2.0, PR2).
+#
+# STS3215 position servos; FRET keeps velocity commands on
+# /joint_commands (Q3, decided 2026-11-17) and the twin's SimIOAdapter
+# converts them with VelocityToPositionIntegrator (FR-CTL-07) before
+# writing MuJoCo position-actuator ctrl. max_joint_velocity is a
+# conservative sim-twin bound, not the servo's no-load speed; the real
+# bridge (PR3) may tune this from measured hardware behavior.
+
+/**:
+  ros__parameters:
+    damping_factor: 0.01
+    max_joint_velocity: 1.5
+    max_joint_acceleration: 3.0
+    update_rate: 50.0
+    fault_threshold: 0.020
+    ticks_per_waypoint: 5
+    joint_mpc:
+      race_speed: 0.9
+      max_carrot_lag: 0.30
+      goal_tol: 0.12
