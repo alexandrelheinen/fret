@@ -37,6 +37,7 @@ case "${SHARD}" in
             tests/control
             tests/hardware
             tests/vision
+            tests/robots
         )
         ;;
     planning)
@@ -51,6 +52,8 @@ case "${SHARD}" in
             tests/test_metrics.py
             tests/test_quality_gates.py
             tests/test_sitl_config.py
+            tests/test_resource_resolution.py
+            tests/test_version_consistency.py
         )
         ;;
     simulation)
