@@ -410,7 +410,7 @@ class ControllerRosNode:  # pragma: no cover
         from fret.control.state_estimator import StateEstimator
 
         # Initialise ROS 2 node (must be the first super() call)
-        rclpy.node.Node.__init__(self, "controller_node")  # type: ignore[arg-type]
+        rclpy.node.Node.__init__(self, "controller_node")
 
         self._logic = make_controller_node(
             model=model, config_path=config_path
@@ -418,12 +418,12 @@ class ControllerRosNode:  # pragma: no cover
         self._model = model
         self._kinematics = Kinematics(model=model)
         self._state_estimator = StateEstimator(
-            node=self,  # type: ignore[arg-type]
+            node=self,
             kinematics=self._kinematics,
         )
 
         # Reliable QoS for trajectory (guaranteed delivery)
-        traj_qos = QoSProfile(  # type: ignore[no-untyped-call]
+        traj_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -436,7 +436,7 @@ class ControllerRosNode:  # pragma: no cover
         )
 
         # Best-effort QoS for commands (high-frequency, loss-tolerant)
-        cmd_qos = QoSProfile(  # type: ignore[no-untyped-call]
+        cmd_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
             depth=1,
@@ -554,12 +554,8 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
 
     loader = rclpy.create_node("_controller_param_loader")
     loader.declare_parameter("model", "open_manipulator_x")
-    model = (
-        loader.get_parameter("model")  # type: ignore[no-untyped-call]
-        .get_parameter_value()
-        .string_value
-    )
-    loader.destroy_node()  # type: ignore[no-untyped-call]
+    model = loader.get_parameter("model").get_parameter_value().string_value
+    loader.destroy_node()
 
     config_path = str(controllers_dir)
 
@@ -570,7 +566,7 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
         pass
     finally:
         node.destroy_node()
-        if rclpy.ok():  # type: ignore[attr-defined]
+        if rclpy.ok():
             rclpy.shutdown()
 
 
@@ -646,7 +642,10 @@ def _make_controller_ros_node(  # pragma: no cover
     """
     import rclpy.node
 
-    class _ConcreteControllerNode(ControllerRosNode, rclpy.node.Node):
+    class _ConcreteControllerNode(
+        ControllerRosNode,
+        rclpy.node.Node,  # type: ignore[misc]
+    ):
         """Concrete class combining ControllerRosNode with rclpy.node.Node."""
 
         def __init__(self) -> None:

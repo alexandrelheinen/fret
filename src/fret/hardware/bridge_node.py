@@ -208,7 +208,7 @@ class BridgeNode:
 
         self._rclpy = rclpy
 
-        class _Node(rclpy.node.Node):
+        class _Node(rclpy.node.Node):  # type: ignore[misc]
             pass
 
         self._node = _Node("bridge_node")
@@ -219,7 +219,7 @@ class BridgeNode:
         )
         self._node.declare_parameter("auto_enable", False)
 
-        cmd_qos = QoSProfile(  # type: ignore[no-untyped-call]
+        cmd_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
             depth=1,
@@ -245,11 +245,11 @@ class BridgeNode:
         self._node.create_service(Trigger, "~/stop", self._srv_stop)
         rate = float(
             self._node.get_parameter("update_rate")
-            .get_parameter_value()  # type: ignore[no-untyped-call]
+            .get_parameter_value()
             .double_value
         )
         self._node.create_timer(1.0 / rate, self._timer_callback)
-        self._node.get_logger().info(  # type: ignore[no-untyped-call]
+        self._node.get_logger().info(
             f"BridgeNode ready: port={self.port}, baud={self.baud_rate}, "
             f"rate={rate} Hz, mock_safe={port_is_mock_safe(self.port)}"
         )

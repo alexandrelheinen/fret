@@ -63,7 +63,7 @@ class DubinsRaceRosNode:  # pragma: no cover
     def __init__(self) -> None:
         import rclpy.node
 
-        rclpy.node.Node.__init__(self, "dubins_race_node")  # type: ignore[arg-type]
+        rclpy.node.Node.__init__(self, "dubins_race_node")
 
         self.declare_parameter("scenario", "dubins_race")  # type: ignore[attr-defined]
         self.declare_parameter("physics_mode", False)  # type: ignore[attr-defined]
@@ -264,7 +264,10 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
     import rclpy.node
 
-    class _ConcreteDubinsRaceNode(DubinsRaceRosNode, rclpy.node.Node):
+    class _ConcreteDubinsRaceNode(
+        DubinsRaceRosNode,
+        rclpy.node.Node,  # type: ignore[misc]
+    ):
         def __init__(self) -> None:
             DubinsRaceRosNode.__init__(self)
 
@@ -275,14 +278,14 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
         rclpy.spin(node)
     except Exception:
         if node is not None:
-            node.get_logger().exception(  # type: ignore[no-untyped-call]
+            node.get_logger().exception(
                 "Dubins race node failed during startup"
             )
         raise
     finally:
         if node is not None:
-            node.destroy_node()  # type: ignore[no-untyped-call]
-        if rclpy.ok():  # type: ignore[attr-defined]
+            node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()
 
 

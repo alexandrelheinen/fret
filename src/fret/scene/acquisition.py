@@ -41,7 +41,7 @@ class SceneAcquisition:
         self._latest_payload: OccupancyUpdatePayload | None = None
 
         # RELIABLE + TRANSIENT_LOCAL so the last cloud survives late joiners.
-        qos = QoSProfile(  # type: ignore[no-untyped-call]
+        qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -102,7 +102,7 @@ class SceneAcquisition:
                 frame_id="world",
             )
         except (ValueError, AttributeError, KeyError, TypeError) as exc:
-            self._node.get_logger().warning(  # type: ignore[no-untyped-call]
+            self._node.get_logger().warning(
                 f"SceneAcquisition: failed to process PointCloud2: {exc}"
             )
 

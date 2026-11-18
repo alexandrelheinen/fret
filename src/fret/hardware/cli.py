@@ -21,10 +21,7 @@ from fret.hardware.sts.registers import (
     BAUD_RATE_TABLE,
 )
 from fret.hardware.sts.registers import ID as REG_ID
-from fret.hardware.sts.registers import (
-    PRESENT_POSITION,
-    TORQUE_ENABLE,
-)
+from fret.hardware.sts.registers import PRESENT_POSITION, TORQUE_ENABLE
 from fret.hardware.sts.replay import (
     RecordingTransport,
     ReplayTransport,
