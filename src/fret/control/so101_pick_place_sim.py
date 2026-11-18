@@ -5,7 +5,9 @@ Finger pads close on the free ball under physics. Hold through lift uses a
 ``docs/decisions.md``. Drop mid-transfer latches FSM ``FAULT`` (FR-SIM-18).
 
 Arm motion toward each FSM joint target is tracked with ARCO
-:class:`~arco.control.mpc.JointSpaceMPC` (carrot-on-path MPC).
+:class:`~arco.control.mpc.JointSpaceMPC` (carrot-on-path MPC). The
+place transfer is a path from the lift pose to a vertical goal segment
+above the basket centre, not a single joint target on the bin wall.
 """
 
 from __future__ import annotations
@@ -16,7 +18,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from fret.control.joint_mpc import build_joint_mpc
+from fret.control.joint_mpc import JointPathMPCTracker, build_joint_mpc
+from fret.control.kinematics_so101 import HeldPointKinematics, link_positions
 from fret.control.pick_place_common import PickPlaceSample, ball_grasp_contact
 from fret.control.pick_place_fsm import (
     SO101_GRIPPER,
@@ -25,6 +28,10 @@ from fret.control.pick_place_fsm import (
     PickPlaceState,
     PickPlaceWaypoints,
 )
+from fret.control.pick_place_planning import place_shell_from_params
+from fret.planning.box_obstacle import BoxObstacle, points_clear_of_boxes
+from fret.planning.goal_segment import GoalSegment, sample_polyline
+from fret.planning.segment_planner import plan_to_segment
 from fret.sitl_config import load_scenario_parameters, mjcf_path
 from fret.telemetry.scenario_hooks import (
     arm_sample_values,
@@ -43,6 +50,58 @@ _ARM_JOINTS = (
 _MODEL = "so101"
 _CTRL_PERIOD_S = 0.02
 _SCENARIO = Path("src/fret/config/scenarios/so101_pick_place.yml")
+_PLACE_TRANSFER_TOL_RAD = 0.03
+_PLACE_SETTLE_SPEED_RAD_S = 0.08
+
+
+def release_segment_from_params(params: dict[str, Any]) -> GoalSegment:
+    """Vertical drop segment above the basket centre.
+
+    The segment starts ``place_release_clearance_m`` above the rim and runs
+    upward for ``place_release_segment_m``. Every point of it is a valid
+    release pose: the planner picks the lowest one the arm can reach.
+    """
+    centre = np.asarray(params["place_xy"], dtype=np.float64).reshape(-1)[:2]
+    rim = float(params["place_cone_height_m"])
+    clearance = float(params["place_release_clearance_m"])
+    length = float(params["place_release_segment_m"])
+    return GoalSegment.vertical(
+        centre, rim + clearance, rim + clearance + length
+    )
+
+
+def place_obstacles_from_params(params: dict[str, Any]) -> list[BoxObstacle]:
+    """Bin walls plus the hollow interior, up to the rim.
+
+    The interior box stops the hand from dipping into the basket on the way
+    to a release pose that sits above the rim. The release segment itself
+    starts above this volume.
+    """
+    boxes = place_shell_from_params(params)
+    centre = np.asarray(params["place_xy"], dtype=np.float64).reshape(-1)
+    radius = float(params["place_cone_radius_m"])
+    rim = float(params["place_cone_height_m"])
+    boxes.append(
+        BoxObstacle(
+            x_min=float(centre[0]) - radius,
+            x_max=float(centre[0]) + radius,
+            y_min=float(centre[1]) - radius,
+            y_max=float(centre[1]) + radius,
+            z_min=0.0,
+            z_max=rim,
+        )
+    )
+    return boxes
+
+
+def _arm_clears_place(
+    configuration: npt.NDArray[np.float64],
+    boxes: list[BoxObstacle],
+    *,
+    margin: float,
+) -> bool:
+    samples = sample_polyline(link_positions(configuration), per_edge=4)
+    return points_clear_of_boxes(samples, boxes, margin=margin)
 
 
 def waypoints_from_scenario(
@@ -82,6 +141,37 @@ def _arm_q(mj: Any, model: Any, data: Any) -> npt.NDArray[np.float64]:
         ],
         dtype=np.float64,
     )
+
+
+def _measured_grasp_offset(
+    data: Any, gripper_body: int, ball_body: int
+) -> npt.NDArray[np.float64]:
+    """Ball offset in the gripper body frame, from the live MuJoCo pose."""
+    rotation = np.asarray(data.xmat[gripper_body], dtype=np.float64).reshape(
+        3, 3
+    )
+    gripper = np.asarray(data.xpos[gripper_body], dtype=np.float64)
+    ball = np.asarray(data.xpos[ball_body], dtype=np.float64)
+    offset: npt.NDArray[np.float64] = np.asarray(
+        rotation.T @ (ball - gripper), dtype=np.float64
+    )
+    return offset
+
+
+def _arm_speed(mj: Any, model: Any, data: Any) -> float:
+    """L2 joint speed of the arm [rad/s]."""
+    speed = np.array(
+        [
+            data.qvel[
+                model.jnt_dofadr[
+                    mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
+                ]
+            ]
+            for name in _ARM_JOINTS
+        ],
+        dtype=np.float64,
+    )
+    return float(np.linalg.norm(speed))
 
 
 def _actuator_id(mj: Any, model: Any, name: str) -> int:
@@ -196,6 +286,12 @@ def simulate_so101_pick_place(
 
     act_arm = [_actuator_id(mj, model, n) for n in _ARM_JOINTS]
     act_grip = _actuator_id(mj, model, "gripper")
+    grip_joint = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "gripper")
+    grip_qadr = int(model.jnt_qposadr[grip_joint])
+    grip_span = abs(SO101_GRIPPER.open - SO101_GRIPPER.closed)
+    ball_geom = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "pick_box_geom")
+    ball_contype = int(model.geom_contype[ball_geom])
+    ball_conaffinity = int(model.geom_conaffinity[ball_geom])
 
     ball_detected = False
     if use_vision:
@@ -208,6 +304,17 @@ def simulate_so101_pick_place(
             vision_config=vision_config,
         )
         ball_detected = True
+
+    place_boxes = place_obstacles_from_params(params)
+    place_margin = float(params.get("place_arm_margin_m", 0.025))
+    place_segment = release_segment_from_params(params)
+    lift_q = np.asarray(wp.lift_hover, dtype=np.float64)
+    gripper_body = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "gripper")
+
+    def _place_free(configuration: npt.NDArray[np.float64]) -> bool:
+        return _arm_clears_place(
+            configuration, place_boxes, margin=place_margin
+        )
 
     for i, aid in enumerate(act_arm):
         data.ctrl[aid] = float(wp.idle[i])
@@ -223,7 +330,8 @@ def simulate_so101_pick_place(
         release_hold_s=0.8,
         lift_height_m=lift_height_m,
         phase_timeout_s=35.0,
-        transfer_joint_tol_rad=max(0.18, joint_tol_rad),
+        transfer_joint_tol_rad=_PLACE_TRANSFER_TOL_RAD,
+        transfer_settle_speed_rad_s=_PLACE_SETTLE_SPEED_RAD_S,
         drop_fault_enabled=True,
         require_grasp_contact=True,
         auto_start_on_ball=use_vision,
@@ -238,6 +346,9 @@ def simulate_so101_pick_place(
     last_target = wp.idle.copy()
     removed = False
     weld_engaged = False
+    transfer_armed = False
+    transfer_tracker: JointPathMPCTracker | None = None
+    release_ball_z: float | None = None
 
     dt = float(model.opt.timestep)
     max_steps = int(duration_s / dt)
@@ -272,6 +383,7 @@ def simulate_so101_pick_place(
             ball_detected=ball_detected
             and fsm.state in {PickPlaceState.IDLE, PickPlaceState.DONE},
             grasp_contact=grasp_ok,
+            q_speed_rad_s=_arm_speed(mj, model, data),
         )
         cmd = fsm.tick(obs, dt)
 
@@ -286,14 +398,63 @@ def simulate_so101_pick_place(
             PickPlaceState.MOVE_PLACE,
             PickPlaceState.DESCEND_PLACE,
         }
-        # Engage on rising contact+close; once latched, hold through carry
-        # until the jaw opens (pads may lose contact while the weld holds).
+        # Engage on rising contact+close; once latched, hold through carry.
+        # On RELEASE the weld stays up and ball contacts are masked until the
+        # jaw has actually opened, so the finger leaves before the ball falls.
+        jaw_q = float(data.qpos[grip_qadr])
+        jaw_clear = abs(jaw_q - SO101_GRIPPER.open) <= 0.15 * grip_span
+        if cmd.state == PickPlaceState.RELEASE and release_ball_z is None:
+            release_ball_z = float(data.xpos[box_id][2])
+        # Hold the weld while the jaw opens, with ball contacts masked so
+        # the finger cannot flick it. After the jaw is clear, keep contacts
+        # masked for a short free-fall so the ball separates before they
+        # come back (needed to land in the basket).
+        opening = cmd.state == PickPlaceState.RELEASE and not jaw_clear
+        separating = (
+            cmd.state == PickPlaceState.RELEASE
+            and jaw_clear
+            and release_ball_z is not None
+            and float(data.xpos[box_id][2]) > release_ball_z - 0.035
+        )
         if not weld_engaged and grasp_ok and jaw_closed and carry:
             _capture_weld_pose(model, data, weld_id)
             weld_engaged = True
-        if weld_engaged and (not jaw_closed or not carry):
+            # The weld just froze the ball in the gripper. Plan the release
+            # to the vertical segment above the basket centre for that
+            # grasped point, not for the fingertip site.
+            if transfer_tracker is None:
+                place_path = plan_to_segment(
+                    lift_q,
+                    place_segment,
+                    kinematics=HeldPointKinematics(
+                        _measured_grasp_offset(data, gripper_body, box_id)
+                    ),
+                    is_free=_place_free,
+                    seed=int(params.get("planner_rng_seed", 7)),
+                    timeout_s=min(
+                        8.0, float(params.get("planning_timeout", 8.0))
+                    ),
+                    goal_tolerance_m=float(
+                        params.get("place_segment_tolerance_m", 0.005)
+                    ),
+                )
+                fsm.replace_place(place_path[-1])
+                transfer_tracker = JointPathMPCTracker(
+                    place_path,
+                    build_joint_mpc(5),
+                    race_speed=0.6,
+                    max_carrot_lag=0.35,
+                    goal_tol=_PLACE_TRANSFER_TOL_RAD,
+                )
+        if weld_engaged and not opening and (not jaw_closed or not carry):
             weld_engaged = False
         data.eq_active[weld_id] = weld_engaged
+        if opening or separating:
+            model.geom_contype[ball_geom] = 0
+            model.geom_conaffinity[ball_geom] = 0
+        else:
+            model.geom_contype[ball_geom] = ball_contype
+            model.geom_conaffinity[ball_geom] = ball_conaffinity
 
         if (
             remove_ball_after_lift
@@ -310,19 +471,35 @@ def simulate_so101_pick_place(
             mj.mj_forward(model, data)
             removed = True
 
-        if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
-            mpc.reset(q)
-            last_target = cmd.q_des.copy()
+        if cmd.state == PickPlaceState.MOVE_PLACE:
+            if transfer_tracker is None:
+                raise RuntimeError(
+                    "SO-101 place segment was not planned before transfer"
+                )
+            if not transfer_armed:
+                transfer_tracker.reset(q)
+                transfer_armed = True
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                q_cmd = np.asarray(
+                    transfer_tracker.step(_CTRL_PERIOD_S), dtype=np.float64
+                )
+        else:
+            transfer_armed = False
+            if float(np.linalg.norm(cmd.q_des - last_target)) > 1e-9:
+                mpc.reset(q)
+                last_target = cmd.q_des.copy()
 
-        ctrl_accum += dt
-        if ctrl_accum >= _CTRL_PERIOD_S:
-            ctrl_accum -= _CTRL_PERIOD_S
-            q_cmd = np.asarray(
-                mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
-            )
-            if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
-                q_cmd = cmd.q_des.copy()
-                mpc.reset(q_cmd.copy())
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                q_cmd = np.asarray(
+                    mpc.step(cmd.q_des, _CTRL_PERIOD_S), dtype=np.float64
+                )
+                if float(np.linalg.norm(q_cmd - cmd.q_des)) <= joint_tol_rad:
+                    q_cmd = cmd.q_des.copy()
+                    mpc.reset(q_cmd.copy())
 
         for i, aid in enumerate(act_arm):
             data.ctrl[aid] = float(q_cmd[i])

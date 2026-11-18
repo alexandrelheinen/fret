@@ -22,6 +22,7 @@ The gripper (6th) joint operates the moving jaw and does not move the
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -183,6 +184,35 @@ def _rotate_z(theta: float) -> npt.NDArray[np.float64]:
     return T
 
 
+def _chain_transform(
+    joint_positions: npt.NDArray[np.float64],
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    list[npt.NDArray[np.float64]],
+]:
+    """Return the EE pose, the gripper-body pose, and each link origin.
+
+    The origin list is the base frame, one point after each arm joint, then
+    the ``gripperframe`` site. Shape of the stacked origins is ``(7, 3)``.
+    The gripper-body pose is the frame the grasp weld is attached to.
+    """
+    q = np.asarray(joint_positions, dtype=np.float64).reshape(5)
+    transform = np.eye(4, dtype=np.float64)
+    origins: list[npt.NDArray[np.float64]] = [transform[:3, 3].copy()]
+    for frame, angle in zip(_CHAIN, q):
+        transform = (
+            transform
+            @ _fixed_transform(frame.pos, frame.quat)
+            @ _rotate_z(float(angle))
+        )
+        origins.append(transform[:3, 3].copy())
+    gripper = transform.copy()
+    transform = transform @ _fixed_transform(_EE_SITE.pos, _EE_SITE.quat)
+    origins.append(transform[:3, 3].copy())
+    return transform, gripper, origins
+
+
 def forward_kinematics_matrix(
     joint_positions: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
@@ -191,12 +221,43 @@ def forward_kinematics_matrix(
     Pure NumPy, no ``mujoco`` import (FR-SIM-16). ``joint_positions`` has
     shape ``(5,)`` in :data:`_JOINT_NAMES` order.
     """
-    q = np.asarray(joint_positions, dtype=np.float64).reshape(5)
-    T = np.eye(4, dtype=np.float64)
-    for jf, qi in zip(_CHAIN, q):
-        T = T @ _fixed_transform(jf.pos, jf.quat) @ _rotate_z(float(qi))
-    T = T @ _fixed_transform(_EE_SITE.pos, _EE_SITE.quat)
-    return T
+    pose, _gripper, _origins = _chain_transform(joint_positions)
+    return pose
+
+
+def link_positions(
+    joint_positions: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Return link-frame origins along the arm, shape ``(7, 3)`` [m].
+
+    Used to test the arm against obstacles without treating the arm as the
+    straight line from the world origin to the end effector.
+    """
+    _pose, _gripper, origins = _chain_transform(joint_positions)
+    return np.stack(origins, axis=0)
+
+
+def gripper_body_matrix(
+    joint_positions: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Return the 4x4 ``gripper`` body pose in the world frame."""
+    _pose, gripper, _origins = _chain_transform(joint_positions)
+    return gripper
+
+
+def grasp_offset_in_gripper(
+    joint_positions: npt.NDArray[np.float64],
+    point_world: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Point offset in the gripper body frame [m].
+
+    A point fixed to the gripper (the ball, once the weld engages) keeps
+    this offset. Planning that point, rather than the fingertip site, puts
+    the ball on the release segment.
+    """
+    gripper = gripper_body_matrix(joint_positions)
+    point = np.asarray(point_world, dtype=np.float64).reshape(3)
+    return gripper[:3, :3].T @ (point - gripper[:3, 3])
 
 
 def _numerical_jacobian(
@@ -308,6 +369,12 @@ class SO101Kinematics:
         """Return the finite-difference geometric Jacobian ``(6, 5)``."""
         return _numerical_jacobian(joint_positions)
 
+    def link_positions(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Return link origins, shape ``(7, 3)`` [m]. See :func:`link_positions`."""
+        return link_positions(joint_positions)
+
     def inverse_kinematics(
         self,
         ee_pose: npt.NDArray[np.float64],
@@ -328,6 +395,103 @@ class SO101Kinematics:
         if not result.reachable:
             raise UnreachablePoseError(
                 f"SO-101 IK did not converge to {target_xyz.tolist()} "
+                f"(final error {result.position_error_m:.4f} m)"
+            )
+        return result.q
+
+
+def _point_position(
+    forward: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+    configuration: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    return np.asarray(forward(configuration)[:3, 3], dtype=np.float64)
+
+
+def _solve_point_ik(
+    forward: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+    target_xyz: npt.NDArray[np.float64],
+    seed: npt.NDArray[np.float64] | None,
+) -> IKResult:
+    """Damped least-squares IK for an arbitrary forward map."""
+    limits = joint_limits_array()
+    q = (
+        np.asarray(seed, dtype=np.float64).reshape(5)
+        if seed is not None
+        else limits.mean(axis=1)
+    )
+    q = np.clip(q, limits[:, 0], limits[:, 1])
+    target = np.asarray(target_xyz, dtype=np.float64).reshape(3)
+    err_norm = float("inf")
+    for _ in range(_MAX_IK_ITERS):
+        err = target - _point_position(forward, q)
+        err_norm = float(np.linalg.norm(err))
+        if err_norm < _IK_TOL_M:
+            return IKResult(q=q, reachable=True, position_error_m=err_norm)
+        jacobian = np.zeros((3, 5), dtype=np.float64)
+        for index in range(5):
+            nudged = q.copy()
+            nudged[index] += _FD_EPS
+            jacobian[:, index] = (
+                _point_position(forward, nudged) - _point_position(forward, q)
+            ) / _FD_EPS
+        solved = jacobian @ jacobian.T + _IK_DAMPING * np.eye(3)
+        q = np.clip(
+            q + jacobian.T @ np.linalg.solve(solved, err),
+            limits[:, 0],
+            limits[:, 1],
+        )
+    err_norm = float(np.linalg.norm(target - _point_position(forward, q)))
+    return IKResult(
+        q=q, reachable=err_norm < _IK_TOL_M, position_error_m=err_norm
+    )
+
+
+class HeldPointKinematics:
+    """FK/IK of a point fixed in the SO-101 gripper body.
+
+    ``plan_to_segment`` uses this so the goal segment is where the ball
+    is, not where the fingertip site is.
+    """
+
+    def __init__(self, offset_in_gripper: npt.NDArray[np.float64]) -> None:
+        self._offset = np.asarray(offset_in_gripper, dtype=np.float64).reshape(
+            3
+        )
+
+    @property
+    def joint_limits(self) -> npt.NDArray[np.float64]:
+        """Joint limits ``(5, 2)`` lower/upper [rad]."""
+        return joint_limits_array()
+
+    def forward_kinematics(
+        self, joint_positions: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
+        """Return a pose whose origin is the held point in the world frame."""
+        gripper = gripper_body_matrix(joint_positions)
+        pose = gripper.copy()
+        pose[:3, 3] = gripper[:3, 3] + gripper[:3, :3] @ self._offset
+        return pose
+
+    def inverse_kinematics(
+        self,
+        ee_pose: npt.NDArray[np.float64],
+        seed: npt.NDArray[np.float64] | None = None,
+    ) -> npt.NDArray[np.float64]:
+        """Position IK of the held point.
+
+        Raises:
+            UnreachablePoseError: When no configuration puts the point on
+                ``ee_pose`` within tolerance.
+        """
+        target = np.asarray(ee_pose, dtype=np.float64)
+        target_xyz = (
+            target[:3, 3] if target.shape == (4, 4) else target.reshape(-1)[:3]
+        )
+        result = _solve_point_ik(self.forward_kinematics, target_xyz, seed)
+        if not result.reachable:
+            raise UnreachablePoseError(
+                f"SO-101 held-point IK did not converge to "
+                f"{target_xyz.tolist()} "
                 f"(final error {result.position_error_m:.4f} m)"
             )
         return result.q

@@ -139,6 +139,25 @@ class PickPlaceWaypoints:
             retreat=(None if self.retreat is None else self.retreat.copy()),
         )
 
+    def with_place(
+        self,
+        *,
+        place_q: npt.NDArray[np.float64],
+    ) -> PickPlaceWaypoints:
+        """Return a copy that releases at ``place_q`` (hover and grasp)."""
+        place = np.asarray(place_q, dtype=np.float64).copy()
+        return PickPlaceWaypoints(
+            idle=self.idle.copy(),
+            pick_hover=self.pick_hover.copy(),
+            pick_grasp=self.pick_grasp.copy(),
+            place_hover=place,
+            place_grasp=place.copy(),
+            lift_hover=(
+                None if self.lift_hover is None else self.lift_hover.copy()
+            ),
+            retreat=(None if self.retreat is None else self.retreat.copy()),
+        )
+
 
 @dataclass(frozen=True)
 class PickPlaceObservation:
@@ -151,6 +170,10 @@ class PickPlaceObservation:
     grasp_contact: bool | None = None
     # When True while IDLE/DONE, starts a new cycle (vision / harness).
     ball_detected: bool = False
+    # Joint-speed magnitude [rad/s]. When the FSM has a transfer settle
+    # limit, MOVE_PLACE waits until this drops so the object is released
+    # from rest on the goal segment.
+    q_speed_rad_s: float | None = None
 
 
 @dataclass(frozen=True)
@@ -202,6 +225,7 @@ class PickPlaceFSM:
         require_grasp_contact: bool = False,
         approach_joint_tol_rad: float | None = None,
         transfer_joint_tol_rad: float | None = None,
+        transfer_settle_speed_rad_s: float | None = None,
         auto_start_on_ball: bool = True,
     ) -> None:
         self._wp = waypoints
@@ -236,12 +260,21 @@ class PickPlaceFSM:
             if transfer_joint_tol_rad is not None
             else self._joint_tol
         )
+        self._transfer_settle_speed = (
+            None
+            if transfer_settle_speed_rad_s is None
+            else float(transfer_settle_speed_rad_s)
+        )
         self._state = PickPlaceState.IDLE
         self._phase_t = 0.0
         self._hold_t = 0.0
         self._retreat_cleared = False
         self._plan_edge = False
         self._cycles_completed = 0
+
+    def replace_place(self, place_q: npt.NDArray[np.float64]) -> None:
+        """Point the place phases at a newly planned release configuration."""
+        self._wp = self._wp.with_place(place_q=place_q)
 
     @property
     def state(self) -> PickPlaceState:
@@ -365,7 +398,7 @@ class PickPlaceFSM:
         if self._state == PickPlaceState.MOVE_PLACE:
             if self._reached(
                 obs.q, self._wp.place_hover, tol=self._transfer_tol
-            ):
+            ) and self._transfer_settled(obs):
                 self._enter(PickPlaceState.DESCEND_PLACE)
             # Drop detection mid-transfer.
             if (
@@ -427,6 +460,12 @@ class PickPlaceFSM:
         if state != PickPlaceState.RETREAT:
             self._retreat_cleared = False
         self._plan_edge = state in _MOTION_STATES
+
+    def _transfer_settled(self, obs: PickPlaceObservation) -> bool:
+        """True when the arm is slow enough to open the gripper."""
+        if self._transfer_settle_speed is None or obs.q_speed_rad_s is None:
+            return True
+        return float(obs.q_speed_rad_s) <= self._transfer_settle_speed
 
     def _reached(
         self,

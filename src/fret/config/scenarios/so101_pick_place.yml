@@ -26,8 +26,16 @@
     pick_grasp_configuration: [0.6388, -0.0399, 0.4973, 1.0366, 0.0508]
     lift_hover_configuration: [0.5794, -0.1921, -0.1273, 1.6542, -1.1914]
     lift_height_m: 0.08
-    # Release from hover (place_grasp == place_hover): deeper descend clips
-    # the friction pads on the bin rim under the contact-gated weld offset.
+    # Place is a vertical segment above the basket centre, not one joint
+    # pose. The segment starts place_release_clearance_m above the rim and
+    # runs upward for place_release_segment_m. The runner plans to any point
+    # on that segment and releases there. The joint vectors below are unused
+    # seeds kept so older readers still see a 5-vector.
+    place_release_clearance_m: 0.06
+    place_release_segment_m: 0.10
+    place_segment_tolerance_m: 0.005
+    place_arm_margin_m: 0.025
+    planner_rng_seed: 7
     place_hover_configuration: [-0.9237, -0.2520, 0.1023, 1.4335, -1.2533]
     place_grasp_configuration: [-0.9237, -0.2520, 0.1023, 1.4335, -1.2533]
     pick_xy: [0.200, -0.120]

@@ -48,6 +48,23 @@ class BoxObstacle:
         """Full side lengths along X, Y, Z."""
         return 2.0 * self.half_extent
 
+    def contains_point(
+        self,
+        point: npt.NDArray[np.float64],
+        *,
+        margin: float = 0.0,
+    ) -> bool:
+        """Return True when ``point`` lies inside the box expanded by ``margin``."""
+        x_m, y_m, z_m = (
+            float(v) for v in np.asarray(point, dtype=np.float64).reshape(3)
+        )
+        pad = float(margin)
+        return (
+            self.x_min - pad <= x_m <= self.x_max + pad
+            and self.y_min - pad <= y_m <= self.y_max + pad
+            and self.z_min - pad <= z_m <= self.z_max + pad
+        )
+
     def sample_surface(
         self, density: float, *, rng: np.random.Generator | None = None
     ) -> npt.NDArray[np.float64]:
@@ -93,3 +110,18 @@ class BoxObstacle:
             )
         local = np.vstack(chunks)
         return local + self.centre.reshape(1, 3)
+
+
+def points_clear_of_boxes(
+    points: npt.NDArray[np.float64],
+    boxes: list[BoxObstacle],
+    *,
+    margin: float = 0.0,
+) -> bool:
+    """Return True when no point lies inside any box expanded by ``margin``."""
+    cloud = np.asarray(points, dtype=np.float64)
+    for point in cloud:
+        for box in boxes:
+            if box.contains_point(point, margin=margin):
+                return False
+    return True
