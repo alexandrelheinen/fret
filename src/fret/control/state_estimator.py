@@ -39,7 +39,7 @@ class StateEstimator:
         self._kinematics = kinematics
         self._latest_state: RobotState | None = None
 
-        qos = QoSProfile(  # type: ignore[no-untyped-call]
+        qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
             depth=10,

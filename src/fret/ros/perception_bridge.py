@@ -257,12 +257,12 @@ class PerceptionBridgeNode:
         # Pre-sample all obstacle surfaces once (static obstacles).
         self._cloud_pts: npt.NDArray[np.float64] = self._build_cloud()
 
-        class _Node(rclpy.node.Node):
+        class _Node(rclpy.node.Node):  # type: ignore[misc]
             pass
 
         self._node: rclpy.node.Node = _Node("perception_bridge_node")
 
-        qos = QoSProfile(  # type: ignore[no-untyped-call]
+        qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -276,7 +276,7 @@ class PerceptionBridgeNode:
         self._timer = self._node.create_timer(
             1.0 / self._update_hz, self._publish_cloud
         )
-        self._node.get_logger().info(  # type: ignore[no-untyped-call]
+        self._node.get_logger().info(
             f"PerceptionBridgeNode ready: {self._cloud_pts.shape[0]} points, "
             f"{self._update_hz} Hz."
         )
@@ -328,8 +328,8 @@ class PerceptionBridgeNode:
         try:
             self._rclpy.spin(self._node)
         finally:
-            self._node.destroy_node()  # type: ignore[no-untyped-call]
-            if self._rclpy.ok():  # type: ignore[attr-defined]
+            self._node.destroy_node()
+            if self._rclpy.ok():
                 self._rclpy.shutdown()
 
 
@@ -381,11 +381,9 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     loader = rclpy.create_node("_perception_bridge_param_loader")
     loader.declare_parameter("config_path", "")
     config_path = (
-        loader.get_parameter("config_path")
-        .get_parameter_value()  # type: ignore[no-untyped-call]
-        .string_value
+        loader.get_parameter("config_path").get_parameter_value().string_value
     )
-    loader.destroy_node()  # type: ignore[no-untyped-call]
+    loader.destroy_node()
 
     node = PerceptionBridgeNode(config_path=config_path or None)
     node.spin()

@@ -64,7 +64,7 @@ class PlannerRosNode:  # pragma: no cover
         from sensor_msgs.msg import JointState
         from trajectory_msgs.msg import JointTrajectory
 
-        rclpy.node.Node.__init__(self, "planner_node")  # type: ignore[arg-type]
+        rclpy.node.Node.__init__(self, "planner_node")
 
         # ------------------------------------------------------------------
         # Parameters
@@ -128,7 +128,7 @@ class PlannerRosNode:  # pragma: no cover
         # ------------------------------------------------------------------
         # Publisher — TRANSIENT_LOCAL so late-joining controller receives it
         # ------------------------------------------------------------------
-        tl_qos = QoSProfile(  # type: ignore[no-untyped-call]
+        tl_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -157,7 +157,7 @@ class PlannerRosNode:  # pragma: no cover
         # Subscribe to /obstacle_cloud (TRANSIENT_LOCAL so a late join still
         # receives the most recent cloud published by PerceptionBridgeNode).
         # ------------------------------------------------------------------
-        tl_qos_sub = QoSProfile(  # type: ignore[no-untyped-call]
+        tl_qos_sub = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             depth=1,
@@ -176,7 +176,7 @@ class PlannerRosNode:  # pragma: no cover
         # Subscribe to /joint_states (unless start config is overridden).
         # ------------------------------------------------------------------
         if self._start_cfg is None:
-            be_qos = QoSProfile(  # type: ignore[no-untyped-call]
+            be_qos = QoSProfile(
                 reliability=ReliabilityPolicy.BEST_EFFORT,
                 depth=1,
             )
@@ -392,7 +392,10 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     import rclpy
     import rclpy.node
 
-    class _ConcretePlannerNode(PlannerRosNode, rclpy.node.Node):
+    class _ConcretePlannerNode(
+        PlannerRosNode,
+        rclpy.node.Node,  # type: ignore[misc]
+    ):
         def __init__(self) -> None:
             PlannerRosNode.__init__(self)
 
@@ -403,6 +406,6 @@ def main(args: list[str] | None = None) -> None:  # pragma: no cover
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()  # type: ignore[no-untyped-call]
-        if rclpy.ok():  # type: ignore[attr-defined]
+        node.destroy_node()
+        if rclpy.ok():
             rclpy.shutdown()

@@ -7,6 +7,17 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+### Fixed
+
+- The version string in `src/fret/package.xml` and `pyproject.toml` is
+  `2.3.0`. `rosdep` validates `package.xml` with `catkin_pkg`, which
+  accepts only `MAJOR.MINOR.PATCH`, so `2.3.0rc1` failed every ROS CI
+  job before the tests ran. The git tag stays `v2.3.0-rc.1`.
+- mypy 2.4 `--strict` without `rclpy` installed: ROS node classes that
+  subclass `rclpy.node.Node` (typed as `Any`) carry `type: ignore[misc]`,
+  and ignore comments mypy 2.4 reports as unused are gone.
+- `src/fret/hardware/cli.py` import layout matches isort 9.
+
 ## [2.3.0rc1] - 2026-11-17
 
 ### Added

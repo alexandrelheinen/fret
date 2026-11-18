@@ -1125,7 +1125,7 @@ class MuJoCoBridgeNode:
 
         self._rclpy = rclpy
 
-        class _Node(rclpy.node.Node):
+        class _Node(rclpy.node.Node):  # type: ignore[misc]
             pass
 
         self._node: rclpy.node.Node = _Node("mujoco_bridge_node")
@@ -1158,22 +1158,22 @@ class MuJoCoBridgeNode:
 
         model_name = str(
             self._node.get_parameter("model")
-            .get_parameter_value()  # type: ignore[no-untyped-call]
+            .get_parameter_value()
             .string_value
         )
         scenario_name = str(
             self._node.get_parameter("scenario")
-            .get_parameter_value()  # type: ignore[no-untyped-call]
+            .get_parameter_value()
             .string_value
         )
         self._update_rate = float(
             self._node.get_parameter("update_rate")
-            .get_parameter_value()  # type: ignore[no-untyped-call]
+            .get_parameter_value()
             .double_value
         )
         initial = (
             self._node.get_parameter("initial_joint_positions")
-            .get_parameter_value()  # type: ignore[no-untyped-call]
+            .get_parameter_value()
             .double_array_value
         )
         q0 = np.asarray(initial, dtype=np.float64)
@@ -1204,7 +1204,7 @@ class MuJoCoBridgeNode:
         if physics_config.physics_mode:
             self._core.configure_physics(physics_config)
 
-        cmd_qos = QoSProfile(  # type: ignore[no-untyped-call]
+        cmd_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
             depth=1,
@@ -1223,7 +1223,7 @@ class MuJoCoBridgeNode:
             1.0 / self._update_rate,
             self._timer_callback,
         )
-        self._node.get_logger().info(  # type: ignore[no-untyped-call]
+        self._node.get_logger().info(
             "MuJoCoBridgeNode ready: "
             f"model={model_name}, scenario={scenario_name}, "
             f"mjcf={self._core.mjcf_path.name}, "
@@ -1236,7 +1236,7 @@ class MuJoCoBridgeNode:
         data = list(getattr(msg, "data", []))
         dof = len(self._latest_cmd)
         if len(data) < dof:
-            self._node.get_logger().warning(  # type: ignore[no-untyped-call]
+            self._node.get_logger().warning(
                 f"Received /joint_commands with {len(data)} values; expected {dof}."
             )
             return
@@ -1262,8 +1262,8 @@ class MuJoCoBridgeNode:
         try:
             self._rclpy.spin(self._node)
         finally:
-            self._node.destroy_node()  # type: ignore[no-untyped-call]
-            if self._rclpy.ok():  # type: ignore[attr-defined]
+            self._node.destroy_node()
+            if self._rclpy.ok():
                 self._rclpy.shutdown()
 
 
