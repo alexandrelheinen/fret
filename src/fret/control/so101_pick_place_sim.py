@@ -28,7 +28,10 @@ from fret.control.pick_place_fsm import (
     PickPlaceState,
     PickPlaceWaypoints,
 )
-from fret.control.pick_place_planning import place_shell_from_params
+from fret.control.pick_place_planning import (
+    place_shell_from_params,
+    wall_boxes_from_params,
+)
 from fret.planning.box_obstacle import BoxObstacle, points_clear_of_boxes
 from fret.planning.goal_segment import GoalSegment, sample_polyline
 from fret.planning.segment_planner import plan_to_segment
@@ -91,6 +94,8 @@ def place_obstacles_from_params(params: dict[str, Any]) -> list[BoxObstacle]:
             z_max=rim,
         )
     )
+    # Dual Γ (or any other transfer walls) share this clearance test.
+    boxes.extend(wall_boxes_from_params(params))
     return boxes
 
 
@@ -329,7 +334,7 @@ def simulate_so101_pick_place(
         grasp_hold_s=1.6,
         release_hold_s=0.8,
         lift_height_m=lift_height_m,
-        phase_timeout_s=35.0,
+        phase_timeout_s=float(params.get("phase_timeout_s", 35.0)),
         transfer_joint_tol_rad=_PLACE_TRANSFER_TOL_RAD,
         transfer_settle_speed_rad_s=_PLACE_SETTLE_SPEED_RAD_S,
         drop_fault_enabled=True,
@@ -348,6 +353,9 @@ def simulate_so101_pick_place(
     weld_engaged = False
     transfer_armed = False
     transfer_tracker: JointPathMPCTracker | None = None
+    retreat_tracker: JointPathMPCTracker | None = None
+    place_path: list[npt.NDArray[np.float64]] | None = None
+    home_along_transfer = bool(params.get("walls"))
     release_ball_z: float | None = None
 
     dt = float(model.opt.timestep)
@@ -484,6 +492,31 @@ def simulate_so101_pick_place(
                 ctrl_accum -= _CTRL_PERIOD_S
                 q_cmd = np.asarray(
                     transfer_tracker.step(_CTRL_PERIOD_S), dtype=np.float64
+                )
+        elif (
+            cmd.state == PickPlaceState.RETREAT
+            and home_along_transfer
+            and place_path is not None
+            and len(place_path) >= 2
+            and float(np.linalg.norm(cmd.q_des - np.asarray(wp.retreat)))
+            < 1e-8
+        ):
+            # Home along the free transfer, reversed. A straight joint slew
+            # from the release pose back to the pick cuts through the Γ.
+            if retreat_tracker is None:
+                retreat_tracker = JointPathMPCTracker(
+                    list(reversed(place_path)),
+                    build_joint_mpc(5),
+                    race_speed=0.6,
+                    max_carrot_lag=0.35,
+                    goal_tol=_PLACE_TRANSFER_TOL_RAD,
+                )
+                retreat_tracker.reset(q)
+            ctrl_accum += dt
+            if ctrl_accum >= _CTRL_PERIOD_S:
+                ctrl_accum -= _CTRL_PERIOD_S
+                q_cmd = np.asarray(
+                    retreat_tracker.step(_CTRL_PERIOD_S), dtype=np.float64
                 )
         else:
             transfer_armed = False

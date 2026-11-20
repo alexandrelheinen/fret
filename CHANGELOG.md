@@ -7,6 +7,12 @@ follows [Semantic Versioning](https://semver.org/). Seeded from
 
 ## [Unreleased]
 
+### Added
+
+- SO-101 dual Γ pick-and-place (`so101_wall_maze`, SC-v20d). The same
+  friction grasp and vertical release segment as SC-v20b; the segment
+  planner treats the Γ slabs as obstacles and backs out before the drop.
+
 ### Fixed
 
 - The version string in `src/fret/package.xml` and `pyproject.toml` is
