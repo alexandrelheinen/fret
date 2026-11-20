@@ -76,21 +76,18 @@ def place_shell_from_params(params: dict[str, Any]) -> list[BoxObstacle]:
     ]
 
 
-def walls_from_scenario(
-    scenario_path: str | Path,
+def wall_boxes_from_params(
+    params: dict[str, Any],
     *,
-    inflate: bool = False,
-    include_place_shell: bool = True,
+    pad: float = 0.0,
 ) -> list[BoxObstacle]:
-    """Build wall boxes from scenario YAML (single slab or ``walls`` list).
+    """Return transfer-wall boxes from a loaded scenario parameter dict.
 
-    When ``include_place_shell`` is true (default), appends four thin place-bin
-    side slabs from ``place_xy`` / ``place_cone_*`` so planners treat the
-    receptacle as an obstacle.
+    Accepts a ``walls`` list of axis-aligned slabs, or the single-slab keys
+    ``wall_x_min`` / ``wall_x_max`` / ``wall_y_half`` / ``wall_z_max``.
+    ``pad`` expands each box in X and Y (planner inflation, not the mesh).
     """
-    p = load_scenario_parameters(scenario_path)
-    pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
-    raw = p.get("walls")
+    raw = params.get("walls")
     boxes: list[BoxObstacle] = []
     if isinstance(raw, list) and raw:
         for entry in raw:
@@ -113,17 +110,35 @@ def walls_from_scenario(
                     z_max=float(entry["z_max"]),
                 )
             )
-    elif "wall_x_min" in p:
+    elif "wall_x_min" in params:
         boxes.append(
             BoxObstacle(
-                x_min=float(p["wall_x_min"]) - pad,
-                y_min=-float(p["wall_y_half"]) - pad,
+                x_min=float(params["wall_x_min"]) - pad,
+                y_min=-float(params["wall_y_half"]) - pad,
                 z_min=0.0,
-                x_max=float(p["wall_x_max"]) + pad,
-                y_max=float(p["wall_y_half"]) + pad,
-                z_max=float(p["wall_z_max"]),
+                x_max=float(params["wall_x_max"]) + pad,
+                y_max=float(params["wall_y_half"]) + pad,
+                z_max=float(params["wall_z_max"]),
             )
         )
+    return boxes
+
+
+def walls_from_scenario(
+    scenario_path: str | Path,
+    *,
+    inflate: bool = False,
+    include_place_shell: bool = True,
+) -> list[BoxObstacle]:
+    """Build wall boxes from scenario YAML (single slab or ``walls`` list).
+
+    When ``include_place_shell`` is true (default), appends four thin place-bin
+    side slabs from ``place_xy`` / ``place_cone_*`` so planners treat the
+    receptacle as an obstacle.
+    """
+    p = load_scenario_parameters(scenario_path)
+    pad = float(p.get("wall_inflate_m", 0.0)) if inflate else 0.0
+    boxes = wall_boxes_from_params(p, pad=pad)
     if include_place_shell:
         for shell in place_shell_from_params(p):
             boxes.append(

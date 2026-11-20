@@ -17,9 +17,11 @@ from pathlib import Path
 
 _VENDORED_REL = Path("third_party/robotstudio_so101")
 _SUPPORTED_SCENES: frozenset[str] = frozenset(
-    {"so101_tabletop", "so101_pick_place"}
+    {"so101_tabletop", "so101_pick_place", "so101_wall_maze"}
 )
-_FRICTION_GRASP_SCENES: frozenset[str] = frozenset({"so101_pick_place"})
+_FRICTION_GRASP_SCENES: frozenset[str] = frozenset(
+    {"so101_pick_place", "so101_wall_maze"}
+)
 
 # Soft, high-friction pads near the Menagerie jaw tips (Ø40 mm soft pinch).
 # contype=4: collide with the ball (14) but not with arm meshes (1).
@@ -105,7 +107,8 @@ def ensure_so101_mjcf(scene: str = "so101_tabletop") -> Path:
     """Build a loadable SO-101 scene MJCF with resolved mesh paths.
 
     Args:
-        scene: Template stem (``so101_tabletop`` / ``so101_pick_place``).
+        scene: Template stem (``so101_tabletop``, ``so101_pick_place``,
+            or ``so101_wall_maze``).
 
     Returns:
         Path under ``src/fret/mjcf/.generated/``.
@@ -153,3 +156,8 @@ def ensure_so101_tabletop_mjcf() -> Path:
 def ensure_so101_pick_place_mjcf() -> Path:
     """Build the pick-and-place MJCF (SC-v20b/c, friction grasp)."""
     return ensure_so101_mjcf("so101_pick_place")
+
+
+def ensure_so101_wall_maze_mjcf() -> Path:
+    """Build the dual-Γ pick-and-place MJCF (SC-v20d, friction grasp)."""
+    return ensure_so101_mjcf("so101_wall_maze")
