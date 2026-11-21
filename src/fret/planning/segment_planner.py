@@ -168,7 +168,9 @@ def plan_to_segment(
         timeout_s: Wall-clock budget for the search.
         goal_tolerance_m: How close the end effector must lie to the
             segment to count as a goal [m].
-        step_size: Maximum joint-space step [rad].
+        step_size: Maximum joint-space step [rad], including the last
+            connection onto a goal. A longer edge is a single interpolation
+            that slews every joint at once.
         max_samples: Cap on RRT samples after the direct connections.
 
     Returns:
@@ -203,28 +205,43 @@ def plan_to_segment(
     tree: list[npt.NDArray[np.float64]] = [start_q.copy()]
     parents = [-1]
     deadline = time.monotonic() + float(timeout_s)
+    # Samples stay near the tree. A draw from the full joint range, then one
+    # long edge onto an inverse-kinematics goal, slews the shoulder while
+    # the arm is stretched out.
     for _ in range(int(max_samples)):
         if time.monotonic() > deadline:
             break
-        if goals and float(rng.random()) < 0.45:
+        if goals and float(rng.random()) < 0.65:
             sample = goals[int(rng.integers(0, len(goals)))]
         else:
-            sample = rng.uniform(limits[:, 0], limits[:, 1])
+            base = tree[int(rng.integers(0, len(tree)))]
+            sample = np.clip(
+                base + rng.normal(0.0, 0.45, size=limits.shape[0]),
+                limits[:, 0],
+                limits[:, 1],
+            )
         stacked = np.stack(tree, axis=0)
         nearest = int(np.argmin(np.linalg.norm(stacked - sample, axis=1)))
         proposed = _steer(tree[nearest], sample, float(step_size), limits)
-        if not _edge_free(tree[nearest], proposed, is_free, samples=6):
+        if not _edge_free(tree[nearest], proposed, is_free, samples=8):
             continue
         tree.append(proposed)
         parents.append(nearest)
         if _on_segment(kinematics, proposed, segment, goal_tolerance_m):
             return _reconstruct(parents, tree, len(tree) - 1)
-        if goals:
-            goal = goals[int(rng.integers(0, len(goals)))]
-            if _edge_free(proposed, goal, is_free, samples=6):
-                tree.append(goal.copy())
-                parents.append(len(tree) - 2)
-                return _reconstruct(parents, tree, len(tree) - 1)
+        if not goals:
+            continue
+        goal_stack = np.stack(goals, axis=0)
+        goal_index = int(
+            np.argmin(np.linalg.norm(goal_stack - proposed, axis=1))
+        )
+        goal = goals[goal_index]
+        if float(np.linalg.norm(goal - proposed)) > float(step_size):
+            continue
+        if _edge_free(proposed, goal, is_free, samples=8):
+            tree.append(goal.copy())
+            parents.append(len(tree) - 2)
+            return _reconstruct(parents, tree, len(tree) - 1)
 
     raise SegmentPlanningError(
         "no collision-free path reaches the goal segment "

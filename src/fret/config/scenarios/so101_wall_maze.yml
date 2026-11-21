@@ -2,7 +2,8 @@
 #
 # Same ball, bin, and release segment as SC-v20b. The walls are the two Γ
 # obstacles in mjcf/so101_wall_maze.xml. The straight lift-to-place swing
-# hits the pick-side cap; plan_to_segment has to back out and climb.
+# hits the pick-side cap; plan_to_segment climbs over it in short
+# joint steps, staying between the pick and the bin.
 
 /**:
   ros__parameters:
