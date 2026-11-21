@@ -15,3 +15,4 @@ omy_reach: omy_arm.xml
 so101_reach: so101_arm.xml
 so101_pick_place: so101_arm.xml
 so101_pick_place_cv: so101_arm.xml
+so101_wall_maze: so101_arm.xml

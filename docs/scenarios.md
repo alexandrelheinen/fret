@@ -214,6 +214,16 @@ adhesion actuator; hold uses a contact-gated equality weld (see
 **Purpose:** Overhead-camera vision pick-place (FR-SIM-19), SO-101 analogue
 of SC-v16a. ≥ 9/10 seeds reach `DONE` with the ball in the bin.
 
+### SC-v20d — SO-101 dual Γ pick-and-place
+
+**File:** `config/scenarios/so101_wall_maze.yml`
+**Model:** `so101` · **MJCF:** `mjcf/so101_wall_maze.xml`
+
+**Purpose:** Same friction-grasp pick and vertical release segment as
+SC-v20b, plus a dual Γ beside the bin. Stems and caps block the straight
+lift-to-place swing, so the segment planner climbs over the cap in
+short joint steps before the drop.
+
 ### SC-v23a — SO-101 hardware pick-and-place (v2.3.0-rc.1)
 
 **File:** `config/scenarios/so101_pick_place_hw.yml`
