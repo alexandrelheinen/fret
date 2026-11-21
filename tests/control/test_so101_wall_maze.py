@@ -13,6 +13,7 @@ from fret.control.kinematics_so101 import (
 )
 from fret.control.pick_place_fsm import PickPlaceState
 from fret.control.so101_pick_place_sim import (
+    held_point_in_transfer_corridor,
     place_obstacles_from_params,
     release_segment_from_params,
     simulate_so101_pick_place,
@@ -78,24 +79,39 @@ def test_gamma_blocks_the_direct_release() -> None:
             break
     assert blocked, "the dual Γ should cut the straight release"
 
+    def transfer_free(configuration: np.ndarray) -> bool:
+        return _clears(configuration, walls, margin) and (
+            held_point_in_transfer_corridor(configuration, kinematics, params)
+        )
+
     path = plan_to_segment(
         lift,
         segment,
         kinematics=kinematics,
-        is_free=lambda q: _clears(q, walls, margin),
+        is_free=transfer_free,
         seed=int(params["planner_rng_seed"]),
         timeout_s=8.0,
         goal_tolerance_m=float(params["place_segment_tolerance_m"]),
     )
     assert len(path) > len(direct)
+    steps = [
+        float(np.linalg.norm(path[i] - path[i - 1]))
+        for i in range(1, len(path))
+    ]
+    # The old plan's last edge was a 2 rad joint leap. Every step stays
+    # inside the planner's joint step.
+    assert max(steps) <= 0.35 + 1e-6
     held = np.array(
         [kinematics.forward_kinematics(q)[:3, 3] for q in path],
         dtype=np.float64,
     )
-    assert float(held[:, 1].min()) < float(held[0, 1]) - 0.05
+    # Climb over the cap while staying between the pick and the bin.
+    # A retreat to y ≈ −0.30 is the motion that slews the outstretched arm.
+    assert float(held[:, 1].min()) >= float(held[0, 1]) - 0.07
+    assert float(held[:, 2].max()) >= 0.24
     assert float(held[-1, 2]) > float(params["place_cone_height_m"]) + 0.05
     for configuration in path:
-        assert _clears(configuration, walls, margin)
+        assert transfer_free(configuration)
 
 
 def _min_clearance(

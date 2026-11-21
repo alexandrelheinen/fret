@@ -221,8 +221,8 @@ of SC-v16a. ≥ 9/10 seeds reach `DONE` with the ball in the bin.
 
 **Purpose:** Same friction-grasp pick and vertical release segment as
 SC-v20b, plus a dual Γ beside the bin. Stems and caps block the straight
-lift-to-place swing, so the segment planner backs out and climbs before
-the drop.
+lift-to-place swing, so the segment planner climbs over the cap in
+short joint steps before the drop.
 
 ### SC-v23a — SO-101 hardware pick-and-place (v2.3.0-rc.1)
 
